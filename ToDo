@@ -1,0 +1,4 @@
+look at the current architecture of the scala compiler (about hiding the global types)
+    https://github.com/scala/scala
+look at scala macro (lighter notations, virtualizing scala expression)
+    http://docs.scala-lang.org/overviews/macros/overview.html

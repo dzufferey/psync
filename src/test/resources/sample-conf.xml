@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<!-- DOCTYPE ... -->
+
+<system>
+  <parameters>
+    <param>
+      <name>transport layer</name>
+      <value>UDP</value>
+    </param>
+    <param>
+      <name>timeout</name>
+      <value>200</value>
+    </param>
+  </parameters>
+  <peers>
+    <replica id="0" address="localhost" port="4444"/>
+    <replica id="1" address="localhost" port="4445"/>
+    <replica id="2" address="localhost" port="4446"/>
+  </peers>
+</system>
