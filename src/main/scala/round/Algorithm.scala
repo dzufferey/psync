@@ -24,6 +24,6 @@ abstract class Algorithm extends Variables
   val spec: Spec
 
   //
-  def process(config: Map[String, Any]): Process
+  def process(id: Short, config: Map[String, String]): Process
 
 }

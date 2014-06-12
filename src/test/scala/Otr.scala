@@ -30,18 +30,17 @@ class OTR extends Algorithm {
                            ) //how to relate the invariants and the magic rounds
 
       val properties = List(
-        ("Termination", P.forall(i => decision(i).isDefined) ),
+        ("Termination", P.forall( i => decision(i).isDefined) ),
         ("Agreement",   P.forall( i => P.forall( j => decision(i).isDefined && decision(j).isDefined ==> (decision(i).get == decision(j).get) ))),
-        ("Validity",    V.exists(v => P.forall( i => init(x)(i) == v ==> P.forall( j => decision(j).isDefined ==> (decision(j).get == v) )))),
+        ("Validity",    V.exists( v => P.forall( i => init(x)(i) == v ==> P.forall( j => decision(j).isDefined ==> (decision(j).get == v) )))),
         ("Integrity",   P.exists( j => P.forall( i => decision(i).isDefined ==> (decision(i).get == init(x)(j)) ))),
         ("Irrevocability", P.forall( i => old(decision)(i).isDefined ==> (old(decision)(i) == decision(i)) ))
       )
   }
 
-  def process(config: Map[String, Any]) = new Process {
+  def process(id: Short, config: Map[String, String]) = new Process(id) {
       
-    x <~ (config("initial") match { case i: Int => i
-                                    case _ => sys.error("!!") })
+    x <~ config("initial").toInt
 
     def mmor(mailbox: Set[(Int, Process)]): Int = {
       sys.error("not yet implemented")

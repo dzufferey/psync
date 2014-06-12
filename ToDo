@@ -1,4 +1,42 @@
+nice acronym for round
+-----------
+turn the current version of OTR into something that runs:
+-first assume no fault at all, then progressively move toward something more realistic
+-think about how it integrates in a larger system
+-----------
+what about the VC generation:
+-add temporal elements to boolean 
+-virtualizing the boolean expression to generate VCs
+-smtlib interface
+-----------
 look at the current architecture of the scala compiler (about hiding the global types)
     https://github.com/scala/scala
 look at scala macro (lighter notations, virtualizing scala expression)
     http://docs.scala-lang.org/overviews/macros/overview.html
+----------
+UDP socket communication
+http://docs.oracle.com/javase/7/docs/api/java/net/DatagramSocket.html
+
+DatagramSocket datagramSocket = new DatagramSocket();
+byte[] buffer = "0123456789".getBytes();
+InetAddress receiverAddress = InetAddress.getLocalHost();
+DatagramPacket packet = new DatagramPacket(buffer, buffer.length, receiverAddress, 80);
+datagramSocket.send(packet);
+
+DatagramSocket datagramSocket = new DatagramSocket(80);
+byte[] buffer = new byte[10];
+DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+datagramSocket.setSoTimeout(1000L);
+try {
+        datagramSocket.receive(packet);
+} catch (SocketTimeoutException e) {
+        // no response received after 1 second. continue sending
+}
+//size of receive is up to the user
+----------
+network emulation: packet loss, delay, ...
+
+http://www.linuxfoundation.org/collaborate/workgroups/networking/netem
+https://gist.github.com/trongthanh/1196596
+http://www.cs.virginia.edu/~sdb7e/os_project/assignment.html
+
