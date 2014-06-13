@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <!-- DOCTYPE ... -->
 
-<system>
+<configuration>
   <parameters>
     <param>
       <name>transport layer</name>
@@ -13,8 +13,20 @@
     </param>
   </parameters>
   <peers>
-    <replica id="0" address="localhost" port="4444"/>
-    <replica id="1" address="localhost" port="4445"/>
-    <replica id="2" address="localhost" port="4446"/>
+    <replica>
+        <id>0</id>
+        <address>localhost</address>
+        <port>4444</port>
+    </replica>
+    <replica>
+        <id>1</id>
+        <address>localhost</address>
+        <port>4445</port>
+    </replica>
+    <replica>
+        <id>2</id>
+        <address>localhost</address>
+        <port>4446</port>
+    </replica>
   </peers>
-</system>
+</configuration>
