@@ -13,7 +13,7 @@ import io.netty.channel.socket._
 
 //TODO rather than DatagramPacket, there should be something more abstract (that depends on A)
 
-class PredicateLayer[A: ClassTag](self: Replica, peers: List[Replica]) extends SimpleChannelInboundHandler[DatagramPacket] {
+class PredicateLayer[A: ClassTag](self: Replica, peers: List[Replica]) extends SimpleChannelInboundHandler[Message[A]] {
 
   val n = peers.length+1
   val messages = Array.ofDim[A](n)
@@ -27,7 +27,7 @@ class PredicateLayer[A: ClassTag](self: Replica, peers: List[Replica]) extends S
   //TODO override the method to filter packets
 
   //in Netty version 5.0 will be called: channelRead0 will be messageReceived
-  override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
+  override def channelRead0(ctx: ChannelHandlerContext, pkt: Message[A]) {
     println(pkt)
   }
 

@@ -9,6 +9,9 @@ import io.netty.channel.nio._
 import io.netty.channel.socket.nio._
 import io.netty.channel.epoll._
 import io.netty.bootstrap.Bootstrap
+import java.net.InetSocketAddress
+
+import scala.pickling._
 
 //how to combine this with the late/early replica
 //the algorithm should start a server.
@@ -29,7 +32,10 @@ import io.netty.bootstrap.Bootstrap
 
 //TODO pack the message in ByteBufHolder ?
 
-class PacketServer(port: Int) {
+class PacketServer[A: SPickler: Unpickler: FastTypeTag](
+    port: Int,
+    self: Short,
+    address: Map[Short, InetSocketAddress]) {
 
   val epoll = true //TODO read from config file
 
@@ -39,20 +45,32 @@ class PacketServer(port: Int) {
       if (epoll) new EpollEventLoopGroup()
       else new NioEventLoopGroup()
     try {
-        val b = new Bootstrap();
-        b.group(group)
-          .channel(if (epoll) classOf[EpollDatagramChannel]
-                   else classOf[NioDatagramChannel])
-          .handler(new PackerServerHandler())
+      val b = new Bootstrap();
+      b.group(group)
+        .channel(if (epoll) classOf[EpollDatagramChannel]
+                 else classOf[NioDatagramChannel])
+        .handler(new PackerServerHandler()) //the default guy
 
-        b.bind(port).sync().channel().closeFuture().await()
+      val chan = b.bind(port).sync().channel()
+      val pipeline = chan.pipeline()
+      pipeline.addFirst("decoder", new MessageDecoder[A](self));
+      pipeline.addFirst("encoder", new MessageEncoder[A](address));
+      chan.closeFuture().await()
+      //closeFuture is a notification when the channel is closed
     } finally {
-        group.shutdownGracefully()
+      group.shutdownGracefully()
     }
   }
 
 }
 
+//TODO build the pipeline:
+//first the message encoder and decoder
+
+//we need the default handler that capture any message.
+//then, for each instance, we get
+//the first element in the pipeline should decode the message. the follwing can use it to quickly figure out things ...
+//question: how to do we associate id/sequence # to a particular instance/round ...
 
 class PackerServerHandler extends SimpleChannelInboundHandler[DatagramPacket] {
 

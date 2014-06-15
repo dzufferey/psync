@@ -9,7 +9,9 @@ scalaVersion := "2.11.1"
 scalacOptions in Compile ++= Seq( "-unchecked",
                                   "-deprecation",
                                   "-feature",
-                                  "-language:implicitConversions")
+                                  "-language:implicitConversions"
+//                                  "-Xlog-implicits"
+)
 
 libraryDependencies ++=  Seq(
     //"org.scala-lang" % "scala-actors" % scalaVersion.value
