@@ -1,10 +1,12 @@
 package round
 
-abstract class Algorithm extends Variables
-    with Processes
-    with Rounds
-    with Specs
+//IO is a type parameter to communicate the initial value, parameter, and callbacks
+abstract class Algorithm[IO] extends Variables[IO]
+    with Processes[IO]
+    with Rounds[IO]
+    with Specs[IO]
 {
+
 
   //round number
   val r = new GlobalVariable[Int](0)
@@ -23,7 +25,6 @@ abstract class Algorithm extends Variables
   //
   val spec: Spec
 
-  //
-  def process(id: Short, config: Map[String, String]): Process
+  def process(id: Short, io: IO): Process
 
 }

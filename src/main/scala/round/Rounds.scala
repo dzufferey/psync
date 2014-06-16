@@ -1,7 +1,7 @@
 package round
 
-trait Rounds {
-  self: Algorithm =>
+trait Rounds[IO] {
+  self: Algorithm[IO] =>
 
   abstract class Round[A] {
 

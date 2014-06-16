@@ -1,7 +1,7 @@
 package round
 
-trait Specs {
-  self: Algorithm =>
+trait Specs[IO] {
+  self: Algorithm[IO] =>
 
   //TODO
   type Formula = Boolean

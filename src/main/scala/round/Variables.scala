@@ -1,7 +1,7 @@
 package round
 
-trait Variables {
-  self: Algorithm =>
+trait Variables[IO] {
+  self: Algorithm[IO] =>
 
   //placeholder for quantifying over some domain
   class Domain[A] {

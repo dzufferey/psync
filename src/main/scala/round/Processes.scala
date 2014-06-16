@@ -1,7 +1,7 @@
 package round
 
-trait Processes {
-  self: Algorithm =>
+trait Processes[IO] {
+  self: Algorithm[IO] =>
 
   abstract class Process(val id: Short) {
   }

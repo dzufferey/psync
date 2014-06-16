@@ -1,4 +1,4 @@
-package otr
+package example
 
 import org.scalatest._
 

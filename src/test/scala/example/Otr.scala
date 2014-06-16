@@ -1,8 +1,13 @@
-package otr
+package example
 
 import round._
 
-class OTR extends Algorithm {
+abstract class OtrIO {
+  val initialValue: Int
+  def decide(value: Int): Unit
+}
+
+class OTR extends Algorithm[OtrIO] {
 
   import VarHelper._
   import SpecHelper._
@@ -37,10 +42,11 @@ class OTR extends Algorithm {
         ("Irrevocability", P.forall( i => old(decision)(i).isDefined ==> (old(decision)(i) == decision(i)) ))
       )
   }
-
-  def process(id: Short, config: Map[String, String]) = new Process(id) {
+  
+  
+  def process(id: Short, io: OtrIO) = new Process(id) {
       
-    x <~ config("initial").toInt
+    x <~ io.initialValue
 
     def mmor(mailbox: Set[(Int, Process)]): Int = {
       sys.error("not yet implemented")
@@ -60,6 +66,7 @@ class OTR extends Algorithm {
             x <~ v
             if (mailbox.filter(msg => msg._1 == v).size > 2*n/3) {
               decision <~ Some(v);
+              io.decide(v)
             }
           }
         }

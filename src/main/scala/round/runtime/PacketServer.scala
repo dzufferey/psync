@@ -35,7 +35,7 @@ import scala.pickling._
 class PacketServer[A: SPickler: Unpickler: FastTypeTag](
     port: Int,
     self: Short,
-    address: Map[Short, InetSocketAddress]) {
+    directory: Directory) {
 
   val epoll = true //TODO read from config file
 
@@ -53,8 +53,8 @@ class PacketServer[A: SPickler: Unpickler: FastTypeTag](
 
       val chan = b.bind(port).sync().channel()
       val pipeline = chan.pipeline()
-      pipeline.addFirst("decoder", new MessageDecoder[A](self));
-      pipeline.addFirst("encoder", new MessageEncoder[A](address));
+      pipeline.addFirst("decoder", new MessageDecoder[A](directory.inetToId)); //TODO the decoder might be different for different round!
+      pipeline.addFirst("encoder", new MessageEncoder[A](directory.idToInet)); //TODO the encoder might be different for different round!
       chan.closeFuture().await()
       //closeFuture is a notification when the channel is closed
     } finally {
