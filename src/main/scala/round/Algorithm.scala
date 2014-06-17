@@ -1,6 +1,7 @@
 package round
 
 //IO is a type parameter to communicate the initial value, parameter, and callbacks
+//the use of mixing composition forces elements (like variables) to be used only with the algorithm
 abstract class Algorithm[IO] extends Variables[IO]
     with Processes[IO]
     with Rounds[IO]
