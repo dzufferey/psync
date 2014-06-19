@@ -53,7 +53,11 @@ class OTR extends Algorithm[OtrIO] {
     def mmor(mailbox: Set[(Int, Process)]): Int = {
       sys.error("not yet implemented")
       0
-    } ensuring { v1 => mailbox.map(_._1).forall(v2 => mailbox.filter(_._1 == v1).size > mailbox.filter(_._1 == v2).size || v1 <= v2) }
+    } ensuring { v1 =>
+      mailbox.map(_._1).forall(v2 =>
+        mailbox.filter(_._1 == v1).size > mailbox.filter(_._1 == v2).size || v1 <= v2
+      )
+    }
 
     val rounds = List(
       new Round[Int]{

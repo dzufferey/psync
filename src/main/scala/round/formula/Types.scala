@@ -14,11 +14,10 @@ sealed abstract class Type {
 
 object Type {
 
-  var cnt = 0
+  private val counter = new java.util.concurrent.atomic.AtomicInteger()
 
-  //TODO synchronise
   def freshTypeVar = {
-    cnt += 1
+    val cnt = counter.incrementAndGet()
     TypeVariable("_" + cnt)
   }
 
@@ -46,6 +45,12 @@ case class FSet(arg: Type) extends Type {
   override def toString = "Set("+arg+")"
   def freeParameters = arg.freeParameters
   def alpha(subst: Map[TypeVariable, Type]) = FSet(arg.alpha(subst))
+}
+
+case class FOption(arg: Type) extends Type {
+  override def toString = "Option("+arg+")"
+  def freeParameters = arg.freeParameters
+  def alpha(subst: Map[TypeVariable, Type]) = FOption(arg.alpha(subst))
 }
 
 case object Wildcard extends Type {
@@ -88,8 +93,6 @@ case class TypeVariable(name: String) extends Type {
 //TODO copier for Type
 
 //TODO accessor for tuples
-
-//TODO Nothing types ?
 
 object UnitT {
   private val instance = FiniteValues(List( () ))

@@ -24,14 +24,6 @@ object Printer {
     case other => Logger.logAndThrow("smtlib", LogError, "not supported: " + other)
   }
 
-  protected def removeNeq(f: Formula): Formula = f match {
-    case Binding(b, vars, f2) => Binding(b, vars, removeNeq(f2))
-    case v @ Variable(_) => v
-    case l @ Literal(_) => l
-    case Application(Neq, args) => Application(Not, List(Application(Eq, args map removeNeq)))
-    case Application(fct, args) => Application(fct, args map removeNeq)
-  }
-
   def tpe(t: Type): String = t match {
     case Bool => "Bool"
     case Int => "Int"
@@ -78,7 +70,7 @@ object Printer {
   }
 
   def apply(implicit writer: BufferedWriter, f: Formula) {
-    printFormula(Formula.flatten(f))
+    printFormula(FormulaUtils.flatten(f))
     //writer.newLine
   }
 

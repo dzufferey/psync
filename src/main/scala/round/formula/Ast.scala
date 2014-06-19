@@ -21,25 +21,6 @@ sealed abstract class Formula {
   val boundVariables: Set[Variable]
 }
 
-object Formula {
-
-  protected def flatten1(i: InterpretedFct, f: Formula): List[Formula] = f match {
-    case Application(`i`, lst) => lst.flatMap(flatten1(i, _))
-    case Application(other, lst) => List(Application(other, lst map flatten))
-    case Binding(b, v, f) => List(Binding(b, v, flatten(f)))
-    case other => List(other)
-  }
-
-  def flatten(f: Formula): Formula = f match {
-    case Application(Plus, lst) => Application(Plus, lst.flatMap(flatten1(Plus, _)))
-    case Application(And, lst) => Application(And, lst.flatMap(flatten1(And, _)))
-    case Application(Or, lst) => Application(Or, lst.flatMap(flatten1(Or, _)))
-    case Application(other, lst) => Application(other, lst map flatten)
-    case Binding(b, v, f) => Binding(b, v, flatten(f))
-    case other => other
-  }
-}
-
 case class Literal[T <: AnyVal](value: T) extends Formula {
 
   override def toString = value.toString
@@ -85,7 +66,13 @@ sealed abstract class InterpretedFct(symbol: String, aliases: String*) extends S
     assert(allArgs.lengthCompare(tpe.arity) == 0)
     Application(this, allArgs)
   }
-  //TODO unapply //might need macro to do that ...
+  def unapply(f: Formula): Option[List[Formula]] = {
+    val t = this
+    f match {
+      case Application(`t`, args) => Some(args)
+      case _ => None
+    }
+  }
 }
 
 case object Not extends InterpretedFct("¬", "~", "!", "unary_!") {
@@ -247,3 +234,5 @@ case object Exists extends BindingType {
     ex
   }
 }
+
+//TODO extractor for SetEnum on top of comprehension

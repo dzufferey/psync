@@ -1,44 +1,39 @@
 package round.formula
 
 import round.utils.Namer
-import scala.collection.immutable.{Set => SSet}
 
 object Copier {
 
-  def Literal[T <: AnyVal](from: Formula, value: T) = {
-    val l2 = round.formula.Literal(value)
-    l2.tpe = from.tpe
-    l2
+  def Literal[T <: AnyVal](from: Formula, value: T) = from match {
+    case f @ Literal(v0) if v0 == value => f
+    case _ =>
+      val l2 = round.formula.Literal(value)
+      l2.tpe = from.tpe
+      l2
   }
 
-  def Variable(from: Formula, name: String) = {
-    val v2 = round.formula.Variable(name)
-    v2.tpe = from.tpe
-    v2
+  def Variable(from: Formula, name: String) = from match {
+    case v @ Variable(name0) if name0 == name => v
+    case _ =>
+      val v2 = round.formula.Variable(name)
+      v2.tpe = from.tpe
+      v2
   }
 
-  def Application(from: Formula, fct: Symbol, args: List[Formula]) = {
-    val a2 = round.formula.Application(fct, args)
-    a2.tpe = from.tpe
-    a2
+  def Application(from: Formula, fct: Symbol, args: List[Formula]) = from match {
+    case a @ Application(fct0, args0) if fct == fct0 && args == args0 => a
+    case _ =>
+      val a2 = round.formula.Application(fct, args)
+      a2.tpe = from.tpe
+      a2
   }
 
-  def Binding(from: Formula, bt: BindingType, vs: List[Variable], f: Formula) = {
-    val b2 = round.formula.Binding(bt, vs, f)
-    b2.tpe = from.tpe
-    b2
-  }
-
-  def Exists(from: Formula, vs: List[Variable], f: Formula) = {
-    val e2 = round.formula.Exists(vs, f)
-    e2.tpe = from.tpe
-    e2
-  }
-
-  def ForAll(from: Formula, vs: List[Variable], f: Formula) = {
-    val a2 = round.formula.ForAll(vs, f)
-    a2.tpe = from.tpe
-    a2
+  def Binding(from: Formula, bt: BindingType, vs: List[Variable], f: Formula) = from match {
+    case b @ Binding(bt0, vs0, f0) if bt0 == bt && vs0 == vs && f0 == f => b
+    case _ =>
+      val b2 = round.formula.Binding(bt, vs, f)
+      b2.tpe = from.tpe
+      b2
   }
 
 }
@@ -64,11 +59,10 @@ abstract class Transformer {
     case l @ Literal(_) => l
     case v @ Variable(_) => v
     case f @ Application(fct, args) =>
-      //val fct2 = transform(fct)
       val args2 = args map transform
-      Copier.Application(f, fct/*2*/, args2)
+      Copier.Application(f, fct, args2)
     case b @ Binding(bt, vs, f) =>
-      val vs2 = vs map transform map (_.asInstanceOf[Variable]) //this is fairly bad but ...
+      val vs2 = vs map transform map (_.asInstanceOf[Variable]) //this is bad but ...
       val f2 = transform(f)
       Copier.Binding(b, bt, vs2, f2)
   }
@@ -82,11 +76,11 @@ class Mapper(fct: Formula => Formula) extends Transformer {
 class Alpha(map: Map[Variable, Variable]) extends Transformer {
 
   lazy val from = map.keySet
-  lazy val to = SSet[Variable](map.values.toSeq :_*)
+  lazy val to = Set[Variable](map.values.toSeq :_*)
 
   override def transform(f: Formula): Formula = f match {
     case bind @ Binding(b, vars, f) =>
-      val varSet = SSet[Variable](vars:_*)
+      val varSet = Set[Variable](vars:_*)
       val captured = varSet intersect to //those are to be renamed
       val overriding = varSet intersect from
       val avoidCapture = captured.toList map (v => (v, Variable(Namer(v.name))))
@@ -132,6 +126,25 @@ object FormulaUtils {
     val free = f.freeVariables
     val mapping = (Map[Variable, Variable]() /: free)( (acc, v) => acc + (v -> Variable(Namer(v.name))))
     (alpha(mapping, f), mapping)
+  }
+
+  protected def flatten1(i: InterpretedFct, f: Formula): List[Formula] = f match {
+    case Application(`i`, lst) => lst.flatMap(flatten1(i, _))
+    case Application(other, lst) => List(Copier.Application(f, other, lst map flatten))
+    case Binding(b, v, f) => List(Copier.Binding(f, b, v, flatten(f)))
+    case other => List(other)
+  }
+
+  def flatten(f: Formula): Formula = f match {
+    case Application(Plus, lst) => Copier.Application(f, Plus, lst.flatMap(flatten1(Plus, _)))
+    case Application(Times, lst) => Copier.Application(f, Times, lst.flatMap(flatten1(Times, _)))
+    case Application(Union, lst) => Copier.Application(f, Union, lst.flatMap(flatten1(Union, _)))
+    case Application(Intersection, lst) => Copier.Application(f, Intersection, lst.flatMap(flatten1(Intersection, _)))
+    case Application(And, lst) =>Copier. Application(f, And, lst.flatMap(flatten1(And, _)))
+    case Application(Or, lst) =>Copier. Application(f, Or, lst.flatMap(flatten1(Or, _)))
+    case Application(other, lst) =>Copier. Application(f, other, lst map flatten)
+    case Binding(b, v, f) =>Copier. Binding(f, b, v, flatten(f))
+    case other => other
   }
 
 }

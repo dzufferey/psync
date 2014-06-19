@@ -5,8 +5,6 @@ import round.utils._
 import scala.sys.process._
 import java.io._
 
-import scala.collection.immutable.{Set => SSet}
-
 sealed abstract class Theory
 case object QF_LIA extends Theory
 case object LIA extends Theory
@@ -16,6 +14,7 @@ case object LRA extends Theory
 class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclaration: Boolean = true) {
 
   //TODO implicit symbol declaration, keep a local stack+set of symbol to know what is declared
+  //TODO SMTLIB does not support overloading
 
   protected var stackCounter = 0
 
@@ -28,7 +27,7 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
   protected val solverError = new BufferedReader(new InputStreamReader(solver.getErrorStream()))
 
   protected val declared = scala.collection.mutable.HashSet[Variable]()
-  protected val declStack = scala.collection.mutable.Stack(SSet[Variable]())
+  protected val declStack = scala.collection.mutable.Stack(Set[Variable]())
 
   //initialisation
   Logger("smtlib", LogDebug, "starting: " + (Array(cmd) ++ options).mkString(" "))
@@ -121,7 +120,7 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
   
   def push {
     if (implicitDeclaration) {
-      declStack.push(SSet[Variable]())
+      declStack.push(Set[Variable]())
     }
     stackCounter += 1
     toSolver("(push 1)")
