@@ -75,6 +75,7 @@ sealed abstract class Symbol {
 }
 
 case class UnInterpretedFct(symbol: String) extends Symbol {
+  override def toString = symbol
   def tpe = UnInterpreted(symbol)
 }
 
@@ -140,21 +141,21 @@ case object Gt extends InterpretedFct(">", "$greater") {
   def tpe = Int ~> Int ~> Bool
 }
 
-case object Union extends InterpretedFct("∪") {
+case object Union extends InterpretedFct("∪", "|", "union") {
   def tpe = {
     val fv = Type.freshTypeVar
     FSet(fv) ~> FSet(fv) ~> FSet(fv)
   }
 }
 
-case object Intersection extends InterpretedFct("∩") {
+case object Intersection extends InterpretedFct("∩", "intersect") {
   def tpe = {
     val fv = Type.freshTypeVar
     FSet(fv) ~> FSet(fv) ~> FSet(fv)
   }
 }
 
-case object SubsetEq extends InterpretedFct("⊆") {
+case object SubsetEq extends InterpretedFct("⊆", "subsetOf") {
   def tpe = {
     val fv = Type.freshTypeVar
     FSet(fv) ~> FSet(fv) ~> Bool
@@ -175,14 +176,14 @@ case object In extends InterpretedFct("∈", "in") {
   }
 }
 
-case object Contains extends InterpretedFct("∋") {
+case object Contains extends InterpretedFct("∋", "contains") {
   def tpe = {
     val fv = Type.freshTypeVar
     FSet(fv) ~> fv ~> Bool
   }
 }
 
-case object Cardinality extends InterpretedFct("card") {
+case object Cardinality extends InterpretedFct("card", "size") {
   def tpe = {
     val fv = Type.freshTypeVar
     FSet(fv) ~> Int
@@ -197,7 +198,10 @@ sealed abstract class BindingType
 //  or drop and put in the def
 case class Binding(binding: BindingType, vs: List[Variable], f: Formula) extends Formula {
 
-  override def toString = binding + " " + vs.mkString(""," ","") + ". " + f
+  override def toString = binding match {
+    case Exists | ForAll => binding + " " + vs.mkString(""," ","") + ". " + f
+    case Comprehension => "{ "+ vs.mkString(""," ","") + ". " + f + "}"
+  }
 
   def alpha(map: Map[Variable, Variable]) = Binding(binding, vs, f.alpha(map -- vs))
   lazy val freeVariables = f.freeVariables -- vs

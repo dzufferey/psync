@@ -5,9 +5,9 @@ trait Variables[IO] {
 
   //placeholder for quantifying over some domain
   class Domain[A] {
-    def forall(fct: A => Boolean): Boolean = sys.error("only for verification purpose, will be removed by macros")
-    def exists(fct: A => Boolean): Boolean = sys.error("only for verification purpose, will be removed by macros")
-    def filter(fct: A => Boolean): Set[A] =  sys.error("only for verification purpose, will be removed by macros")
+    def forall(fct: A => Boolean): Boolean = sys.error("only for verification purpose, removed by macros")
+    def exists(fct: A => Boolean): Boolean = sys.error("only for verification purpose, removed by macros")
+    def filter(fct: A => Boolean): Set[A] =  sys.error("only for verification purpose, removed by macros")
   }
 
   class GlobalVariable[A](default: A) {
@@ -36,9 +36,9 @@ trait Variables[IO] {
 
     implicit def getter[A](v: LocalVariable[A]): A = v.get
     
-    def init[T <: LocalVariable[_]](v: T): T = sys.error("only for verification purpose, will be reomved by macros")
+    def init[T <: LocalVariable[_]](v: T): T = sys.error("only for verification purpose, removed by macros")
 
-    def old[T <: LocalVariable[_]](v: T): T = sys.error("only for verification purpose, will be reomved by macros")
+    def old[T <: LocalVariable[_]](v: T): T = sys.error("only for verification purpose, removed by macros")
 
   }
 
