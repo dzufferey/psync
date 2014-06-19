@@ -6,14 +6,17 @@ organization := "at.ac.ist, edu.mit.csail.pac, at.ac.tuwien.forsyte"
 
 scalaVersion := "2.11.1"
 
-scalacOptions in Compile ++= Seq( "-unchecked",
-                                  "-deprecation",
-                                  "-feature",
-                                  "-language:implicitConversions"
-//                                  "-Xlog-implicits"
+scalacOptions in Compile ++= Seq(
+    "-unchecked",
+    "-deprecation",
+    "-feature",
+    "-language:implicitConversions"
+//  "-Xlog-implicits"
+//  "-Xlog-implicit-conversions"
 )
 
 libraryDependencies ++=  Seq(
+    "org.scala-lang" % "scala-reflect" % scalaVersion.value,
     //"org.scala-lang" % "scala-actors" % scalaVersion.value
     "org.scala-lang.modules" %% "scala-xml" % "1.0.2",
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.1",

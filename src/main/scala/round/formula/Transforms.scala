@@ -5,7 +5,7 @@ import scala.collection.immutable.{Set => SSet}
 
 object Copier {
 
-  def Literal[T](from: Formula, value: T) = {
+  def Literal[T <: AnyVal](from: Formula, value: T) = {
     val l2 = round.formula.Literal(value)
     l2.tpe = from.tpe
     l2

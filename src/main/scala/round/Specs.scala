@@ -1,10 +1,9 @@
 package round
 
+import round.formula._
+
 trait Specs[IO] {
   self: Algorithm[IO] =>
-
-  //TODO
-  type Formula = Boolean
 
   abstract class Spec {
     val safetyPredicate: Formula
