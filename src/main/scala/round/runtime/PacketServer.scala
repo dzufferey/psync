@@ -19,8 +19,10 @@ import scala.pickling._
 
 //TODO we don't want to do buzy waiting, need to do that asynchonously
 //try using http://netty.io/
-//for an UDP server example:
-// https://github.com/netty/netty/tree/master/example/src/main/java/io/netty/example/qotm
+//for an UDP example:
+//  https://github.com/netty/netty/tree/master/example/src/main/java/io/netty/example/qotm
+//for a TCP example:
+//  https://github.com/netty/netty/tree/master/example/src/main/java/io/netty/example/echo
 
 
 //send all in one go:
@@ -32,51 +34,58 @@ import scala.pickling._
 
 //TODO pack the message in ByteBufHolder ?
 
-class PacketServer[A: SPickler: Unpickler: FastTypeTag](
+class PacketServer(
     port: Int,
-    self: Short,
-    directory: Directory) {
+    defaultHandler: Message[ByteBuf] => Unit)
+{
 
   val epoll = true //TODO read from config file
 
-  /** this is blocking, finish when the channel is closed */
-  def run {
-    val group: EventLoopGroup =
-      if (epoll) new EpollEventLoopGroup()
-      else new NioEventLoopGroup()
+  private val group: EventLoopGroup =
+    if (epoll) new EpollEventLoopGroup()
+    else new NioEventLoopGroup()
+
+  private var chan: DatagramChannel = null
+
+  def close {
+    try {
+      if (chan != null) {
+        chan.close
+        chan = null
+      }
+    } finally {
+      group.shutdownGracefully
+    }
+  }
+
+  def start {
     try {
       val b = new Bootstrap();
       b.group(group)
         .channel(if (epoll) classOf[EpollDatagramChannel]
                  else classOf[NioDatagramChannel])
-        .handler(new PackerServerHandler()) //the default guy
+        .handler(new PackerServerHandler(defaultHandler))
 
       val chan = b.bind(port).sync().channel()
-      val pipeline = chan.pipeline()
-      pipeline.addFirst("decoder", new MessageDecoder[A](directory.inetToId)); //TODO the decoder might be different for different round!
-      pipeline.addFirst("encoder", new MessageEncoder[A](directory.idToInet)); //TODO the encoder might be different for different round!
-      chan.closeFuture().await()
-      //closeFuture is a notification when the channel is closed
+      //chan.closeFuture().await() //closeFuture is a notification when the channel is closed
     } finally {
-      group.shutdownGracefully()
+      close
     }
   }
 
 }
 
-//TODO build the pipeline:
-//first the message encoder and decoder
 
-//we need the default handler that capture any message.
-//then, for each instance, we get
-//the first element in the pipeline should decode the message. the follwing can use it to quickly figure out things ...
-//question: how to do we associate id/sequence # to a particular instance/round ...
+//defaultHanlder is responsible for releasing the ByteBuf payload
+class PackerServerHandler(defaultHandler: Message[ByteBuf] => Unit) extends SimpleChannelInboundHandler[DatagramPacket] {
 
-class PackerServerHandler extends SimpleChannelInboundHandler[DatagramPacket] {
+  //TODO where does the group comes from ?
+  val grp: Group = null
 
   //in Netty version 5.0 will be called: channelRead0 will be messageReceived
   override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
-    println(pkt)
+    val msg = GenericMessageCoder.decodeHeader(grp, pkt)
+    defaultHandler(msg)
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {

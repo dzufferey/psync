@@ -50,9 +50,14 @@ class OTR extends Algorithm[OtrIO] {
       
     x <~ io.initialValue
 
+    //min most often received
     def mmor(mailbox: Set[(Int, Process)]): Int = {
-      sys.error("not yet implemented")
-      0
+      val byValue = mailbox.groupBy(_._1)
+      val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong << 32) + v }
+      //a cleaner way of selectin the element is:
+      //  import scala.math.Ordered._
+      //  val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong, v) }
+      m._1
     } ensuring { v1 =>
       mailbox.map(_._1).forall(v2 =>
         mailbox.filter(_._1 == v1).size > mailbox.filter(_._1 == v2).size || v1 <= v2

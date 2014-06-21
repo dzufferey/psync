@@ -2,12 +2,11 @@ package round.runtime
 
 object Flags {
   final val normal = 0
-  final val error = 1
-  final val recovery = 2
-  final val kill = 3
+  final val dummy = 1 //messages inserted to force progress
+  final val error = 2
   //anything not used here may be used by the user
   //a message with a non-normal tag will be forwarded to handler rather than the normal flow of events
-  final def userDefinable(flag: Byte) = flag < 0 || flag > 3
+  final def userDefinable(flag: Byte) = flag < 0 || flag > 2
 }
 
 class Tag(val underlying: Long) extends AnyVal {

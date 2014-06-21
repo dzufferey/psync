@@ -23,8 +23,7 @@ libraryDependencies ++=  Seq(
     "org.scalatest" %% "scalatest" % "2.2.0" % "test",
     "org.scala-lang" %% "scala-pickling" % "0.9.0-SNAPSHOT",
     "org.apache.commons" % "commons-lang3" % "3.2.1",
-    //"io.netty" % "netty-all" % "4.0.20.Final"
-    "io.netty" % "netty-all" % "4.0.19.Final"
+    "io.netty" % "netty-all" % "4.0.20.Final"
 )
 
 resolvers += Resolver.sonatypeRepo("snapshots")

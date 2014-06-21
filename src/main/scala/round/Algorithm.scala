@@ -23,7 +23,7 @@ abstract class Algorithm[IO] extends Variables[IO]
   //the heard-of set
   val HO = new LocalVariable[Set[Process]](Set[Process]())
 
-  //
+  //specification of the consensus
   val spec: Spec
 
   def process(id: Short, io: IO): Process

@@ -65,13 +65,19 @@ class LockManager(self: Short) {
   //////////////////////////
 
   def defaultHandler(msg: Message[ByteBuf]) = {
+
+    //get the initial value from the msg (to avoid defaulting on -1)
+    val decoded: Message[Int] = Message.finishConversion[Int](msg)
+    val content = decoded.payload
+
     val io = new OtrIO {
-      val initialValue = -1
+      val initialValue = content
       def decide(value: Int) {
         if (value == -1) onDecideOther(None)
         else onDecideOther(Some(value.toShort))
       }
     }
+
     startConsensus(msg.instance, io, Set(msg))
   }
 
@@ -157,5 +163,52 @@ class LockManager(self: Short) {
     }
   }
 
+
+}
+
+
+class LockManagerClient(myPort: Int, remote: (String, Int)) {
+
+  val address = new InetSocketAddress(remote._1, remote._2)
+
+  private var critical = false
+
+  def nextRequest = if (critical) "release" else "acquire"
+
+  private class ReplyHandler extends SimpleChannelInboundHandler[DatagramPacket] {
+    //in Netty version 5.0 will be called: channelRead0 will be messageReceived
+    override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
+      val reply = pkt.content().toString(CharsetUtil.UTF_8).toLowerCase
+      println("request " + reply)
+      if (reply == "SUCCESS") {
+        critical = !critical
+      }
+    }
+
+  }
+    
+  def run {
+    val group = new NioEventLoopGroup(1);
+    try {
+      val b = new Bootstrap();
+      b.group(group)
+        .channel(classOf[NioDatagramChannel])
+        .handler(new ReplyHandler)
+
+      val channel = b.bind(myPort).sync().channel()
+      try {  
+        var input = ""
+        while (input != "exit") {
+          val pck = new DatagramPacket(Unpooled.copiedBuffer(nextRequest, CharsetUtil.UTF_8), address)
+          channel.writeAndFlush(pck).sync()
+          input = scala.io.StdIn.readLine()
+        }
+      } finally {
+        channel.close
+      }
+    } finally {
+      group.shutdownGracefully()
+    }
+  }
 
 }

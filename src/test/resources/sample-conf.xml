@@ -15,17 +15,17 @@
   <peers>
     <replica>
         <id>0</id>
-        <address>localhost</address>
+        <address>127.0.0.1</address>
         <port>4444</port>
     </replica>
     <replica>
         <id>1</id>
-        <address>localhost</address>
+        <address>127.0.0.1</address>
         <port>4445</port>
     </replica>
     <replica>
         <id>2</id>
-        <address>localhost</address>
+        <address>127.0.0.1</address>
         <port>4446</port>
     </replica>
   </peers>

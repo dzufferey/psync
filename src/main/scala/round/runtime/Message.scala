@@ -51,6 +51,14 @@ class Message[A: SPickler: FastTypeTag](
 
 object Message {
 
+  def getTag(buffer: ByteBuffer): Tag = {
+    new Tag(buffer.getLong(0))
+  }
+  
+  def getTag(buffer: ByteBuf): Tag = {
+    new Tag(buffer.getLong(0))
+  }
+
   /** Deserialize the data contained in a ByteBuffer */
   def fromByteBuffer[A: SPickler: Unpickler: FastTypeTag](
         sender: Short,
@@ -78,6 +86,28 @@ object Message {
     buffer.readBytes(bytes)
     val payload = BinaryPickle(bytes).unpickle[A]
     new Message(payload, sender, receiver, tag)
+  }
+
+  def wrapByteBuf(
+        sender: Short,
+        receiver: Short,
+        buffer: ByteBuf
+      ): Message[ByteBuf] = {
+    val tag = new Tag(buffer.readLong())
+    val senderId = buffer.readShort()
+    val length = buffer.readInt()
+    val payload = buffer.slice(buffer.readerIndex, length)
+    new Message[ByteBuf](payload, sender, receiver, tag)
+  }
+
+  def finishConversion[A: SPickler: Unpickler: FastTypeTag](
+        msg: Message[ByteBuf]
+      ): Message[A] = {
+    val length = msg.payload.readableBytes()
+    val bytes = Array.ofDim[Byte](length)
+    msg.payload.readBytes(bytes)
+    val payload = BinaryPickle(bytes).unpickle[A]
+    new Message(payload, msg.senderId, msg.receiverId, msg.tag)
   }
 
 }

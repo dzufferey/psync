@@ -37,3 +37,15 @@ class MessageEncoder[A: SPickler: FastTypeTag](address: Short => InetSocketAddre
 
 }
 
+object GenericMessageCoder {
+
+  def decodeHeader(grp: Group, pkt: DatagramPacket): Message[ByteBuf] = {
+    val src = grp.inetToId(pkt.sender)
+    val dst = grp.inetToId(pkt.recipient) //make sure it is self
+    val msg = Message.wrapByteBuf(src, dst, pkt.content)
+    msg.payload.retain
+    pkt.release
+    msg
+  }
+
+}

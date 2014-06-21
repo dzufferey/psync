@@ -2,8 +2,6 @@ package round.runtime
 
 import scala.xml._
 
-case class Replica(id: Short, address: String, port: Int)
-
 object Config {
 
   private def parseReplica(e: Node) = {
