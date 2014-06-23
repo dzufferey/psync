@@ -6,13 +6,15 @@ import io.netty.buffer.ByteBuf
 class RunTime[IO](val alg: Algorithm[IO]) {
 
   //TODO something to keep track of variables provided by our system
-  //-r: ound number ...
+  //-r: round number ...
   //-n: number of processes
   //-HO: heard-of
 
-  def startInstance(instanceId: Short,
-                    io: IO,
-                    messages: Set[Message[ByteBuf]] = Set.empty) {
+  def startInstance(
+      instanceId: Short,
+      io: IO,
+      messages: Set[Message[ByteBuf]] = Set.empty)
+  {
     sys.error("TODO")
   }
 

@@ -13,9 +13,10 @@ import java.net.InetSocketAddress
 
 import scala.pickling._
 
-//how to combine this with the late/early replica
 //the algorithm should start a server.
-//upon reception of a message, the service must decide how to dispatch the message: round (which one), recovery, ??
+//upon reception of a message, the service must decide how to dispatch the message:
+//-a running instance
+//-something else: ask the user
 
 //TODO we don't want to do buzy waiting, need to do that asynchonously
 //try using http://netty.io/
@@ -24,15 +25,7 @@ import scala.pickling._
 //for a TCP example:
 //  https://github.com/netty/netty/tree/master/example/src/main/java/io/netty/example/echo
 
-
-//send all in one go:
-//http://normanmaurer.me/presentations/2014-facebook-eng-netty/slides.html#28.0
-//to send use: Channel.write(msg, Channel.voidPromise())
-//this does not create a Future, save some reseources
-
 //for rounds we can add/remove handler ?
-
-//TODO pack the message in ByteBufHolder ?
 
 class PacketServer(
     port: Int,

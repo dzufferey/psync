@@ -1,5 +1,6 @@
 package round.formula
 
+import round.utils.Namer
 
 object Simplify {
 
@@ -51,7 +52,25 @@ object Simplify {
 
   //makes all the bound variables different
   def boundVarUnique(f: Formula): Formula = {
-    sys.error("TODO")
+    def s(subst: Map[String, String], v: Variable): Variable = {
+      if (subst contains v.name) Copier.Variable(v, subst(v.name))
+      else v
+    }
+    def process(f: Formula, bound: Set[String], subst: Map[String, String]): Formula = f match {
+      case Binding(bt, vs, f2) =>
+        val masking = vs.filter(v => bound(v.name))
+        val subst2 = subst ++ masking.map( v => (v.name, Namer(v.name)) )
+        val vs2 = vs.map(s(subst2,_))
+        val bound2 = vs2.foldLeft(bound)(_ + _.name)
+        Copier.Binding(f, bt, vs2, process(f2, bound2, subst2))
+      case Application(fct, args) => 
+        Copier.Application(f, fct, args.map(process(_, bound, subst)))
+      case v @ Variable(_) => s(subst, v)
+      case other => other
+    }
+    process(f,
+            Set.empty[String],
+            Map.empty[String, String])
   }
 
   

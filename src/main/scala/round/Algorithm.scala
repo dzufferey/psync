@@ -8,7 +8,6 @@ abstract class Algorithm[IO] extends Variables[IO]
     with Specs[IO]
 {
 
-
   //round number
   val r = new GlobalVariable[Int](0)
   
@@ -26,6 +25,19 @@ abstract class Algorithm[IO] extends Variables[IO]
   //specification of the consensus
   val spec: Spec
 
-  def process(id: Short, io: IO): Process
+  def process(io: IO): Process
+
+
+  //////////////////
+  // util methods //
+  //////////////////
+  import io.netty.buffer.{ByteBuf, PooledByteBufAllocator}
+
+  //private val maxSize = 4096// 65536-1
+  private val allocator = new PooledByteBufAllocator(true)
+
+  protected final def getBuffer: ByteBuf = {
+    allocator.buffer()
+  }
 
 }

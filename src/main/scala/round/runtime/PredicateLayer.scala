@@ -13,7 +13,12 @@ import io.netty.channel.socket._
 //this assumes no network packet duplication
 //TODO: put into the array at the ID to deal with duplication
 
-class PredicateLayer(grp: Group, instance: Short) extends SimpleChannelInboundHandler[DatagramPacket](false) {
+class PredicateLayer(
+      grp: Group,
+      instance: Short,
+      outChan: Channel
+    ) extends SimpleChannelInboundHandler[DatagramPacket](false)
+{
 
   val n = grp.replicas.length
   var currentRound = 0
@@ -24,6 +29,19 @@ class PredicateLayer(grp: Group, instance: Short) extends SimpleChannelInboundHa
 
   val lock = new scala.concurrent.Lock
 
+
+  def sendToOther(pkts: Seq[DatagramPacket]) {
+    for (pkt <- pkts) {
+      outChan.write(pkt, outChan.voidPromise())
+    }
+    outChan.flush
+  }
+  
+  def sendToSelf(pkt: DatagramPacket) {
+    normalReceive(pkt)
+  }
+
+
   private def clear {
     received = 0
     for (i <- 0 until n)
@@ -31,12 +49,14 @@ class PredicateLayer(grp: Group, instance: Short) extends SimpleChannelInboundHa
   }
   
   private def deliver {
+    val toDeliver = messages.slice(0, received)
+    clear
+    currentRound += 1
     //TODO need to
-    //- pair with id an put in a set
-    //- clear (with a less aggressive sync this allows the next guy to proceed)
-    //- get the round
-    //- unpickle the messages (and release the buffer)
     //- push to the layer above
+    //  (- get the round)
+    //  (- unpickle the messages (and release the buffer))
+    //with a less aggressive sync this allows the next guy to proceed
   }
 
   private def normalReceive(pkt: DatagramPacket) {

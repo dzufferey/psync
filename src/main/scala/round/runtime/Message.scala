@@ -9,7 +9,8 @@ import scala.pickling._
 import binary._
 // http://stackoverflow.com/questions/18725699/scala-pickling-and-type-parameters
 
-//TODO extends ByteBufHolder ?
+//TODO simplify to be just a ByteBufHolder ?
+
 class Message[A: SPickler: FastTypeTag](
     val payload: A,
     val senderId: Short,

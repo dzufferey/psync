@@ -46,7 +46,7 @@ class OTR extends Algorithm[OtrIO] {
   }
   
   
-  def process(id: Short, io: OtrIO) = new Process(id) {
+  def process(io: OtrIO) = new Process { //(id) {
       
     x <~ io.initialValue
 
