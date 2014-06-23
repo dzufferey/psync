@@ -58,3 +58,15 @@ class Tag(val underlying: Long) extends AnyVal {
   }
 
 }
+
+object Tag {
+
+  def apply(instance: Short, round: Int) = {
+    new Tag(0).setInstanceNbr(instance).setRoundNbr(round)
+  }
+
+  def apply(instance: Short, round: Int, flag: Byte, code: Byte) = {
+    new Tag(0).setFlag(flag).setCode(code).setInstanceNbr(instance).setRoundNbr(round)
+  }
+
+}

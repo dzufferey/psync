@@ -157,8 +157,13 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
 
 object Solver {
 
+  def setCmd(cmd: Array[String]) = {
+    solver = cmd.head
+    solverArg = cmd.tail
+  }
+
   var solver = "z3"
-  val solverArg = Array("-smt2", "-in")
+  var solverArg = Array("-smt2", "-in")
 
   def apply(th: Theory, implicitDeclaration: Boolean = true) = {
     new Solver(th, solver, solverArg, implicitDeclaration)

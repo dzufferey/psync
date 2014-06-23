@@ -43,7 +43,7 @@ class LockManager(self: Short) {
     client.reply(decision)
   }
 
-  private def startConsensus(expectedInstance: Short, io: OtrIO, msgs: Set[Message[ByteBuf]] = Set.empty) {
+  private def startConsensus(expectedInstance: Short, io: OtrIO, msgs: Set[Message] = Set.empty) {
     //enter critical section
     semaphore.acquire
     //check instanceNbr
@@ -64,11 +64,10 @@ class LockManager(self: Short) {
   // setup, shutdown, ... //
   //////////////////////////
 
-  def defaultHandler(msg: Message[ByteBuf]) = {
+  def defaultHandler(msg: Message) = {
 
     //get the initial value from the msg (to avoid defaulting on -1)
-    val decoded: Message[Int] = Message.finishConversion[Int](msg)
-    val content = decoded.payload
+    val content: Int = msg.getContent[Int]
 
     val io = new OtrIO {
       val initialValue = content

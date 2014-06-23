@@ -13,11 +13,6 @@ import java.net.InetSocketAddress
 
 import scala.pickling._
 
-//the algorithm should start a server.
-//upon reception of a message, the service must decide how to dispatch the message:
-//-a running instance
-//-something else: ask the user
-
 //TODO we don't want to do buzy waiting, need to do that asynchonously
 //try using http://netty.io/
 //for an UDP example:
@@ -25,12 +20,13 @@ import scala.pickling._
 //for a TCP example:
 //  https://github.com/netty/netty/tree/master/example/src/main/java/io/netty/example/echo
 
-//for rounds we can add/remove handler ?
-
 class PacketServer(
     port: Int,
-    defaultHandler: Message[ByteBuf] => Unit)
+    initGroup: Group,
+    defaultHandler: Message => Unit)
 {
+
+  val directory = new Directory(initGroup)
 
   val epoll = true //TODO read from config file
 
@@ -38,7 +34,8 @@ class PacketServer(
     if (epoll) new EpollEventLoopGroup()
     else new NioEventLoopGroup()
 
-  private var chan: DatagramChannel = null
+  private var chan: Channel = null
+  def channel: Channel = chan
 
   def close {
     try {
@@ -57,27 +54,39 @@ class PacketServer(
       b.group(group)
         .channel(if (epoll) classOf[EpollDatagramChannel]
                  else classOf[NioDatagramChannel])
-        .handler(new PackerServerHandler(defaultHandler))
+        .handler(new PackerServerHandler(directory, defaultHandler))
 
-      val chan = b.bind(port).sync().channel()
+      chan = b.bind(port).sync().channel()
       //chan.closeFuture().await() //closeFuture is a notification when the channel is closed
     } finally {
       close
     }
   }
 
+  def registerInstance(instanceHandler: PredicateLayer) {
+    val p = channel.pipeline()
+    p.addFirst(instanceHandler.instance.toString, instanceHandler)
+  }
+  
+  def terminateInstance(inst: Short) {
+    channel.pipeline().remove(inst.toString)
+  }
+
 }
 
 
 //defaultHanlder is responsible for releasing the ByteBuf payload
-class PackerServerHandler(defaultHandler: Message[ByteBuf] => Unit) extends SimpleChannelInboundHandler[DatagramPacket] {
-
-  //TODO where does the group comes from ?
-  val grp: Group = null
+class PackerServerHandler(
+    dir: Directory,
+    defaultHandler: Message => Unit
+  ) extends SimpleChannelInboundHandler[DatagramPacket](false) {
 
   //in Netty version 5.0 will be called: channelRead0 will be messageReceived
   override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
-    val msg = GenericMessageCoder.decodeHeader(grp, pkt)
+    val src = dir.inetToId(pkt.sender)
+    val dst = dir.inetToId(pkt.recipient)
+    val buf = pkt.content
+    val msg = Message.wrapByteBuf(src, dst, buf)
     defaultHandler(msg)
   }
 

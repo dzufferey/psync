@@ -1,8 +1,10 @@
 package round.runtime
 
 import round._
+import Algorithm._
 
 import scala.reflect.ClassTag
+import io.netty.buffer.ByteBuf
 import io.netty.channel._
 import io.netty.channel.socket._
 
@@ -11,12 +13,13 @@ import io.netty.channel.socket._
 
 //first version that only uses the tag, just check the round# and the #msg received
 //this assumes no network packet duplication
-//TODO: put into the array at the ID to deal with duplication
+//TODO: have an array of boolean indexeb by ID to deal with duplication
 
 class PredicateLayer(
       grp: Group,
-      instance: Short,
-      outChan: Channel
+      val instance: Short,
+      outChan: Channel,
+      proc: ProcessWrapper
     ) extends SimpleChannelInboundHandler[DatagramPacket](false)
 {
 
@@ -30,36 +33,38 @@ class PredicateLayer(
   val lock = new scala.concurrent.Lock
 
 
-  def sendToOther(pkts: Seq[DatagramPacket]) {
+  def send {
+    val myAddress = grp.idToInet(grp.self)
+    val pkts = toPkts(proc.send)
     for (pkt <- pkts) {
-      outChan.write(pkt, outChan.voidPromise())
+      if (pkt.recipient() == myAddress) {
+        normalReceive(pkt)
+      } else {
+        outChan.write(pkt, outChan.voidPromise())
+      }
     }
     outChan.flush
   }
-  
-  def sendToSelf(pkt: DatagramPacket) {
-    normalReceive(pkt)
-  }
 
 
-  private def clear {
+  protected def clear {
     received = 0
     for (i <- 0 until n)
       messages(i) = null
   }
   
-  private def deliver {
+  protected def deliver {
     val toDeliver = messages.slice(0, received)
     clear
     currentRound += 1
-    //TODO need to
-    //- push to the layer above
-    //  (- get the round)
-    //  (- unpickle the messages (and release the buffer))
-    //with a less aggressive sync this allows the next guy to proceed
+    //push to the layer above
+    val msgs = fromPkts(toDeliver)
+    proc.update(msgs)
+    //start the next round (if has not exited)
+    send
   }
 
-  private def normalReceive(pkt: DatagramPacket) {
+  protected def normalReceive(pkt: DatagramPacket) {
     messages(received) = pkt
     received += 1
     if (received == n) {
@@ -72,12 +77,13 @@ class PredicateLayer(
     val round = tag.roundNbr
     lock.acquire //TODO less aggressive synchronization
     try {
+      //TODO take round overflow into account
       if(round == currentRound) {
         normalReceive(pkt)
       } else if (round > currentRound) {
         //we are late, need to catch up
         for (i <- currentRound until round) {
-          deliver
+          deliver //TODO skip the sending ?
         }
         //then back to normal
         normalReceive(pkt)
@@ -92,6 +98,26 @@ class PredicateLayer(
   //in Netty version 5.0 will be called: channelRead0 will be messageReceived
   override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
     receive(pkt)
+  }
+    
+  protected def toPkts(msgs: Seq[(ByteBuf,ProcessID)]): Seq[DatagramPacket] = {
+    val src = grp.idToInet(grp.self)
+    val tag = Tag(instance, currentRound)
+    val pkts = msgs.map{ case (buf,dst) =>
+      val dst2 = grp.idToInet(dst)
+      buf.setLong(0, tag.underlying)
+      new DatagramPacket(buf, dst2, src)
+    }
+    pkts
+  }
+
+  protected def fromPkts(pkts: Seq[DatagramPacket]): Seq[(ByteBuf, ProcessID)] = {
+    val msgs = pkts.map( pkt => {
+      val src = grp.inetToId(pkt.sender)
+      val buf = pkt.content
+      (buf, src)
+    })
+    msgs
   }
 
 }

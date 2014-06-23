@@ -25,6 +25,12 @@ object Macros {
 
   def f(e: Boolean): Formula = macro Impl.formula
 
+  //TODO process:
+  //  -inline and unpack the local/global variables
+  //  -rewrite the read and assignements of Variables
+  //  -incrementRound / currentRound
+  //TODO round: getBuffer from the Algorithm
+
   //TODO what about the code inside the Round
   //-need to locate the send and update part
   //-make it SSA

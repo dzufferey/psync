@@ -1,6 +1,8 @@
 package round.runtime
 
-import java.net.DatagramPacket
+import round.Algorithm._
+
+import io.netty.channel.socket.DatagramPacket
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import io.netty.buffer.ByteBuf
@@ -11,41 +13,31 @@ import binary._
 
 //TODO simplify to be just a ByteBufHolder ?
 
-class Message[A: SPickler: FastTypeTag](
-    val payload: A,
-    val senderId: Short,
-    val receiverId: Short,
+class Message(
+    val payload: ByteBuf,
+    val senderId: ProcessID,
+    val receiverId: ProcessID,
     val tag: Tag) {
 
-
   def instance = tag.instanceNbr
-
   def round = tag.roundNbr
-
-  /** Serialize data and put them in a ByteBuffer */
-  def toByteBuffer(direct: Boolean = true) = {
-    val bytes0 = payload.pickle.value
-    val length = bytes0.length
-    val size = length + 4 + tag.size
-    val buffer =
-      if (direct) ByteBuffer.allocateDirect(size)
-      else ByteBuffer.allocate(size)
-    buffer.putLong(tag.underlying)
-    buffer.putInt(length.toShort)
-    buffer.put(bytes0)
-    buffer
+  
+  def repack(grp: Group, tag: Tag = new Tag(0)): DatagramPacket = {
+    val src = grp.idToInet(senderId)
+    val dst = grp.idToInet(receiverId)
+    payload.setLong(0, tag.underlying)
+    new DatagramPacket(payload, dst, src)
   }
 
-  /** Serialize to a netty ByteBuf, returns the number of bytes written */
-  def toByteBuf(out: ByteBuf) = {
-    val bytes0 = payload.pickle.value
-    val length = bytes0.length
-    out.writeLong(tag.underlying)
-    out.writeInt(length.toShort)
-    out.writeBytes(bytes0)
-    length + 4 + tag.size
+  def getContent[A: SPickler: Unpickler: FastTypeTag]: A = {
+    val idx: Int = payload.readerIndex()
+    val length: Int = payload.readableBytes()
+    val bytes = Array.ofDim[Byte](length)
+    payload.readBytes(bytes)
+    payload.readerIndex(idx)
+    val converted = BinaryPickle(bytes).unpickle[A]
+    converted
   }
-
 
 }
 
@@ -60,55 +52,17 @@ object Message {
     new Tag(buffer.getLong(0))
   }
 
-  /** Deserialize the data contained in a ByteBuffer */
-  def fromByteBuffer[A: SPickler: Unpickler: FastTypeTag](
-        sender: Short,
-        receiver: Short,
-        buffer: ByteBuffer
-      ): Message[A] = {
-    val tag = new Tag(buffer.getLong())
-    val length = buffer.getInt()
-    val bytes = Array.ofDim[Byte](length)
-    buffer.get(bytes)
-    val payload = BinaryPickle(bytes).unpickle[A]
-    new Message(payload, sender, receiver, tag)
-  }
-  
-  /** Deserialize the data contained in a ByteBuf */
-  def fromByteBuf[A: SPickler: Unpickler: FastTypeTag](
-        sender: Short,
-        receiver: Short,
-        buffer: ByteBuf
-      ): Message[A] = {
-    val tag = new Tag(buffer.readLong())
-    val senderId = buffer.readShort()
-    val length = buffer.readInt()
-    val bytes = Array.ofDim[Byte](length)
-    buffer.readBytes(bytes)
-    val payload = BinaryPickle(bytes).unpickle[A]
-    new Message(payload, sender, receiver, tag)
-  }
-
   def wrapByteBuf(
-        sender: Short,
-        receiver: Short,
+        sender: ProcessID,
+        receiver: ProcessID,
         buffer: ByteBuf
-      ): Message[ByteBuf] = {
+      ): Message = {
     val tag = new Tag(buffer.readLong())
     val senderId = buffer.readShort()
     val length = buffer.readInt()
     val payload = buffer.slice(buffer.readerIndex, length)
-    new Message[ByteBuf](payload, sender, receiver, tag)
+    new Message(payload, sender, receiver, tag)
   }
 
-  def finishConversion[A: SPickler: Unpickler: FastTypeTag](
-        msg: Message[ByteBuf]
-      ): Message[A] = {
-    val length = msg.payload.readableBytes()
-    val bytes = Array.ofDim[Byte](length)
-    msg.payload.readBytes(bytes)
-    val payload = BinaryPickle(bytes).unpickle[A]
-    new Message(payload, msg.senderId, msg.receiverId, msg.tag)
-  }
 
 }

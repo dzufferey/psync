@@ -1,5 +1,7 @@
 package round
 
+import Algorithm._
+
 trait Variables[IO] {
   self: Algorithm[IO] =>
 
@@ -10,12 +12,12 @@ trait Variables[IO] {
     def filter(fct: A => Boolean): Set[A] =  sys.error("only for verification purpose, removed by macros")
   }
 
-  class GlobalVariable[A](default: A) {
-    var value = default
+  class GlobalVariable[A](val init: A) {
+    var value = init
   }
 
 
-  class LocalVariable[A](default: A) {
+  class LocalVariable[A](val default: A) {
     private var value = default
 
     def <~(v: A) {
@@ -26,15 +28,14 @@ trait Variables[IO] {
 
     override def equals(any: Any) = value == any
 
-    def apply(p: Process): A = get //TODO
-
-    //TODO use implicit to index within a process def
+    def apply(p: ProcessID): A = get //TODO
 
   }
 
   object VarHelper {
 
     implicit def getter[A](v: LocalVariable[A]): A = v.get
+    implicit def getter[A](v: GlobalVariable[A]): A = v.value
     
     def init[T <: LocalVariable[_]](v: T): T = sys.error("only for verification purpose, removed by macros")
 

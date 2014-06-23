@@ -1,10 +1,14 @@
 package round
 
+object Algorithm {
+  type ProcessID = Short
+}
+
+import Algorithm._
+
 //IO is a type parameter to communicate the initial value, parameter, and callbacks
 //the use of mixing composition forces elements (like variables) to be used only with the algorithm
 abstract class Algorithm[IO] extends Variables[IO]
-    with Processes[IO]
-    with Rounds[IO]
     with Specs[IO]
 {
 
@@ -12,20 +16,20 @@ abstract class Algorithm[IO] extends Variables[IO]
   val r = new GlobalVariable[Int](0)
   
   //the univers of processes
-  val P = new Domain[Process]
+  val P = new Domain[ProcessID]
   //and sets of Process
-  val S = new Domain[Set[Process]]
+  val S = new Domain[Set[ProcessID]]
 
   //number of processes
   val n = new LocalVariable[Int](0)
 
   //the heard-of set
-  val HO = new LocalVariable[Set[Process]](Set[Process]())
+  val HO = new LocalVariable[Set[ProcessID]](Set[ProcessID]())
 
   //specification of the consensus
   val spec: Spec
 
-  def process(io: IO): Process
+  def process(id: ProcessID, io: IO): Process
 
 
   //////////////////

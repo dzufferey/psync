@@ -1,29 +1,76 @@
 package round.runtime
 
 import round._
+import Algorithm._
 import io.netty.buffer.ByteBuf
+
+class ProcessWrapper(p:Process) {
+  def send(): Seq[(ByteBuf,ProcessID)] = p.send.toSeq
+  def update(msgs: Seq[(ByteBuf,ProcessID)]) = p.update(msgs.toSet)
+}
+
 
 class RunTime[IO](val alg: Algorithm[IO]) {
 
-  //TODO something to keep track of variables provided by our system
-  //-r: round number ...
-  //-n: number of processes
-  //-HO: heard-of
+  private var srv: Option[PacketServer] = None
 
+  /** Start an instance of the algorithm. */
   def startInstance(
       instanceId: Short,
       io: IO,
-      messages: Set[Message[ByteBuf]] = Set.empty)
+      messages: Set[Message] = Set.empty)
   {
-    sys.error("TODO")
+    srv match {
+      case Some(s) =>
+        //an instance is actually encapsulated by one process
+        val grp = s.directory.group
+        val process = alg.process(grp.self, io)
+        val wrapper = new ProcessWrapper(process)
+        val predicate = new PredicateLayer(grp, instanceId, s.channel, wrapper)
+        s.registerInstance(predicate)
+        //first round
+        predicate.send
+        //msg that are already received
+        for(m <- messages) {
+          val pkt = m.repack(grp, Tag(instanceId, 1))
+          predicate.receive(pkt)
+        }
+      case None =>
+        sys.error("service not running")
+    }
   }
 
-  def startService(defaultHandler: Message[ByteBuf] => Unit) {
-    sys.error("TODO")
+  /** Start the service that ... */
+  def startService(
+    defaultHandler: Message => Unit,
+    configFile: String = "conf.xml",
+    additionalOpt: Map[String, String] = Map.empty
+  ) {
+    if (srv.isDefined) {
+      //already running
+      return
+    }
+
+    //parse config
+    val (peers,param1) = Config.parse(configFile)
+    val param = param1 ++ additionalOpt
+
+    //create the group
+    val me = param("id").toShort
+    val grp = Group(me, peers)
+
+    //start the server
+    val port = grp.get(me).port
+    srv = Some(new PacketServer(port, grp, defaultHandler))
   }
 
   def shutdown {
-    sys.error("TODO")
+    srv match {
+      case Some(s) => s.close
+      case None =>
+    }
+    srv = None
   }
+
 
 }

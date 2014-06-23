@@ -1,6 +1,7 @@
 package example
 
 import round._
+import round.Algorithm._
 import round.formula._
 import round.macros.Macros._
 
@@ -46,12 +47,12 @@ class OTR extends Algorithm[OtrIO] {
   }
   
   
-  def process(io: OtrIO) = new Process { //(id) {
+  def process(id: ProcessID, io: OtrIO) = new Process(id) {
       
     x <~ io.initialValue
 
     //min most often received
-    def mmor(mailbox: Set[(Int, Process)]): Int = {
+    def mmor(mailbox: Set[(Int, ProcessID)]): Int = {
       val byValue = mailbox.groupBy(_._1)
       val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong << 32) + v }
       //a cleaner way of selectin the element is:
@@ -64,14 +65,15 @@ class OTR extends Algorithm[OtrIO] {
       )
     }
 
-    val rounds = List(
+    type T = Int
+    val rounds = Array(
       new Round[Int]{
 
-        def send(): Set[(Int, Process)] = {
+        def send(): Set[(Int, ProcessID)] = {
           broadcast(x) //macro for (x, All)
         }
 
-        def update(mailbox: Set[(Int, Process)]) {
+        def update(mailbox: Set[(Int, ProcessID)]) {
           if (mailbox.size > 2*n/3) {
             val v = mmor(mailbox)
             x <~ v
