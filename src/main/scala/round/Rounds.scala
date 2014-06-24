@@ -13,7 +13,7 @@ abstract class Round[A: SPickler: Unpickler: FastTypeTag] {
 
   def update(mailbox: Set[(A, ProcessID)]): Unit
 
-  final protected def broadcast(msg: A): Set[(A, ProcessID)] = {
+  protected def broadcast(msg: A): Set[(A, ProcessID)] = {
     sys.error("not yet implemented")
   }
 
@@ -21,7 +21,7 @@ abstract class Round[A: SPickler: Unpickler: FastTypeTag] {
   // util methods //
   //////////////////
 
-  private def getBuffer(): ByteBuf = {
+  protected def getBuffer(): ByteBuf = {
     sys.error("have macro fill the gap ...")
     //use the getBuffer from the Algorithm context
   }

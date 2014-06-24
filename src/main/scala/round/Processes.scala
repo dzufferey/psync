@@ -26,7 +26,7 @@ abstract class Process(val id: ProcessID) {
     sys.error("have macro fill the gap ...")
   }
 
-  private final def currentRound: Round[T] = {
+  protected def currentRound: Round[T] = {
     sys.error("have macro fill the gap ...")
     //rounds(r)
   }

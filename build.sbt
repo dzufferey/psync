@@ -10,9 +10,10 @@ scalacOptions in Compile ++= Seq(
     "-unchecked",
     "-deprecation",
     "-feature",
-    "-language:implicitConversions"
-//  "-Xlog-implicits"
-//  "-Xlog-implicit-conversions"
+    "-language:implicitConversions"//,
+//    "-Ymacro-debug-lite"
+//    "-Xlog-implicits"
+//    "-Xlog-implicit-conversions"
 )
 
 libraryDependencies ++=  Seq(

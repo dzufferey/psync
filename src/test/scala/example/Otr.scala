@@ -47,27 +47,28 @@ class OTR extends Algorithm[OtrIO] {
   }
   
   
-  def process(id: ProcessID, io: OtrIO) = new Process(id) {
+  def process(id: ProcessID, io: OtrIO) = p(new Process(id) {
       
     x <~ io.initialValue
 
-    //min most often received
-    def mmor(mailbox: Set[(Int, ProcessID)]): Int = {
-      val byValue = mailbox.groupBy(_._1)
-      val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong << 32) + v }
-      //a cleaner way of selectin the element is:
-      //  import scala.math.Ordered._
-      //  val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong, v) }
-      m._1
-    } ensuring { v1 =>
-      mailbox.map(_._1).forall(v2 =>
-        mailbox.filter(_._1 == v1).size > mailbox.filter(_._1 == v2).size || v1 <= v2
-      )
-    }
-
     type T = Int
-    val rounds = Array(
+    val rounds = Array[Round[Int]](
       new Round[Int]{
+
+        //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
+        //min most often received
+        def mmor(mailbox: Set[(Int, ProcessID)]): Int = {
+          val byValue = mailbox.groupBy(_._1)
+          val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong << 32) + v }
+          //a cleaner way of selectin the element is:
+          //  import scala.math.Ordered._
+          //  val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong, v) }
+          m._1
+        } ensuring { v1 =>
+          mailbox.map(_._1).forall(v2 =>
+            mailbox.filter(_._1 == v1).size > mailbox.filter(_._1 == v2).size || v1 <= v2
+          )
+        }
 
         def send(): Set[(Int, ProcessID)] = {
           broadcast(x) //macro for (x, All)
@@ -83,8 +84,10 @@ class OTR extends Algorithm[OtrIO] {
             }
           }
         }
+
       }
     )
-  }
+
+  })
 
 }

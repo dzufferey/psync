@@ -1,0 +1,116 @@
+package round.macros
+
+import round.formula._
+
+import scala.language.experimental.macros
+import scala.reflect.macros.blackbox.Context
+
+trait ProcessRewrite {
+  self: Impl =>
+  import c.universe._
+
+  //TODO in the long run we want to make the process extends or contains a SimpleChannelInboundHandler
+
+  //default variables:
+  //-n
+  //-r
+  //-HO: check that it is used only for the spec
+
+  //the locally/globally variables declared must be pushed also be pushed into the Process
+  //look into c.enclosingClass
+
+  private case class MyVarDef(name: String, tpe: Tree, default: Tree, local: Boolean)
+
+  private def defaultVariables = List(
+    MyVarDef("r", tq"LocalVariable[Int]", q"new LocalVariable[Int](0)", false),
+    MyVarDef("n", tq"LocalVariable[Int]", q"new LocalVariable[Int](0)", true),
+    MyVarDef("HO", tq"LocalVariable[Set[ProcessID]]", q"new LocalVariable[Set[ProcessID]](Set[ProcessID]())", true)
+  )
+
+  private def getVariables(t: Tree): List[MyVarDef] = t match {
+    case q"val $tname = new LocalVariable[$tpt]($expr)" =>
+      List(MyVarDef(tname.toString, tpt, expr, true))
+    case q"val $tname = new GlobalVariable[$tpt]($expr)" =>
+      List(MyVarDef(tname.toString, tpt, expr, false))
+    case q"$mods class $tpname[..$tparams] $ctorMods(...$paramss) extends { ..$earlydefns } with ..$parents { $self => ..$stats }" =>
+      stats.flatMap(getVariables)
+    case _ =>
+      Nil
+  }
+
+  private def mkLocalDecl(mvd: MyVarDef): (ValDef, Ident) = {
+    val name = TermName(mvd.name)
+    val tpe = mvd.tpe
+    val init = mvd.default
+    val decl = q"var $name: $tpe = $init"
+    val ident = q"$name"
+    (decl, ident)
+  }
+
+  //on decl check for name clash
+  class insideProcess(map: Map[String, Ident]) extends Transformer {
+    override def transform(tree: Tree): Tree = {
+      super.transform(tree) match {
+        case Apply(TypeApply(Select(Select(This(_), TermName("VarHelper")), TermName("getter")), List(TypeTree())), List(expr)) =>
+          expr
+
+        case Apply(Select(lhs, TermName("$less$tilde")), List(rhs)) =>
+          Assign(lhs, rhs)
+
+        case Select(_, TermName(name)) if map contains name.toString =>
+          map(name.toString)
+    
+        case Ident(name) if map contains name.toString =>
+          map(name.toString)
+        
+        case ValDef(_, name, _, _) if map contains name.toString =>
+          c.abort(c.enclosingPosition, "compiler not yet hygienic, please do not reuse " + name)
+
+        case DefDef(_, name, _, _, _, _) if map contains name.toString =>
+          c.abort(c.enclosingPosition, "compiler not yet hygienic, please do not reuse " + name)
+
+      //case q"$expr.value" => //might be a GlobalVariable, TODO need to inspect the type
+      //  val expr2 = insideProcess(map, expr)
+      //  if (expr != expr2) expr2 else t
+      //
+      //case q"$expr.get" => //might be a LocalVariable, TODO need to inspect the type
+      //  val expr2 = insideProcess(map, expr)
+      //  if (expr != expr2) expr2 else t
+
+        case other =>
+          //TODO sanity checking
+          other
+      }
+    }
+  }
+
+  //TODO fill the methods:
+  // in Process
+  // - protected def incrementRound: Unit
+  // - protected def currentRound: Round[T]
+  // in Round
+  // - protected def getBuffer(): ByteBuf
+  // - def broadcast(msg: A): Set[(A, ProcessID)] = {
+
+
+  def processRewrite(t: Tree): Tree = t match {
+    //case q"new { ..$earlydefns } with ..$parents { $self => ..$stats }" =>
+    case q"new ..$parents { ..$body }" =>
+      //TODO enclosingClass
+      val vars = getVariables(c.enclosingClass) ::: defaultVariables
+      //println("got variables: " + vars)
+      val (newDefs, idMap) = vars.foldLeft((Nil: List[ValDef],Map.empty[String,Ident]))( (acc, mvd) => {
+        val (vdef, id) = mkLocalDecl(mvd)
+        (acc._1 :+ vdef, acc._2 + (mvd.name -> id))
+      })
+      val transformer = new insideProcess(idMap)
+      val body2 = newDefs ::: transformer.transformTrees(body)
+      //remove attribute and let the typechecker run again
+      val tree = q"new ..$parents { ..$body2 }"
+      c.untypecheck(tree)
+      //tree
+    case _ =>
+      c.abort(c.enclosingPosition, "'process' should be applied to class definition: process(new Process{ ... })")
+  }
+
+}
