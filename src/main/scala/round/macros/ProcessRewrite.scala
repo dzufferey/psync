@@ -22,9 +22,9 @@ trait ProcessRewrite {
   private case class MyVarDef(name: String, tpe: Tree, default: Tree, local: Boolean)
 
   private def defaultVariables = List(
-    MyVarDef("r", tq"LocalVariable[Int]", q"new LocalVariable[Int](0)", false),
-    MyVarDef("n", tq"LocalVariable[Int]", q"new LocalVariable[Int](0)", true),
-    MyVarDef("HO", tq"LocalVariable[Set[ProcessID]]", q"new LocalVariable[Set[ProcessID]](Set[ProcessID]())", true)
+    MyVarDef("r", tq"Int", q"0", false),
+    MyVarDef("n", tq"Int", q"0", true),
+    MyVarDef("HO", tq"Set[ProcessID]", q"Set[ProcessID]()", true)
   )
 
   private def getVariables(t: Tree): List[MyVarDef] = t match {
@@ -46,6 +46,12 @@ trait ProcessRewrite {
     val ident = q"$name"
     (decl, ident)
   }
+  
+  private val defaultMethods = List(
+    q"protected def incrementRound: Unit = { r = r + 1 }",
+    q"protected def currentRound: Round[T] = { rounds(r) }"
+  )
+
 
   //on decl check for name clash
   class insideProcess(map: Map[String, Ident]) extends Transformer {
@@ -104,13 +110,13 @@ trait ProcessRewrite {
         (acc._1 :+ vdef, acc._2 + (mvd.name -> id))
       })
       val transformer = new insideProcess(idMap)
-      val body2 = newDefs ::: transformer.transformTrees(body)
+      val body2 = newDefs ::: defaultMethods ::: transformer.transformTrees(body)
       //remove attribute and let the typechecker run again
       val tree = q"new ..$parents { ..$body2 }"
       c.untypecheck(tree)
       //tree
     case _ =>
-      c.abort(c.enclosingPosition, "'process' should be applied to class definition: process(new Process{ ... })")
+      c.abort(c.enclosingPosition, "'p' should be applied to class definition: p(new Process{ ... })")
   }
 
 }

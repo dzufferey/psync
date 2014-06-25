@@ -3,6 +3,7 @@ package round
 import Algorithm._
 
 import io.netty.buffer.ByteBuf
+import io.netty.buffer.PooledByteBufAllocator
 
 import scala.pickling._
 import binary._
@@ -21,9 +22,10 @@ abstract class Round[A: SPickler: Unpickler: FastTypeTag] {
   // util methods //
   //////////////////
 
-  protected def getBuffer(): ByteBuf = {
-    sys.error("have macro fill the gap ...")
-    //use the getBuffer from the Algorithm context
+  //private val maxSize = 4096// 65536-1
+  private val allocator = new PooledByteBufAllocator(true)
+  protected final def getBuffer: ByteBuf = {
+    allocator.buffer()
   }
 
   private final def serialize(payload: A, out: ByteBuf, withLength: Boolean = true, offset: Int = 8): Int = {

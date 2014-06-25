@@ -22,17 +22,12 @@ abstract class Process(val id: ProcessID) {
 
   //TODO set n
 
-  protected def incrementRound: Unit = {
-    sys.error("have macro fill the gap ...")
-  }
+  protected def incrementRound: Unit //defined by macros
 
-  protected def currentRound: Round[T] = {
-    sys.error("have macro fill the gap ...")
-    //rounds(r)
-  }
+  protected def currentRound: Round[T] //defined by macros
 
   final def send(): Set[(ByteBuf,ProcessID)] = {
-    //TODO increment r
+    incrementRound
     currentRound.packSend
   }
 

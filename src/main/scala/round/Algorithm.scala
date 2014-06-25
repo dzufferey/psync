@@ -35,13 +35,5 @@ abstract class Algorithm[IO] extends Variables[IO]
   //////////////////
   // util methods //
   //////////////////
-  import io.netty.buffer.{ByteBuf, PooledByteBufAllocator}
-
-  //private val maxSize = 4096// 65536-1
-  private val allocator = new PooledByteBufAllocator(true)
-
-  protected final def getBuffer: ByteBuf = {
-    allocator.buffer()
-  }
 
 }

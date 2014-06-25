@@ -4,6 +4,7 @@ import round._
 import round.Algorithm._
 import round.formula._
 import round.macros.Macros._
+import io.netty.buffer.ByteBuf
 
 abstract class OtrIO {
   val initialValue: Int
