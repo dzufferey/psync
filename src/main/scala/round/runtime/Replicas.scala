@@ -39,6 +39,8 @@ class Group(val self: ProcessID, val replicas: Array[Replica]) {
 
   def inetToId(address: InetSocketAddress): ProcessID = get(address).id
 
+  def size = replicas.size
+
 }
 
 object Group {

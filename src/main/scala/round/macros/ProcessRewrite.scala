@@ -49,7 +49,8 @@ trait ProcessRewrite {
   
   private val defaultMethods = List(
     q"protected def incrementRound: Unit = { r = r + 1 }",
-    q"protected def currentRound: Round[T] = { rounds(r) }"
+    q"protected def currentRound: Round[T] = { rounds(r) }",
+    q"def setGroup(g: Group): Unit = { rounds.foreach(_.setGroup(g)); n = g.size }"
   )
 
 

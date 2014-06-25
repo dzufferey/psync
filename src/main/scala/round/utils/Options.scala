@@ -1,7 +1,7 @@
 package round.utils
 
 /** A default configuration class */
-class Options {
+abstract class Options {
 
   private var options = List[Arg.Def]()
  
@@ -14,6 +14,17 @@ class Options {
   def default(arg: String) {
       input = arg :: input
   }
+
+  val usage: String
+ 
+  def apply(args: Seq[String]) {
+      Arg.process(options, default, usage)(args)
+  }
+
+}
+
+/** default configuration object */
+object Options extends Options {
  
   //verbosity
   newOption("-v", Arg.Unit(() => Logger.moreVerbose), "increase the verbosity level.")
@@ -37,13 +48,5 @@ class Options {
   newOption("--smtSolver", Arg.String(str => smtlib.Solver.setCmd(str.split(" "))), "The smt sovler (+ options) to use (default: \"z3 -smt2 -in\").")
  
   val usage = "..."
- 
-  def apply(args: Seq[String]) {
-      Arg.process(options, default, usage)(args)
-  }
 
-}
-
-/** default configuration object */
-object Options extends Options {
 }

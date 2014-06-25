@@ -23,7 +23,8 @@ class PredicateLayer(
     ) extends SimpleChannelInboundHandler[DatagramPacket](false)
 {
 
-  val n = grp.replicas.length
+  val n = grp.size
+  proc.setGroup(grp)
   var currentRound = 0
 
   val messages = Array.ofDim[DatagramPacket](n)
@@ -97,7 +98,12 @@ class PredicateLayer(
 
   //in Netty version 5.0 will be called: channelRead0 will be messageReceived
   override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
-    receive(pkt)
+    val tag = Message.getTag(pkt.content)
+    if (instance == tag.instanceNbr) {
+      receive(pkt)
+    } else {
+      ctx.fireChannelRead(pkt)
+    }
   }
     
   protected def toPkts(msgs: Seq[(ByteBuf,ProcessID)]): Seq[DatagramPacket] = {

@@ -5,6 +5,7 @@ import Algorithm._
 import io.netty.buffer.ByteBuf
 
 class ProcessWrapper(p:Process) {
+  def setGroup(g: Group) = p.setGroup(g)
   def send(): Seq[(ByteBuf,ProcessID)] = p.send.toSeq
   def update(msgs: Seq[(ByteBuf,ProcessID)]) = p.update(msgs.toSet)
 }

@@ -2,6 +2,7 @@ package example
 
 import round._
 import round.runtime._
+import round.utils.{Arg, Options}
 import java.net.InetSocketAddress
 import io.netty.bootstrap._
 import io.netty.buffer._
@@ -13,7 +14,9 @@ import io.netty.util.CharsetUtil
 import java.util.concurrent.Semaphore
 
 
-class LockManager(self: Short) {
+class LockManager(self: Short,
+                  clientPort: Int,
+                  confFile: String) {
  
   type ProcessID = Short
 
@@ -86,7 +89,7 @@ class LockManager(self: Short) {
   }
 
   def start() {
-    consensus.startService(defaultHandler)
+    consensus.startService(defaultHandler, confFile, Map("id" -> self.toString))
     listenForClient //this never returns
   }
 
@@ -101,7 +104,6 @@ class LockManager(self: Short) {
   // Client //
   ////////////
 
-  private val clientPort = 8888
   private var clientChannel: Channel = null
   private val reqAcquire = "acquire"
   private val reqRelease = "release"
@@ -207,6 +209,39 @@ class LockManagerClient(myPort: Int, remote: (String, Int)) {
       }
     } finally {
       group.shutdownGracefully()
+    }
+  }
+
+}
+
+object Main extends Options {
+
+  var client = false
+  newOption("-c", Arg.Unit(() => client = true), "client mode (default is server mode)")
+
+  var clientPort = 8889
+  newOption("-p", Arg.Int( i => clientPort = i), "port")
+  var remotePort = 8888
+  newOption("-rp", Arg.Int( i => remotePort = i), "remote port")
+  var remoteAddress = "127.0.0.1"
+  newOption("-ra", Arg.String( str => remoteAddress = str), "replica address")
+
+  var id = -1
+  newOption("-id", Arg.Int( i => id = i), "the replica ID")
+
+  var confFile = "src/test/resources/sample-conf.xml"
+  newOption("--conf", Arg.String(str => confFile = str ), "config file")
+
+  val usage = "..."
+
+  def main(args: Array[String]) {
+    apply(args)
+    if (client) {
+      val cli = new LockManagerClient(clientPort, (remoteAddress, remotePort))
+      cli.run
+    } else {
+      val srv = new LockManager(id.toShort, clientPort, confFile)
+      srv.start
     }
   }
 

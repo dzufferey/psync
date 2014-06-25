@@ -1,6 +1,7 @@
 package round
 
 import Algorithm._
+import runtime.Group
 
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.PooledByteBufAllocator
@@ -15,12 +16,15 @@ abstract class Round[A: SPickler: Unpickler: FastTypeTag] {
   def update(mailbox: Set[(A, ProcessID)]): Unit
 
   protected def broadcast(msg: A): Set[(A, ProcessID)] = {
-    sys.error("not yet implemented")
+    group.replicas.foldLeft(Set.empty[(A,ProcessID)])( (acc, r) => acc + (msg -> r.id))
   }
 
   //////////////////
   // util methods //
   //////////////////
+
+  private var group: Group = null
+  def setGroup(g: Group) { group = g }
 
   //private val maxSize = 4096// 65536-1
   private val allocator = new PooledByteBufAllocator(true)

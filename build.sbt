@@ -1,4 +1,4 @@
-name := "Find a good name"
+name := "round"
 
 version := "0.1-SNAPSHOT"
 

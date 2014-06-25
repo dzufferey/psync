@@ -1,6 +1,7 @@
 package round
 
 import Algorithm._
+import runtime.Group
 
 import io.netty.buffer.ByteBuf
 
@@ -20,7 +21,7 @@ abstract class Process(val id: ProcessID) {
   // util methods //
   //////////////////
 
-  //TODO set n
+  def setGroup(g: Group): Unit //defined by macros
 
   protected def incrementRound: Unit //defined by macros
 
@@ -36,7 +37,6 @@ abstract class Process(val id: ProcessID) {
     currentRound.unpackUpdate(msgs)
   }
 
-  //TODO connect with the rest
   //TODO when to insert dummy ?
 
 
