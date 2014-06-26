@@ -1,20 +1,28 @@
-nice acronym for round
------------
-turn the current version of OTR into something that runs:
--first assume no fault at all, then progressively move toward something more realistic
--think about how it integrates in a larger system
------------
-macro rewriting
--can get rid of the Localvariable stuff and turn it into an unboxed version (after all it is only needed for type checking the DSL)
--rewrite the round to generate VCs
------------
-what about the VC generation:
--add temporal elements to boolean 
--decision procedure
------------
-network emulation: packet loss, delay, ...
+# general
 
-http://www.linuxfoundation.org/collaborate/workgroups/networking/netem
-https://gist.github.com/trongthanh/1196596
-http://www.cs.virginia.edu/~sdb7e/os_project/assignment.html
+- find a nice acronym for round
+
+
+# implementation
+
+- push [T] inside the round
+- timeout for the predicate layer
+- split into multiple parts
+  so we can use macros for the testing and debugging in the main project
+  cleaner separation between the runtime and the declarations
+- interfacte for predicate layer and more predicates 
+- Process.exit
+
+# verification
+
+- rewrite the round to generate VCs
+- add temporal elements to formula/boolean 
+- decision procedure
+
+
+# network emulation: packet loss, delay, ...
+
+- http://www.linuxfoundation.org/collaborate/workgroups/networking/netem
+- https://gist.github.com/trongthanh/1196596
+- http://www.cs.virginia.edu/~sdb7e/os_project/assignment.html
 

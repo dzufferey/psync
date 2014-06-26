@@ -1,5 +1,7 @@
 package round.utils
 
+import LogLevel._
+
 object Arg {
 
   sealed abstract class Spec
@@ -26,11 +28,11 @@ object Arg {
         case Some(arg) =>
           Misc.toBoolean(arg) match {
             case Some(b) => fct(b)
-            case None => Logger.logAndThrow("Arg", LogWarning, "expected boolean argument for option '"+spec._1+"' found: '" + arg + "'.")
+            case None => Logger.logAndThrow("Arg", Warning, "expected boolean argument for option '"+spec._1+"' found: '" + arg + "'.")
           }
           args.tail
         case None =>
-          Logger.logAndThrow("Arg", LogWarning, "no (not enough) argument given for option '"+ spec._1 +"'.")
+          Logger.logAndThrow("Arg", Warning, "no (not enough) argument given for option '"+ spec._1 +"'.")
           args
       }
     case Int(fct) =>
@@ -38,11 +40,11 @@ object Arg {
         case Some(arg) =>
           Misc.toInt(arg) match {
             case Some(b) => fct(b)
-            case None => Logger.logAndThrow("Arg", LogWarning, "expected integer argument for option '"+spec._1+"' found: '" + arg + "'.")
+            case None => Logger.logAndThrow("Arg", Warning, "expected integer argument for option '"+spec._1+"' found: '" + arg + "'.")
           }
           args.tail
         case None =>
-          Logger.logAndThrow("Arg", LogWarning, "no (not enough) argument given for option '"+ spec._1 +"'.")
+          Logger.logAndThrow("Arg", Warning, "no (not enough) argument given for option '"+ spec._1 +"'.")
           args
       }
     case String(fct) =>
@@ -51,7 +53,7 @@ object Arg {
           fct(arg)
           args.tail
         case None =>
-          Logger.logAndThrow("Arg", LogWarning, "no (not enough) argument given for option '"+ spec._1 +"'.")
+          Logger.logAndThrow("Arg", Warning, "no (not enough) argument given for option '"+ spec._1 +"'.")
           args
       }
     case Tuple(x :: xs) =>
@@ -89,7 +91,7 @@ object Arg {
             case Some( spec ) =>
               processOption(spec, args.tail)
             case None =>
-              Logger.logAndThrow("Arg", LogWarning, "Ignoring unknown option '" + arg + "'.")
+              Logger.logAndThrow("Arg", Warning, "Ignoring unknown option '" + arg + "'.")
               args.tail
           }
           process(specs, default, usage)(args2)

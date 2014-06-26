@@ -1,6 +1,7 @@
 package round.utils.report
 
 import round.utils._
+import round.utils.LogLevel._
 
 abstract class Item(val title: String) {
 
@@ -14,7 +15,7 @@ abstract class Item(val title: String) {
     if (toc != null) {
       toc.getTitleWithRef
     } else {
-      Logger.logAndThrow("Report", LogError, "TOC not specified")
+      Logger.logAndThrow("Report", Error, "TOC not specified")
     }
   }
   protected def printHtmlTitle(writer: java.io.BufferedWriter) {

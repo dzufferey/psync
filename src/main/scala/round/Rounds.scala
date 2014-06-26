@@ -9,6 +9,8 @@ import io.netty.buffer.PooledByteBufAllocator
 import scala.pickling._
 import binary._
 
+// http://stackoverflow.com/questions/18725699/scala-pickling-and-type-parameters
+
 abstract class Round[A: SPickler: Unpickler: FastTypeTag] {
 
   def send(): Set[(A, ProcessID)]

@@ -2,41 +2,45 @@ package round.utils
 
 //logging facility (i.e. syslog alike)
 
-sealed abstract class LogLevel(msg: String, prio: Int, col: String) {
-  def message = msg
-  def priority = prio
-  def color = col
+object LogLevel {
+    sealed abstract class Level(msg: String, prio: Int, col: String) {
+      def message = msg
+      def priority = prio
+      def color = col
+    }
+    case object Critical extends Level("Critical", 32, Console.RED)
+    case object Error    extends Level("Error",    16, Console.RED)
+    case object Warning  extends Level("Warning",  8,  Console.YELLOW)
+    case object Notice   extends Level("Notice",   4,  Console.BLUE)
+    case object Info     extends Level("Info",     2,  Console.RESET)
+    case object Debug    extends Level("Debug",    1,  Console.RESET)
 }
-case object LogCritical extends LogLevel("Critical", 32, Console.RED)
-case object LogError    extends LogLevel("Error",    16, Console.RED)
-case object LogWarning  extends LogLevel("Warning",  8,  Console.YELLOW)
-case object LogNotice   extends LogLevel("Notice",   4,  Console.BLUE)
-case object LogInfo     extends LogLevel("Info",     2,  Console.RESET)
-case object LogDebug    extends LogLevel("Debug",    1,  Console.RESET)
 
 //TODO one logger for all or separated logger ? (Console, file, network, ...)
 
 /** Simple logger that outputs to stdout. */
 class Logger {
 
+  import LogLevel._
+
   private var assertive = true
-  private var minPriority = LogNotice.priority
+  private var minPriority = Notice.priority
   val disallowed = scala.collection.mutable.HashSet.empty[String]
 
   def reset = {
-    minPriority = LogInfo.priority
+    minPriority = Info.priority
     disallowed.clear()
   }
   def getMinPriority = minPriority match {
-    case x if x == LogCritical.priority => LogCritical
-    case x if x == LogError.priority => LogError
-    case x if x == LogWarning.priority => LogWarning
-    case x if x == LogNotice.priority => LogNotice
-    case x if x == LogInfo.priority => LogInfo
-    case x if x == LogDebug.priority => LogDebug
+    case x if x == Critical.priority => Critical
+    case x if x == Error.priority =>    Error
+    case x if x == Warning.priority =>  Warning
+    case x if x == Notice.priority =>   Notice
+    case x if x == Info.priority =>     Info
+    case x if x == Debug.priority =>    Debug
     case p => sys.error("unknown priority ("+p+")")
   }
-  def setMinPriority(lvl: LogLevel) = minPriority = lvl.priority
+  def setMinPriority(lvl: Level) = minPriority = lvl.priority
   def setMinPriority(lvl: Int) = minPriority = lvl
   def disallow(str: String) = disallowed += str
   def allow(str: String) = disallowed -= str
@@ -44,22 +48,22 @@ class Logger {
   def disableAssert = assertive = false
   def enableAssert = assertive = true
 
-  private def increaseLevel(l: LogLevel): LogLevel = l match {
-    case LogCritical => LogError
-    case LogError    => LogWarning
-    case LogWarning  => LogNotice
-    case LogNotice   => LogInfo
-    case LogInfo     => LogDebug
-    case LogDebug    => LogDebug
+  private def increaseLevel(l: Level): Level = l match {
+    case Critical => Error
+    case Error    => Warning
+    case Warning  => Notice
+    case Notice   => Info
+    case Info     => Debug
+    case Debug    => Debug
   }
   
-  private def decreaseLevel(l: LogLevel): LogLevel = l match {
-    case LogCritical => LogCritical
-    case LogError    => LogCritical
-    case LogWarning  => LogError
-    case LogNotice   => LogWarning
-    case LogInfo     => LogNotice
-    case LogDebug    => LogInfo
+  private def decreaseLevel(l: Level): Level = l match {
+    case Critical => Critical
+    case Error    => Critical
+    case Warning  => Error
+    case Notice   => Warning
+    case Info     => Notice
+    case Debug    => Info
   }
 
   def moreVerbose = setMinPriority( increaseLevel(getMinPriority))
@@ -67,7 +71,7 @@ class Logger {
   def lessVerbose = setMinPriority( decreaseLevel(getMinPriority))
 
   /** Should be dispayed ? */
-  def apply(relatedTo: String, lvl: LogLevel): Boolean =
+  def apply(relatedTo: String, lvl: Level): Boolean =
     lvl.priority >= minPriority && !disallowed(relatedTo)
 
   //The evaluation of the content should *NOT* print. It can cause deadlocks.
@@ -77,7 +81,7 @@ class Logger {
    * @param lvl The priority of the message.
    * @param content The content of the message (evaluated only if needed).
    */
-  def apply(relatedTo: String, lvl: LogLevel, content: => String): Unit = synchronized {
+  def apply(relatedTo: String, lvl: Level, content: => String): Unit = synchronized {
     if (apply(relatedTo, lvl)) {
       //when content is on multiple lines, each line should be prefixed.
       val prefix = "[" + lvl.color + lvl.message + Console.RESET + "]" + " @ " + relatedTo + ": " 
@@ -86,7 +90,7 @@ class Logger {
     }
   }
   
-  def apply(relatedTo: String, lvl: LogLevel, content: java.io.BufferedWriter => Unit): Unit = synchronized {
+  def apply(relatedTo: String, lvl: Level, content: java.io.BufferedWriter => Unit): Unit = synchronized {
     if (apply(relatedTo, lvl)) {
       //when content is on multiple lines, each line should be prefixed.
       val prefix = "[" + lvl.color + lvl.message + Console.RESET + "]" + " @ " + relatedTo + ": " 
@@ -97,7 +101,7 @@ class Logger {
   }
 
   /** Log a message and throw an exception with the content. */
-  def logAndThrow(relatedTo: String, lvl: LogLevel, content: => String): Nothing = {
+  def logAndThrow(relatedTo: String, lvl: Level, content: => String): Nothing = {
     apply(relatedTo, lvl, content)
     Console.flush
     sys.error(content)
@@ -106,7 +110,7 @@ class Logger {
   def assert(cond: => Boolean, relatedTo: String, content: => String) {
     if (assertive)
       if (!cond)
-        logAndThrow(relatedTo, LogError, content)
+        logAndThrow(relatedTo, Error, content)
   }
 
 }

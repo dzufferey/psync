@@ -1,6 +1,7 @@
 package round.utils
 
 import scala.sys.process._
+import LogLevel._
 
 /** executing command as children process */
 object SysCmd {
@@ -37,7 +38,7 @@ object SysCmd {
         line => {bufferOut append line; bufferOut append "\n"},
         line => {bufferErr append line; bufferErr append "\n"}
       )
-    Logger("Utils", LogInfo, "Executing "+ cmds.mkString(""," ",""))
+    Logger("Utils", Info, "Executing "+ cmds.mkString(""," ",""))
     try {
       acquire
       val exitCode = withInput ! processLogger
@@ -60,7 +61,7 @@ object SysCmd {
       case Some(str) => process #< ( new java.io.ByteArrayInputStream(str.getBytes) )
       case None => process
     }
-    Logger("Utils", LogInfo, "Executing "+ cmds.mkString(""," ",""))
+    Logger("Utils", Info, "Executing "+ cmds.mkString(""," ",""))
     try {
       acquire
       withInput.! 
@@ -69,7 +70,7 @@ object SysCmd {
     }
   }
   
-  def execRedirectToLogger(cmds: Array[String], input: Option[String], prefix: String, lvl: LogLevel, addToEnv: (String,String)*): Int = {
+  def execRedirectToLogger(cmds: Array[String], input: Option[String], prefix: String, lvl: Level, addToEnv: (String,String)*): Int = {
     val process = Process(cmds, None, addToEnv:_*)
     val withInput = input match {
       case Some(str) => process #< ( new java.io.ByteArrayInputStream(str.getBytes) )
@@ -77,8 +78,8 @@ object SysCmd {
     }
     val processLogger = ProcessLogger(
       out => Logger(prefix, lvl, out),
-      err => Logger(prefix, LogWarning, err))
-    Logger("Utils", LogInfo, "Executing "+ cmds.mkString(""," ",""))
+      err => Logger(prefix, Warning, err))
+    Logger("Utils", Info, "Executing "+ cmds.mkString(""," ",""))
     try {
       acquire
       withInput ! processLogger
@@ -87,7 +88,7 @@ object SysCmd {
     }
   }
   
-  def execOutputAndLog(cmds: Array[String], input: Option[String], prefix: String, lvl: LogLevel, addToEnv: (String,String)*): ExecResult = {
+  def execOutputAndLog(cmds: Array[String], input: Option[String], prefix: String, lvl: Level, addToEnv: (String,String)*): ExecResult = {
     val process = Process(cmds, None, addToEnv:_*)
     val withInput = input match {
       case Some(str) => process #< ( new java.io.ByteArrayInputStream(str.getBytes) )
@@ -99,9 +100,9 @@ object SysCmd {
     val processLogger =
       ProcessLogger(
         line => {Logger(prefix, lvl, line); bufferOut append line; bufferOut append "\n"},
-        line => {Logger(prefix, LogWarning, line); bufferErr append line; bufferErr append "\n"}
+        line => {Logger(prefix, Warning, line); bufferErr append line; bufferErr append "\n"}
       )
-    Logger("Utils", LogInfo, "Executing "+ cmds.mkString(""," ",""))
+    Logger("Utils", Info, "Executing "+ cmds.mkString(""," ",""))
     try {
       acquire
       val exitCode = withInput ! processLogger

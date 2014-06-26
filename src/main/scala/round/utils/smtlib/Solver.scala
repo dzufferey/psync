@@ -2,6 +2,7 @@ package round.utils.smtlib
 
 import round.formula._
 import round.utils._
+import round.utils.LogLevel._
 import scala.sys.process._
 import java.io._
 
@@ -30,7 +31,7 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
   protected val declStack = scala.collection.mutable.Stack(Set[Variable]())
 
   //initialisation
-  Logger("smtlib", LogDebug, "starting: " + (Array(cmd) ++ options).mkString(" "))
+  Logger("smtlib", Debug, "starting: " + (Array(cmd) ++ options).mkString(" "))
   toSolver("(set-option :print-success false)")
   toSolver("(set-logic "+th+")")
 
@@ -49,7 +50,7 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
   }
 
   protected def toSolver(cmd: String) {
-    Logger("smtlib", LogDebug, "> " +cmd)
+    Logger("smtlib", Debug, "> " +cmd)
     solverInput.write(cmd)
     solverInput.newLine
     solverInput.flush
@@ -62,10 +63,10 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
         acc.append(solverError.readLine)
         acc.append("\n")
       }
-      Logger.logAndThrow("smtlib", LogError, "solver returned:\n" + acc)
+      Logger.logAndThrow("smtlib", Error, "solver returned:\n" + acc)
     } else {
       val res = solverOutput.readLine
-      Logger("smtlib", LogDebug, "< " + res)
+      Logger("smtlib", Debug, "< " + res)
       res
     }
   }
@@ -87,7 +88,7 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
   
   def declare(t: Type) = t match {
     case UnInterpreted(id) => toSolver("(declare-sort " + id + " 0)")
-    case other => Logger.logAndThrow("smtlib", LogError, "not supported: " + other)
+    case other => Logger.logAndThrow("smtlib", Error, "not supported: " + other)
   }
 
   def declare(f: Formula) = f match {
@@ -98,7 +99,7 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
       }
       val argsDecl = args.map(Printer.tpe).mkString("("," ",")")
       toSolver("(declare-fun " + Printer.asVar(v) + " " + argsDecl + " " + Printer.tpe(ret) + ")")
-    case other => Logger.logAndThrow("smtlib", LogError, "not supported: " + other)
+    case other => Logger.logAndThrow("smtlib", Error, "not supported: " + other)
   }
   
   def assert(f: Formula) {
@@ -110,7 +111,7 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
       newVars foreach declare
     }
     //(assert f)
-    Logger("smtlib", LogDebug, Printer(_, f))
+    Logger("smtlib", Debug, Printer(_, f))
     solverInput.write("(assert ")
     Printer(solverInput, f)
     solverInput.write(")")
@@ -141,7 +142,7 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
       case "sat" => Some(true)
       case "unsat" => Some(false)
       case "unknown" => None
-      case other => Logger.logAndThrow("smtlib", LogError, "checkSat: solver said " + other)
+      case other => Logger.logAndThrow("smtlib", Error, "checkSat: solver said " + other)
     }
   }
 

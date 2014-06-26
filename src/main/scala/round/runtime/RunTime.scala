@@ -3,6 +3,8 @@ package round.runtime
 import round._
 import Algorithm._
 import io.netty.buffer.ByteBuf
+import round.utils.LogLevel._
+import round.utils.Logger
 
 class ProcessWrapper(p:Process) {
   def setGroup(g: Group) = p.setGroup(g)
@@ -21,6 +23,7 @@ class RunTime[IO](val alg: Algorithm[IO]) {
       io: IO,
       messages: Set[Message] = Set.empty)
   {
+    Logger("RunTime", Info, "starting instance " + instanceId)
     srv match {
       case Some(s) =>
         //an instance is actually encapsulated by one process
@@ -62,12 +65,17 @@ class RunTime[IO](val alg: Algorithm[IO]) {
 
     //start the server
     val port = grp.get(me).port
-    srv = Some(new PacketServer(port, grp, defaultHandler))
+    Logger("RunTime", Info, "starting service on port " + port)
+    val pktSrv = new PacketServer(port, grp, defaultHandler)
+    srv = Some(pktSrv)
+    pktSrv.start
   }
 
   def shutdown {
     srv match {
-      case Some(s) => s.close
+      case Some(s) =>
+        Logger("RunTime", Info, "stopping service")
+        s.close
       case None =>
     }
     srv = None

@@ -1,6 +1,8 @@
 package round.runtime
 
 import round.Algorithm._
+import round.utils.Logger
+import round.utils.LogLevel._
 
 import java.net.InetSocketAddress
 
@@ -30,7 +32,13 @@ class Group(val self: ProcessID, val replicas: Array[Replica]) {
   def get(address: InetSocketAddress): Replica = {
     val ip = address.getAddress.getHostAddress
     val port = address.getPort
-    replicas.find( r => r.address == ip && r.port == port).get
+    try {
+      replicas.find( r => r.address == ip && r.port == port).get
+    } catch {
+      case e: Exception =>
+        Logger("Replica", Error, "could not find replica " + ip + ":" + port)
+        throw e
+    }
   }
 
   def idToInet(processId: ProcessID): InetSocketAddress = {
@@ -65,6 +73,8 @@ object Group {
 class Directory(private var g: Group) {
 
   //TODO options to modify the group
+
+  def self = g.self
 
   def group = g
 

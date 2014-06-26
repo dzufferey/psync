@@ -2,6 +2,7 @@ package round.utils.smtlib
 
 import round.formula._
 import round.utils._
+import round.utils.LogLevel._
 import java.io._
 
 object Printer {
@@ -21,7 +22,7 @@ object Printer {
     case Minus => "-"
     case Times => "*"
     case UnInterpretedFct(f) => f
-    case other => Logger.logAndThrow("smtlib", LogError, "not supported: " + other)
+    case other => Logger.logAndThrow("smtlib", Error, "not supported: " + other)
   }
 
   def tpe(t: Type): String = t match {
@@ -30,7 +31,7 @@ object Printer {
     case Wildcard => "_"
     case Function(args, returns) => args.map(tpe).mkString("(", ") (", ")") + " (" + tpe(returns) + ")"
     case UnInterpreted(id) => id
-    case other => Logger.logAndThrow("smtlib", LogError, "not supported: " + other)
+    case other => Logger.logAndThrow("smtlib", Error, "not supported: " + other)
   }
 
   protected def asVar(str: String): String = {

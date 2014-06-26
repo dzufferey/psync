@@ -1,5 +1,7 @@
 package round.utils
 
+import round.utils.LogLevel._
+
 object Misc {
 
   def docToString(doc: text.Document) = {
@@ -16,7 +18,7 @@ object Misc {
     if (code == 0) {
       out
     } else {
-      Logger("basic", LogWarning, "error running dot (code: "+code+").")
+      Logger("basic", Warning, "error running dot (code: "+code+").")
       "<pre>\n" + dot + "\n</pre>"
     }
   }
@@ -26,7 +28,7 @@ object Misc {
     if (code == 0) {
       out
     } else {
-      Logger("basic", LogWarning, "error running fdp (code: "+code+").")
+      Logger("basic", Warning, "error running fdp (code: "+code+").")
       "<pre>\n" + dot + "\n</pre>"
     }
   }

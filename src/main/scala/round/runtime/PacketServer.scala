@@ -59,7 +59,7 @@ class PacketServer(
       chan = b.bind(port).sync().channel()
       //chan.closeFuture().await() //closeFuture is a notification when the channel is closed
     } finally {
-      close
+      //close
     }
   }
 
@@ -84,7 +84,7 @@ class PackerServerHandler(
   //in Netty version 5.0 will be called: channelRead0 will be messageReceived
   override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
     val src = dir.inetToId(pkt.sender)
-    val dst = dir.inetToId(pkt.recipient)
+    val dst = dir.self //inetToId(pkt.recipient)
     val buf = pkt.content
     val msg = Message.wrapByteBuf(src, dst, buf)
     defaultHandler(msg)

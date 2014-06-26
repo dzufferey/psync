@@ -22,7 +22,7 @@ trait ProcessRewrite {
   private case class MyVarDef(name: String, tpe: Tree, default: Tree, local: Boolean)
 
   private def defaultVariables = List(
-    MyVarDef("r", tq"Int", q"0", false),
+    MyVarDef("r", tq"Int", q"-1", false),
     MyVarDef("n", tq"Int", q"0", true),
     MyVarDef("HO", tq"Set[ProcessID]", q"Set[ProcessID]()", true)
   )
@@ -48,7 +48,7 @@ trait ProcessRewrite {
   }
   
   private val defaultMethods = List(
-    q"protected def incrementRound: Unit = { r = r + 1 }",
+    q"protected def incrementRound: Unit = { r = (r + 1) % rounds.length }",
     q"protected def currentRound: Round[T] = { rounds(r) }",
     q"def setGroup(g: Group): Unit = { rounds.foreach(_.setGroup(g)); n = g.size }"
   )
@@ -63,6 +63,9 @@ trait ProcessRewrite {
 
         case Apply(Select(lhs, TermName("$less$tilde")), List(rhs)) =>
           Assign(lhs, rhs)
+
+        case Select(_, TermName("HO")) =>
+          c.abort(c.enclosingPosition, "HO should be used only in the specification")
 
         case Select(_, TermName(name)) if map contains name.toString =>
           map(name.toString)

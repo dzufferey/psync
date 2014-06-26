@@ -2,7 +2,8 @@ package example
 
 import round._
 import round.runtime._
-import round.utils.{Arg, Options}
+import round.utils.{Logger, Arg, Options}
+import round.utils.LogLevel._
 import java.net.InetSocketAddress
 import io.netty.bootstrap._
 import io.netty.buffer._
@@ -47,6 +48,7 @@ class LockManager(self: Short,
   }
 
   private def startConsensus(expectedInstance: Short, io: OtrIO, msgs: Set[Message] = Set.empty) {
+    Logger("LockManager", Notice, "starting consensus with value " + io.initialValue)
     //enter critical section
     semaphore.acquire
     //check instanceNbr
@@ -116,6 +118,7 @@ class LockManager(self: Short,
       val message = if (success) "SUCCESS" else "FAILED"
       val pck = new DatagramPacket(Unpooled.copiedBuffer(message, CharsetUtil.UTF_8), address)
       clientChannel.writeAndFlush(pck).sync()
+      Logger("LockManager", Notice, "reply to " + success + " to client " + address)
     }
 
   }
@@ -125,15 +128,15 @@ class LockManager(self: Short,
     override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
       val request = pkt.content().toString(CharsetUtil.UTF_8).toLowerCase
       val sender = pkt.sender()
-      pkt.release
-      var initialValue = request match {
+      Logger("LockManager", Notice, "new client request " + request + " from " + sender)
+      val initValue = request match {
         case `reqAcquire` => self.toInt
         case `reqRelease` => -1
         case _ => sys.error("unnkown request")
       }
-      val client = new Client(sender, initialValue != -1)
+      val client = new Client(sender, initValue != -1)
       val io = new OtrIO {
-        val initialValue = self.toInt
+        val initialValue = initValue
         def decide(value: Int) {
           val dec = if (value == -1) None else Some(value.toShort)
           onDecideSelf(client, dec)
@@ -157,6 +160,7 @@ class LockManager(self: Short,
         .channel(classOf[NioDatagramChannel])
         .handler(new ClientHandler)
 
+      Logger("LockManager", Notice, "listening for client on " + clientPort)
       clientChannel = b.bind(clientPort).sync().channel()
       clientChannel.closeFuture().await();
     } finally {
@@ -180,8 +184,8 @@ class LockManagerClient(myPort: Int, remote: (String, Int)) {
     //in Netty version 5.0 will be called: channelRead0 will be messageReceived
     override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
       val reply = pkt.content().toString(CharsetUtil.UTF_8).toLowerCase
-      println("request " + reply)
-      if (reply == "SUCCESS") {
+      Logger("LockManagerClient", Notice, "request: " + reply)
+      if (reply == "success") {
         critical = !critical
       }
     }
@@ -196,15 +200,19 @@ class LockManagerClient(myPort: Int, remote: (String, Int)) {
         .channel(classOf[NioDatagramChannel])
         .handler(new ReplyHandler)
 
+      Logger("LockManagerClient", Notice, "bingind to " + myPort)
       val channel = b.bind(myPort).sync().channel()
       try {  
-        var input = ""
+        var input = scala.io.StdIn.readLine()
         while (input != "exit") {
-          val pck = new DatagramPacket(Unpooled.copiedBuffer(nextRequest, CharsetUtil.UTF_8), address)
+          val req = nextRequest
+          Logger("LockManagerClient", Notice, "new request: " + req)
+          val pck = new DatagramPacket(Unpooled.copiedBuffer(req, CharsetUtil.UTF_8), address)
           channel.writeAndFlush(pck).sync()
           input = scala.io.StdIn.readLine()
         }
       } finally {
+        Logger("LockManagerClient", Notice, "shutting down")
         channel.close
       }
     } finally {
@@ -215,6 +223,9 @@ class LockManagerClient(myPort: Int, remote: (String, Int)) {
 }
 
 object Main extends Options {
+
+  newOption("-v", Arg.Unit(() => Logger.moreVerbose), "increase the verbosity level.")
+  newOption("-q", Arg.Unit(() => Logger.lessVerbose), "decrease the verbosity level.")
 
   var client = false
   newOption("-c", Arg.Unit(() => client = true), "client mode (default is server mode)")
@@ -235,6 +246,7 @@ object Main extends Options {
   val usage = "..."
 
   def main(args: Array[String]) {
+    Logger.moreVerbose
     apply(args)
     if (client) {
       val cli = new LockManagerClient(clientPort, (remoteAddress, remotePort))

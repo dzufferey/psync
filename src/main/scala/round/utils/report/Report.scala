@@ -1,6 +1,7 @@
 package round.utils.report
 
 import round.utils._
+import round.utils.LogLevel._
 import java.io.{BufferedWriter, PrintWriter, OutputStreamWriter, FileOutputStream}
 
 class Report(title: String) extends List(title) {
@@ -62,13 +63,13 @@ object Report {
     if (current.isDefined) {
       current.get
     } else {
-      Logger.logAndThrow("report", LogError, "Report.get: empty")
+      Logger.logAndThrow("report", Error, "Report.get: empty")
     }
   }
 
   def set(r: Report) {
     if (current.isDefined) {
-      Logger("report", LogWarning, "Report.set: report is already defined, replacing")
+      Logger("report", Warning, "Report.set: report is already defined, replacing")
     }
     current = Some(r)
   }

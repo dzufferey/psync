@@ -81,8 +81,10 @@ class OTR extends Algorithm[OtrIO] {
             val v = mmor(mailbox)
             x <~ v
             if (mailbox.filter(msg => msg._1 == v).size > 2*n/3) {
+              if (decision.isEmpty) {
+                io.decide(v)
+              }
               decision <~ Some(v);
-              io.decide(v)
             }
           }
         }
