@@ -43,9 +43,6 @@ trait BoolExpr {
     }
   }
 
-  //TODO
-  // options
-
   def extractDomain(e: Tree): Option[Formula] = {
     if (e.tpe.typeConstructor.toString contains "Domain") { //TODO HACK!!
       None

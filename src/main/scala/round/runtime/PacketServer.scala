@@ -1,6 +1,7 @@
 package round.runtime
 
 import round._
+import round.predicate._
 
 import io.netty.buffer._
 import io.netty.channel._
@@ -61,15 +62,6 @@ class PacketServer(
     } finally {
       //close
     }
-  }
-
-  def registerInstance(instanceHandler: PredicateLayer) {
-    val p = channel.pipeline()
-    p.addFirst(instanceHandler.instance.toString, instanceHandler)
-  }
-  
-  def terminateInstance(inst: Short) {
-    channel.pipeline().remove(inst.toString)
   }
 
 }

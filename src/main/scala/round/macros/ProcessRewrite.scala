@@ -11,12 +11,6 @@ trait ProcessRewrite {
 
   //TODO in the long run we want to make the process extends or contains a SimpleChannelInboundHandler
 
-  //default variables:
-  //-n
-  //-r
-  //-HO: check that it is used only for the spec
-
-  //the locally/globally variables declared must be pushed also be pushed into the Process
   //look into c.enclosingClass
 
   private case class MyVarDef(name: String, tpe: Tree, default: Tree, local: Boolean)
@@ -93,14 +87,6 @@ trait ProcessRewrite {
       }
     }
   }
-
-  //TODO fill the methods:
-  // in Process
-  // - protected def incrementRound: Unit
-  // - protected def currentRound: Round[T]
-  // in Round
-  // - protected def getBuffer(): ByteBuf
-  // - def broadcast(msg: A): Set[(A, ProcessID)] = {
 
 
   def processRewrite(t: Tree): Tree = t match {

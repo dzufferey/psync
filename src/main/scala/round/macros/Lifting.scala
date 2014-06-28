@@ -38,7 +38,9 @@ trait Lifting {
   }
 
   def _liftS(s: round.formula.Symbol): Tree = s match {
-    case UnInterpretedFct(symbol) => q"UnInterpretedFct($symbol)"
+    case UnInterpretedFct(symbol, tpe, params) =>
+      val params2 = params.map(_liftT)
+      q"UnInterpretedFct($symbol, $tpe, $params2)"
     case Not => q"Not"
     case And => q"And"
     case Or => q"Or"

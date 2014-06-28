@@ -1,7 +1,8 @@
-package round.runtime
+package round.predicate
 
 import round._
 import Algorithm._
+import round.runtime._
 
 import scala.reflect.ClassTag
 import io.netty.buffer.ByteBuf
@@ -18,10 +19,14 @@ import io.netty.channel.socket._
 class PredicateLayer(
       grp: Group,
       val instance: Short,
-      outChan: Channel,
+      channel: Channel,
       proc: ProcessWrapper
     ) extends SimpleChannelInboundHandler[DatagramPacket](false)
 {
+
+
+  //TODO how to deal with the timeout ?
+  //some flag about being active
 
   val n = grp.size
   proc.setGroup(grp)
@@ -33,6 +38,13 @@ class PredicateLayer(
 
   val lock = new scala.concurrent.Lock
 
+  //register in the channel
+  channel.pipeline.addFirst(instance.toString, this)
+
+  //deregister
+  def stop {
+    channel.pipeline().remove(instance.toString)
+  }
 
   def send {
     val myAddress = grp.idToInet(grp.self)
@@ -41,10 +53,10 @@ class PredicateLayer(
       if (pkt.recipient() == myAddress) {
         normalReceive(pkt)
       } else {
-        outChan.write(pkt, outChan.voidPromise())
+        channel.write(pkt, channel.voidPromise())
       }
     }
-    outChan.flush
+    channel.flush
   }
 
 

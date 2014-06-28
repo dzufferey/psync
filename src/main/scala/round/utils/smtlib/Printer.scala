@@ -21,7 +21,7 @@ object Printer {
     case Plus => "+"
     case Minus => "-"
     case Times => "*"
-    case UnInterpretedFct(f) => f
+    case UnInterpretedFct(f, _, _) => f
     case other => Logger.logAndThrow("smtlib", Error, "not supported: " + other)
   }
 

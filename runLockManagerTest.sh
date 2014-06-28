@@ -14,5 +14,5 @@ dep6="$HOME/.ivy2/cache/org.scala-lang/scala-reflect/jars/scala-reflect-${scala_
 
 cp="$dep0:$dep1:$dep2:$dep3:$dep4:$dep5:$dep6"
 
-exec java -cp ${cp} -Dio.netty.leakDetectionLevel=advanced example.Main $*
-#exec java -cp ${cp} example.Main $*
+#exec java -cp ${cp} -Dio.netty.leakDetectionLevel=advanced example.Main $*
+exec java -cp ${cp} example.Main $*

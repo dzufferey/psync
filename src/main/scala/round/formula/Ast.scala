@@ -55,9 +55,18 @@ sealed abstract class Symbol {
   def tpe: Type
 }
 
-case class UnInterpretedFct(symbol: String) extends Symbol {
+case class UnInterpretedFct(symbol: String,
+                            _tpe: Option[Type] = None,
+                            tParam: List[TypeVariable] = Nil) extends Symbol {
   override def toString = symbol
-  def tpe = UnInterpreted(symbol)
+
+  def tpe = if (_tpe.isDefined) {
+    val fvs = tParam.map( v => (v -> Type.freshTypeVar)).toMap
+    _tpe.get alpha fvs
+  } else {
+    UnInterpreted(symbol)
+  }
+
 }
 
 sealed abstract class InterpretedFct(symbol: String, aliases: String*) extends Symbol {

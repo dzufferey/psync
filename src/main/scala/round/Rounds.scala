@@ -2,9 +2,9 @@ package round
 
 import Algorithm._
 import runtime.Group
+import utils.ByteBufAllocator
 
 import io.netty.buffer.ByteBuf
-import io.netty.buffer.PooledByteBufAllocator
 
 import scala.pickling._
 import binary._
@@ -27,12 +27,6 @@ abstract class Round[A: SPickler: Unpickler: FastTypeTag] {
 
   private var group: Group = null
   def setGroup(g: Group) { group = g }
-
-  //private val maxSize = 4096// 65536-1
-  private val allocator = new PooledByteBufAllocator(true)
-  protected final def getBuffer: ByteBuf = {
-    allocator.buffer()
-  }
 
   private final def serialize(payload: A, out: ByteBuf, withLength: Boolean = true, offset: Int = 8): Int = {
     if (offset > 0) out.writerIndex(out.writerIndex() + offset)
@@ -58,7 +52,7 @@ abstract class Round[A: SPickler: Unpickler: FastTypeTag] {
 
   final def packSend: Set[(ByteBuf, ProcessID)] = {
     send().map{ case (value, dst) =>
-      val buf = getBuffer
+      val buf = ByteBufAllocator.buffer()
       serialize(value, buf)
       (buf, dst)
     }

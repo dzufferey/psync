@@ -2,6 +2,7 @@ package round.runtime
 
 import round._
 import Algorithm._
+import round.predicate._
 import io.netty.buffer.ByteBuf
 import round.utils.LogLevel._
 import round.utils.Logger
@@ -31,7 +32,6 @@ class RunTime[IO](val alg: Algorithm[IO]) {
         val process = alg.process(grp.self, io)
         val wrapper = new ProcessWrapper(process)
         val predicate = new PredicateLayer(grp, instanceId, s.channel, wrapper)
-        s.registerInstance(predicate)
         //first round
         predicate.send
         //msg that are already received

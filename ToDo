@@ -1,11 +1,15 @@
 # general
 
 - find a nice acronym for round
+- interface between the algorithm and the predicate
+- expected number of messages for a round: inferred from the send function
+- locally testable safety/liveness conditions: of the form ∀ p. QF-φ(p)
 
 
 # implementation
 
 - push [T] inside the round
+- round should share the same allocator
 - timeout for the predicate layer
 - split into multiple parts
   so we can use macros for the testing and debugging in the main project
@@ -13,11 +17,13 @@
 - interfacte for predicate layer and more predicates 
 - Process.exit
 
+
 # verification
 
-- rewrite the round to generate VCs
+- generate a transition relation for the round
 - add temporal elements to formula/boolean 
 - decision procedure
+- add ghost variables (like global/local variables)
 
 
 # network emulation: packet loss, delay, ...
