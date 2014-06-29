@@ -2,9 +2,6 @@ package round.macros
 
 import round.formula._
 
-import scala.language.experimental.macros
-import scala.reflect.macros.blackbox.Context
-
 trait ProcessRewrite {
   self: Impl =>
   import c.universe._
@@ -81,9 +78,7 @@ trait ProcessRewrite {
       //  val expr2 = insideProcess(map, expr)
       //  if (expr != expr2) expr2 else t
 
-        case other =>
-          //TODO sanity checking
-          other
+        case other => other
       }
     }
   }

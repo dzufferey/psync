@@ -3,6 +3,7 @@ package round
 import Algorithm._
 import runtime.Group
 import utils.ByteBufAllocator
+import verification._
 
 import io.netty.buffer.ByteBuf
 
@@ -68,6 +69,15 @@ abstract class Round[A: SPickler: Unpickler: FastTypeTag] {
     val decoded = msg.map(decode)
     update(decoded)
   }
+
+
+  //////////////////////
+  // for verification //
+  //////////////////////
+
+  //macros will take care of populating those fields
+  protected val auxSpec: Map[String, AuxiliaryMethod] 
+  protected val rawTR: TransitionRelation
 
 }
 

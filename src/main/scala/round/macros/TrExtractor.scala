@@ -2,9 +2,7 @@ package round.macros
 
 import round.formula._
 import round.verification._
-
-import scala.language.experimental.macros
-import scala.reflect.macros.blackbox.Context
+import round.utils.Namer
 
 trait TrExtractor {
   self: Impl =>
@@ -49,39 +47,35 @@ trait TrExtractor {
         val condCstr = makeConstraints(cond, None, None)
         val thenCstr = makeConstraints(thenp, currRet, globalRet)
         val elseCstr = makeConstraints(elsep, currRet, globalRet)
-        And(And(condCstr, thenCstr), And(Not(condCstr), elseCstr))
+        Or(And(condCstr, thenCstr), And(Not(condCstr), elseCstr))
      
       case Block(stats, expr) =>
         val statsCstr = stats.map(makeConstraints(_, None, globalRet))
         val retCstr = makeConstraints(expr, currRet, globalRet)
-        statsCstr.foldLeft(retCstr)(And(_,_))
+        statsCstr.foldRight(retCstr)(And(_,_))
      
       case Return(expr) =>
-        globalRet match {
-          case Some(ret) =>
-            makeConstraints(Assign(ret, expr))
-          case None =>
-            c.abort(c.enclosingPosition, "return with unknown return value")
-        }
+        makeConstraints(Assign(globalRet.get, expr))
       
-      case Match(selector, cases) =>
-        sys.error("TODO")
-     
       case Typed(e, _) =>
         makeConstraints(e, currRet, globalRet)
       
+      case Apply(Select(lhs, TermName("$less$tilde")), List(rhs)) =>
+        Eq(tree2Formula(lhs), tree2Formula(rhs))
       case Assign(lhs, rhs) =>
-        sys.error("TODO")
+        Eq(tree2Formula(lhs), tree2Formula(rhs))
      
       case ValDef(mods, name, tpe, rhs) =>
         makeConstraints(rhs, Some(Ident(name)), globalRet)
      
       case term: TermTree => 
-        sys.error("TODO")
+        makeConstraints(Assign(currRet.get, term))
      
       case term: RefTree =>
-        sys.error("TODO")
+        makeConstraints(Assign(currRet.get, term))
       
+      case Match(selector, cases) =>
+        c.abort(c.enclosingPosition, "pattern matching an algebraic datatypes not yet supported")
       //for loops
       case LabelDef(name, params, rhs) =>
         c.abort(c.enclosingPosition, "while loop not yet supported")
@@ -97,22 +91,103 @@ trait TrExtractor {
     }
   }
 
-  private def ssa(body: Tree): Tree = { //XXX return a map of ... to ...
+  private def assigned(t: Tree): List[Tree] = t match {
+    case If(cond, thenp, elsep) =>
+      val thena = assigned(thenp)
+      val elsea = assigned(elsep)
+      //multiset least upper bound:
+      (thena intersect elsea) union ((thena diff elsea) union (elsea diff thena))
+    case Block(stats, expr) => (stats ::: List(expr)) flatMap assigned
+    case Typed(e, _) => assigned(e)
+    case Apply(Select(lhs, TermName("$less$tilde")), List(rhs)) => List(lhs)
+    case Assign(lhs, rhs) => List(lhs)
+    //case ValDef(mods, name, tpe, rhs) => List(Ident(name))
+    case other => Nil
+  }
+
+  //returns the body in SSA and a map of tree to the different version
+  private def ssa(body: List[Tree]): (List[Tree], Map[Tree, List[Tree]]) = {
+    //XXX return a map of Tree to version #
     sys.error("TODO")
   }
   
   //DefDef(mods, name, tparams, vparamss, tpt, rhs)
 
-  private def auxiliaryFunctions(d: DefDef): AuxiliaryMethod = {
-    sys.error("TODO")
+  private def auxiliaryFunction(d: DefDef): AuxiliaryMethod = {
+    if (d.vparamss.length > 1) {
+      c.abort(c.enclosingPosition, "auxiliaryFunction, currying not yet supported: " + d.name)
+    }
+    c.echo(c.enclosingPosition, "currently we do not verify auxiliary functions (" +d.name.toString +")")
+    val name = d.name.toString
+    val params = d.vparamss.head.map(extractVarFromValDef)
+    val tpe = round.formula.Function(params.map(_.tpe), extractType(d.tpt.tpe))
+    val tParams: List[TypeVariable] = d.tparams.map(extractTypeVar)
+
+    val (body2, pre) = getPreCondition(d.rhs).getOrElse((d.rhs, True()))
+    val (body3, vRet, post) = getPostCondition(body2).getOrElse(body2, Variable(Namer("__return")).setType(tpe), True())
+    val body = None //TODO Option[TransitionRelation],
+    new AuxiliaryMethod(name, params, tpe, tParams, pre, body, (vRet, post))
   }
 
-  private def processSend(d: DefDef) = {
-    sys.error("TODO")
+  private def processSendUpdate(send: DefDef, update: DefDef): TransitionRelation = {
+    //need to take care of the mailbox!!
+    //sys.error("TODO")
+    new TransitionRelation(True(), Nil, Nil)
   }
 
-  private def processUpdate(d: DefDef) = {
-    sys.error("TODO")
+  //ClassDef(mods, name, tparams, Template(parents, self, body))
+
+  private def traverseBody(body: List[Tree]) = {
+    val acc: (Option[DefDef], Option[DefDef], List[AuxiliaryMethod]) = (None,None,Nil)
+    val (snd, upd, aux) = body.foldLeft(acc)( (acc, stmt) => stmt match { 
+      case ValDef(_, name, _, _) =>
+        c.abort(c.enclosingPosition, "'"+name+"', Round should not contain variable/value definition. Please declare them as LocalVariable in the Algorithm.")
+      case d @ DefDef(_, TermName("send"), _, _, _, _) =>
+        assert(acc._1.isEmpty)
+        (Some(d), acc._2, acc._3)
+      case d @ DefDef(_, TermName("update"), _, _, _, _) =>
+        assert(acc._2.isEmpty)
+        (acc._1, Some(d), acc._3)
+      case d @ DefDef(_, _, _, _, _, _) =>
+        (acc._1, acc._2, auxiliaryFunction(d) :: acc._3)
+    })
+    (processSendUpdate(snd.get, upd.get), aux)
+  }
+
+  private def mkAuxMap(aux: List[AuxiliaryMethod]): Tree = {
+    aux.foldLeft(q"Map.empty[String,AuxiliaryMethod]")( (acc, a) => {
+      val name = a.name
+      q"$acc + ($name -> $a)"
+    })
+  }
+  
+  object insideRound extends Transformer {
+    override def transform(tree: Tree): Tree = {
+      super.transform(tree) match {
+        case cd @ ClassDef(mods, name, tparams, tmpl @ Template(parents, self, body)) => //TODO make sure it extends round
+          val (tr, aux) = traverseBody(body)
+          val valTR = q"val rawTR: TransitionRelation = $tr"
+          val treeAuxMap = mkAuxMap(aux)
+          val valAuxMap = q"val auxSpec: Map[String, AuxiliaryMethod] = $treeAuxMap"
+          val body2 =  valTR :: valAuxMap :: body
+          //val tmpl2 = treeCopy.Template(tmpl, parents, self, body2)
+          //treeCopy.ClassDef(cd, mods, name, tparams, tmpl2)
+          val tmpl2 = treeCopy.Template(tmpl, parents, self, body2)
+          treeCopy.ClassDef(cd, mods, name, tparams, tmpl2)
+        case other => other
+      }
+    }
+  }
+
+  protected def processRound(t: Tree) = {// t match {
+      val tree = insideRound.transform(t)
+      tree
+      //c.typecheck(tree)
+    //case q"$mods class $tpname[..$tparams] $ctorMods(...$paramss) extends { ..$earlydefns } with ..$parents { $self => ..$stats }" =>
+    //case q"new ..$parents { ..$body }" =>
+      //val tree = q"new ..$parents { ..$body2 }"
+    //case _ =>
+    //  c.abort(c.enclosingPosition, "definition of round did not match expected pattern: 'new Round[$tpt] { ..$body }'")
   }
 
 }

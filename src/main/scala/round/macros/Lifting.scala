@@ -1,9 +1,7 @@
 package round.macros
 
 import round.formula._
-
-import scala.language.experimental.macros
-import scala.reflect.macros.blackbox.Context
+import round.verification._
 
 trait Lifting {
   self: Impl =>
@@ -92,6 +90,25 @@ trait Lifting {
     case FiniteValues(values) => sys.error("ToDo lifting FiniteValues")
   }
 
+  def _liftTR(tr: TransitionRelation): Tree = {
+    val tr2 = _liftF(tr.tr)
+    val old = tr.old map _liftF
+    val primed = tr.primed.map(_liftF)
+    q"new TransitionRelation($tr2, $old, $primed)"
+  }
+  
+  def _liftAX(aux: AuxiliaryMethod): Tree = {
+    val name = aux.name
+    val params = aux.params.map(_liftF)
+    val tpe = _liftT(aux.tpe)
+    val tParams = aux.tParams.map(_liftT)
+    val pre = aux.pre
+    val body = aux.body.map(_liftTR)
+    val post = (_liftF(aux.post._1), _liftF(aux.post._2))
+    q"new AuxiliaryMethod($name, $params, $tpe, $tParams, $pre, $body, $post)"
+  }
+
+
   
   implicit val liftF = new Liftable[Formula] {
     def apply(f: Formula) = _liftF(f)
@@ -107,6 +124,14 @@ trait Lifting {
   
   implicit val liftT = new Liftable[round.formula.Type] {
     def apply(t: round.formula.Type) = _liftT(t)
+  }
+  
+  implicit val liftTR = new Liftable[TransitionRelation] {
+    def apply(tr: TransitionRelation) = _liftTR(tr)
+  }
+
+  implicit val liftAX = new Liftable[AuxiliaryMethod] {
+    def apply(aux: AuxiliaryMethod) = _liftAX(aux)
   }
   
 }

@@ -30,6 +30,20 @@ case class Literal[T <: AnyVal](value: T) extends Formula {
   lazy val boundVariables = Set[Variable]()
 
 }
+object True {
+  def unapply(f: Formula): Option[Unit] = f match {
+    case Literal(true) => Some(())
+    case _ => None
+  }
+  def apply(): Literal[Boolean] = Literal(true)
+}
+object False {
+  def unapply(f: Formula): Option[Unit] = f match {
+    case Literal(false) => Some(())
+    case _ => None
+  }
+  def apply(): Literal[Boolean] = Literal(false)
+}
 
 case class Variable(name: String) extends Formula {
 

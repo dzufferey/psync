@@ -16,6 +16,7 @@
   cleaner separation between the runtime and the declarations
 - interfacte for predicate layer and more predicates 
 - Process.exit
+- ghost variables: remove at compile time
 
 
 # verification
@@ -23,7 +24,6 @@
 - generate a transition relation for the round
 - add temporal elements to formula/boolean 
 - decision procedure
-- add ghost variables (like global/local variables)
 
 
 # network emulation: packet loss, delay, ...

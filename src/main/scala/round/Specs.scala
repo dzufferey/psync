@@ -12,6 +12,8 @@ trait Specs[IO] {
     val properties: List[(String, Formula)]
   }
 
+  //TODO an axioms class for the verification ?
+
   object SpecHelper {
     implicit class BoolOps(lhs: Boolean) {
       def ==>(rhs: Boolean): Boolean =  !lhs || rhs

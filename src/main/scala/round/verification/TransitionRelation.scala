@@ -4,7 +4,9 @@ import round.formula._
 
 //a wrapper around a formula, old/primed variables, ...
 
-class TransitionRelation(tr: Formula, old: List[Variable], primed: List[Variable]) {
+class TransitionRelation(val tr: Formula,
+                         val old: List[Variable],
+                         val primed: List[Variable]) {
   //TODO
   //-renaming facility
   //-check for capture of intermediate variable

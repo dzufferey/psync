@@ -2,9 +2,6 @@ package round.macros
 
 import round.formula._
 
-import scala.language.experimental.macros
-import scala.reflect.macros.blackbox.Context
-
 trait BoolExpr {
   self: Impl =>
   import c.universe._
@@ -41,6 +38,11 @@ trait BoolExpr {
           sys.error("not expected: " + showRaw(t))
       }
     }
+  }
+  
+  //TODO
+  def extractTypeVar(t: Tree): round.formula.TypeVariable = {
+    sys.error("TODO extractTypeFromTypeTree: " + showRaw(t))
   }
 
   def extractDomain(e: Tree): Option[Formula] = {
@@ -86,6 +88,14 @@ trait BoolExpr {
       val v = tname.toString
       val t = extractType(tpt.tpe)
       Eq(Variable(v).setType(t), rhs)
+    case _ => sys.error("expected ValDef: " + showRaw(e))
+  }
+  
+  def extractVarFromValDef(e: Tree): Variable = e match{
+    case q"$mods val $tname: $tpt = $expr" =>
+      val v = tname.toString
+      val t = extractType(tpt.tpe)
+      Variable(v).setType(t)
     case _ => sys.error("expected ValDef: " + showRaw(e))
   }
 

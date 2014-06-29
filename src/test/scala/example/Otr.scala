@@ -3,6 +3,7 @@ package example
 import round._
 import round.Algorithm._
 import round.formula._
+import round.verification._
 import round.runtime.Group
 import round.macros.Macros._
 import io.netty.buffer.ByteBuf
@@ -55,7 +56,7 @@ class OTR extends Algorithm[OtrIO] {
 
     type T = Int
     val rounds = Array[Round[Int]](
-      new Round[Int]{
+      rnd(new Round[Int]{
 
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //min most often received
@@ -89,7 +90,7 @@ class OTR extends Algorithm[OtrIO] {
           }
         }
 
-      }
+      })
     )
 
   })

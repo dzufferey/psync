@@ -2,12 +2,18 @@ package round.verification
 
 import round.formula._
 
-class AuxiliaryMethod(name: String,
-                      params: List[Variable],
-                      tpe: Function, tParams: List[TypeVariable],
-                      pre: Formula,
-                      body: TransitionRelation,
-                      post: (Variable, Formula) ) {
+class AuxiliaryMethod(val name: String,
+                      val params: List[Variable],
+                      val tpe: Function,
+                      val tParams: List[TypeVariable],
+                      val pre: Formula,
+                      val body: Option[TransitionRelation],
+                      val post: (Variable, Formula) ) {
+
+
+  def hasDef = body.isDefined
+
+  def symbol = UnInterpretedFct(name, Some(tpe), tParams)
 
   def makePreVC(args: List[Formula]): Formula = {
     sys.error("TODO")
