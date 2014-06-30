@@ -20,5 +20,7 @@ trait Specs[IO] {
     }
   }
 
+  case class Axiom(name: String, formula: Formula)
+
 }
 

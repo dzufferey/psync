@@ -136,40 +136,85 @@ trait TrExtractor {
   }
 
   //ClassDef(mods, name, tparams, Template(parents, self, body))
+  
+  val ioStuff = Set("ftt", "spkl", "upkl")
 
   private def traverseBody(body: List[Tree]) = {
     val acc: (Option[DefDef], Option[DefDef], List[AuxiliaryMethod]) = (None,None,Nil)
     val (snd, upd, aux) = body.foldLeft(acc)( (acc, stmt) => stmt match { 
       case ValDef(_, name, _, _) =>
-        c.abort(c.enclosingPosition, "'"+name+"', Round should not contain variable/value definition. Please declare them as LocalVariable in the Algorithm.")
+        if (ioStuff contains name.toString.trim) {
+          (acc._1, acc._2, acc._3)
+        } else {
+          c.abort(c.enclosingPosition, "'"+name+"', Round should not contain variable/value definition. Please declare them as LocalVariable in the Algorithm.")
+        }
       case d @ DefDef(_, TermName("send"), _, _, _, _) =>
         assert(acc._1.isEmpty)
         (Some(d), acc._2, acc._3)
       case d @ DefDef(_, TermName("update"), _, _, _, _) =>
         assert(acc._2.isEmpty)
         (acc._1, Some(d), acc._3)
-      case d @ DefDef(_, _, _, _, _, _) =>
-        (acc._1, acc._2, auxiliaryFunction(d) :: acc._3)
+      case d @ DefDef(_, name, _, _, _, _) =>
+        //ignore the ctor for the moment
+        if (name == termNames.CONSTRUCTOR || ioStuff.contains(name.toString.trim))
+          (acc._1, acc._2, acc._3)
+        else
+          (acc._1, acc._2, auxiliaryFunction(d) :: acc._3)
+      case TypeDef(_, _, _, _) =>
+        (acc._1, acc._2, acc._3)
     })
     (processSendUpdate(snd.get, upd.get), aux)
   }
 
   private def mkAuxMap(aux: List[AuxiliaryMethod]): Tree = {
-    aux.foldLeft(q"Map.empty[String,AuxiliaryMethod]")( (acc, a) => {
+    aux.foldLeft(q"Map.empty[String,round.verification.AuxiliaryMethod]")( (acc, a) => {
       val name = a.name
       q"$acc + ($name -> $a)"
     })
   }
+
+  def extendsRound(t: Tree) = t match {
+    case tq"round.Round" => true
+    case _ => false
+  }
   
+  def methodToAdd(tpt: Tree) = List(
+      q"""protected def serialize(payload: $tpt, out: ByteBuf, withLength: Boolean = true, offset: Int = 8): Int = {
+        if (offset > 0) out.writerIndex(out.writerIndex() + offset)
+        val bytes0 = payload.pickle.value
+        val length = bytes0.length
+        if (withLength) {
+          out.writeInt(length.toShort)
+          out.writeBytes(bytes0)
+          length + 4
+        } else {
+          out.writeBytes(bytes0)
+          length
+        }
+      }""",
+      q"""protected def deserialize(in: ByteBuf, withLength: Boolean = true, offset: Int = 8): $tpt = {
+        if (offset > 0) in.readerIndex(in.readerIndex() + offset)
+        val length = if (withLength) in.readInt() else in.readableBytes()
+        val bytes = Array.ofDim[Byte](length)
+        in.readBytes(bytes)
+        BinaryPickle(bytes).unpickle[$tpt]
+      }"""
+    )
+
+  def findTypeParam(body: List[Tree]) = {
+    body.collectFirst{ case td @ TypeDef(_, TypeName("A"), _, tpt) => tpt }.get
+  }
+
   object insideRound extends Transformer {
     override def transform(tree: Tree): Tree = {
       super.transform(tree) match {
-        case cd @ ClassDef(mods, name, tparams, tmpl @ Template(parents, self, body)) => //TODO make sure it extends round
+        case cd @ ClassDef(mods, name, tparams, tmpl @ Template(parents, self, body)) if parents exists extendsRound =>
           val (tr, aux) = traverseBody(body)
-          val valTR = q"val rawTR: TransitionRelation = $tr"
+          val valTR = q"val rawTR: round.verification.TransitionRelation = $tr"
           val treeAuxMap = mkAuxMap(aux)
-          val valAuxMap = q"val auxSpec: Map[String, AuxiliaryMethod] = $treeAuxMap"
-          val body2 =  valTR :: valAuxMap :: body
+          val valAuxMap = q"val auxSpec: Map[String, round.verification.AuxiliaryMethod] = $treeAuxMap"
+          val tpt = findTypeParam(body)
+          val body2 =  valTR :: valAuxMap :: body ::: methodToAdd(tpt)
           //val tmpl2 = treeCopy.Template(tmpl, parents, self, body2)
           //treeCopy.ClassDef(cd, mods, name, tparams, tmpl2)
           val tmpl2 = treeCopy.Template(tmpl, parents, self, body2)

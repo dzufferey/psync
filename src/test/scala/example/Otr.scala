@@ -2,11 +2,11 @@ package example
 
 import round._
 import round.Algorithm._
-import round.formula._
-import round.verification._
 import round.runtime.Group
 import round.macros.Macros._
 import io.netty.buffer.ByteBuf
+import scala.pickling._
+import binary._
 
 abstract class OtrIO {
   val initialValue: Int
@@ -22,23 +22,24 @@ class OTR extends Algorithm[OtrIO] {
 
   //variables
   val x = new LocalVariable[Int](0)
-  val decision = new LocalVariable[Option[Int]](None)
+  val decision = new LocalVariable[Option[Int]](None) //TODO as ghost
 
 
   val spec = new Spec {
       val safetyPredicate = f(true)
       val livnessPredicate = List( f( S.exists( s => P.forall( p => HO(p) == s && s.size > 2*n/3 ))))
-      val invariants = List(f(  P.forall( i => !decision(i).isEmpty )
-                            || V.exists( v => {
-                                  val A = P.filter( i => x(i) == v);
-                                  A.size > 2*n/3 && P.forall( i => decision(i).isDefined ==> (decision(i).get == v))
-                               })),
-                             f(V.exists( v => {
-                               val A = P.filter( i => x(i) == v);
-                               A.size == n.get && P.forall( i => decision(i).isDefined ==> (decision(i).get == v))
-                             })),
-                             f(V.exists( v => P.forall( i => decision(i).isDefined ==> (decision(i).get == v)) ))
-                           ) //how to relate the invariants and the magic rounds
+      val invariants = List(
+        f(  P.forall( i => !decision(i).isEmpty )
+         || V.exists( v => {
+           val A = P.filter( i => x(i) == v);
+           A.size > 2*n/3 && P.forall( i => decision(i).isDefined ==> (decision(i).get == v))
+        })),
+        f(V.exists( v => {
+           val A = P.filter( i => x(i) == v);
+           A.size == n.get && P.forall( i => decision(i).isDefined ==> (decision(i).get == v))
+        })),
+        f(V.exists( v => P.forall( i => decision(i).isDefined ==> (decision(i).get == v)) ))
+      ) //how to relate the invariants and the magic rounds
 
       val properties = List(
         ("Termination",    f(P.forall( i => decision(i).isDefined) )),
@@ -55,8 +56,11 @@ class OTR extends Algorithm[OtrIO] {
     x <~ io.initialValue
 
     type T = Int
-    val rounds = Array[Round[Int]](
-      rnd(new Round[Int]{
+
+    val rounds = Array[Round](
+      rnd(new Round{
+
+        type A = Int
 
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //min most often received
@@ -68,7 +72,7 @@ class OTR extends Algorithm[OtrIO] {
           //  val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong, v) }
           m._1
         } ensuring { v1 =>
-          mailbox.map(_._1).forall(v2 =>
+          mailbox.map(_._1).forall( v2 =>
             mailbox.filter(_._1 == v1).size > mailbox.filter(_._1 == v2).size || v1 <= v2
           )
         }

@@ -37,7 +37,7 @@ class Impl(val c: Context) extends Lifting
     }
   }
   
-  def postprocessRound[T <: Round[_]](e: c.Expr[T]): c.Expr[T] = {
+  def postprocessRound[T <: Round](e: c.Expr[T]): c.Expr[T] = {
     try {
       val res = processRound(e.tree)
       val res2 = c.Expr[T](q"$res")
@@ -59,6 +59,6 @@ object Macros {
   //def p(e: Process): Process = macro Impl.process
   def p[T <: Process](e: T): T = macro Impl.process[T]
   
-  def rnd[T <: Round[_]](e: T): T = macro Impl.postprocessRound[T]
+  def rnd[T <: Round](e: T): T = macro Impl.postprocessRound[T]
 
 }

@@ -4,19 +4,18 @@
 - interface between the algorithm and the predicate
 - expected number of messages for a round: inferred from the send function
 - locally testable safety/liveness conditions: of the form ∀ p. QF-φ(p)
+- split the sources into multiple parts/sub-projects
+  so we can use macros for the testing and debugging in the main project
+  cleaner separation between the runtime and the declarations
 
 
 # implementation
 
-- push [T] inside the round
-- round should share the same allocator
 - timeout for the predicate layer
-- split into multiple parts
-  so we can use macros for the testing and debugging in the main project
-  cleaner separation between the runtime and the declarations
-- interfacte for predicate layer and more predicates 
+- more predicates 
 - Process.exit
-- ghost variables: remove at compile time
+- ghost variables: make sure they are only read in the verification part and remove at compile time
+- too much contention in the message reception and delivery
 
 
 # verification
@@ -24,7 +23,6 @@
 - generate a transition relation for the round
 - add temporal elements to formula/boolean 
 - decision procedure
-
 
 # network emulation: packet loss, delay, ...
 

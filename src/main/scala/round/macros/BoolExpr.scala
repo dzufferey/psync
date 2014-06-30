@@ -79,6 +79,7 @@ trait BoolExpr {
               List(Select(This(_), v))), TermName("apply")) =>
       UnInterpretedFct("__old__" + v.toString)
     case q"${fct: RefTree}.apply" => UnInterpretedFct(fct.name.toString)
+    case q"${fct: RefTree}.$fct2" => UnInterpretedFct(fct.name.toString + "_" + fct2.toString)
     case _ => sys.error("extractSymbol: " + showRaw(e))
   }
 

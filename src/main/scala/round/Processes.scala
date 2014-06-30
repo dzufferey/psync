@@ -9,8 +9,7 @@ abstract class Process(val id: ProcessID) {
 
   //use some Macro to rewrite that and to type the round correctly
   //we should allow different rounds to have different types of messages
-  type T
-  val rounds: Array[Round[T]]
+  val rounds: Array[Round]
 
   //to finish the instance
   protected def exit() {
@@ -25,7 +24,7 @@ abstract class Process(val id: ProcessID) {
 
   protected def incrementRound: Unit //defined by macros
 
-  protected def currentRound: Round[T] //defined by macros
+  protected def currentRound: Round //defined by macros
 
   final def send(): Set[(ByteBuf,ProcessID)] = {
     incrementRound
