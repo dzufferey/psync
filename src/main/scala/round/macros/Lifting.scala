@@ -60,6 +60,10 @@ trait Lifting {
     case In => q"round.formula.In"
     case Contains => q"round.formula.Contains"
     case Cardinality => q"round.formula.Cardinality"
+    case FSome => q"round.formula.FSome"
+    case Get => q"round.formula.Get"
+    case IsDefined => q"round.formula.IsDefined"
+    case IsEmpty => q"round.formula.IsEmpty"
   }
 
   def _liftBT(b: BindingType): Tree = b match {

@@ -33,5 +33,11 @@ abstract class Process(val id: ProcessID) {
 
   //TODO when to insert dummy ?
 
+  //////////////////////
+  // for verification //
+  //////////////////////
+
+  //macros will take care of populating those fields
+  protected val initState: round.formula.Formula
 
 }

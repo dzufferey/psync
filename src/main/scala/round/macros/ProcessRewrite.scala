@@ -83,6 +83,14 @@ trait ProcessRewrite {
     }
   }
 
+  def collectInit(ts: List[Tree]): Formula = {
+    ts.foldLeft(True(): Formula)( (acc, t) => t match {
+      case a @ Apply(Select(_, TermName("$less$tilde")), List(_)) =>
+        And(acc, makeConstraints(a))
+      case _ => acc
+    })
+  }
+
 
   def processRewrite(t: Tree): Tree = t match {
     case q"new ..$parents { ..$body }" => //TODO make sure it is a Process
@@ -94,7 +102,9 @@ trait ProcessRewrite {
       })
       val transformer = new InsideProcess(idMap)
       //TODO initial state of the process
-      val body2 = newDefs ::: defaultMethods ::: transformer.transformTrees(body)
+      val f = collectInit(body)
+      val init = q"protected val initState: round.formula.Formula = $f"
+      val body2 = init :: newDefs ::: defaultMethods ::: transformer.transformTrees(body)
       val tree = q"new ..$parents { ..$body2 }"
       c.untypecheck(tree)
     case _ =>

@@ -15,6 +15,7 @@ object Simplify {
     case Gt(List(a,b)) =>  Copier.Application(f, Lt, List(b,a))
     case SupersetEq(List(a,b)) => Copier.Application(f, SubsetEq, List(b,a))
     case Contains(List(a,b)) => Copier.Application(f, In, List(b,a))
+    case IsEmpty(List(a)) => Copier.Application(f, Not, List(Copier.Application(f, IsDefined, List(a))))
     case other => other
   }
 

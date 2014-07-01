@@ -15,6 +15,7 @@ abstract class OtrIO {
 
 class OTR extends Algorithm[OtrIO] {
 
+
   import VarHelper._
   import SpecHelper._
 

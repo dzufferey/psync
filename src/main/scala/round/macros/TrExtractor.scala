@@ -8,11 +8,6 @@ trait TrExtractor {
   self: Impl =>
   import c.universe._
 
-  //TODO from the round extract constraints representing the transition relation (TR)
-  
-  //model for the mailbox: M(i,j) means i sends to j at this round.
-  //need to connect what is send to what is received
-  //the must be SSA (no loop the modifies variables) //please put that in methods outside the send/receive
 
   private def getPostCondition(body: Tree): Option[(Tree, Variable, Formula)] = body match {
     case q"scala.this.Predef.Ensuring[$tpt]($expr).ensuring( $ret => $postCond )" =>
@@ -75,7 +70,11 @@ trait TrExtractor {
 
   private def addSsaMatchingCode(t: Tree, eqs: List[List[Tree]]): Tree = {
     def mkEqs(vars: List[Tree]) = {
-      vars.sliding(2).map( vs => Assign(vs(1), vs(0)) ).toList
+      if (vars.length > 1) {
+        vars.sliding(2).map( vs => Assign(vs(1), vs(0)) ).toList
+      } else {
+        Nil
+      }
     }
     val matchingCode: List[Tree] = eqs flatMap mkEqs
     //blockify
@@ -153,18 +152,19 @@ trait TrExtractor {
       ssa(e, substMap)
     
     case Apply(Select(lhs, TermName("$less$tilde")), List(rhs)) => 
-      ssa(Assign(lhs, rhs), substMap)
+      ssa(treeCopy.Assign(body, lhs, rhs), substMap)
 
     case Assign(lhs, rhs) => 
       val (rhs2, substMap2) = ssa(rhs, substMap)
-      sys.error("TODO")
+      val (lhs2, substMap3) = increment(lhs, substMap2)
+      (treeCopy.Assign(body, lhs2, rhs2), substMap3)
 
     case ValDef(`emptyMods`, name, tpt, rhs) =>
       val (rhs2, substMap2) = ssa(rhs, substMap)
       (treeCopy.ValDef(body, emptyMods, name, tpt, rhs2), substMap2)
 
     case ValDef(mods, name, tpt, rhs) => //if mutable ...
-      sys.error("non-empty modifier for ValDef ?!: " + mods)
+      c.abort(body.pos, "Round should not contain variable, please use values only: non-empty modifier in ValDef " + mods)
 
     case other =>
       (applySsaSubst(other, substMap), substMap)
@@ -190,9 +190,27 @@ trait TrExtractor {
   }
 
   private def processSendUpdate(send: DefDef, update: DefDef): TransitionRelation = {
-    //need to take care of the mailbox!!
-    c.warning(send.pos, "TODO TransitionRelation for the round")
-    new TransitionRelation(True(), Nil, Nil)
+    //TODO check no assign in send
+    val mailboxValDef = update.vparamss.head.head
+    val mailboxIdent = Ident(mailboxValDef.name)
+    val (ssaSend, subst) = ssa(send.rhs)
+    val cstr1 = makeConstraints(ssaSend, Some(mailboxIdent), Some(mailboxIdent))
+
+    val (ssaUpdt, subst2) = ssa(update.rhs, subst)
+    val cstr2 = makeConstraints(ssaUpdt, None, None)
+
+    val keys = subst2.keys.toList
+    val oldV = keys.map( k => tree2Formula(k) match {
+      case v @ Variable(_) => v
+      case other => 
+        c.abort(k.pos, "could not extract vaiable from: " + k + ", got " + other)
+    })
+    val newV = keys.map( k => tree2Formula(subst2(k).last) match {
+      case v @ Variable(_) => v
+      case other => 
+        c.abort(k.pos, "could not extract vaiable from: " + k + ", got " + other)
+    })
+    new TransitionRelation(And(cstr1, cstr2), oldV, newV)
   }
 
   
@@ -203,10 +221,10 @@ trait TrExtractor {
       case ValDef(_, name, _, _) =>
           c.abort(c.enclosingPosition, "'"+name+"', Round should not contain variable/value definition. Please declare them as LocalVariable in the Algorithm.")
       case d @ DefDef(_, TermName("send"), _, _, _, _) =>
-        assert(acc._1.isEmpty)
+        assert(acc._1.isEmpty, "found multiple 'send' declarations")
         (Some(d), acc._2, acc._3)
       case d @ DefDef(_, TermName("update"), _, _, _, _) =>
-        assert(acc._2.isEmpty)
+        assert(acc._2.isEmpty, "found multiple 'update' declarations")
         (acc._1, Some(d), acc._3)
       case d @ DefDef(_, name, _, _, _, _) =>
         //ignore the ctor for the moment

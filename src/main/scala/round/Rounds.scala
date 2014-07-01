@@ -22,12 +22,12 @@ abstract class Round {
 
   def update(mailbox: Set[(A, ProcessID)]): Unit
 
-  protected def broadcast(msg: A): Set[(A, ProcessID)] = {
+  protected final def broadcast(msg: A): Set[(A, ProcessID)] = {
     group.replicas.foldLeft(Set.empty[(A,ProcessID)])( (acc, r) => acc + (msg -> r.id))
   }
   
   //to finish the instance
-  protected def terminate(): Nothing = {
+  protected final def terminate(): Nothing = {
     throw new TerminateInstance
   }
 

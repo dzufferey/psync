@@ -200,6 +200,34 @@ case object Cardinality extends InterpretedFct("card", "size") {
   }
 }
 
+case object FSome extends InterpretedFct("Some") {
+  def tpe = {
+    val fv = Type.freshTypeVar
+    fv ~> FOption(fv)
+  }
+}
+
+case object IsDefined extends InterpretedFct("isDefined") {
+  def tpe = {
+    val fv = Type.freshTypeVar
+    FOption(fv) ~> Bool
+  }
+}
+
+case object IsEmpty extends InterpretedFct("isEmpty") {
+  def tpe = {
+    val fv = Type.freshTypeVar
+    FOption(fv) ~> Bool
+  }
+}
+
+case object Get extends InterpretedFct("get") {
+  def tpe = {
+    val fv = Type.freshTypeVar
+    FOption(fv) ~> fv
+  }
+}
+
 
 sealed abstract class BindingType
 

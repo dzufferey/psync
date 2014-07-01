@@ -1,6 +1,7 @@
 package round.macros
 
 import round.formula._
+import round.utils.Namer
 
 trait BoolExpr {
   self: Impl =>
@@ -85,8 +86,11 @@ trait BoolExpr {
               Apply(TypeApply(Select(Select(This(_), TermName("VarHelper")), TermName("old")), List(TypeTree())),
               List(Select(This(_), v))), TermName("apply")) =>
       UnInterpretedFct("__old__" + v.toString)
+    case TypeApply(Select(Select(Ident(scala), TermName("Some")), TermName("apply")), List(tpt)) =>
+      FSome
     case q"${fct: RefTree}.apply" => UnInterpretedFct(fct.name.toString)
     case q"${fct: RefTree}.$fct2" => UnInterpretedFct(fct.name.toString + "_" + fct2.toString)
+    case q"$pkg.this.$fct" => UnInterpretedFct(/*pkg.name.toString + "_" +*/ fct.toString)
     case _ => sys.error("extractSymbol: " + showRaw(e))
   }
 
@@ -205,10 +209,18 @@ trait BoolExpr {
         val dCstr = In(extractVarFromValDef(x), tree2Formula(domain))
         Comprehension(List(yF), And(dCstr, fCstr))
 
-      //uninterpreted fct
       case Apply(TypeApply(Select(Select(This(_), TermName("VarHelper")), TermName("getter")), List(TypeTree())), List(expr)) =>
         tree2Formula(expr)
 
+      //provided by the framework
+      //TODO make sure it is not used somewhere else
+      case q"$pkg.this.broadcast($expr)" =>
+        val payload = tree2Formula(expr)
+        val msg = Variable(Namer("__msg")).setType(Product(List(payload.tpe, UnInterpreted("ProcessID"))))
+        val fst = Application(UnInterpretedFct("_1"), List(msg)) //TODO tuple projection ...
+        Comprehension(List(msg), Eq(fst, payload))
+
+      //(un)interpreted fct
       case q"$expr(..$args)" =>
         val fct = extractSymbol(expr)
         val args2 = args map tree2Formula
@@ -223,6 +235,8 @@ trait BoolExpr {
         val args = List(tree2Formula(expr))
         Application(fct, args)
      
+      case Typed(e, _) => //TODO good enough ?
+        tree2Formula(e)
 
       //literals and vars
       case Literal(Constant(v: Boolean)) => round.formula.Literal(v)
@@ -236,6 +250,10 @@ trait BoolExpr {
         val f2 = tree2Formula(f)
         val d = defs map extractValDef
         d.foldLeft(f2)((x, y) => And(x, y))
+
+      case Literal(Constant(())) => True() //TODO should be a decent subtitute
+
+      case EmptyTree => True() //TODO should be a decent subtitute
 
       case other => sys.error("did not expect:\n" + other + "\n" + showRaw(other))
     }
@@ -265,7 +283,7 @@ trait BoolExpr {
         statsCstr.foldRight(retCstr)(And(_,_))
      
       case Return(expr) =>
-        makeConstraints(Assign(globalRet.get, expr))
+        globalRet.map( ret => makeConstraints(Assign(ret, expr))).getOrElse(True())
       
       case Typed(e, _) =>
         makeConstraints(e, currRet, globalRet)
@@ -279,10 +297,10 @@ trait BoolExpr {
         makeConstraints(rhs, Some(Ident(name)), globalRet)
      
       case term: TermTree => 
-        makeConstraints(Assign(currRet.get, term))
+        makeConstraints(Assign(currRet.getOrElse(Ident(TermName(Namer("dummy")))), term))
      
       case term: RefTree =>
-        makeConstraints(Assign(currRet.get, term))
+        makeConstraints(Assign(currRet.getOrElse(Ident(TermName(Namer("dummy")))), term))
       
       case Match(selector, cases) =>
         c.abort(c.enclosingPosition, "pattern matching an algebraic datatypes not yet supported")
