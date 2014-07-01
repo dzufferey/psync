@@ -2,6 +2,8 @@ package round.runtime
 
 import round._
 import round.predicate._
+import round.utils.Logger
+import round.utils.LogLevel._
 
 import io.netty.buffer._
 import io.netty.channel._
@@ -24,12 +26,27 @@ import scala.pickling._
 class PacketServer(
     port: Int,
     initGroup: Group,
-    defaultHandler: Message => Unit)
+    defaultHandler: Message => Unit,
+    options: Map[String, String] = Map.empty)
 {
 
   val directory = new Directory(initGroup)
 
-  val epoll = true //TODO read from config file
+  val epoll = {
+    val g = options.getOrElse("group", "nio").toLowerCase
+    if (g == "epoll") {
+      true
+    } else if (g == "nio") {
+      false
+    } else {
+      Logger("Predicate", Warning, "event group is unknown, using nio instead")
+      false
+    }
+  }
+    
+  if (options.getOrElse("transport layer", "udp").toLowerCase != "udp") {
+     Logger("Predicate", Warning, "transport layer: only UDP supported for the moment")
+  }
 
   private val group: EventLoopGroup =
     if (epoll) new EpollEventLoopGroup()
@@ -79,6 +96,7 @@ class PackerServerHandler(
     val dst = dir.self //inetToId(pkt.recipient)
     val buf = pkt.content
     val msg = Message.wrapByteBuf(src, dst, buf)
+    //is the default handler drop the message it cal lead to leak
     defaultHandler(msg)
   }
 

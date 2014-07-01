@@ -12,6 +12,8 @@ class RunTime[IO](val alg: Algorithm[IO]) {
 
   private var srv: Option[PacketServer] = None
 
+  private var options = Map.empty[String, String]
+
   /** Start an instance of the algorithm. */
   def startInstance(
       instanceId: Short,
@@ -24,7 +26,7 @@ class RunTime[IO](val alg: Algorithm[IO]) {
         //an instance is actually encapsulated by one process
         val grp = s.directory.group
         val process = alg.process(grp.self, io)
-        val predicate = new PredicateLayer(grp, instanceId, s.channel, process)
+        val predicate = new PredicateLayer(grp, instanceId, s.channel, process, options)
         //first round
         predicate.send
         //msg that are already received
@@ -50,16 +52,16 @@ class RunTime[IO](val alg: Algorithm[IO]) {
 
     //parse config
     val (peers,param1) = Config.parse(configFile)
-    val param = param1 ++ additionalOpt
+    options = param1 ++ additionalOpt
 
     //create the group
-    val me = param("id").toShort
+    val me = options("id").toShort
     val grp = Group(me, peers)
 
     //start the server
     val port = grp.get(me).port
     Logger("RunTime", Info, "starting service on port " + port)
-    val pktSrv = new PacketServer(port, grp, defaultHandler)
+    val pktSrv = new PacketServer(port, grp, defaultHandler, options)
     srv = Some(pktSrv)
     pktSrv.start
   }

@@ -11,11 +11,6 @@ abstract class Process(val id: ProcessID) {
   //we should allow different rounds to have different types of messages
   val rounds: Array[Round]
 
-  //to finish the instance
-  protected def exit() {
-    sys.error("TODO")
-  }
-
   //////////////////
   // util methods //
   //////////////////

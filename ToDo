@@ -8,14 +8,15 @@
   so we can use macros for the testing and debugging in the main project
   cleaner separation between the runtime and the declarations
 
-
 # implementation
 
-- test timeout for the predicate layer
+- uses netty 4.0.21 when on maven
 - more predicates 
-- Process.exit
 - ghost variables: make sure they are only read in the verification part and remove at compile time
 - too much locking in the message reception and delivery
+- memory leak when starting the first instance (message comes while instance starts ?)
+- test with message drop
+- test with more processes
 
 
 # verification
@@ -24,9 +25,12 @@
 - add temporal elements to formula/boolean 
 - decision procedure
 
+
 # example
 
-- something goes wrong when two request comes too close to each other (livelock ?)
+- find an application of LatticeAgreement
+- implement multi-Paxos, equalitarian paxos
+
 
 # network emulation: packet loss, delay, ...
 

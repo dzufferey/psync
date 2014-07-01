@@ -10,7 +10,9 @@ import io.netty.buffer.ByteBuf
 import scala.pickling._
 import binary._
 
-// http://stackoverflow.com/questions/18725699/scala-pickling-and-type-parameters
+//TODO not so nice (exn for control flow) but it will do for the moment
+class TerminateInstance extends Exception() { }
+
 
 abstract class Round {
 
@@ -23,6 +25,12 @@ abstract class Round {
   protected def broadcast(msg: A): Set[(A, ProcessID)] = {
     group.replicas.foldLeft(Set.empty[(A,ProcessID)])( (acc, r) => acc + (msg -> r.id))
   }
+  
+  //to finish the instance
+  protected def terminate(): Nothing = {
+    throw new TerminateInstance
+  }
+
 
   //////////////////
   // util methods //

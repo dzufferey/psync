@@ -4,12 +4,15 @@ import round._
 import Algorithm._
 import round.runtime._
 import round.utils.Timer
-import io.netty.util.{TimerTask, Timeout}
 
 import scala.reflect.ClassTag
 import io.netty.buffer.ByteBuf
 import io.netty.channel._
 import io.netty.channel.socket._
+import io.netty.util.{TimerTask, Timeout}
+
+import round.utils.Logger
+import round.utils.LogLevel._
 
 //basic implementation of rounds
 //not so fault tolerant: ∀ r. ∃ p. |HO(p, r)| = n  ∧  ∀ p q. p sends a message to q at round r.
@@ -22,7 +25,8 @@ class PredicateLayer(
       grp: Group,
       val instance: Short,
       channel: Channel,
-      proc: Process
+      proc: Process,
+      options: Map[String, String] = Map.empty
     ) extends SimpleChannelInboundHandler[DatagramPacket](false)
 {
 
@@ -43,7 +47,15 @@ class PredicateLayer(
   channel.pipeline.addFirst(instance.toString, this)
 
   //dealing with the timeout ?
-  val defaultTO = 200 //milliseconds
+  val defaultTO = {
+    try {
+      options.getOrElse("timeout", "200").toInt
+    } catch {
+      case e: Exception =>
+        Logger("Predicate", Warning, "timeout unspecified or wrong format, using 200")
+        200 //milliseconds
+    }
+  }
 
   //some flag about being active
   @volatile
@@ -62,6 +74,7 @@ class PredicateLayer(
           lock.acquire
           try {
             if (!changed) {
+              Logger("Predicate", Debug, "delivering because of timeout")
               deliver
             } else {
               changed = false
@@ -81,6 +94,8 @@ class PredicateLayer(
   def stop {
     active = false
     channel.pipeline().remove(instance.toString)
+    timeout.cancel
+    Logger("Predicate", Info, "stopping instance " + instance)
   }
 
   def send {
@@ -109,15 +124,19 @@ class PredicateLayer(
     currentRound += 1
     //push to the layer above
     val msgs = fromPkts(toDeliver)
-    proc.update(msgs.toSet)
-    //start the next round (if has not exited)
-    send
+    try {
+      proc.update(msgs.toSet)
+      //start the next round (if has not exited)
+      send
+    } catch {
+      case e: TerminateInstance => stop
+    }
   }
 
   protected def normalReceive(pkt: DatagramPacket) {
     messages(received) = pkt
     received += 1
-    if (received == n) {
+    if (received >= n) {
       deliver
     }
     changed = true

@@ -34,7 +34,7 @@ class LockManager(self: Short,
   ///////////////
   
   private val semaphore = new Semaphore(1, true) //at most one consensus at the time
-  private val consensus = new RunTime(new OTR)
+  private val consensus = new RunTime(new OTR2)
 
   private def onDecideOther(decision: Option[ProcessID]) {
     locked = decision
@@ -47,6 +47,7 @@ class LockManager(self: Short,
     client.reply(decision)
   }
 
+  //TODO we can get some deadlock here!
   private def startConsensus(expectedInstance: Short, io: OtrIO, msgs: Set[Message] = Set.empty) {
     Logger("LockManager", Notice, "starting consensus with value " + io.initialValue)
     //enter critical section
@@ -59,9 +60,11 @@ class LockManager(self: Short,
       //msg.sender is late
       //or race on receiving msg and the default handler (message was blocked in the pipeline)
       //our implementation should exclude the later case ...
+      msgs.foreach(_.release)
     } else { //if (expectedInstance > versionNbr+1){
       //we are late
       //start recovery ?
+      msgs.foreach(_.release)
     }
   }
 

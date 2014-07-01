@@ -39,6 +39,8 @@ class Message(
     converted
   }
 
+  def release = payload.release
+
 }
 
 

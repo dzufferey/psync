@@ -11,6 +11,10 @@
       <name>timeout</name>
       <value>200</value>
     </param>
+    <param>
+      <name>group</name>
+      <value>nio</value>
+    </param>
   </parameters>
   <peers>
     <replica>
