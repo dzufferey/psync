@@ -7,12 +7,6 @@ import io.netty.buffer.ByteBuf
 import round.utils.LogLevel._
 import round.utils.Logger
 
-class ProcessWrapper(p:Process) {
-  def setGroup(g: Group) = p.setGroup(g)
-  def send(): Seq[(ByteBuf,ProcessID)] = p.send.toSeq
-  def update(msgs: Seq[(ByteBuf,ProcessID)]) = p.update(msgs.toSet)
-}
-
 
 class RunTime[IO](val alg: Algorithm[IO]) {
 
@@ -30,8 +24,7 @@ class RunTime[IO](val alg: Algorithm[IO]) {
         //an instance is actually encapsulated by one process
         val grp = s.directory.group
         val process = alg.process(grp.self, io)
-        val wrapper = new ProcessWrapper(process)
-        val predicate = new PredicateLayer(grp, instanceId, s.channel, wrapper)
+        val predicate = new PredicateLayer(grp, instanceId, s.channel, process)
         //first round
         predicate.send
         //msg that are already received

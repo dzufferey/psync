@@ -11,11 +11,11 @@
 
 # implementation
 
-- timeout for the predicate layer
+- test timeout for the predicate layer
 - more predicates 
 - Process.exit
 - ghost variables: make sure they are only read in the verification part and remove at compile time
-- too much contention in the message reception and delivery
+- too much locking in the message reception and delivery
 
 
 # verification
@@ -23,6 +23,10 @@
 - generate a transition relation for the round
 - add temporal elements to formula/boolean 
 - decision procedure
+
+# example
+
+- something goes wrong when two request comes too close to each other (livelock ?)
 
 # network emulation: packet loss, delay, ...
 

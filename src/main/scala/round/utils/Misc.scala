@@ -98,5 +98,16 @@ object Misc {
     bound
     //(v1.name zip v2.name).takeWhile{ case (a,b) => a == b}.length
   }
+  
+  def mapFold[A,B,C](seq: List[A], acc: B, fct: (A,B) => (C,B)): (List[C], B) = {
+    def rec(lst: List[A], acc: B): (List[C], B) = lst match {
+      case x :: xs =>
+        val (y, acc2) = fct(x, acc)
+        val (ys, acc3) = rec(xs, acc2)
+        (y :: ys, acc3)
+      case Nil => (Nil, acc)
+    }
+    rec(seq, acc)
+  }
 
 }

@@ -46,7 +46,7 @@ trait ProcessRewrite {
 
 
   //on decl check for name clash
-  class insideProcess(map: Map[String, Ident]) extends Transformer {
+  class InsideProcess(map: Map[String, Ident]) extends Transformer {
     override def transform(tree: Tree): Tree = {
       super.transform(tree) match {
         case Apply(TypeApply(Select(Select(This(_), TermName("VarHelper")), TermName("getter")), List(TypeTree())), List(expr)) =>
@@ -85,21 +85,18 @@ trait ProcessRewrite {
 
 
   def processRewrite(t: Tree): Tree = t match {
-    //case q"new { ..$earlydefns } with ..$parents { $self => ..$stats }" =>
-    case q"new ..$parents { ..$body }" =>
+    case q"new ..$parents { ..$body }" => //TODO make sure it is a Process
       //TODO enclosingClass
       val vars = getVariables(c.enclosingClass) ::: defaultVariables
-      //println("got variables: " + vars)
       val (newDefs, idMap) = vars.foldLeft((Nil: List[ValDef],Map.empty[String,Ident]))( (acc, mvd) => {
         val (vdef, id) = mkLocalDecl(mvd)
         (acc._1 :+ vdef, acc._2 + (mvd.name -> id))
       })
-      val transformer = new insideProcess(idMap)
+      val transformer = new InsideProcess(idMap)
+      //TODO initial state of the process
       val body2 = newDefs ::: defaultMethods ::: transformer.transformTrees(body)
-      //remove attribute and let the typechecker run again
       val tree = q"new ..$parents { ..$body2 }"
       c.untypecheck(tree)
-      //tree
     case _ =>
       c.abort(c.enclosingPosition, "'p' should be applied to class definition: p(new Process{ ... })")
   }

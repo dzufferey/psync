@@ -3,6 +3,8 @@ package round.predicate
 import round._
 import Algorithm._
 import round.runtime._
+import round.utils.Timer
+import io.netty.util.{TimerTask, Timeout}
 
 import scala.reflect.ClassTag
 import io.netty.buffer.ByteBuf
@@ -20,13 +22,12 @@ class PredicateLayer(
       grp: Group,
       val instance: Short,
       channel: Channel,
-      proc: ProcessWrapper
+      proc: Process
     ) extends SimpleChannelInboundHandler[DatagramPacket](false)
 {
 
-
-  //TODO how to deal with the timeout ?
-  //some flag about being active
+  //safety condition guaranteed by the predicate
+  val ensures = round.formula.True() 
 
   val n = grp.size
   proc.setGroup(grp)
@@ -41,14 +42,50 @@ class PredicateLayer(
   //register in the channel
   channel.pipeline.addFirst(instance.toString, this)
 
+  //dealing with the timeout ?
+  val defaultTO = 200 //milliseconds
+
+  //some flag about being active
+  @volatile
+  var active = true
+
+  //each modification should set this to true, the timer will reset it
+  @volatile
+  var changed = false
+
+  val tt = new TimerTask {
+    def run(to: Timeout) {
+      if (active) {
+        if (changed) {
+          changed = false
+        } else {
+          lock.acquire
+          try {
+            if (!changed) {
+              deliver
+            } else {
+              changed = false
+            }
+          } finally {
+            lock.release
+          }
+        }
+        timeout = Timer.newTimeout(this, defaultTO)
+      }
+    }
+  }
+  var timeout: Timeout = Timer.newTimeout(tt, defaultTO)
+
+
   //deregister
   def stop {
+    active = false
     channel.pipeline().remove(instance.toString)
   }
 
   def send {
     val myAddress = grp.idToInet(grp.self)
-    val pkts = toPkts(proc.send)
+    val pkts = toPkts(proc.send.toSeq)
     for (pkt <- pkts) {
       if (pkt.recipient() == myAddress) {
         normalReceive(pkt)
@@ -72,7 +109,7 @@ class PredicateLayer(
     currentRound += 1
     //push to the layer above
     val msgs = fromPkts(toDeliver)
-    proc.update(msgs)
+    proc.update(msgs.toSet)
     //start the next round (if has not exited)
     send
   }
@@ -83,6 +120,7 @@ class PredicateLayer(
     if (received == n) {
       deliver
     }
+    changed = true
   }
 
   def receive(pkt: DatagramPacket) {

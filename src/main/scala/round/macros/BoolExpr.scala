@@ -6,38 +6,45 @@ trait BoolExpr {
   self: Impl =>
   import c.universe._
 
+  def isTuple(t: Symbol) = {
+    showRaw(t) startsWith "scala.Tuple" //TODO
+  }
+
   //TODO clean version using mirror ....
   def extractType(t: Type): round.formula.Type = {
     import definitions._
-    if (t weak_<:< LongTpe) {
+    if (t == null) {
+      Wildcard
+    } else if (t weak_<:< LongTpe) {
       Int
     } else if (t weak_<:< BooleanTpe) {
       Bool
     } else if (t == NoType) {
       Wildcard
-    } else if (t.toString contains "Tuple"){
-      println("TODO tuple: " + showRaw(t))
-      Wildcard
     } else {
-      //println("TODO type: Tuple, Set, ...")
       t match {
+        case TypeRef(_, tRef, args) if isTuple(tRef) =>
+          Product(args map extractType)
         case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "scala.Option" =>
           FOption(extractType(arg))
         case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "TypeName(\"Set\")" =>
           FSet(extractType(arg))
         case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "TypeName(\"LocalVariable\")" =>
           round.formula.Function(List(UnInterpreted("Process")), (extractType(arg)))
-        case TypeRef(_, tRef, List()) if showRaw(tRef) == "TypeName(\"Process\")" =>
+        case TypeRef(_, TypeName("ProcessID"), List()) =>
           UnInterpreted("Process")
-        case MethodType(args, t2) => Wildcard
-        case TypeRef(_, _, tUrl) => Wildcard
-        case SingleType(NoPrefix, _) => Wildcard
-        case SingleType(ThisType(_), _) => Wildcard
-        case ThisType(_) => Wildcard
-        case _ =>
-          sys.error("not expected: " + showRaw(t))
+        case other =>
+          //TODO
+          //println("extractType:\n  " + other + "\n  " + showRaw(other))
+          Wildcard
       }
     }
+  }
+  
+  //TODO
+  def extractType(t: Tree): round.formula.Type = t match {
+    case TypeTree() => extractType(t.tpe)
+    case _ => sys.error("TODO extractType from Tree: " + showRaw(t))
   }
   
   //TODO
@@ -46,7 +53,7 @@ trait BoolExpr {
   }
 
   def extractDomain(e: Tree): Option[Formula] = {
-    if (e.tpe.typeConstructor.toString contains "Domain") { //TODO HACK!!
+    if (e.tpe.typeConstructor.toString contains "Domain") { //TODO
       None
     } else {
       Some(tree2Formula(e))
@@ -190,7 +197,13 @@ trait BoolExpr {
       case q"$domain.forall( ..$xs => $f )" => makeBinding(ForAll, domain, xs, f)
       case q"$domain.exists( ..$xs => $f )" => makeBinding(Exists, domain, xs, f)
       case q"$domain.filter( ..$xs => $f )" => makeBinding(Comprehension, domain, xs, f)
-     
+      case q"$domain.map[$tpt1,$tpt2]( $x => $f )(immutable.this.Set.canBuildFrom[$tpt3])" =>
+        // { y | x ∈ domain ∧ y = f(x) }
+        val y = Ident(TermName(c.freshName("y")))
+        val yF = Variable(y.toString).setType(extractType(tpt1))
+        val fCstr = makeConstraints(f, Some(y), Some(y))
+        val dCstr = In(extractVarFromValDef(x), tree2Formula(domain))
+        Comprehension(List(yF), And(dCstr, fCstr))
 
       //uninterpreted fct
       case Apply(TypeApply(Select(Select(This(_), TermName("VarHelper")), TermName("getter")), List(TypeTree())), List(expr)) =>
@@ -201,9 +214,9 @@ trait BoolExpr {
         val args2 = args map tree2Formula
         Application(fct, args2)
       
-      case q"$pkg.this.$expr" => //TODO does not seems right ...
+      case fld @ q"$pkg.this.$expr" => //TODO does not seems right ...
         val n = expr.toString
-        Variable(n)
+        Variable(n).setType(extractType(fld.tpe))
 
       case q"$expr.$member" =>
         val fct: round.formula.Symbol = UnInterpretedFct(member.toString)
@@ -216,7 +229,7 @@ trait BoolExpr {
       case Literal(Constant(v: scala.Int)) => round.formula.Literal(v)
       case q"${ref: RefTree}" =>
         val n = ref.name.toString
-        Variable(n)
+        Variable(n).setType(extractType(ref.tpe))
 
       //defs
       case Block(defs, f) =>
@@ -224,11 +237,68 @@ trait BoolExpr {
         val d = defs map extractValDef
         d.foldLeft(f2)((x, y) => And(x, y))
 
-      case other => sys.error("did not expect: " + showRaw(other))
+      case other => sys.error("did not expect:\n" + other + "\n" + showRaw(other))
     }
 
     val t = extractType(e.tpe)
     formula.setType(t)
+  }
+
+  /* constraints for a loop-free block in SSA. */
+  def makeConstraints(
+      body: Tree,
+      currRet: Option[Tree] = None,
+      globalRet: Option[Tree] = None
+    ): Formula =
+  {
+    body match {
+     
+      case If(cond, thenp, elsep) =>
+        val condCstr = makeConstraints(cond, None, None)
+        val thenCstr = makeConstraints(thenp, currRet, globalRet)
+        val elseCstr = makeConstraints(elsep, currRet, globalRet)
+        Or(And(condCstr, thenCstr), And(Not(condCstr), elseCstr))
+     
+      case Block(stats, expr) =>
+        val statsCstr = stats.map(makeConstraints(_, None, globalRet))
+        val retCstr = makeConstraints(expr, currRet, globalRet)
+        statsCstr.foldRight(retCstr)(And(_,_))
+     
+      case Return(expr) =>
+        makeConstraints(Assign(globalRet.get, expr))
+      
+      case Typed(e, _) =>
+        makeConstraints(e, currRet, globalRet)
+      
+      case Apply(Select(lhs, TermName("$less$tilde")), List(rhs)) =>
+        Eq(tree2Formula(lhs), tree2Formula(rhs))
+      case Assign(lhs, rhs) =>
+        Eq(tree2Formula(lhs), tree2Formula(rhs))
+     
+      case ValDef(mods, name, tpe, rhs) =>
+        makeConstraints(rhs, Some(Ident(name)), globalRet)
+     
+      case term: TermTree => 
+        makeConstraints(Assign(currRet.get, term))
+     
+      case term: RefTree =>
+        makeConstraints(Assign(currRet.get, term))
+      
+      case Match(selector, cases) =>
+        c.abort(c.enclosingPosition, "pattern matching an algebraic datatypes not yet supported")
+      //for loops
+      case LabelDef(name, params, rhs) =>
+        c.abort(c.enclosingPosition, "while loop not yet supported")
+      //case Apply(id @ Ident(_), paramss) if id.symbol.isLabel =>
+      //  c.abort(c.enclosingPosition, "loop not yet supported")
+      case Try(block, catches, finalizer) =>
+        c.abort(c.enclosingPosition, "try/catch yet supported")
+      case Throw(expr) =>
+        c.abort(c.enclosingPosition, "throwing exception not yet supported")
+     
+      case other =>
+        c.abort(c.enclosingPosition, "makeConstraints, did not expect: " + other)
+    }
   }
 
 }
