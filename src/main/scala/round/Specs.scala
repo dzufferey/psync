@@ -20,7 +20,11 @@ trait Specs[IO] {
     }
   }
 
-  case class Axiom(name: String, formula: Formula)
+  var axiomList: List[Axiom] = Nil
+
+  case class Axiom(name: String, formula: Formula) {
+    axiomList = this :: axiomList
+  }
 
 }
 

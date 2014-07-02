@@ -70,8 +70,8 @@ abstract class Round {
   //////////////////////
 
   //macros will take care of populating those fields
-  protected val auxSpec: Map[String, AuxiliaryMethod] 
-  protected val rawTR: TransitionRelation
+  val auxSpec: Map[String, AuxiliaryMethod] 
+  val rawTR: TransitionRelation
 
 }
 

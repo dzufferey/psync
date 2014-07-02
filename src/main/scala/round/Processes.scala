@@ -38,6 +38,6 @@ abstract class Process(val id: ProcessID) {
   //////////////////////
 
   //macros will take care of populating those fields
-  protected val initState: round.formula.Formula
+  val initState: round.formula.Formula
 
 }
