@@ -64,6 +64,10 @@ trait Lifting {
     case Get => q"round.formula.Get"
     case IsDefined => q"round.formula.IsDefined"
     case IsEmpty => q"round.formula.IsEmpty"
+    case Tuple => q"round.formula.Tuple"
+    case Fst => q"round.formula.Fst"
+    case Snd => q"round.formula.Snd"
+    case Trd => q"round.formula.Trd"
   }
 
   def _liftBT(b: BindingType): Tree = b match {
@@ -97,8 +101,20 @@ trait Lifting {
   def _liftTR(tr: TransitionRelation): Tree = {
     val tr2 = _liftF(tr.tr)
     val old = tr.old map _liftF
+    val loc = tr.local map _liftF
     val primed = tr.primed.map(_liftF)
-    q"new round.verification.TransitionRelation($tr2, $old, $primed)"
+    q"new round.verification.TransitionRelation($tr2, $old, $loc, $primed)"
+  }
+  
+  def _liftRTR(tr: RoundTransitionRelation): Tree = {
+    val send2 = _liftF(tr.send)
+    val ms2 = _liftF(tr.mailboxSend)
+    val updt2 = _liftF(tr.update)
+    val mu2 = _liftF(tr.mailboxUpdt)
+    val old = tr.old map _liftF
+    val loc = tr.local map _liftF
+    val primed = tr.primed.map(_liftF)
+    q"new round.verification.RoundTransitionRelation($send2, $ms2, $updt2, $mu2, $old, $loc, $primed)"
   }
   
   def _liftAX(aux: AuxiliaryMethod): Tree = {
@@ -132,6 +148,10 @@ trait Lifting {
   
   implicit val liftTR = new Liftable[TransitionRelation] {
     def apply(tr: TransitionRelation) = _liftTR(tr)
+  }
+
+  implicit val liftRTR = new Liftable[RoundTransitionRelation] {
+    def apply(tr: RoundTransitionRelation) = _liftRTR(tr)
   }
 
   implicit val liftAX = new Liftable[AuxiliaryMethod] {

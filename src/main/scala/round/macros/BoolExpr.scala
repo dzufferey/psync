@@ -31,9 +31,9 @@ trait BoolExpr {
         case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "TypeName(\"Set\")" =>
           FSet(extractType(arg))
         case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "TypeName(\"LocalVariable\")" =>
-          round.formula.Function(List(UnInterpreted("Process")), (extractType(arg)))
+          round.formula.Function(List(round.verification.Utils.procType), (extractType(arg)))
         case TypeRef(_, TypeName("ProcessID"), List()) =>
-          UnInterpreted("Process")
+          round.verification.Utils.procType
         case other =>
           //TODO
           //println("extractType:\n  " + other + "\n  " + showRaw(other))
@@ -42,9 +42,19 @@ trait BoolExpr {
     }
   }
   
+  // what about type alias ?
+  
   //TODO
   def extractType(t: Tree): round.formula.Type = t match {
     case TypeTree() => extractType(t.tpe)
+    case Ident(TypeName("Int"))
+       | Ident(TypeName("Long"))
+       | Ident(TypeName("Short")) => Int
+    case Ident(TypeName("Boolean")) => Bool
+    case AppliedTypeTree(Ident(TypeName("Option")), List(tpe)) => FOption(extractType(tpe))
+    case AppliedTypeTree(Ident(TypeName("Set")), List(tpe)) => FSet(extractType(tpe))
+    case Ident(TypeName("ProcessID")) => round.verification.Utils.procType
+    case Select(Ident(pkg), TypeName(tn)) => UnInterpreted(pkg.toString + "." + tn)
     case _ => sys.error("TODO extractType from Tree: " + showRaw(t))
   }
   
@@ -88,6 +98,7 @@ trait BoolExpr {
       UnInterpretedFct("__old__" + v.toString)
     case TypeApply(Select(Select(Ident(scala), TermName("Some")), TermName("apply")), List(tpt)) =>
       FSome
+    //TODO tuple
     case q"${fct: RefTree}.apply" => UnInterpretedFct(fct.name.toString)
     case q"${fct: RefTree}.$fct2" => UnInterpretedFct(fct.name.toString + "_" + fct2.toString)
     case q"$pkg.this.$fct" => UnInterpretedFct(/*pkg.name.toString + "_" +*/ fct.toString)
@@ -216,7 +227,7 @@ trait BoolExpr {
       //TODO make sure it is not used somewhere else
       case q"$pkg.this.broadcast($expr)" =>
         val payload = tree2Formula(expr)
-        val msg = Variable(Namer("__msg")).setType(Product(List(payload.tpe, UnInterpreted("ProcessID"))))
+        val msg = Variable(Namer("__msg")).setType(Product(List(payload.tpe, round.verification.Utils.procType)))
         val fst = Application(UnInterpretedFct("_1"), List(msg)) //TODO tuple projection ...
         Comprehension(List(msg), Eq(fst, payload))
 

@@ -70,7 +70,27 @@ abstract class Transformer {
 }
 
 class Mapper(fct: Formula => Formula) extends Transformer {
+  override def transform(f: Formula): Formula = f match {
+    case b @ Binding(bt, vs, f) =>
+      def fct2(f: Formula): Formula = {
+        if (vs.exists(v => f == v)) f else fct(f)
+      }
+      val m2 = new Mapper(fct2)
+      fct(Copier.Binding(b, bt, vs, m2.transform(f)))
+    case other =>
+      fct(super.transform(f))
+  }
+}
+
+class MapperAll(fct: Formula => Formula) extends Transformer {
   override def transform(f: Formula): Formula = fct(super.transform(f))
+}
+
+class MapperSym(fct: Symbol => Symbol ) extends Transformer {
+  override def transform(f: Formula): Formula = super.transform(f) match {
+    case a @ Application(sym, args) => Copier.Application(a, fct(sym), args)
+    case other => other
+  }
 }
 
 class Alpha(map: Map[Variable, Variable]) extends Transformer {
@@ -103,6 +123,34 @@ class AlphaAll(map: Map[Variable, Variable]) extends Transformer {
 
 }
 
+//pull UnInterpretedFct out of application: y = f(g(x) → y = f(z) ∧ z = g(y)
+class Purifier extends Transformer {
+
+  var collected: List[Formula] = Nil
+  var csts: List[Variable] = Nil
+
+  def dummy(name:String, tpe: Type) = Variable(Namer("__"+name)).setType(tpe)
+
+  override def transform(f: Formula): Formula = super.transform(f) match {
+    case b @ Binding(bt @ (ForAll | Comprehension), vs, f) if csts != Nil =>
+      assert(collected == Nil)
+      val f2 = Copier.Binding(b, bt, vs, Exists(csts, f))
+      csts = Nil
+      f2
+    case ap @ Application(UnInterpretedFct(name,_,_), _) =>
+      val v = dummy(name, ap.tpe)
+      collected = Eq(v, ap) :: collected
+      csts = v :: csts
+      v
+    case bool if !collected.isEmpty && bool.tpe == Bool =>
+      val purified = collected.foldLeft(bool)(And(_,_))
+      collected = Nil
+      purified
+    case other => other
+  }
+
+}
+
 object FormulaUtils {
 
   def alpha(map: Map[Variable, Variable], f: Formula): Formula = {
@@ -115,16 +163,26 @@ object FormulaUtils {
     a.transform(f)
   }
 
-  /** Requires that bound variables are bound to variables (otherwise fails) */
   def map(fct: Formula => Formula, f: Formula): Formula = {
     val m = new Mapper(fct)
     m.transform(f)
   }
+  
+  /* Requires that bound variables are bound to variables (otherwise fails) */
+  def mapAll(fct: Formula => Formula, f: Formula): Formula = {
+    val m = new MapperAll(fct)
+    m.transform(f)
+  }
+  
+  def mapSymbol(fct: Symbol => Symbol, f: Formula): Formula = {
+    val m = new MapperSym(fct)
+    m.transform(f)
+  }
 
   /** Rename all free variables that appears in the formula. */
-  def prime(f: Formula): (Formula, Map[Variable, Variable]) = {
+  def renameFreeVar(f: Formula): (Formula, Map[Variable, Variable]) = {
     val free = f.freeVariables
-    val mapping = (Map[Variable, Variable]() /: free)( (acc, v) => acc + (v -> Variable(Namer(v.name))))
+    val mapping = (Map[Variable, Variable]() /: free)( (acc, v) => acc + (v -> Copier.Variable(v, Namer(v.name))))
     (alpha(mapping, f), mapping)
   }
 
@@ -145,6 +203,12 @@ object FormulaUtils {
     case Application(other, lst) =>Copier. Application(f, other, lst map flatten)
     case Binding(b, v, f) =>Copier. Binding(f, b, v, flatten(f))
     case other => other
+  }
+
+  def purify(f: Formula): Formula = {
+    val p = new Purifier
+    assert(p.collected.isEmpty, "purifying should be called on formula which is boolean at the top level.")
+    p.transform(f)
   }
 
 }

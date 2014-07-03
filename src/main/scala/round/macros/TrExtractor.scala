@@ -172,12 +172,31 @@ trait TrExtractor {
 
   //TODO rename local var to give them unique name ? (avoid shadowing)
 
+  class CollectValDef extends Traverser {
+
+    var vds: List[ValDef] = Nil
+
+    override def traverse(t: Tree) = {
+      super.traverse(t)
+      t match {
+        case vd @ ValDef(_, _, _, _) => vds = vd :: vds
+        case _ => ()
+      }
+    }
+
+  }
+  def getValDefs(t: Tree): List[ValDef] = {
+    val collector = new CollectValDef
+    collector.traverse(t)
+    collector.vds
+  }
+
   
   private def auxiliaryFunction(d: DefDef): AuxiliaryMethod = {
     if (d.vparamss.length > 1) {
       c.abort(c.enclosingPosition, "auxiliaryFunction, currying not yet supported: " + d.name)
     }
-    c.echo(c.enclosingPosition, "currently we do not verify auxiliary functions (" +d.name.toString +")")
+    c.echo(c.enclosingPosition, "currently we do not verify auxiliary functions (" +d.name.toString +") and assume they are side-effect free")
     val name = d.name.toString
     val params = d.vparamss.head.map(extractVarFromValDef)
     val tpe = round.formula.Function(params.map(_.tpe), extractType(d.tpt.tpe))
@@ -189,28 +208,37 @@ trait TrExtractor {
     new AuxiliaryMethod(name, params, tpe, tParams, pre, body, (vRet, post))
   }
 
-  private def processSendUpdate(send: DefDef, update: DefDef): TransitionRelation = {
-    //TODO check no assign in send
+  private def processSendUpdate(send: DefDef, update: DefDef): RoundTransitionRelation = {
     val mailboxValDef = update.vparamss.head.head
-    val mailboxIdent = Ident(mailboxValDef.name)
+    val mailboxIdent = Ident(TermName(mailboxValDef.name + "Snd")) //TODO type ?
     val (ssaSend, subst) = ssa(send.rhs)
     val cstr1 = makeConstraints(ssaSend, Some(mailboxIdent), Some(mailboxIdent))
 
     val (ssaUpdt, subst2) = ssa(update.rhs, subst)
     val cstr2 = makeConstraints(ssaUpdt, None, None)
 
+    def getVar(t: Tree): Variable = tree2Formula(t) match {
+      case v @ Variable(_) => v
+      case other => 
+        c.abort(t.pos, "could not extract vaiable from: " + t + ", got " + other)
+    }
+
     val keys = subst2.keys.toList
-    val oldV = keys.map( k => tree2Formula(k) match {
-      case v @ Variable(_) => v
-      case other => 
-        c.abort(k.pos, "could not extract vaiable from: " + k + ", got " + other)
-    })
-    val newV = keys.map( k => tree2Formula(subst2(k).last) match {
-      case v @ Variable(_) => v
-      case other => 
-        c.abort(k.pos, "could not extract vaiable from: " + k + ", got " + other)
-    })
-    new TransitionRelation(And(cstr1, cstr2), oldV, newV)
+    val oldV = keys.map(getVar)
+    val newV = keys.map( k => getVar(subst2(k).last))
+
+    val allVars = subst2.foldLeft(Nil: List[Variable])( (acc, kv) => {
+      (kv._1 :: kv._2).map(getVar) ::: acc
+    }) 
+    val local1 = allVars.filter( x => !(oldV.contains(x) || newV.contains(x)))
+    val local2 = tree2Formula(mailboxIdent).asInstanceOf[Variable]
+    val local3 = getValDefs(send.rhs).map(extractVarFromValDef)
+    val local4 = getValDefs(update.rhs).map(extractVarFromValDef)
+    val localV = local1 ::: local2 :: local3 ::: local4
+
+    new RoundTransitionRelation(cstr1, getVar(mailboxIdent),
+                                cstr2, extractVarFromValDef(mailboxValDef),
+                                oldV, localV, newV)
   }
 
   
@@ -282,7 +310,7 @@ trait TrExtractor {
       super.transform(tree) match {
         case cd @ ClassDef(mods, name, tparams, tmpl @ Template(parents, self, body)) if parents exists extendsRound =>
           val (tr, aux) = traverseBody(body)
-          val valTR = q"val rawTR: round.verification.TransitionRelation = $tr"
+          val valTR = q"val rawTR: round.verification.RoundTransitionRelation = $tr"
           val treeAuxMap = mkAuxMap(aux)
           val valAuxMap = q"val auxSpec: Map[String, round.verification.AuxiliaryMethod] = $treeAuxMap"
           val tpt = findTypeParam(body)

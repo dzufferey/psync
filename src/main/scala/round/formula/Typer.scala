@@ -122,6 +122,11 @@ object Typer {
 
       case v @ Variable(_) => processVariables(v)
       
+      case a @ Application(Tuple, args) => sys.error("TODO")
+      case a @ Application(Fst, args) => sys.error("TODO")
+      case a @ Application(Snd, args) => sys.error("TODO")
+      case a @ Application(Trd, args) => sys.error("TODO")
+      
       case a @ Application(fct, args) =>
         //TODO no overloading! (just polymorphism)
         val (args2, argsCstr) = args.map(process).unzip

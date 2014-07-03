@@ -21,6 +21,7 @@ object Simplify {
 
 
   //negation normal form (assumes normaled formula)
+  //TODO also recurse in Comprehension
   def nnf(f: Formula, neg: Boolean = false): Formula = f match {
     case Binding(ForAll, vs, f2) =>
       val bt = if (neg) Exists else ForAll

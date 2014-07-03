@@ -10,19 +10,21 @@ trait ProcessRewrite {
 
   //look into c.enclosingClass
 
-  private case class MyVarDef(name: String, tpe: Tree, default: Tree, local: Boolean)
+  private case class MyVarDef(name: String, tpe: Tree, default: Tree, local: Boolean, ghost: Boolean)
 
   private def defaultVariables = List(
-    MyVarDef("r", tq"Int", q"-1", false),
-    MyVarDef("n", tq"Int", q"0", true),
-    MyVarDef("HO", tq"Set[ProcessID]", q"Set[ProcessID]()", true)
+    MyVarDef("r", tq"Int", q"-1", false, false),
+    MyVarDef("n", tq"Int", q"0", true, false),
+    MyVarDef("HO", tq"Set[ProcessID]", q"Set[ProcessID]()", true, true)
   )
 
   private def getVariables(t: Tree): List[MyVarDef] = t match {
     case q"val $tname = new LocalVariable[$tpt]($expr)" =>
-      List(MyVarDef(tname.toString, tpt, expr, true))
+      List(MyVarDef(tname.toString, tpt, expr, true, false))
+    case q"val $tname = new GhostVariable[$tpt]($expr)" =>
+      List(MyVarDef(tname.toString, tpt, expr, true, true))
     case q"val $tname = new GlobalVariable[$tpt]($expr)" =>
-      List(MyVarDef(tname.toString, tpt, expr, false))
+      List(MyVarDef(tname.toString, tpt, expr, false, false))
     case q"$mods class $tpname[..$tparams] $ctorMods(...$paramss) extends { ..$earlydefns } with ..$parents { $self => ..$stats }" =>
       stats.flatMap(getVariables)
     case _ =>
@@ -91,20 +93,38 @@ trait ProcessRewrite {
     })
   }
 
+  def globalList(decls: List[MyVarDef]) = {
+    decls.filter(!_.local).map( d => Variable(d.name).setType(extractType(d.tpe)))
+  }
+  def localList(decls: List[MyVarDef]) = {
+    decls.filter(v => v.local && !v.ghost).map( d => Variable(d.name).setType(extractType(d.tpe)))
+  }
+  def ghostList(decls: List[MyVarDef]) = {
+    decls.filter(v => v.local && v.ghost).map( d => Variable(d.name).setType(extractType(d.tpe)))
+  }
+
 
   def processRewrite(t: Tree): Tree = t match {
     case q"new ..$parents { ..$body }" => //TODO make sure it is a Process
       //TODO enclosingClass
       val vars = getVariables(c.enclosingClass) ::: defaultVariables
+      val implVars = vars.filter( !_.ghost ) 
       val (newDefs, idMap) = vars.foldLeft((Nil: List[ValDef],Map.empty[String,Ident]))( (acc, mvd) => {
         val (vdef, id) = mkLocalDecl(mvd)
         (acc._1 :+ vdef, acc._2 + (mvd.name -> id))
       })
       val transformer = new InsideProcess(idMap)
-      //TODO initial state of the process
+      //
       val f = collectInit(body)
-      val init = q"protected val initState: round.formula.Formula = $f"
-      val body2 = init :: newDefs ::: defaultMethods ::: transformer.transformTrees(body)
+      val init = q"val initState: round.formula.Formula = $f"
+      val v1 = globalList(vars).map(_liftF)
+      val v2 = localList(vars).map(_liftF)
+      val v3 = ghostList(vars).map(_liftF)
+      val _v1 = q"val globalVariables: List[round.formula.Variable] = $v1" 
+      val _v2 = q"val localVariables: List[round.formula.Variable] = $v2" 
+      val _v3 = q"val ghostVariables: List[round.formula.Variable] = $v3" 
+      //
+      val body2 = init :: _v1 :: _v2 :: _v3 :: newDefs ::: defaultMethods ::: transformer.transformTrees(body)
       val tree = q"new ..$parents { ..$body2 }"
       c.untypecheck(tree)
     case _ =>

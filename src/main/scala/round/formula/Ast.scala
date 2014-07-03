@@ -228,6 +228,19 @@ case object Get extends InterpretedFct("get") {
   }
 }
 
+case object Tuple extends InterpretedFct("Tuple") {
+  def tpe = Wildcard ~> Wildcard
+}
+case object Fst extends InterpretedFct("_1") {
+  def tpe = Wildcard ~> Wildcard
+}
+case object Snd extends InterpretedFct("_2") {
+  def tpe = Wildcard ~> Wildcard
+}
+case object Trd extends InterpretedFct("_3") {
+  def tpe = Wildcard ~> Wildcard
+}
+
 
 sealed abstract class BindingType
 

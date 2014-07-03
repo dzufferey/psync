@@ -22,6 +22,7 @@ trait Variables[IO] {
 
 
   class LocalVariable[A](val default: A) extends Variable[A] {
+
     private var value = default
 
     def <~(v: A) { value = v }
