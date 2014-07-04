@@ -50,9 +50,9 @@ class RoundTransitionRelation(val send: Formula,
     val i = procI //TODO check it is not captured/ing
     val sendLocal = localize(localVars, i, send)
     val updateLocal = localize(localVars, i, update)
-    val allParts = And(sendLocal, And(mailboxLink, updateLocal))
+    val allParts = And(sendLocal, updateLocal)
     val inliner = new InlinePost(aux, localVars, i)
-    inliner.transform(allParts)
+    And(mailboxLink, ForAll(List(i), inliner.transform(allParts)))
   }
   
   val primedSubst: Map[UnInterpretedFct, UnInterpretedFct] = {
