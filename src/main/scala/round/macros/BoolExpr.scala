@@ -58,9 +58,9 @@ trait BoolExpr {
     case _ => sys.error("TODO extractType from Tree: " + showRaw(t))
   }
   
-  //TODO
-  def extractTypeVar(t: Tree): round.formula.TypeVariable = {
-    sys.error("TODO extractTypeFromTypeTree: " + showRaw(t))
+  def extractTypeVar(t: Tree): round.formula.TypeVariable = extractType(t) match{
+    case tv @ TypeVariable(_) => tv
+    case other => c.abort(t.pos, "cannot extract TypeVariable from: " + other)
   }
 
   def extractDomain(e: Tree): Option[Formula] = {
@@ -91,17 +91,23 @@ trait BoolExpr {
     case Select(
               Apply(TypeApply(Select(Select(This(_), TermName("VarHelper")), TermName("init")), List(TypeTree())),
               List(Select(This(_), v))), TermName("apply")) =>
-      UnInterpretedFct("__init__" + v.toString)
+      UnInterpretedFct(round.verification.Utils.initPrefix + v.toString)
     case Select(
               Apply(TypeApply(Select(Select(This(_), TermName("VarHelper")), TermName("old")), List(TypeTree())),
               List(Select(This(_), v))), TermName("apply")) =>
-      UnInterpretedFct("__old__" + v.toString)
+      UnInterpretedFct(round.verification.Utils.oldPrefix + v.toString)
     case TypeApply(Select(Select(Ident(scala), TermName("Some")), TermName("apply")), List(tpt)) =>
       FSome
-    //TODO tuple
-    case q"${fct: RefTree}.apply" => UnInterpretedFct(fct.name.toString)
-    case q"${fct: RefTree}.$fct2" => UnInterpretedFct(fct.name.toString + "_" + fct2.toString)
-    case q"$pkg.this.$fct" => UnInterpretedFct(/*pkg.name.toString + "_" +*/ fct.toString)
+    //TODO clean that part
+    case q"${fct: RefTree}.apply" =>
+      //c.echo(e.pos, "considering "+ e +" as an UnInterpretedFct " + showRaw(e))
+      UnInterpretedFct(fct.name.toString)
+    case q"${fct: RefTree}.$fct2" =>
+      //c.echo(e.pos, "considering "+ e +" as an UnInterpretedFct " + showRaw(e))
+      UnInterpretedFct(fct.name.toString + "_" + fct2.toString)
+    case q"$pkg.this.$fct" =>
+      //c.echo(e.pos, "considering "+ e +" as an UnInterpretedFct " + showRaw(e))
+      UnInterpretedFct(/*pkg.name.toString + "_" +*/ fct.toString)
     case _ => sys.error("extractSymbol: " + showRaw(e))
   }
 
@@ -207,6 +213,42 @@ trait BoolExpr {
         val l2 = tree2Formula(l)
         val r2 = tree2Formula(r)
         In(r2,l2)
+
+      // tuples
+      case q"scala.Tuple2.apply[..$tpt](..$args)" =>
+        val tpt2 = tpt.map(extractType)
+        val args2 = args.map(tree2Formula)
+        Application(Tuple, args2).setType(Product(tpt2))
+      case q"scala.Tuple3.apply[..$tpt](..$args)" =>
+        val tpt2 = tpt.map(extractType)
+        val args2 = args.map(tree2Formula)
+        Application(Tuple, args2).setType(Product(tpt2))
+      case q"$expr._1" =>
+        val expr2 = tree2Formula(expr)
+        Fst(expr2)
+      case q"$expr._2" =>
+        val expr2 = tree2Formula(expr)
+        Snd(expr2)
+      case q"$expr._3" =>
+        val expr2 = tree2Formula(expr)
+        Trd(expr2)
+
+      // options
+      case q"scala.Some.apply[$tpt]($expr)" =>
+        val tpt2 = extractType(tpt) 
+        val expr2 = tree2Formula(expr)
+        FSome(expr2).setType(FOption(tpt2))
+      case q"scala.None" =>
+        Application(FNone, Nil)
+      case q"$expr.isEmpty" =>
+        val expr2 = tree2Formula(expr)
+        IsEmpty(expr2)
+      case q"$expr.isDefined" =>
+        val expr2 = tree2Formula(expr)
+        IsDefined(expr2)
+      case q"$expr.get" =>
+        val expr2 = tree2Formula(expr)
+        Get(expr2)
      
       // quantifiers, comprehensions
       case q"$domain.forall( ..$xs => $f )" => makeBinding(ForAll, domain, xs, f)
@@ -228,7 +270,7 @@ trait BoolExpr {
       case q"$pkg.this.broadcast($expr)" =>
         val payload = tree2Formula(expr)
         val msg = Variable(Namer("__msg")).setType(Product(List(payload.tpe, round.verification.Utils.procType)))
-        val fst = Application(UnInterpretedFct("_1"), List(msg)) //TODO tuple projection ...
+        val fst = Fst(msg)
         Comprehension(List(msg), Eq(fst, payload))
 
       //(un)interpreted fct
@@ -308,25 +350,33 @@ trait BoolExpr {
         makeConstraints(rhs, Some(Ident(name)), globalRet)
      
       case term: TermTree => 
-        makeConstraints(Assign(currRet.getOrElse(Ident(TermName(Namer("dummy")))), term))
+        if (currRet.isDefined) {
+          makeConstraints(Assign(currRet.get, term))
+        } else {
+          tree2Formula(term)
+        }
      
       case term: RefTree =>
-        makeConstraints(Assign(currRet.getOrElse(Ident(TermName(Namer("dummy")))), term))
+        if (currRet.isDefined) {
+          makeConstraints(Assign(currRet.get, term))
+        } else {
+          tree2Formula(term)
+        }
       
       case Match(selector, cases) =>
-        c.abort(c.enclosingPosition, "pattern matching an algebraic datatypes not yet supported")
+        c.abort(body.pos, "pattern matching an algebraic datatypes not yet supported")
       //for loops
       case LabelDef(name, params, rhs) =>
-        c.abort(c.enclosingPosition, "while loop not yet supported")
+        c.abort(body.pos, "while loop not yet supported")
       //case Apply(id @ Ident(_), paramss) if id.symbol.isLabel =>
       //  c.abort(c.enclosingPosition, "loop not yet supported")
       case Try(block, catches, finalizer) =>
-        c.abort(c.enclosingPosition, "try/catch yet supported")
+        c.abort(body.pos, "try/catch yet supported")
       case Throw(expr) =>
-        c.abort(c.enclosingPosition, "throwing exception not yet supported")
+        c.abort(body.pos, "throwing exception not yet supported")
      
       case other =>
-        c.abort(c.enclosingPosition, "makeConstraints, did not expect: " + other)
+        c.abort(body.pos, "makeConstraints, did not expect: " + other)
     }
   }
 

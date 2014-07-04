@@ -25,9 +25,10 @@ class PredicateLayer(
       grp: Group,
       val instance: Short,
       channel: Channel,
+      dispatcher: InstanceDispatcher,
       proc: Process,
       options: Map[String, String] = Map.empty
-    ) extends SimpleChannelInboundHandler[DatagramPacket](false)
+    ) extends Predicate
 {
 
   //safety condition guaranteed by the predicate
@@ -44,7 +45,7 @@ class PredicateLayer(
   val lock = new scala.concurrent.Lock
 
   //register in the channel
-  channel.pipeline.addFirst(instance.toString, this)
+  dispatcher.add(instance, this)
 
   //dealing with the timeout ?
   val defaultTO = {
@@ -93,7 +94,7 @@ class PredicateLayer(
   //deregister
   def stop {
     active = false
-    channel.pipeline().remove(instance.toString)
+    dispatcher.remove(instance)
     timeout.cancel
     Logger("Predicate", Info, "stopping instance " + instance)
   }
@@ -165,8 +166,7 @@ class PredicateLayer(
     }
   }
 
-  //in Netty version 5.0 will be called: channelRead0 will be messageReceived
-  override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
+  def messageReceived(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
     val tag = Message.getTag(pkt.content)
     if (instance == tag.instanceNbr) {
       receive(pkt)

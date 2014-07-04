@@ -10,16 +10,20 @@ import io.netty.buffer.ByteBuf
 import io.netty.channel._
 import io.netty.channel.socket._
 
-abstract class Predicate(
-      grp: Group,
-      val instance: Short,
-      channel: Channel,
-      proc: Process
-    ) extends SimpleChannelInboundHandler[DatagramPacket](false)
+abstract class Predicate//(
+//      grp: Group,
+//      val instance: Short,
+//      channel: Channel,
+//      dispatcher: InstanceDispatcher,
+//      proc: Process,
+//      options: Map[String, String] = Map.empty
+//    )
 {
 
-  //TODO what does it guarantee
+  //what does it guarantee
   val ensures: Formula
+
+  def messageReceived(ctx: ChannelHandlerContext, pkt: DatagramPacket): Unit
 
   //TODO interface between predicate and the algorithm: ...
 

@@ -7,8 +7,11 @@ import round.utils.LogLevel._
 
 object OtrVerifier extends Options {
   
+  newOption("-v", Arg.Unit(() => Logger.moreVerbose), "increase the verbosity level.")
+  newOption("-q", Arg.Unit(() => Logger.lessVerbose), "decrease the verbosity level.")
+  
   var v = 3
-  newOption("-v", Arg.Int( i => v = i), "Ort1/2/3")
+  newOption("-n", Arg.Int( i => v = i), "Ort1/2/3")
 
   var r = "report.html"
   newOption("-r", Arg.String( i => r = i), "report.html")

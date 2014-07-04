@@ -7,7 +7,6 @@ sealed abstract class Formula {
   def toStringFull = "(" + toString + ": " + tpe + ")"
 
   var tpe: Type = Wildcard
-  //TODO type checking
 
   def setType(t: Type): this.type = {
     tpe = t
@@ -241,7 +240,11 @@ case object FSome extends InterpretedFct("Some") {
   override val fix = Fix.Prefix
   override val priority = 20
 }
-
+case object FNone extends InterpretedFct("None") {
+  def tpe = FOption(Type.freshTypeVar)
+  override val fix = Fix.Prefix
+  override val priority = 20
+}
 case object IsDefined extends InterpretedFct("isDefined") {
   def tpe = {
     val fv = Type.freshTypeVar
@@ -250,7 +253,6 @@ case object IsDefined extends InterpretedFct("isDefined") {
   override val fix = Fix.Prefix
   override val priority = 20
 }
-
 case object IsEmpty extends InterpretedFct("isEmpty") {
   def tpe = {
     val fv = Type.freshTypeVar
@@ -259,7 +261,6 @@ case object IsEmpty extends InterpretedFct("isEmpty") {
   override val fix = Fix.Prefix
   override val priority = 20
 }
-
 case object Get extends InterpretedFct("get") {
   def tpe = {
     val fv = Type.freshTypeVar

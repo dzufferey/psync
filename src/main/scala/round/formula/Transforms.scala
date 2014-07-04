@@ -211,5 +211,10 @@ object FormulaUtils {
     p.transform(f)
   }
 
+  def getConjunts(f: Formula): List[Formula] = f match {
+    case And(lst) => lst.flatMap(getConjunts)
+    case other => List(other)
+  }
+
 }
 

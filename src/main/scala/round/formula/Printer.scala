@@ -3,7 +3,29 @@ package round.formula
 import round.utils.text._
 import java.io.{BufferedWriter, StringWriter}
 
-object HtmlPrinter {
+abstract class Printer {
+  protected def printFormula(f: Formula, priority: Int = 0)(implicit writer: BufferedWriter): Unit
+  def apply(f: Formula)(implicit writer: BufferedWriter): Unit
+  def conjunctsTbl(fs: Seq[Formula])(implicit writer: BufferedWriter): Unit
+
+  def toString(f: Formula) = {
+    val strw = new StringWriter
+    val writer = new BufferedWriter(strw)
+    apply(f)(writer)
+    writer.flush
+    strw.toString
+  }
+  
+  def toStringTbl(fs: Seq[Formula]) = {
+    val strw = new StringWriter
+    val writer = new BufferedWriter(strw)
+    conjunctsTbl(fs)(writer)
+    writer.flush
+    strw.toString
+  }
+}
+
+object HtmlPrinter extends Printer {
 
   protected def printFormula(f: Formula, priority: Int = 0)(implicit writer: BufferedWriter): Unit = f match {
     case Literal(l: Int) => writer.write("<mn>" + l + "</mn>")
@@ -62,18 +84,20 @@ object HtmlPrinter {
     printFormula(f)
     writer.write("</math>")
   }
-
-  def toString(f: Formula) = {
-    val strw = new StringWriter
-    val writer = new BufferedWriter(strw)
-    apply(f)(writer)
-    writer.flush
-    strw.toString
+  
+  def conjunctsTbl(fs: Seq[Formula])(implicit writer: BufferedWriter) = {
+    writer.write("<math><mtable columnalign=\"left\"><mtr><mtd></mtd><mtd>")
+    val it = fs.iterator
+    while(it.hasNext){
+      printFormula(it.next)
+      if (it.hasNext) writer.write("</mtd></mtr><mtr><mtd><mo>∧</mo></mtd><mtd>")
+    }
+    writer.write("</mtd></mtr></mtable></math>")
   }
 
 }
 
-object TextPrinter {
+object TextPrinter extends Printer {
 
   protected def printFormula(f: Formula, priority: Int = 0)(implicit writer: BufferedWriter): Unit = f match {
     case Literal(l) => writer.write(l.toString)
@@ -126,17 +150,21 @@ object TextPrinter {
       printFormula(f2)
       if(priority > 0) writer.write(" )") 
   }
+  
+  def conjunctsTbl(fs: Seq[Formula])(implicit writer: BufferedWriter) = {
+    writer.write("  ")
+    val it = fs.iterator
+    while(it.hasNext){
+      printFormula(it.next)
+      if (it.hasNext) {
+        writer.newLine
+        writer.write("∧ ")
+      }
+    }
+  }
 
   def apply(f: Formula)(implicit writer: BufferedWriter) = {
     printFormula(f)
-  }
-
-  def toString(f: Formula) = {
-    val strw = new StringWriter
-    val writer = new BufferedWriter(strw)
-    apply(f)(writer)
-    writer.flush
-    strw.toString
   }
 
 }

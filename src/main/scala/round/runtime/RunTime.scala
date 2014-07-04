@@ -26,7 +26,7 @@ class RunTime[IO](val alg: Algorithm[IO]) {
         //an instance is actually encapsulated by one process
         val grp = s.directory.group
         val process = alg.process(grp.self, io)
-        val predicate = new PredicateLayer(grp, instanceId, s.channel, process, options)
+        val predicate = new PredicateLayer(grp, instanceId, s.channel, s.dispatcher, process, options)
         //first round
         predicate.send
         //msg that are already received

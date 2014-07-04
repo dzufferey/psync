@@ -8,6 +8,7 @@
   so we can use macros for the testing and debugging in the main project
   cleaner separation between the runtime and the declarations
 
+
 # implementation
 
 - uses netty 4.0.21 when on maven
@@ -17,7 +18,6 @@
 - memory leak when starting the first instance (message comes while instance starts ?)
 - test with message drop
 - test with more processes
-- custom dispatch to avoid overwhelming the pipeline
 
 
 # verification
@@ -25,9 +25,7 @@
 - add temporal elements to spec/formula
 - better structure of the specification: which invariant we can use to prove what property.
 - extraction of transition relation:
-    * constuctor and projection for tuples
     * in LockManager: confusion between Int and ProcessID (defined as alias ...)
-    * purification should not be applied to boolean connective
     * purification is applied when the top level ∀ quantifiers are not there 
 - decision procedure
 

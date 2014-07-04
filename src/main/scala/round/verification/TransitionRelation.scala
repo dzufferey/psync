@@ -24,7 +24,7 @@ class RoundTransitionRelation(val send: Formula,
   val mailboxLink = {
     val i = procI
     val j = procJ
-    val v = Variable("_v") //TODO get type from mailbox
+    val v = Variable("v") //TODO get type from mailbox
     val iv = Application(Tuple, List(v, i))
     val jv = Application(Tuple, List(v, j))
     val mi = skolemify(mailboxSend, i)
@@ -48,11 +48,13 @@ class RoundTransitionRelation(val send: Formula,
     assert(old forall ((vars + mailboxSend + mailboxUpdt) contains _))
     val localVars = vars ++ local ++ old ++ primed + mailboxSend + mailboxUpdt
     val i = procI //TODO check it is not captured/ing
-    val sendLocal = localize(localVars, i, send)
-    val updateLocal = localize(localVars, i, update)
-    val allParts = And(sendLocal, updateLocal)
     val inliner = new InlinePost(aux, localVars, i)
-    And(mailboxLink, ForAll(List(i), inliner.transform(allParts)))
+    val sendLocal = inliner.transform(localize(localVars, i, send))
+    val updateLocal = inliner.transform(localize(localVars, i, update))
+    val allParts = And(sendLocal, updateLocal)
+    And(ForAll(List(i), sendLocal),
+        And(mailboxLink,
+            ForAll(List(i), updateLocal) ))
   }
   
   val primedSubst: Map[UnInterpretedFct, UnInterpretedFct] = {

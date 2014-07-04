@@ -125,7 +125,8 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
       val tr = process.rounds(i).rawTR
       val aux =  process.rounds(i).auxSpec
       val f = tr.makeFullTr(procLocalVars ++ procGhostVars, aux)
-      lst.add(itemForFormula("Transition Relation", f))
+      val fs = FormulaUtils.getConjunts(f)
+      lst.add(itemForFormula("Transition Relation", fs))
       for ( a <- aux.values ) lst.add(a.report)
       rnds.add(lst)
     }

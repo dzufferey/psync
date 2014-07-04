@@ -5,8 +5,8 @@ import round.formula._
 object Utils {
 
   val procType = UnInterpreted("ProcessID")
-  val procI = Variable("_i").setType(procType)
-  val procJ = Variable("_j").setType(procType)
+  val procI = Variable("i").setType(procType)
+  val procJ = Variable("j").setType(procType)
 
   //x → x(i)
   def skolemify(x: Variable): UnInterpretedFct = {
@@ -48,6 +48,13 @@ object Utils {
         title,
         TextPrinter.toString(f),
         HtmlPrinter.toString(f))
+  }
+  
+  def itemForFormula(title: String, fs: List[Formula]) = {
+    new round.utils.report.GenericItem(
+        title,
+        TextPrinter.toStringTbl(fs),
+        HtmlPrinter.toStringTbl(fs))
   }
 
 

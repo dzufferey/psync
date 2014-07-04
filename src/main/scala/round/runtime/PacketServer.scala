@@ -1,7 +1,6 @@
 package round.runtime
 
 import round._
-import round.predicate._
 import round.utils.Logger
 import round.utils.LogLevel._
 
@@ -13,8 +12,6 @@ import io.netty.channel.socket.nio._
 import io.netty.channel.epoll._
 import io.netty.bootstrap.Bootstrap
 import java.net.InetSocketAddress
-
-import scala.pickling._
 
 //TODO we don't want to do buzy waiting, need to do that asynchonously
 //try using http://netty.io/
@@ -55,6 +52,8 @@ class PacketServer(
   private var chan: Channel = null
   def channel: Channel = chan
 
+  val dispatcher = new InstanceDispatcher
+
   def close {
     try {
       if (chan != null) {
@@ -75,6 +74,8 @@ class PacketServer(
         .handler(new PackerServerHandler(directory, defaultHandler))
 
       chan = b.bind(port).sync().channel()
+      //add the dispatcher
+      chan.pipeline.addFirst("dispatcher", dispatcher)
       //chan.closeFuture().await() //closeFuture is a notification when the channel is closed
     } finally {
       //close
@@ -82,7 +83,6 @@ class PacketServer(
   }
 
 }
-
 
 //defaultHanlder is responsible for releasing the ByteBuf payload
 class PackerServerHandler(
