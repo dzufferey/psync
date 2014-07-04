@@ -126,7 +126,15 @@ trait ProcessRewrite {
       //
       val body2 = init :: _v1 :: _v2 :: _v3 :: newDefs ::: defaultMethods ::: transformer.transformTrees(body)
       val tree = q"new ..$parents { ..$body2 }"
-      c.untypecheck(tree)
+      //
+      val s1 = t.toString
+      val s2 = tree.toString
+      val _s1 = q"val beforeProcessing: String = $s1"
+      val _s2 = q"val afterProcessing: String = $s2"
+      //
+      val body3 = _s1 :: _s2 :: body2
+      val tree2 = q"new ..$parents { ..$body3 }"
+      c.untypecheck(tree2)
     case _ =>
       c.abort(c.enclosingPosition, "'p' should be applied to class definition: p(new Process{ ... })")
   }

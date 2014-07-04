@@ -1,5 +1,8 @@
 package round.verification
 
+import Utils._
+
+import round.utils.report._
 import round.formula._
 import round.utils.Logger
 import round.utils.LogLevel._
@@ -22,9 +25,25 @@ class VC(description: String, hypothesis: Formula, transition: Formula, conclusi
     }
   }
 
-  def isValid: Either[Boolean, String] = {
+  def isValid: Boolean = {
     if (!solved) solve
-    status
+    status match {
+      case Left(true) => true
+      case _ => false
+    }
+  }
+
+  def report = {
+    val stat = if (isValid) " (success)" else " (failed)"
+    val lst = new List(description + stat)
+    lst.add(itemForFormula("hypothesis", hypothesis))
+    lst.add(itemForFormula("transition", transition))
+    lst.add(itemForFormula("conclusion", conclusion))
+    status match {
+      case Right(reason) => lst.add(new PreformattedText("reason", reason))
+      case _ => 
+    }
+    lst
   }
 
 }

@@ -1,5 +1,7 @@
 package round.verification
 
+import Utils._
+
 import round.formula._
 import round.utils.Logger
 import round.utils.LogLevel._
@@ -44,6 +46,17 @@ class AuxiliaryMethod(val name: String,
   def makePostAssume(args: List[Formula], ret: Formula): Formula = {
     val post2 = argsSubst(args)(post._2)
     FormulaUtils.map(( x => if (x == post._1) ret else x), post2)
+  }
+
+  def report = {
+    import round.utils.report._
+    val tp = if (tParams == Nil) "" else tParams.mkString("[",",","]")
+    val pr = params.zip(tpe.args).map{ case (p,t) => p.name + ": " + t }.mkString("(",",",")")
+    val lst = new List(name + tp + pr + ": " + tpe.returns)
+    lst.add(itemForFormula("Precondition", pre))
+    lst.add(itemForFormula("Postcondition("+post._1+")", post._2))
+    for (b <- body) lst.add(b.report)
+    lst
   }
 
 }

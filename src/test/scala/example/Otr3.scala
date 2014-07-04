@@ -8,7 +8,8 @@ import io.netty.buffer.ByteBuf
 import scala.pickling._
 import binary._
 
-class OTR2(afterDecision: Int = 3) extends Algorithm[OtrIO] {
+class OTR3 extends Algorithm[OtrIO] {
+
 
   import VarHelper._
   import SpecHelper._
@@ -17,32 +18,32 @@ class OTR2(afterDecision: Int = 3) extends Algorithm[OtrIO] {
 
   //variables
   val x = new LocalVariable[Int](0)
-  val decision = new LocalVariable[Option[Int]](None) //TODO as ghost ?
-  val after = new LocalVariable[Int](afterDecision)
+  val decision = new LocalVariable[Int](-1) //TODO as ghost
+  val decided = new LocalVariable[Boolean](false)
 
 
   val spec = new Spec {
       val safetyPredicate = f(true)
       val livnessPredicate = List( f( S.exists( s => P.forall( p => HO(p) == s && s.size > 2*n/3 ))))
       val invariants = List(
-        f(  P.forall( i => !decision(i).isEmpty )
+        f(  P.forall( i => !decided(i) )
          || V.exists( v => {
            val A = P.filter( i => x(i) == v);
-           A.size > 2*n/3 && P.forall( i => decision(i).isDefined ==> (decision(i).get == v))
+           A.size > 2*n/3 && P.forall( i => decided(i) ==> (decision(i) == v))
         })),
         f(V.exists( v => {
            val A = P.filter( i => x(i) == v);
-           A.size == n && P.forall( i => decision(i).isDefined ==> (decision(i).get == v))
+           A.size == n && P.forall( i => decided(i) ==> (decision(i) == v))
         })),
-        f(V.exists( v => P.forall( i => decision(i).isDefined ==> (decision(i).get == v)) ))
+        f(V.exists( v => P.forall( i => decided(i) && decision(i) == v) ))
       ) //how to relate the invariants and the magic rounds
 
       val properties = List(
-        ("Termination",    f(P.forall( i => decision(i).isDefined) )), //TODO weaken termination and/or strengthen liveness predicate
-        ("Agreement",      f(P.forall( i => P.forall( j => decision(i).isDefined && decision(j).isDefined ==> (decision(i).get == decision(j).get) )))),
-        ("Validity",       f(V.exists( v => P.forall( i => init(x)(i) == v ==> P.forall( j => decision(j).isDefined ==> (decision(j).get == v) ))))),
-        ("Integrity",      f(P.exists( j => P.forall( i => decision(i).isDefined ==> (decision(i).get == init(x)(j)) )))),
-        ("Irrevocability", f(P.forall( i => old(decision)(i).isDefined ==> (old(decision)(i) == decision(i)) )))
+        ("Termination",    f(P.forall( i => decided(i)) )),
+        ("Agreement",      f(P.forall( i => P.forall( j => (decided(i) && decided(j)) ==> (decision(i) == decision(j)) )))),
+        ("Validity",       f(V.exists( v => P.forall( i => init(x)(i) == v ==> P.forall( j => decided(j) ==> (decision(j) == v) ))))),
+        ("Integrity",      f(P.exists( j => P.forall( i => decided(i) ==> (decision(i) == init(x)(j)) )))),
+        ("Irrevocability", f(P.forall( i => old(decided)(i) ==> (decided(i) && old(decision)(i) == decision(i)) )))
       )
   }
   
@@ -50,7 +51,6 @@ class OTR2(afterDecision: Int = 3) extends Algorithm[OtrIO] {
   def process(id: ProcessID, io: OtrIO) = p(new Process(id) {
       
     x <~ io.initialValue
-    after <~ afterDecision
 
     type T = Int
 
@@ -63,10 +63,9 @@ class OTR2(afterDecision: Int = 3) extends Algorithm[OtrIO] {
         //min most often received
         def mmor(mailbox: Set[(Int, ProcessID)]): Int = {
           val byValue = mailbox.groupBy(_._1)
-          val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong << 32) + v }
-          //a cleaner way of selectin the element is:
-          //  import scala.math.Ordered._
-          //  val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong, v) }
+          import scala.math.Ordered._
+          val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong, v) }
+          //val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong << 32) + v }
           m._1
         } ensuring { v1 =>
           mailbox.map(_._1).forall( v2 =>
@@ -83,16 +82,11 @@ class OTR2(afterDecision: Int = 3) extends Algorithm[OtrIO] {
             val v = mmor(mailbox)
             x <~ v
             if (mailbox.filter(msg => msg._1 == v).size > 2*n/3) {
-              if (decision.isEmpty) {
+              if (!decided) {
                 io.decide(v)
               }
-              decision <~ Some(v);
-            }
-          }
-          if (decision.isDefined) {
-            after <~ after - 1
-            if(after <= 0) {
-              terminate()
+              decided <~ true
+              decision <~ v
             }
           }
         }

@@ -82,15 +82,81 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
     List(List(initVC), inductVCs) ::: progressVCs ::: propertiesVCs
   }
 
+
+  def reportSpec: Item = {
+    val lst = new List("Specification")
+
+    lst.add(itemForFormula("Safety Predicate", spec.safetyPredicate))
+
+    val liveness = new List("Liveness Predicates")
+    for( (f,i) <- spec.livnessPredicate.zipWithIndex )
+      liveness.add(itemForFormula(i.toString, f))
+    lst.add(liveness)
+
+    val invs = new List("Invariants")
+    for( (f,i) <- spec.invariants.zipWithIndex )
+      invs.add(itemForFormula(i.toString, f))
+    lst.add(invs)
+
+    val props = new List("Properties")
+    for( (str, f) <- spec.properties )
+      props.add(itemForFormula(str, f))
+    lst.add(props)
+
+    val axioms = new List("Additional Axioms")
+    for( a <- additionalAxioms )
+      axioms.add(itemForFormula(a.name, a.formula))
+    lst.add(axioms)
+
+    lst
+  }
+
+
+  def reportProcess: Item = {
+    val lst = new List("Process")
+    
+    lst.add(itemForFormula("Initial state", procInitState))
+
+    val rnds = new List("Rounds")
+    for ( i <- process.rounds.indices ) {
+      val lst = new List("Round " + i)
+      lst.add(new PreformattedText("Send", process.rounds(i).sendStr))
+      lst.add(new PreformattedText("Update", process.rounds(i).updtStr))
+      val tr = process.rounds(i).rawTR
+      val aux =  process.rounds(i).auxSpec
+      val f = tr.makeFullTr(procLocalVars ++ procGhostVars, aux)
+      lst.add(itemForFormula("Transition Relation", f))
+      for ( a <- aux.values ) lst.add(a.report)
+    }
+    lst.add(rnds)
+
+    lst
+  }
+
   def check: Report = {
     val vcs = generateVCs
     //solve the queries
     vcs.par.foreach(_.par.foreach(_.solve))
-    //TODO generate a report:
-    val report = new Report("Verification of " + alg.getClass.toString)
-    //-list of the specs, state, ...
-    //-the VCs: if sat then try to give a model
-    sys.error("TODO")
+    //generate a report:
+    
+    val status = if (vcs.forall(_.exists(_.isValid))) " (success)" else " (failed)"
+    val report = new Report("Verification of " + alg.getClass.toString + status)
+
+    report.add(new PreformattedText("Code Before Processing", process.beforeProcessing))
+    report.add(new PreformattedText("Code After Processing", process.afterProcessing))
+    report.add(reportSpec)
+    report.add(reportProcess)
+
+    val rVcs = new List("Verification Conditions")
+    for ( (vs, idx) <- vcs.zipWithIndex) {
+      val status = if (vs.exists(_.isValid)) " (success)" else " (failed)"
+      val lst = new List("VCs group " + idx + status)
+      for (v <- vs) lst.add(v.report)
+      rVcs.add(lst)
+    }
+    report.add(rVcs)
+
+    report
   }
 
 }

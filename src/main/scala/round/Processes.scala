@@ -42,5 +42,7 @@ abstract class Process(val id: ProcessID) {
   val globalVariables: List[round.formula.Variable]
   val localVariables: List[round.formula.Variable]
   val ghostVariables: List[round.formula.Variable]
+  val beforeProcessing: String
+  val afterProcessing: String
 
 }

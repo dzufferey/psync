@@ -72,12 +72,6 @@ case class Function(args: List[Type], returns: Type) extends Type {
   def alpha(subst: Map[TypeVariable, Type]) = Function(args.map(_.alpha(subst)), returns.alpha(subst)) 
 }
 
-case class FiniteValues[T](values: List[T]) extends Type {
-  override def toString = values.mkString("{",",","}")
-  def freeParameters = Set[TypeVariable]()
-  def alpha(subst: Map[TypeVariable, Type]) = this 
-}
-
 case class UnInterpreted(id: String) extends Type {
   override def toString = id
   def freeParameters = Set[TypeVariable]()
@@ -92,13 +86,11 @@ case class TypeVariable(name: String) extends Type {
 
 //TODO copier for Type
 
-//TODO accessor for tuples
-
 object UnitT {
-  private val instance = FiniteValues(List( () ))
-  def apply(): FiniteValues[Unit] = instance
-  def unapply(tpe: FiniteValues[Unit]) = tpe match {
-    case FiniteValues(List( () )) => true
+  private val instance = Product(Nil)
+  def apply() = instance
+  def unapply(tpe: Type) = tpe match {
+    case `instance` => true
     case _ => false
   }
 }

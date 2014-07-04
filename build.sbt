@@ -2,8 +2,6 @@ name := "round"
 
 version := "0.1-SNAPSHOT"
 
-organization := "at.ac.ist, edu.mit.csail.pac, at.ac.tuwien.forsyte"
-
 scalaVersion := "2.11.1"
 
 scalacOptions in Compile ++= Seq(

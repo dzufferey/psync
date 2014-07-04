@@ -42,5 +42,13 @@ object Utils {
     }
     FormulaUtils.map(map, f)
   }
+  
+  def itemForFormula(title: String, f: Formula) = {
+    new round.utils.report.GenericItem(
+        title,
+        TextPrinter.toString(f),
+        HtmlPrinter.toString(f))
+  }
+
 
 }

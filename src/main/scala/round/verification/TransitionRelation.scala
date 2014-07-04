@@ -104,5 +104,7 @@ class TransitionRelation(_tr: Formula,
   def auxPrecondition(aux: Map[String, AuxiliaryMethod]): List[(Formula, Formula)] = {
     sys.error("TODO ...")
   }
+  
+  def report = sys.error("TODO")
 
 }

@@ -37,9 +37,9 @@ class OTR extends Algorithm[OtrIO] {
         })),
         f(V.exists( v => {
            val A = P.filter( i => x(i) == v);
-           A.size == n.get && P.forall( i => decision(i).isDefined ==> (decision(i).get == v))
+           A.size == n && P.forall( i => decision(i).isDefined ==> (decision(i).get == v))
         })),
-        f(V.exists( v => P.forall( i => decision(i).isDefined ==> (decision(i).get == v)) ))
+        f(V.exists( v => P.forall( i => decision(i) == Some(v) )))
       ) //how to relate the invariants and the magic rounds
 
       val properties = List(

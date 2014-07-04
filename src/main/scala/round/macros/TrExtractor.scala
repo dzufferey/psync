@@ -263,7 +263,7 @@ trait TrExtractor {
       case TypeDef(_, _, _, _) =>
         (acc._1, acc._2, acc._3)
     })
-    (processSendUpdate(snd.get, upd.get), aux)
+    (snd.get, upd.get, aux)
   }
 
   private def mkAuxMap(aux: List[AuxiliaryMethod]): Tree = {
@@ -309,12 +309,17 @@ trait TrExtractor {
     override def transform(tree: Tree): Tree = {
       super.transform(tree) match {
         case cd @ ClassDef(mods, name, tparams, tmpl @ Template(parents, self, body)) if parents exists extendsRound =>
-          val (tr, aux) = traverseBody(body)
+          val (snd, upd, aux) = traverseBody(body)
+          val tr = processSendUpdate(snd, upd)
+          val sndS = snd.toString
+          val updS = upd.toString
+          val s = q"val sendStr: String = $sndS"
+          val u = q"val updtStr: String = $updS"
           val valTR = q"val rawTR: round.verification.RoundTransitionRelation = $tr"
           val treeAuxMap = mkAuxMap(aux)
           val valAuxMap = q"val auxSpec: Map[String, round.verification.AuxiliaryMethod] = $treeAuxMap"
           val tpt = findTypeParam(body)
-          val body2 =  valTR :: valAuxMap :: body ::: methodToAdd(tpt)
+          val body2 = s :: u :: valTR :: valAuxMap :: body ::: methodToAdd(tpt)
           val tmpl2 = treeCopy.Template(tmpl, parents, self, body2)
           treeCopy.ClassDef(cd, mods, name, tparams, tmpl2)
         case other => other

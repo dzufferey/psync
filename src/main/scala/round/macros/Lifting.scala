@@ -95,7 +95,6 @@ trait Lifting {
       q"round.formula.Function($args2,$returns2)"
     case UnInterpreted(id) => q"round.formula.UnInterpreted($id)"
     case TypeVariable(name) => q"round.formula.TypeVariable($name)"
-    case FiniteValues(values) => sys.error("ToDo lifting FiniteValues")
   }
 
   def _liftTR(tr: TransitionRelation): Tree = {

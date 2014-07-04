@@ -1,6 +1,5 @@
 package round.formula
 
-//TODO type checking
 //TODO temporal aspect ??
 
 sealed abstract class Formula {
@@ -65,8 +64,15 @@ case class Application(fct: Symbol, args: List[Formula]) extends Formula {
 
 }
 
+object Fix extends Enumeration {
+  type Fix = Value
+  val Prefix, Infix, Suffix = Value
+}
+
 sealed abstract class Symbol {
   def tpe: Type
+  val fix = Fix.Prefix
+  val priority = 10
 }
 
 case class UnInterpretedFct(symbol: String,
@@ -80,14 +86,17 @@ case class UnInterpretedFct(symbol: String,
   } else {
     UnInterpreted(symbol)
   }
+  override val priority = 20
 
 }
 
 sealed abstract class InterpretedFct(symbol: String, aliases: String*) extends Symbol {
+  override def toString = symbol
   def apply(arg: Formula, args: Formula*): Formula = {
     val allArgs = (arg +: args).toList
     assert(allArgs.lengthCompare(tpe.arity) == 0)
     Application(this, allArgs)
+    //TODO fill the type as much as possible
   }
   def unapply(f: Formula): Option[List[Formula]] = {
     val t = this
@@ -96,20 +105,26 @@ sealed abstract class InterpretedFct(symbol: String, aliases: String*) extends S
       case _ => None
     }
   }
+  override val fix = Fix.Infix
 }
 
 case object Not extends InterpretedFct("¬", "~", "!", "unary_!") {
   def tpe = Bool ~> Bool
+  override val fix = Fix.Prefix
+  override val priority = 8
 }
 
 case object And extends InterpretedFct("∧", "&&", "$amp$amp") {
   def tpe = Bool ~> Bool ~> Bool
+  override val priority = 5
 }
 case object Or extends InterpretedFct("∨", "||") {
   def tpe = Bool ~> Bool ~> Bool
+  override val priority = 4
 }
 case object Implies extends InterpretedFct("⇒", "==>", "$eq$eq$greater") {
   def tpe = Bool ~> Bool ~> Bool
+  override val priority = 3
 }
 
 case object Eq extends InterpretedFct("=", "==", "⇔", "$eq$eq") {
@@ -117,38 +132,48 @@ case object Eq extends InterpretedFct("=", "==", "⇔", "$eq$eq") {
     val fv = Type.freshTypeVar
     fv ~> fv ~> Bool
   }
+  override val priority = 9
 }
 case object Neq extends InterpretedFct("≠", "!=", "~=") {
   def tpe = {
     val fv = Type.freshTypeVar
     fv ~> fv ~> Bool
   }
+  override val priority = 9
 }
 
 case object Plus extends InterpretedFct("+") {
   def tpe = Int ~> Int ~> Int
+  override val priority = 10
 }
 case object Minus extends InterpretedFct("-") {
   def tpe = Int ~> Int ~> Int
+  override val priority = 12
 }
 case object Times extends InterpretedFct("∙", "*", "$times") {
   def tpe = Int ~> Int ~> Int
+  override val priority = 15
 }
 case object Divides extends InterpretedFct("/", "$div") {
   def tpe = Int ~> Int ~> Int
+  override val priority = 15
 }
 
 case object Leq extends InterpretedFct("≤", "<=") {
   def tpe = Int ~> Int ~> Bool
+  override val priority = 9
 }
 case object Geq extends InterpretedFct("≥", ">=") {
   def tpe = Int ~> Int ~> Bool
+  override val priority = 9
 }
 case object Lt extends InterpretedFct("<") {
   def tpe = Int ~> Int ~> Bool
+  override val priority = 9
 }
 case object Gt extends InterpretedFct(">", "$greater") {
   def tpe = Int ~> Int ~> Bool
+  override val priority = 9
 }
 
 case object Union extends InterpretedFct("∪", "|", "union") {
@@ -156,6 +181,7 @@ case object Union extends InterpretedFct("∪", "|", "union") {
     val fv = Type.freshTypeVar
     FSet(fv) ~> FSet(fv) ~> FSet(fv)
   }
+  override val priority = 10
 }
 
 case object Intersection extends InterpretedFct("∩", "intersect") {
@@ -163,6 +189,7 @@ case object Intersection extends InterpretedFct("∩", "intersect") {
     val fv = Type.freshTypeVar
     FSet(fv) ~> FSet(fv) ~> FSet(fv)
   }
+  override val priority = 10
 }
 
 case object SubsetEq extends InterpretedFct("⊆", "subsetOf") {
@@ -170,6 +197,7 @@ case object SubsetEq extends InterpretedFct("⊆", "subsetOf") {
     val fv = Type.freshTypeVar
     FSet(fv) ~> FSet(fv) ~> Bool
   }
+  override val priority = 9
 }
 
 case object SupersetEq extends InterpretedFct("⊇") {
@@ -177,6 +205,7 @@ case object SupersetEq extends InterpretedFct("⊇") {
     val fv = Type.freshTypeVar
     FSet(fv) ~> FSet(fv) ~> Bool
   }
+  override val priority = 9
 }
 
 case object In extends InterpretedFct("∈", "in") {
@@ -184,6 +213,7 @@ case object In extends InterpretedFct("∈", "in") {
     val fv = Type.freshTypeVar
     fv ~> FSet(fv) ~> Bool
   }
+  override val priority = 9
 }
 
 case object Contains extends InterpretedFct("∋", "contains") {
@@ -191,6 +221,7 @@ case object Contains extends InterpretedFct("∋", "contains") {
     val fv = Type.freshTypeVar
     FSet(fv) ~> fv ~> Bool
   }
+  override val priority = 9
 }
 
 case object Cardinality extends InterpretedFct("card", "size") {
@@ -198,6 +229,8 @@ case object Cardinality extends InterpretedFct("card", "size") {
     val fv = Type.freshTypeVar
     FSet(fv) ~> Int
   }
+  override val fix = Fix.Prefix
+  override val priority = 20
 }
 
 case object FSome extends InterpretedFct("Some") {
@@ -205,6 +238,8 @@ case object FSome extends InterpretedFct("Some") {
     val fv = Type.freshTypeVar
     fv ~> FOption(fv)
   }
+  override val fix = Fix.Prefix
+  override val priority = 20
 }
 
 case object IsDefined extends InterpretedFct("isDefined") {
@@ -212,6 +247,8 @@ case object IsDefined extends InterpretedFct("isDefined") {
     val fv = Type.freshTypeVar
     FOption(fv) ~> Bool
   }
+  override val fix = Fix.Prefix
+  override val priority = 20
 }
 
 case object IsEmpty extends InterpretedFct("isEmpty") {
@@ -219,6 +256,8 @@ case object IsEmpty extends InterpretedFct("isEmpty") {
     val fv = Type.freshTypeVar
     FOption(fv) ~> Bool
   }
+  override val fix = Fix.Prefix
+  override val priority = 20
 }
 
 case object Get extends InterpretedFct("get") {
@@ -226,19 +265,29 @@ case object Get extends InterpretedFct("get") {
     val fv = Type.freshTypeVar
     FOption(fv) ~> fv
   }
+  override val fix = Fix.Prefix
+  override val priority = 20
 }
 
-case object Tuple extends InterpretedFct("Tuple") {
+case object Tuple extends InterpretedFct("") {
   def tpe = Wildcard ~> Wildcard
+  override val fix = Fix.Prefix
+  override val priority = 20
 }
 case object Fst extends InterpretedFct("_1") {
   def tpe = Wildcard ~> Wildcard
+  override val fix = Fix.Suffix
+  override val priority = 20
 }
 case object Snd extends InterpretedFct("_2") {
   def tpe = Wildcard ~> Wildcard
+  override val fix = Fix.Suffix
+  override val priority = 20
 }
 case object Trd extends InterpretedFct("_3") {
   def tpe = Wildcard ~> Wildcard
+  override val fix = Fix.Suffix
+  override val priority = 20
 }
 
 

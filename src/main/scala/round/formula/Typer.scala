@@ -122,11 +122,6 @@ object Typer {
 
       case v @ Variable(_) => processVariables(v)
       
-      case a @ Application(Tuple, args) => sys.error("TODO")
-      case a @ Application(Fst, args) => sys.error("TODO")
-      case a @ Application(Snd, args) => sys.error("TODO")
-      case a @ Application(Trd, args) => sys.error("TODO")
-      
       case a @ Application(fct, args) =>
         //TODO no overloading! (just polymorphism)
         val (args2, argsCstr) = args.map(process).unzip
@@ -135,18 +130,70 @@ object Typer {
           case Some(err) => (err, TrivialCstr)
           case None =>
             val unwrappedArgs = args2.map(_.get)
-            val returnT = Type.freshTypeVar
             val argsTypes = unwrappedArgs.map(_.tpe)
+            val returnT = fct match {
+              case Tuple => Product(argsTypes)
+              case other => Type.freshTypeVar
+            }
             val a2 = Application(fct, unwrappedArgs) setType returnT
             val (argsType, returnType) = fct.tpe match {
               case Function(a, r) => (a,r)
               case other => (Nil, other)
             }
-            val returnCstr = SingleCstr(returnT, returnType)
-            val appCstr = argsType zip argsTypes map { case (a,b) => SingleCstr(a,b) }
+            fct match {
+              case And | Or => //allows variable arity
+                  val cstr =
+                    ConjCstr(SingleCstr(returnT, Bool) ::
+                             argsTypes.map( a => SingleCstr(a,Bool) ) :::
+                             argsCstr)
+                  (TypingSuccess(a2), cstr)
+              case Plus | Minus => //allows variable arity
+                  val cstr =
+                    ConjCstr(SingleCstr(returnT, Int) ::
+                             argsTypes.map( a => SingleCstr(a,Int) ) :::
+                             argsCstr)
+                  (TypingSuccess(a2), cstr)
+              case Tuple => 
+                (TypingSuccess(a2), ConjCstr(argsCstr))
+              case Fst   =>
+                argsTypes match {
+                  case List(Product(fst :: xs)) =>
+                    (TypingSuccess(a2), ConjCstr(SingleCstr(returnT,fst) :: argsCstr))
+                  case List(single) =>
+                    (TypingSuccess(a2), ConjCstr(argsCstr)) //TODO this is under constrained
+                  case _ =>
+                    (TypingError("wrong arity: " + a), TrivialCstr)
+                }
+              case Snd   =>
+                argsTypes match {
+                  case List(Product(x :: snd :: xs)) =>
+                    (TypingSuccess(a2), ConjCstr(SingleCstr(returnT,snd) :: argsCstr))
+                  case List(single) =>
+                    (TypingSuccess(a2), ConjCstr(argsCstr)) //TODO this is under constrained
+                  case _ =>
+                    (TypingError("wrong arity: " + a), TrivialCstr)
+                }
+              case Trd   =>
+                argsTypes match {
+                  case List(Product(x :: y :: trd :: xs)) =>
+                    (TypingSuccess(a2), ConjCstr(SingleCstr(returnT,trd) :: argsCstr))
+                  case List(single) =>
+                    (TypingSuccess(a2), ConjCstr(argsCstr)) //TODO this is under constrained
+                  case _ =>
+                    (TypingError("wrong arity: " + a), TrivialCstr)
+                }
+              case other =>
+                if (argsType.length != argsTypes.length) {
+                    (TypingError("wrong arity: " + a), TrivialCstr)
+                } else {
+                  val cstr =
+                    ConjCstr(SingleCstr(returnT, returnType) ::
+                             (argsType zip argsTypes).map({ case (a,b) => SingleCstr(a,b) }) :::
+                             argsCstr)
+                  (TypingSuccess(a2), cstr)
+                }
+            }
             //Console.println(a + " -> " + argsCstrs + " -> " + returnCstr)
-            val cstr = ConjCstr(returnCstr :: appCstr ::: argsCstr)
-            (TypingSuccess(a2), cstr)
         }
       
       case Binding(b, vars, expr) =>

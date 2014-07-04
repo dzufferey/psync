@@ -17,6 +17,7 @@
 - memory leak when starting the first instance (message comes while instance starts ?)
 - test with message drop
 - test with more processes
+- custom dispatch to avoid overwhelming the pipeline
 
 
 # verification
