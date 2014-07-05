@@ -13,11 +13,15 @@ import io.netty.util.{TimerTask, Timeout}
 
 import round.utils.Logger
 import round.utils.LogLevel._
+  
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.Semaphore
 
 //basic implementation of rounds
 //not so fault tolerant: ∀ r. ∃ p. |HO(p, r)| = n  ∧  ∀ p q. p sends a message to q at round r.
 
-class PredicateLayer(
+class PredicateLayerFineGrained(
       grp: Group,
       val instance: Short,
       channel: Channel,
@@ -35,11 +39,13 @@ class PredicateLayer(
   var currentRound = 0
 
   val messages = Array.ofDim[DatagramPacket](n)
-  val from = Array.fill(n)(false)
-  var received = 0 //Array.fill(n)(false)
+  val from = Array.ofDim[AtomicBoolean](n)
+  for (i <- 0 until n) from(i) = new AtomicBoolean(false)
+  var received = new AtomicInteger(0)
   //var spill = new java.util.concurrent.ConcurrentLinkedQueue[DatagramPacket]()
 
-  val lock = new scala.concurrent.Lock
+  val maxPermits = 1000
+  val lock = new Semaphore(1000)
 
   //register in the channel
   dispatcher.add(instance, this)
@@ -69,17 +75,9 @@ class PredicateLayer(
         if (changed) {
           changed = false
         } else {
-          lock.acquire
-          try {
-            if (!changed) {
-              Logger("Predicate", Debug, "delivering because of timeout")
-              deliver
-            } else {
-              changed = false
-            }
-          } finally {
-            lock.release
-          }
+          Logger("Predicate", Debug, "delivering because of timeout")
+          deliver
+          changed = false
         }
         timeout = Timer.newTimeout(this, defaultTO)
       }
@@ -111,46 +109,52 @@ class PredicateLayer(
 
 
   protected def clear {
-    received = 0
+    received.set(0)
     for (i <- 0 until n) {
       messages(i) = null
-      from(i) = false
+      from(i).set(false)
     }
   }
   
+  //assume the thread has one permit
   protected def deliver {
-    val toDeliver = messages.slice(0, received)
-    clear
-    currentRound += 1
-    //push to the layer above
-    val msgs = fromPkts(toDeliver)
-    try {
-      proc.update(msgs.toSet)
-      //start the next round (if has not exited)
-      send
-    } catch {
-      case e: TerminateInstance => stop
+    lock.release //need to release to avoid deadlock
+    lock.acquire(maxPermits)
+    //need to test again the delivery condition
+    if (received.get >= n) {
+      val toDeliver = messages.slice(0, received.intValue)
+      clear
+      currentRound += 1
+      //push to the layer above
+      val msgs = fromPkts(toDeliver)
+      try {
+        proc.update(msgs.toSet)
+        //start the next round (if has not exited)
+        send
+      } catch {
+        case e: TerminateInstance => stop
+      }
     }
+    lock.release(maxPermits -1)
   }
 
   protected def normalReceive(pkt: DatagramPacket) {
     val id = grp.inetToId(pkt.sender)
     //protect from duplicate packet
-    if (!from(id)) {
-      from(id) = true
-      messages(received) = pkt
-      received += 1
-      if (received >= n) {
+    if (!from(id).getAndSet(true)) {
+      val r = received.getAndIncrement()
+      messages(r) = pkt
+      if (r >= n) {
         deliver
       }
-      changed = true
     }
+    changed = true
   }
 
   def receive(pkt: DatagramPacket) {
     val tag = Message.getTag(pkt.content)
     val round = tag.roundNbr
-    lock.acquire //TODO less aggressive synchronization
+    lock.acquire
     try {
       //TODO take round overflow into account
       if(round == currentRound) {
