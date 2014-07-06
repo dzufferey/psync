@@ -45,7 +45,7 @@ class PredicateLayerFineGrained(
   //var spill = new java.util.concurrent.ConcurrentLinkedQueue[DatagramPacket]()
 
   val maxPermits = 1000
-  val lock = new Semaphore(1000)
+  val lock = new Semaphore(1000, true)
 
   //register in the channel
   dispatcher.add(instance, this)

@@ -8,9 +8,10 @@ import scala.reflect.macros.whitebox.Context
 //import scala.reflect.macros.blackbox.Context
 
 class Impl(val c: Context) extends Lifting
-                           with BoolExpr
-                           with ProcessRewrite 
+                           with FormulaExtractor
                            with TrExtractor
+                           with ProcessRewrite 
+                           with RoundRewrite
 {
   import c.universe._
 

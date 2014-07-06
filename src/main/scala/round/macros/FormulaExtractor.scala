@@ -3,7 +3,7 @@ package round.macros
 import round.formula._
 import round.utils.Namer
 
-trait BoolExpr {
+trait FormulaExtractor {
   self: Impl =>
   import c.universe._
 
