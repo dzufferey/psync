@@ -81,12 +81,12 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
     Logger("Verifier", Warning, "TODO: preconditions of auxiliary methods")
 
     //pack everything
-    List(List(initVC), inductVCs) ::: progressVCs ::: propertiesVCs
+    List(initVC) :: inductVCs.map(List(_)) ::: progressVCs ::: propertiesVCs
   }
 
 
   def reportSpec: Item = {
-    val lst = new List("Specification")
+    val lst = new Sequence("Specification")
 
     lst.add(itemForFormula("Safety Predicate", spec.safetyPredicate))
 
@@ -115,7 +115,7 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
 
 
   def reportProcess: Item = {
-    val lst = new List("Process")
+    val lst = new Sequence("Process")
     
     lst.add(itemForFormula("Initial state", procInitState))
 
@@ -156,7 +156,7 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
     report.add(reportSpec)
     report.add(reportProcess)
 
-    val rVcs = new List("Verification Conditions")
+    val rVcs = new Sequence("Verification Conditions")
     for ( (vs, idx) <- vcs.zipWithIndex) {
       val status = if (vs.exists(_.isValid)) " (success)" else " (failed)"
       val lst = new List("VCs group " + idx + status)

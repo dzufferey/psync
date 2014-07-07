@@ -52,7 +52,7 @@ class AuxiliaryMethod(val name: String,
     import round.utils.report._
     val tp = if (tParams == Nil) "" else tParams.mkString("[",",","]")
     val pr = params.zip(tpe.args).map{ case (p,t) => p.name + ": " + t }.mkString("(",",",")")
-    val lst = new List(name + tp + pr + ": " + tpe.returns)
+    val lst = new Sequence(name + tp + pr + ": " + tpe.returns)
     lst.add(itemForFormula("Precondition", pre))
     lst.add(itemForFormula("Postcondition("+post._1+")", post._2))
     for (b <- body) lst.add(b.report)

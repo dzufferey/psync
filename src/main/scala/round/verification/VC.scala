@@ -35,12 +35,12 @@ class VC(description: String, hypothesis: Formula, transition: Formula, conclusi
 
   def report = {
     val stat = if (isValid) " (success)" else " (failed)"
-    val lst = new List(description + stat)
-    lst.add(itemForFormula("hypothesis", hypothesis))
-    lst.add(itemForFormula("transition", transition))
-    lst.add(itemForFormula("conclusion", conclusion))
+    val lst = new Sequence(description + stat)
+    lst.add(itemForFormula("Hypothesis", hypothesis))
+    lst.add(itemForFormula("Transition", transition))
+    lst.add(itemForFormula("Conclusion", conclusion))
     status match {
-      case Right(reason) => lst.add(new PreformattedText("reason", reason))
+      case Right(reason) => lst.add(new PreformattedText("Reason", reason))
       case _ => 
     }
     lst

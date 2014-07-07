@@ -23,7 +23,8 @@ class TocEntry(val item: Item, val children: Seq[TocEntry]) {
   def toHtml(writer: java.io.BufferedWriter) {
     writer.write("<li>")
     val escapedTitle = org.apache.commons.lang3.StringEscapeUtils.escapeHtml4(item.title)
-    writer.write("<a href=\"#"+ref+"\"> <span>"+number+"</span> <span>"+escapedTitle+"</span> </a>")
+    //writer.write("<a href=\"#"+ref+"\"> <span>"+number+"</span> <span>"+escapedTitle+"</span> </a>")
+    writer.write("<a href=\"#"+ref+"\"> <span>"+escapedTitle+"</span> </a>")
     if( !children.isEmpty) {
       writer.newLine
       writer.write("<ul>"); writer.newLine

@@ -4,7 +4,7 @@ import round.utils._
 import round.utils.LogLevel._
 import java.io.{BufferedWriter, PrintWriter, OutputStreamWriter, FileOutputStream}
 
-class Report(title: String) extends List(title) {
+class Report(title: String) extends Sequence(title) {
 
   def htmlHeader(writer: BufferedWriter) {
     writer.write("<!DOCTYPE HTML>"); writer.newLine
@@ -12,7 +12,7 @@ class Report(title: String) extends List(title) {
     writer.write("<head>"); writer.newLine
     writer.write("    <meta charset=\"utf-8\">"); writer.newLine
     val escapedTitle = org.apache.commons.lang3.StringEscapeUtils.escapeHtml4(title)
-    writer.write("    <title>Analysis report for "+escapedTitle+"</title>"); writer.newLine
+    writer.write("    <title>"+escapedTitle+"</title>"); writer.newLine
     writer.write(Style.CSS); writer.newLine
     writer.write("</head>"); writer.newLine
     writer.write("<body>"); writer.newLine
