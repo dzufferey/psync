@@ -26,8 +26,9 @@ The default configuration uses 3 replicas running on the local host.
   - `./runLockManagerTest.sh -id 0 -p 8888`
   - `./runLockManagerTest.sh -id 1 -p 8889`
   - `./runLockManagerTest.sh -id 2 -p 8890`
+  - `./runLockManagerTest.sh -id 3 -p 8891`
 
 * To spawn a client and connect in to the first replica:
-  `./runLockManagerTest.sh -c -p 8891 -ra 127.0.0.1 -rp 8888`
+  `./runLockManagerTest.sh -c -p 9000 -ra 127.0.0.1 -rp 8888`
   The client will then send one request each time you press the enter key.
 

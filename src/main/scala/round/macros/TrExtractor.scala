@@ -194,7 +194,7 @@ trait TrExtractor {
     if (d.vparamss.length > 1) {
       c.abort(c.enclosingPosition, "auxiliaryFunction, currying not yet supported: " + d.name)
     }
-    c.echo(c.enclosingPosition, "currently we do not verify auxiliary functions (" +d.name.toString +") and assume they are side-effect free")
+    c.echo(d.pos, "currently we do not verify auxiliary functions (" +d.name.toString +") and assume they are side-effect free")
     val name = d.name.toString
     val params = d.vparamss.head.map(extractVarFromValDef)
     val tpe = round.formula.Function(params.map(_.tpe), extractType(d.tpt.tpe))

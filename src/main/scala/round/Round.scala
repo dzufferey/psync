@@ -28,6 +28,8 @@ abstract class Round {
     throw new TerminateInstance
   }
 
+  //TODO
+  def expectedNbrMessages: Int = group.size
 
   //////////////////
   // util methods //

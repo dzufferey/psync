@@ -28,6 +28,8 @@ abstract class Process(val id: ProcessID) {
     currentRound.unpackUpdate(msgs)
   }
 
+  final def expectedNbrMessages: Int = currentRound.expectedNbrMessages
+
   //TODO when to insert dummy ?
 
   //////////////////////

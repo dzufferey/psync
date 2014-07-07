@@ -61,6 +61,7 @@ trait Lifting {
     case Contains => q"round.formula.Contains"
     case Cardinality => q"round.formula.Cardinality"
     case FSome => q"round.formula.FSome"
+    case FNone => q"round.formula.FNone"
     case Get => q"round.formula.Get"
     case IsDefined => q"round.formula.IsDefined"
     case IsEmpty => q"round.formula.IsEmpty"

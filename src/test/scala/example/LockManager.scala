@@ -203,7 +203,7 @@ class LockManagerClient(myPort: Int, remote: (String, Int)) {
         .channel(classOf[NioDatagramChannel])
         .handler(new ReplyHandler)
 
-      Logger("LockManagerClient", Notice, "bingind to " + myPort)
+      Logger("LockManagerClient", Notice, "binding to " + myPort)
       val channel = b.bind(myPort).sync().channel()
       try {  
         var input = scala.io.StdIn.readLine()

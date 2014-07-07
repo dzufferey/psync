@@ -1,19 +1,20 @@
 # general
 
-- find a nice acronym for round
+- find a nice acronym for 'round'
 - interface between the algorithm and the predicate
 - expected number of messages for a round: inferred from the send function
 - locally testable safety/liveness conditions: of the form ∀ p. QF-φ(p)
 - split the sources into multiple parts/sub-projects
   so we can use macros for the testing and debugging in the main project
   cleaner separation between the runtime and the declarations
+- integrate recovery
 
 
 # implementation
 
 - uses netty 4.0.21 when on maven
 - more predicates 
-- ghost variables: make sure they are only read in the verification part and remove at compile time
+- ghost variables: make sure they are only read in the verification part and removed at compile time
 - memory leak / null pointer when starting the first instance (message comes while instance starts ? not everything initialized)
 - test with message drop (reliability)
 - test with more processes (scalability)
@@ -27,6 +28,7 @@
 - extraction of transition relation:
     * in LockManager: confusion between Int and ProcessID (defined as alias ...)
     * ...
+- try type checking the formula
 - decision procedure
 - depolymorphize the formula in the SMT backend
 

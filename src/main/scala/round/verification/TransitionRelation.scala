@@ -58,12 +58,21 @@ class RoundTransitionRelation(val send: Formula,
   }
   
   val primedSubst: Map[UnInterpretedFct, UnInterpretedFct] = {
-    (old zip primed).map{ case (o,p) => (skolemify(o), skolemify(p)) }.toMap
+    val map = (old zip primed).flatMap{ case (o,p) =>
+      val o1 = skolemify(o)
+      val o2 = o1.stripType
+      val p1 = skolemify(p)
+      List((o1, p1), (o2, p1)) 
+    }.toMap
+    //println("primedSubst: " + map)
+    map
   }
   
   def primeFormula(f: Formula) = {
     removeOldPrefix(FormulaUtils.mapSymbol({
-      case f @ UnInterpretedFct(_,_,_) => primedSubst.getOrElse(f,f)
+      case f @ UnInterpretedFct(_,_,_) =>
+        //println("potential subst for " + f.raw + " in " + primedSubst.keys.map(_.raw).mkString(", "))
+        primedSubst.getOrElse(f,f)
       case f => f
     }, f))
   }

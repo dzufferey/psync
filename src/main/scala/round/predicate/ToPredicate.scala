@@ -5,7 +5,6 @@ import Algorithm._
 import round.runtime._
 import round.utils.Timer
 
-import scala.reflect.ClassTag
 import io.netty.buffer.ByteBuf
 import io.netty.channel._
 import io.netty.channel.socket._
@@ -14,38 +13,33 @@ import io.netty.util.{TimerTask, Timeout}
 import round.utils.Logger
 import round.utils.LogLevel._
 
-//basic implementation of rounds
-//not so fault tolerant: ∀ r. ∃ p. |HO(p, r)| = n  ∧  ∀ p q. p sends a message to q at round r.
 
-class PredicateLayer(
+/* A predicate using timeout to deliver (when not all msg are received) */
+class ToPredicate(
       grp: Group,
-      val instance: Short,
+      instance: Short,
       channel: Channel,
       dispatcher: InstanceDispatcher,
       proc: Process,
       options: Map[String, String] = Map.empty
-    ) extends Predicate
+    ) extends Predicate(grp, instance, channel, dispatcher, proc, options)
 {
 
   //safety condition guaranteed by the predicate
   val ensures = round.formula.True() 
 
-  val n = grp.size
-  proc.setGroup(grp)
-  var currentRound = 0
+  protected var expected = n
 
-  val messages = Array.ofDim[DatagramPacket](n)
-  val from = Array.fill(n)(false)
-  var received = 0 //Array.fill(n)(false)
+  private val from = Array.fill(n)(false)
+  private var _received = 0
+  def received = _received
+  def resetReceived { _received = 0 }
   //var spill = new java.util.concurrent.ConcurrentLinkedQueue[DatagramPacket]()
 
-  val lock = new scala.concurrent.Lock
-
-  //register in the channel
-  dispatcher.add(instance, this)
+  private val lock = new scala.concurrent.Lock
 
   //dealing with the timeout ?
-  val defaultTO = {
+  protected val defaultTO = {
     try {
       options.getOrElse("timeout", "200").toInt
     } catch {
@@ -57,13 +51,13 @@ class PredicateLayer(
 
   //some flag about being active
   @volatile
-  var active = true
+  protected var active = true
 
   //each modification should set this to true, the timer will reset it
   @volatile
-  var changed = false
+  protected var changed = false
 
-  val tt = new TimerTask {
+  protected val tt = new TimerTask {
     def run(to: Timeout) {
       if (active) {
         if (changed) {
@@ -85,63 +79,32 @@ class PredicateLayer(
       }
     }
   }
-  var timeout: Timeout = Timer.newTimeout(tt, defaultTO)
+  protected var timeout: Timeout = Timer.newTimeout(tt, defaultTO)
 
 
-  //deregister
-  def stop {
+  override def stop {
     active = false
-    dispatcher.remove(instance)
     timeout.cancel
-    Logger("Predicate", Info, "stopping instance " + instance)
+    super.stop
   }
 
-  def send {
-    val myAddress = grp.idToInet(grp.self)
-    val pkts = toPkts(proc.send.toSeq)
-    for (pkt <- pkts) {
-      if (pkt.recipient() == myAddress) {
-        normalReceive(pkt)
-      } else {
-        channel.write(pkt, channel.voidPromise())
-      }
-    }
-    channel.flush
-  }
-
-
-  protected def clear {
-    received = 0
+  override protected def clear {
+    super.clear
     for (i <- 0 until n) {
-      messages(i) = null
       from(i) = false
     }
   }
   
-  protected def deliver {
-    val toDeliver = messages.slice(0, received)
-    clear
-    currentRound += 1
-    //push to the layer above
-    val msgs = fromPkts(toDeliver)
-    try {
-      proc.update(msgs.toSet)
-      //start the next round (if has not exited)
-      send
-    } catch {
-      case e: TerminateInstance => stop
-    }
-  }
-
   protected def normalReceive(pkt: DatagramPacket) {
     val id = grp.inetToId(pkt.sender)
     //protect from duplicate packet
     if (!from(id)) {
       from(id) = true
       messages(received) = pkt
-      received += 1
-      if (received >= n) {
+      _received += 1
+      if (received >= expected) {
         deliver
+        expected = proc.expectedNbrMessages
       }
       changed = true
     }
@@ -168,35 +131,6 @@ class PredicateLayer(
     } finally {
       lock.release
     }
-  }
-
-  def messageReceived(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
-    val tag = Message.getTag(pkt.content)
-    if (instance == tag.instanceNbr) {
-      receive(pkt)
-    } else {
-      ctx.fireChannelRead(pkt)
-    }
-  }
-    
-  protected def toPkts(msgs: Seq[(ByteBuf,ProcessID)]): Seq[DatagramPacket] = {
-    val src = grp.idToInet(grp.self)
-    val tag = Tag(instance, currentRound)
-    val pkts = msgs.map{ case (buf,dst) =>
-      val dst2 = grp.idToInet(dst)
-      buf.setLong(0, tag.underlying)
-      new DatagramPacket(buf, dst2, src)
-    }
-    pkts
-  }
-
-  protected def fromPkts(pkts: Seq[DatagramPacket]): Seq[(ByteBuf, ProcessID)] = {
-    val msgs = pkts.map( pkt => {
-      val src = grp.inetToId(pkt.sender)
-      val buf = pkt.content
-      (buf, src)
-    })
-    msgs
   }
 
 }

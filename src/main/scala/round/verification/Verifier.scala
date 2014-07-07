@@ -12,6 +12,7 @@ import round.utils.report._
 
 class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
 
+  //TODO make sure the specs are well-formed
   val spec = alg.spec 
 
   val process = alg.process(0, dummyIO)
@@ -38,8 +39,9 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
         invariant: Formula,
         round: (RoundTransitionRelation,Map[String,AuxiliaryMethod])
       ): VC = {
-    val withPost = round._1.makeFullTr(procLocalVars ++ procGhostVars, round._2)
-    new VC("inductiveness of " + descr, invariant, withPost, round._1.primeFormula(invariant))
+    val tr = round._1
+    val withPost = tr.makeFullTr(procLocalVars ++ procGhostVars, round._2)
+    new VC("inductiveness of " + descr, invariant, withPost, tr.primeFormula(invariant))
   }
 
   /* for each sublist, at least one VC has to hold. */
@@ -127,6 +129,11 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
       val f = tr.makeFullTr(procLocalVars ++ procGhostVars, aux)
       val fs = FormulaUtils.getConjunts(f)
       lst.add(itemForFormula("Transition Relation", fs))
+      //TR variables
+      lst.add(new Text("Pre Variables", tr.old.mkString(", ")))
+      lst.add(new Text("Local Variables", tr.local.mkString(", ")))
+      lst.add(new Text("Post Variables", tr.primed.mkString(", ")))
+      //auxiliary methods
       for ( a <- aux.values ) lst.add(a.report)
       rnds.add(lst)
     }

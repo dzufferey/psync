@@ -78,6 +78,10 @@ case class UnInterpretedFct(symbol: String,
                             _tpe: Option[Type] = None,
                             tParam: List[TypeVariable] = Nil) extends Symbol {
   override def toString = symbol
+  
+  def raw = symbol + tParam.mkString("[",",","]") + ": " + _tpe.map(_.toString).getOrElse("--")
+
+  def stripType = UnInterpretedFct(symbol)
 
   def tpe = if (_tpe.isDefined) {
     val fvs = tParam.map( v => (v -> Type.freshTypeVar)).toMap
