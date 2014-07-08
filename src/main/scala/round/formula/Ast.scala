@@ -95,9 +95,14 @@ case class UnInterpretedFct(symbol: String,
 
 sealed abstract class InterpretedFct(symbol: String, aliases: String*) extends Symbol {
   override def toString = symbol
+
+  def allSymbols = symbol +: aliases
+
+  def arity = tpe.arity
+
   def apply(arg: Formula, args: Formula*): Formula = {
     val allArgs = (arg +: args).toList
-    assert(allArgs.lengthCompare(tpe.arity) == 0)
+    assert(allArgs.lengthCompare(arity) == 0)
     Application(this, allArgs)
     //TODO fill the type as much as possible
   }
@@ -111,7 +116,7 @@ sealed abstract class InterpretedFct(symbol: String, aliases: String*) extends S
   override val fix = Fix.Infix
 }
 
-case object Not extends InterpretedFct("¬", "~", "!", "unary_!") {
+case object Not extends InterpretedFct("¬", "~", "!", "unary_!", "unary_$bang") {
   def tpe = Bool ~> Bool
   override val fix = Fix.Prefix
   override val priority = 8
@@ -121,7 +126,7 @@ case object And extends InterpretedFct("∧", "&&", "$amp$amp") {
   def tpe = Bool ~> Bool ~> Bool
   override val priority = 5
 }
-case object Or extends InterpretedFct("∨", "||") {
+case object Or extends InterpretedFct("∨", "||", "$bar$bar") {
   def tpe = Bool ~> Bool ~> Bool
   override val priority = 4
 }
@@ -137,7 +142,7 @@ case object Eq extends InterpretedFct("=", "==", "⇔", "$eq$eq") {
   }
   override val priority = 9
 }
-case object Neq extends InterpretedFct("≠", "!=", "~=") {
+case object Neq extends InterpretedFct("≠", "!=", "~=", "$bang$eq") {
   def tpe = {
     val fv = Type.freshTypeVar
     fv ~> fv ~> Bool
@@ -145,11 +150,11 @@ case object Neq extends InterpretedFct("≠", "!=", "~=") {
   override val priority = 9
 }
 
-case object Plus extends InterpretedFct("+") {
+case object Plus extends InterpretedFct("+", "$plus") {
   def tpe = Int ~> Int ~> Int
   override val priority = 10
 }
-case object Minus extends InterpretedFct("-") {
+case object Minus extends InterpretedFct("-", "$minus") {
   def tpe = Int ~> Int ~> Int
   override val priority = 12
 }
@@ -162,15 +167,15 @@ case object Divides extends InterpretedFct("/", "$div") {
   override val priority = 15
 }
 
-case object Leq extends InterpretedFct("≤", "<=") {
+case object Leq extends InterpretedFct("≤", "<=", "$less$eq") {
   def tpe = Int ~> Int ~> Bool
   override val priority = 9
 }
-case object Geq extends InterpretedFct("≥", ">=") {
+case object Geq extends InterpretedFct("≥", ">=", "$greater$eq") {
   def tpe = Int ~> Int ~> Bool
   override val priority = 9
 }
-case object Lt extends InterpretedFct("<") {
+case object Lt extends InterpretedFct("<", "$less") {
   def tpe = Int ~> Int ~> Bool
   override val priority = 9
 }
@@ -293,6 +298,54 @@ case object Trd extends InterpretedFct("_3") {
   def tpe = Wildcard ~> Wildcard
   override val fix = Fix.Suffix
   override val priority = 20
+}
+
+object InterpretedFct {
+  private var symbols: List[InterpretedFct] = Nil
+  private var map: Map[String,InterpretedFct] = Map.empty
+  def add(s: InterpretedFct) {
+    symbols = s :: symbols
+    map = s.allSymbols.foldLeft(map)( (m, sym) => {
+      assert(!(map contains sym), "symbol redefinition: " + sym)
+      map + (sym -> s)
+    })
+  }
+  def apply(s: String): Option[InterpretedFct] = {
+    map.get(s)
+  }
+  def knows(s: String) = map contains s
+
+  //need to be added manually since object are initialized lazily
+  add( Not )
+  add( And )
+  add( Or )
+  add( Implies )
+  add( Eq )
+  add( Neq )
+  add( Plus )
+  add( Minus )
+  add( Times )
+  add( Divides )
+  add( Leq )
+  add( Geq )
+  add( Lt )
+  add( Gt )
+  add( Union )
+  add( Intersection )
+  add( SubsetEq )
+  add( SupersetEq )
+  add( In )
+  add( Contains )
+  add( Cardinality )
+  add( FSome )
+  add( FNone )
+  add( IsDefined )
+  add( IsEmpty )
+  add( Get )
+  add( Tuple )
+  add( Fst )
+  add( Snd )
+  add( Trd )
 }
 
 

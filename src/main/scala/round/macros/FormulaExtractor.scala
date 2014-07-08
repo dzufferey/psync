@@ -1,6 +1,7 @@
 package round.macros
 
 import round.formula._
+import round.logic._
 import round.utils.Namer
 
 trait FormulaExtractor {
@@ -128,128 +129,45 @@ trait FormulaExtractor {
     case _ => sys.error("expected ValDef: " + showRaw(e))
   }
 
+  private def knows(op: Name) = {
+    val s = op.toString
+    val res = InterpretedFct.knows(s) || AxiomatizedFct.knows(s)
+    //println(op + " -> " + res)
+    res
+  }
+
+  def mkKnown(op: Name, args: List[Tree]): Formula = {
+    val s = op.toString
+    if (InterpretedFct.knows(s)) {
+      val i = InterpretedFct(s).get
+      val args2 = args map tree2Formula
+      i(args2.head, args2.tail:_*)
+    } else if (AxiomatizedFct.knows(s)) {
+      val u = AxiomatizedFct.symbol(s).get
+      val args2 = args map tree2Formula
+      Application(u, args2)
+    } else {
+      sys.error("unknown known ?!!: " + s)
+    }
+  }
+
+  //since the backend is not high order we need to generate a new AxiomatizedFct
+  def mkMinMaxBy(name: String, set: Tree, v: ValDef, expr: Tree, ineq: InterpretedFct): Formula = {
+    val vf = extractVarFromValDef(v)
+    val t = vf.tpe
+    val s = Variable("S").setType(FSet(t))
+    val u = UnInterpretedFct(name, Some(FSet(t) ~> t)) //TODO type param ?
+    val app = Application(u, List(s))
+    val expr2 = tree2Formula(expr)
+    val expr3 = FormulaUtils.mapAll({ case `vf` => app; case f => f }, expr2)
+    val axioms = List( ForAll(List(vf, s), And(In(app, s), Geq(expr3, expr2))) )
+    AxiomatizedFct.add(new AxiomatizedFct(u, axioms))
+    val set2 = tree2Formula(set)
+    Application(u, List(set2))
+  }
+
   def tree2Formula(e: Tree): Formula = {
     val formula: Formula = e match {
-      // equality
-      case q"$l == $r" => 
-        val l2 = tree2Formula(l)
-        val r2 = tree2Formula(r)
-        Eq(l2,r2)
-      case q"$l != $r" => 
-        val l2 = tree2Formula(l)
-        val r2 = tree2Formula(r)
-        Neq(l2,r2)
-      
-      // inequality
-      case q"$l <= $r" => 
-        val l2 = tree2Formula(l)
-        val r2 = tree2Formula(r)
-        Leq(l2,r2)
-      case q"$l >= $r" => 
-        val l2 = tree2Formula(l)
-        val r2 = tree2Formula(r)
-        Geq(l2,r2)
-      case q"$l < $r" => 
-        val l2 = tree2Formula(l)
-        val r2 = tree2Formula(r)
-        Lt(l2,r2)
-      case q"$l > $r" => 
-        val l2 = tree2Formula(l)
-        val r2 = tree2Formula(r)
-        Gt(l2,r2)
-     
-      // arithmetic
-      case q"$l + $r" => 
-        val l2 = tree2Formula(l)
-        val r2 = tree2Formula(r)
-        Plus(l2,r2)
-      case q"$l - $r" => 
-        val l2 = tree2Formula(l)
-        val r2 = tree2Formula(r)
-        Minus(l2,r2)
-      case q"$l * $r" => 
-        val l2 = tree2Formula(l)
-        val r2 = tree2Formula(r)
-        Times(l2,r2)
-      case q"$l / $r" => 
-        val l2 = tree2Formula(l)
-        val r2 = tree2Formula(r)
-        Divides(l2,r2)
-     
-      // boolean expression
-      case q"$l && $r" => 
-        val l2 = tree2Formula(l)
-        val r2 = tree2Formula(r)
-        And(l2,r2)
-      case q"$l || $r" =>
-        val l2 = tree2Formula(l)
-        val r2 = tree2Formula(r)
-        Or(l2,r2)
-      case q"!$f" =>
-        val f2 = tree2Formula(f)
-        Not(f2)
-      case q"$scope.SpecHelper.BoolOps($l).==>($r)" =>
-        val l2 = tree2Formula(l)
-        val r2 = tree2Formula(r)
-        Implies(l2,r2)
-
-      // set operation, comparison, cardinality
-      case q"$s.size" =>
-        val s2 = tree2Formula(s)
-        Cardinality(s2)
-      case q"$l union $r" =>
-        val l2 = tree2Formula(l)
-        val r2 = tree2Formula(r)
-        Union(l2,r2)
-      case q"$l intersect $r" =>
-        val l2 = tree2Formula(l)
-        val r2 = tree2Formula(r)
-        Intersection(l2,r2)
-      case q"$l subsetOf $r" =>
-        val l2 = tree2Formula(l)
-        val r2 = tree2Formula(r)
-        SubsetEq(l2,r2)
-      case q"$l contains $r" =>
-        val l2 = tree2Formula(l)
-        val r2 = tree2Formula(r)
-        In(r2,l2)
-
-      // tuples
-      case q"scala.Tuple2.apply[..$tpt](..$args)" =>
-        val tpt2 = tpt.map(extractType)
-        val args2 = args.map(tree2Formula)
-        Application(Tuple, args2).setType(Product(tpt2))
-      case q"scala.Tuple3.apply[..$tpt](..$args)" =>
-        val tpt2 = tpt.map(extractType)
-        val args2 = args.map(tree2Formula)
-        Application(Tuple, args2).setType(Product(tpt2))
-      case q"$expr._1" =>
-        val expr2 = tree2Formula(expr)
-        Fst(expr2)
-      case q"$expr._2" =>
-        val expr2 = tree2Formula(expr)
-        Snd(expr2)
-      case q"$expr._3" =>
-        val expr2 = tree2Formula(expr)
-        Trd(expr2)
-
-      // options
-      case q"scala.Some.apply[$tpt]($expr)" =>
-        val tpt2 = extractType(tpt) 
-        val expr2 = tree2Formula(expr)
-        FSome(expr2).setType(FOption(tpt2))
-      case q"scala.None" =>
-        Application(FNone, Nil)
-      case q"$expr.isEmpty" =>
-        val expr2 = tree2Formula(expr)
-        IsEmpty(expr2)
-      case q"$expr.isDefined" =>
-        val expr2 = tree2Formula(expr)
-        IsDefined(expr2)
-      case q"$expr.get" =>
-        val expr2 = tree2Formula(expr)
-        Get(expr2)
-     
       // quantifiers, comprehensions
       case q"$domain.forall( ..$xs => $f )" => makeBinding(ForAll, domain, xs, f)
       case q"$domain.exists( ..$xs => $f )" => makeBinding(Exists, domain, xs, f)
@@ -262,19 +180,73 @@ trait FormulaExtractor {
         val dCstr = In(extractVarFromValDef(x), tree2Formula(domain))
         Comprehension(List(yF), And(dCstr, fCstr))
 
+      //our stuff
+      case q"$scope.SpecHelper.BoolOps($l).==>($r)" =>
+        val l2 = tree2Formula(l)
+        val r2 = tree2Formula(r)
+        Implies(l2,r2)
       case Apply(TypeApply(Select(Select(This(_), TermName("VarHelper")), TermName("getter")), List(TypeTree())), List(expr)) =>
         tree2Formula(expr)
-
-      //provided by the framework
-      //TODO make sure it is not used somewhere else
       case q"$pkg.this.broadcast($expr)" =>
         val payload = tree2Formula(expr)
         val msg = Variable(Namer("__msg")).setType(Product(List(payload.tpe, round.verification.Utils.procType)))
         val fst = Fst(msg)
         Comprehension(List(msg), Eq(fst, payload))
 
+      //interpreted/known symbols
+      case Apply(Select(l, op), args) if knows(op) => 
+        mkKnown(op, l :: args)
+      case Apply(TypeApply(Select(l, op), _), args) if knows(op) => 
+        mkKnown(op, l :: args)
+      case Select(l, op) if knows(op) =>
+        mkKnown(op, List(l))
+
+      // set operation, comparison, cardinality
+      case q"scala.this.Predef.Set.apply[$tpt](..$args)" =>
+        val t = extractType(tpt)
+        val v = Variable(c.freshName("v")).setType(t)
+        val args2 = args map tree2Formula
+        val f = args2.foldLeft(False(): Formula)( (acc, x) => Or(acc, Eq(v, x)))
+        Comprehension(List(v), f).setType(FSet(t))
+      case q"$set.maxBy[$tpt]( $v => $expr )($ordering)" =>
+        mkMinMaxBy(c.freshName("maxBy"), set, v, expr, Geq)
+      case q"$set.minBy[$tpt]( $v => $expr )($ordering)" =>
+        mkMinMaxBy(c.freshName("minBy"), set, v, expr, Leq)
+
+      // tuples
+      case q"scala.Tuple2.apply[..$tpt](..$args)" =>
+        val tpt2 = tpt.map(extractType)
+        val args2 = args.map(tree2Formula)
+        Application(Tuple, args2).setType(Product(tpt2))
+      case q"scala.this.Predef.ArrowAssoc[$tpt1]($l).->[$tpt2]($r)" =>
+        val l2 = tree2Formula(l)
+        val r2 = tree2Formula(r)
+        val tl = extractType(tpt1)
+        val tr = extractType(tpt2)
+        Application(Tuple, List(l2, r2)).setType(Product(List(tl, tr)))
+      case q"scala.Tuple3.apply[..$tpt](..$args)" =>
+        val tpt2 = tpt.map(extractType)
+        val args2 = args.map(tree2Formula)
+        Application(Tuple, args2).setType(Product(tpt2))
+
+      // options
+      case q"scala.Some.apply[$tpt]($expr)" =>
+        val tpt2 = extractType(tpt) 
+        val expr2 = tree2Formula(expr)
+        FSome(expr2).setType(FOption(tpt2))
+      case q"scala.None" =>
+        Application(FNone, Nil)
+
+      //not caught before, ignore ...
+      case TypeApply(e, _) =>
+        tree2Formula(e)
+      
+      case Typed(e, _) =>
+        tree2Formula(e)
+     
       //(un)interpreted fct
-      case q"$expr(..$args)" =>
+      case t @ q"$expr(..$args)" =>
+        //println("t = " + showRaw(t))
         val fct = extractSymbol(expr)
         val args2 = args map tree2Formula
         Application(fct, args2)
@@ -288,9 +260,6 @@ trait FormulaExtractor {
         val args = List(tree2Formula(expr))
         Application(fct, args)
      
-      case Typed(e, _) => //TODO good enough ?
-        tree2Formula(e)
-
       //literals and vars
       case Literal(Constant(v: Boolean)) => round.formula.Literal(v)
       case Literal(Constant(v: scala.Int)) => round.formula.Literal(v)

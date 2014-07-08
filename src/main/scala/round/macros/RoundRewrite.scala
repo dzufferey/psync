@@ -21,7 +21,7 @@ trait RoundRewrite {
         (acc._1, Some(d), acc._3)
       case d @ DefDef(_, name, _, _, _, _) =>
         //ignore the ctor for the moment
-        if (name == termNames.CONSTRUCTOR)
+        if (name == termNames.CONSTRUCTOR || name == TermName("expectedNbrMessages"))
           (acc._1, acc._2, acc._3)
         else
           (acc._1, acc._2, auxiliaryFunction(d) :: acc._3)
@@ -37,7 +37,9 @@ trait RoundRewrite {
   }
   
   def methodToAdd(tpt: Tree) = List(
-      q"""protected def serialize(payload: $tpt, out: ByteBuf, withLength: Boolean = true, offset: Int = 8): Int = {
+      q"""protected def serialize(payload: $tpt, out: _root_.io.netty.buffer.ByteBuf, withLength: Boolean = true, offset: Int = 8): Int = {
+        import scala.pickling._
+        import binary._
         if (offset > 0) out.writerIndex(out.writerIndex() + offset)
         val bytes0 = payload.pickle.value
         val length = bytes0.length
@@ -50,7 +52,9 @@ trait RoundRewrite {
           length
         }
       }""",
-      q"""protected def deserialize(in: ByteBuf, withLength: Boolean = true, offset: Int = 8): $tpt = {
+      q"""protected def deserialize(in: _root_.io.netty.buffer.ByteBuf, withLength: Boolean = true, offset: Int = 8): $tpt = {
+        import scala.pickling._
+        import binary._
         if (offset > 0) in.readerIndex(in.readerIndex() + offset)
         val length = if (withLength) in.readInt() else in.readableBytes()
         val bytes = Array.ofDim[Byte](length)

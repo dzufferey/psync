@@ -22,7 +22,7 @@ To easily run the example in an UNIX-like environment, you can use the `runLockM
 By default the configuration file use is the one in `src/test/resources/sample-conf.xml`.
 The default configuration uses 3 replicas running on the local host.
 
-* For the replicas, in three different consoles run the following commands:
+* For the replicas, in four different consoles run the following commands:
   - `./runLockManagerTest.sh -id 0 -p 8888`
   - `./runLockManagerTest.sh -id 1 -p 8889`
   - `./runLockManagerTest.sh -id 2 -p 8890`

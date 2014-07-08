@@ -2,11 +2,7 @@ package example
 
 import round._
 import round.Algorithm._
-import round.runtime.Group
 import round.macros.Macros._
-import io.netty.buffer.ByteBuf
-import scala.pickling._
-import binary._
 
 class OTR3 extends Algorithm[OtrIO] {
 

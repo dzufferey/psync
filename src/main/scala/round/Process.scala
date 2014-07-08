@@ -13,6 +13,7 @@ abstract class Process(val id: ProcessID) {
   //////////////////
 
   def setGroup(g: round.runtime.Group): Unit //defined by macros
+  rounds.foreach(r => r.id = id) //set the id in round
 
   protected def incrementRound: Unit //defined by macros
 

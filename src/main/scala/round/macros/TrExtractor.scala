@@ -196,7 +196,7 @@ trait TrExtractor {
     }
     c.echo(d.pos, "currently we do not verify auxiliary functions (" +d.name.toString +") and assume they are side-effect free")
     val name = d.name.toString
-    val params = d.vparamss.head.map(extractVarFromValDef)
+    val params = d.vparamss.headOption.getOrElse(Nil).map(extractVarFromValDef)
     val tpe = round.formula.Function(params.map(_.tpe), extractType(d.tpt.tpe))
     val tParams: List[TypeVariable] = d.tparams.map(extractTypeVar)
 
@@ -218,7 +218,7 @@ trait TrExtractor {
     def getVar(t: Tree): Variable = tree2Formula(t) match {
       case v @ Variable(_) => v
       case other => 
-        c.abort(t.pos, "could not extract vaiable from: " + t + ", got " + other)
+        c.abort(t.pos, "could not extract variable from: " + t + ", got " + other)
     }
 
     val keys = subst2.keys.toList
