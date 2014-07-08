@@ -111,12 +111,12 @@ trait FormulaExtractor {
     case _ => sys.error("extractSymbol: " + showRaw(e))
   }
 
-  def extractValDef(e: Tree): Formula = e match{
+  def extractValDef(e: Tree): (Variable, Formula) = e match{
     case q"$mods val $tname: $tpt = $expr" =>
       val rhs = tree2Formula(expr)
-      val v = tname.toString
       val t = extractType(tpt.tpe)
-      Eq(Variable(v).setType(t), rhs)
+      val v = Variable(tname.toString).setType(t)
+      (v, Eq(v, rhs))
     case _ => sys.error("expected ValDef: " + showRaw(e))
   }
   
@@ -300,9 +300,10 @@ trait FormulaExtractor {
 
       //defs
       case Block(defs, f) =>
+        //TODO quantify the vals
         val f2 = tree2Formula(f)
-        val d = defs map extractValDef
-        d.foldLeft(f2)((x, y) => And(x, y))
+        val (vs, d) = (defs map extractValDef).unzip
+        Exists(vs, d.foldLeft(f2)((x, y) => And(x, y)))
 
       case Literal(Constant(())) => True() //TODO should be a decent subtitute
 

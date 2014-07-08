@@ -3,6 +3,8 @@ package round.verification
 import Utils._
 
 import round.formula._
+import round.utils.Logger
+import round.utils.LogLevel._
 
 //a wrapper around a formula, old/primed variables, ...
 
@@ -13,11 +15,6 @@ class RoundTransitionRelation(val send: Formula,
                               val old: List[Variable],
                               val local: List[Variable],
                               val primed: List[Variable]) {
-
-  //TODO:
-  //  send → ∀ i. send(i) 
-  //  update → ∀ i. update(i)
-  //and skolemize the locals
 
   //link mailboxes with HO:
   //  ∀ i j v. (i, v) ∈ mailboxUpdt(j) ⇔ (i ∈ HO(j) ∧ (j, v) ∈ mailboxSend(i))
@@ -37,9 +34,14 @@ class RoundTransitionRelation(val send: Formula,
     override def transform(f: Formula): Formula = {
       f match {
         case Eq(List(retVal, Application(UnInterpretedFct(fct, _, tParams), args))) if aux contains fct =>
+          Logger("TransitionRelation", Debug, "inline post in " + f)
           val auxDef = aux(fct).applyType(tParams)
-          super.transform(localize(vars, i, auxDef.makePostAssume(args, retVal)))
-        case other => other
+          val post = auxDef.makePostAssume(args, retVal)
+          val loc = localize(vars, i, post)
+          Logger("TransitionRelation", Debug, "resulting in " + loc)
+          super.transform(loc)
+        case other =>
+          super.transform(other)
       }
     }
   }
