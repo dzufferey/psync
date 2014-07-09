@@ -34,7 +34,13 @@ class LockManager(self: Short,
   ///////////////
   
   private val semaphore = new Semaphore(1, true) //at most one consensus at the time
-  private val consensus = new RunTime(new OTR2)
+
+  private val consensus = {
+    if (Main.lv)
+      new RunTime(new LastVoting)
+    else
+      new RunTime(new OTR2)
+  }
 
   private def onDecideOther(decision: Option[ProcessID]) {
     locked = decision
@@ -48,7 +54,7 @@ class LockManager(self: Short,
   }
 
   //TODO we can get some deadlock here!
-  private def startConsensus(expectedInstance: Short, io: OtrIO, msgs: Set[Message] = Set.empty) {
+  private def startConsensus(expectedInstance: Short, io: ConsensusIO, msgs: Set[Message] = Set.empty) {
     Logger("LockManager", Notice, "starting consensus with value " + io.initialValue)
     //enter critical section
     semaphore.acquire
@@ -75,9 +81,23 @@ class LockManager(self: Short,
   def defaultHandler(msg: Message) = {
 
     //get the initial value from the msg (to avoid defaulting on -1)
-    val content: Int = msg.getContent[Int]
+    val content: Int = {
+      if (Main.lv) {
+        import scala.pickling._ 
+        import binary._ 
+        msg.round % 4 match {
+          case 0 => msg.getContent[(Int,Int)]._1
+          case 1 => msg.getContent[Int]
+          case 2 => -1
+          case 3 => msg.getContent[Int]
+          case _ => sys.error("???")
+        }
+      } else {
+        msg.getContent[Int]
+      }
+    }
 
-    val io = new OtrIO {
+    val io = new ConsensusIO {
       val initialValue = content
       def decide(value: Int) {
         if (value == -1) onDecideOther(None)
@@ -138,7 +158,7 @@ class LockManager(self: Short,
         case _ => sys.error("unnkown request")
       }
       val client = new Client(sender, initValue != -1)
-      val io = new OtrIO {
+      val io = new ConsensusIO {
         val initialValue = initValue
         def decide(value: Int) {
           val dec = if (value == -1) None else Some(value.toShort)
@@ -242,6 +262,9 @@ object Main extends Options {
 
   var id = -1
   newOption("-id", Arg.Int( i => id = i), "the replica ID")
+  
+  var lv = false
+  newOption("-lv", Arg.Unit( () => lv = true), "use the last voting instead of the OTR")
 
   var confFile = "src/test/resources/sample-conf.xml"
   newOption("--conf", Arg.String(str => confFile = str ), "config file")

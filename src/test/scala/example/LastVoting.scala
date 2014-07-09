@@ -4,12 +4,7 @@ import round._
 import round.Algorithm._
 import round.macros.Macros._
 
-abstract class LvIO {
-  val initialValue: Int
-  def decide(value: Int): Unit
-}
-
-class LastVoting extends Algorithm[OtrIO] {
+class LastVoting extends Algorithm[ConsensusIO] {
 
   import VarHelper._
   import SpecHelper._
@@ -24,29 +19,36 @@ class LastVoting extends Algorithm[OtrIO] {
   val vote = new LocalVariable[Int](0)
   val decision = new LocalVariable[Option[Int]](None) //TODO as ghost
 
+  //FIXME once the macro issue is sorted out ...
+  //rotating coordinator
+  def coord(p: ProcessID, phi: Int): ProcessID = (phi % n).toShort
 
   val spec = new Spec {
       val safetyPredicate = f(true)
-      val livnessPredicate = List( f(true) )
-   // ∃ p. ∀ q. p = Coord(q, φ) ∧ p ∈ HO(q) ∧ |HO(p)| > n/2
-      val invariants = List( f(true)
-//  ∀ i. ¬decided(i) ∧ ¬ready(i)
-//∨ ∃ v, t.   A = { i | ts(i) > t }
-//          ∧ |A| > n/2
-//          ∧ ∀ i ∈ A. x(i) = v
-//          ∧ ∀ i. decided(i) ⇒ x(i) = v
-//          ∧ ∀ i. commit(i) ⇒ vote(i) = v
-//          ∧ ∀ i. ready(i) ⇒ vote(i) = v
-//          ∧ t ≤ r/4
-//          ∧ ∀ i. ts(i) = r/4 ⇒ commit(Coord(i))
+      val livnessPredicate = List( f(P.exists( p => P.forall( q => p == coord(q, r/4) && HO(p).size > n/2 ) )) )
 
-//Invariant (new part): ∃ i. commit(i)
+      val noDecision = f( P.forall( i => decision(i).isEmpty && !ready(i)) )
 
-//Invariant (new part): ∃ v. ∀ i. ts(i) = r/4 ∧ x(i) = v
+      val majority = f(
+        V.exists( v => V.exists( t => {
+            val A = P.filter( i => ts(i) >= t )
+            A.size > n/2 &&
+            t <= r/4 &&
+            P.forall( i => decision(i).isDefined ==> (decision(i).get == v) ) &&
+            P.forall( i => commit(i) ==> (vote(i) == v) ) &&
+            P.forall( i => ready(i) ==> (vote(i) == v) ) &&
+            P.forall( i => (ts(i) == r/4) ==> commit(coord(i, r/4)) )
+        }) )
+      )
 
-//Invariant (new part): ∃ p. ready(p)
 
-      ) 
+      val invariants = List(
+        round.formula.Or(noDecision, majority)
+        //TODO new part: ∃ i. commit(i)
+        //TODO new part: ∃ v. ∀ i. ts(i) = r/4 ∧ x(i) = v
+        //TODO new part: ∃ p. ready(p)
+      )
+
       val properties = List(
         ("Termination",    f(P.forall( i => decision(i).isDefined) )),
         ("Agreement",      f(P.forall( i => P.forall( j => decision(i).isDefined && decision(j).isDefined ==> (decision(i).get == decision(j).get) )))),
@@ -56,7 +58,7 @@ class LastVoting extends Algorithm[OtrIO] {
       )
   }
   
-  def process(id: ProcessID, io: OtrIO) = p(new Process(id) {
+  def process(id: ProcessID, io: ConsensusIO) = p(new Process(id) {
       
     x <~ io.initialValue
     ts <~ 0
@@ -70,16 +72,16 @@ class LastVoting extends Algorithm[OtrIO] {
 
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //rotating coordinator
-        def coord(phi: Int): ProcessID = (phi % n).toShort
+        def coord(p: ProcessID, phi: Int): ProcessID = (phi % n).toShort
 
         def send(): Set[((Int, Int), ProcessID)] = {
-          Set((x: Int, ts: Int) -> coord(r / 4))
+          Set((x: Int, ts: Int) -> coord(id, r / 4))
         }
 
-        override def expectedNbrMessages = if (id == coord(r/4)) n/2 + 1 else 0
+        override def expectedNbrMessages = if (id == coord(id, r/4)) n/2 + 1 else 0
 
         def update(mailbox: Set[((Int, Int), ProcessID)]) {
-          if (id == coord(r/4) && mailbox.size > n/2) {
+          if (id == coord(id, r/4) && mailbox.size > n/2) {
             // let θ be one of the largest θ from 〈ν, θ〉received
             // vote(p) := one ν such that 〈ν, θ〉 is received
             vote <~ mailbox.maxBy(_._1._2)._1._1
@@ -94,10 +96,10 @@ class LastVoting extends Algorithm[OtrIO] {
 
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //rotating coordinator
-        def coord(phi: Int): ProcessID = (phi % n).toShort
+        def coord(p: ProcessID, phi: Int): ProcessID = (phi % n).toShort
 
         def send(): Set[(Int, ProcessID)] = {
-          if (id == coord(r/4) && commit) {
+          if (id == coord(id, r/4) && commit) {
             broadcast(vote)
           } else {
           Set.empty
@@ -107,7 +109,7 @@ class LastVoting extends Algorithm[OtrIO] {
         override def expectedNbrMessages = 1
 
         def update(mailbox: Set[(Int, ProcessID)]) {
-          val mb2 = mailbox.filter( _._2 == coord(r/4) )
+          val mb2 = mailbox.filter( _._2 == coord(id, r/4) )
           if (mb2.size > 0) {
             x <~ mb2.head._1
             ts <~ r/4
@@ -118,24 +120,25 @@ class LastVoting extends Algorithm[OtrIO] {
 
       rnd(new Round{
 
-        type A = Unit
+        //place holder for ACK
+        type A = Boolean 
 
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //rotating coordinator
-        def coord(phi: Int): ProcessID = (phi % n).toShort
+        def coord(p: ProcessID, phi: Int): ProcessID = (phi % n).toShort
 
-        def send(): Set[(Unit, ProcessID)] = {
+        def send(): Set[(Boolean, ProcessID)] = {
           if ( ts == (r/4) ) {
-            Set( () -> coord(r/4) )
+            Set( true -> coord(id, r/4) )
           } else {
             Set.empty
           }
         }
 
-        override def expectedNbrMessages = if (id == coord(r/4)) n/2 + 1 else 0
+        override def expectedNbrMessages = if (id == coord(id, r/4)) n/2 + 1 else 0
 
-        def update(mailbox: Set[(Unit, ProcessID)]) {
-          if (id == coord(r/4) && mailbox.size > n/2) {
+        def update(mailbox: Set[(Boolean, ProcessID)]) {
+          if (id == coord(id, r/4) && mailbox.size > n/2) {
             ready <~ true
           }
         }
@@ -148,10 +151,10 @@ class LastVoting extends Algorithm[OtrIO] {
 
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //rotating coordinator
-        def coord(phi: Int): ProcessID = (phi % n).toShort
+        def coord(p: ProcessID, phi: Int): ProcessID = (phi % n).toShort
 
         def send(): Set[(Int, ProcessID)] = {
-          if (id == coord(r/4) && ready) {
+          if (id == coord(id, r/4) && ready) {
             broadcast(vote)
           } else {
             Set.empty
@@ -161,7 +164,7 @@ class LastVoting extends Algorithm[OtrIO] {
         override def expectedNbrMessages = 1 
 
         def update(mailbox: Set[(Int, ProcessID)]) {
-          val mb2 = mailbox.filter( _._2 == coord(r/4) )
+          val mb2 = mailbox.filter( _._2 == coord(id, r/4) )
           if (mb2.size > 0) {
             val v = mb2.head._1
             if (decision.isEmpty) {

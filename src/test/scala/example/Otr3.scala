@@ -4,7 +4,7 @@ import round._
 import round.Algorithm._
 import round.macros.Macros._
 
-class OTR3 extends Algorithm[OtrIO] {
+class OTR3 extends Algorithm[ConsensusIO] {
 
 
   import VarHelper._
@@ -44,7 +44,7 @@ class OTR3 extends Algorithm[OtrIO] {
   }
   
   
-  def process(id: ProcessID, io: OtrIO) = p(new Process(id) {
+  def process(id: ProcessID, io: ConsensusIO) = p(new Process(id) {
       
     x <~ io.initialValue
 

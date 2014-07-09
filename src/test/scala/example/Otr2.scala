@@ -4,7 +4,7 @@ import round._
 import round.Algorithm._
 import round.macros.Macros._
 
-class OTR2(afterDecision: Int = 3) extends Algorithm[OtrIO] {
+class OTR2(afterDecision: Int = 2) extends Algorithm[ConsensusIO] {
 
   import VarHelper._
   import SpecHelper._
@@ -43,7 +43,7 @@ class OTR2(afterDecision: Int = 3) extends Algorithm[OtrIO] {
   }
   
   
-  def process(id: ProcessID, io: OtrIO) = p(new Process(id) {
+  def process(id: ProcessID, io: ConsensusIO) = p(new Process(id) {
       
     x <~ io.initialValue
     after <~ afterDecision

@@ -66,7 +66,7 @@ class ToPredicate(
           lock.acquire
           try {
             if (!changed) {
-              Logger("Predicate", Debug, "delivering because of timeout")
+              Logger("ToPredicate", Debug, "delivering because of timeout")
               deliver
             } else {
               changed = false
@@ -94,6 +94,18 @@ class ToPredicate(
       from(i) = false
     }
   }
+
+  override protected def atRoundChange {
+    expected = proc.expectedNbrMessages
+    Logger("ToPredicate", Debug, "expected # msg: " + expected)
+  }
+
+  override protected def afterSend {
+    if (received >= expected) {
+      deliver
+    }
+  }
+
   
   protected def normalReceive(pkt: DatagramPacket) {
     val id = grp.inetToId(pkt.sender)
@@ -104,7 +116,6 @@ class ToPredicate(
       _received += 1
       if (received >= expected) {
         deliver
-        expected = proc.expectedNbrMessages
       }
       changed = true
     }

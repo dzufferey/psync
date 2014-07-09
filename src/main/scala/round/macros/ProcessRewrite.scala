@@ -14,6 +14,7 @@ trait ProcessRewrite {
 
   private def defaultVariables = List(
     MyVarDef("r", tq"Int", q"-1", false, false),
+    MyVarDef("_r", tq"Int", q"-1", false, false),
     MyVarDef("n", tq"Int", q"0", true, false),
     MyVarDef("HO", tq"Set[ProcessID]", q"Set[ProcessID]()", true, true)
   )
@@ -41,8 +42,8 @@ trait ProcessRewrite {
   }
   
   private val defaultMethods = List(
-    q"protected def incrementRound: Unit = { r = (r + 1) % rounds.length }",
-    q"protected def currentRound: Round = { rounds(r) }",
+    q"protected def incrementRound: Unit = { r = (r + 1); _r = r % rounds.length }",
+    q"protected def currentRound: Round = { rounds(_r) }",
     q"def setGroup(g: round.runtime.Group): Unit = { rounds.foreach(_.setGroup(g)); n = g.size }"
   )
 

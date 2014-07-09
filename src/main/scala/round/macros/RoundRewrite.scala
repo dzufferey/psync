@@ -36,32 +36,6 @@ trait RoundRewrite {
     case _ => false
   }
   
-  def methodToAdd(tpt: Tree) = List(
-      q"""protected def serialize(payload: $tpt, out: _root_.io.netty.buffer.ByteBuf, withLength: Boolean = true, offset: Int = 8): Int = {
-        import scala.pickling._
-        import binary._
-        if (offset > 0) out.writerIndex(out.writerIndex() + offset)
-        val bytes0 = payload.pickle.value
-        val length = bytes0.length
-        if (withLength) {
-          out.writeInt(length.toShort)
-          out.writeBytes(bytes0)
-          length + 4
-        } else {
-          out.writeBytes(bytes0)
-          length
-        }
-      }""",
-      q"""protected def deserialize(in: _root_.io.netty.buffer.ByteBuf, withLength: Boolean = true, offset: Int = 8): $tpt = {
-        import scala.pickling._
-        import binary._
-        if (offset > 0) in.readerIndex(in.readerIndex() + offset)
-        val length = if (withLength) in.readInt() else in.readableBytes()
-        val bytes = Array.ofDim[Byte](length)
-        in.readBytes(bytes)
-        BinaryPickle(bytes).unpickle[$tpt]
-      }"""
-    )
 
   def findTypeParam(body: List[Tree]) = {
     body.collectFirst{ case td @ TypeDef(_, TypeName("A"), _, tpt) => tpt }.get
@@ -81,7 +55,7 @@ trait RoundRewrite {
           val treeAuxMap = mkAuxMap(aux)
           val valAuxMap = q"val auxSpec: Map[String, round.verification.AuxiliaryMethod] = $treeAuxMap"
           val tpt = findTypeParam(body)
-          val body2 = s :: u :: valTR :: valAuxMap :: body ::: methodToAdd(tpt)
+          val body2 = s :: u :: valTR :: valAuxMap :: body ::: serializationMethods(tpt)
           val tmpl2 = treeCopy.Template(tmpl, parents, self, body2)
           treeCopy.ClassDef(cd, mods, name, tparams, tmpl2)
         case other => other

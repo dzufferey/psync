@@ -59,7 +59,7 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
             r <- roundsTR.indices)
        yield checkInductiveness("invariant " + idx + " at round " + r, inv, roundsTR(r))
     //-magic round => from one invariant to the next one
-    val pairedInvs = spec.invariants.sliding(2).filter(_.length < 2).toList
+    val pairedInvs = spec.invariants.sliding(2).filter(_.length >= 2).toList
     val progressVCs =
       for ( (invs, idx) <- pairedInvs.zipWithIndex ) yield {
         for (r <- roundsTR.indices) yield checkProgress("progress from " + idx + " to " + (idx+1) + " at round " + r,

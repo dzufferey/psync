@@ -27,6 +27,7 @@ class RunTime[IO](val alg: Algorithm[IO]) {
         val grp = s.directory.group
         val process = alg.process(grp.self, io)
         process.setGroup(grp)
+        process.postInit
         val predicate = new ToPredicate(grp, instanceId, s.channel, s.dispatcher, process, options)
         //first round
         predicate.send

@@ -4,12 +4,12 @@ import round._
 import round.Algorithm._
 import round.macros.Macros._
 
-abstract class OtrIO {
+abstract class ConsensusIO {
   val initialValue: Int
   def decide(value: Int): Unit
 }
 
-class OTR extends Algorithm[OtrIO] {
+class OTR extends Algorithm[ConsensusIO] {
 
   import VarHelper._
   import SpecHelper._
@@ -47,7 +47,7 @@ class OTR extends Algorithm[OtrIO] {
   }
   
   
-  def process(id: ProcessID, io: OtrIO) = p(new Process(id) {
+  def process(id: ProcessID, io: ConsensusIO) = p(new Process(id) {
       
     x <~ io.initialValue
 

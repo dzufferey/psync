@@ -54,15 +54,23 @@ abstract class Predicate(
 
   //register in the channel
   dispatcher.add(instance, this)
+
+  //things to do when changing round (overridden in sub classes)
+  protected def atRoundChange { }
+  protected def afterSend { }
+  protected def afterUpdate { }
   
   protected def deliver {
+    Logger("Predicate", Debug, "delivering for round " + currentRound)
     val toDeliver = messages.slice(0, received)
     clear
     currentRound += 1
     //push to the layer above
     val msgs = fromPkts(toDeliver)
     try {
+      //actual delivery
       proc.update(msgs.toSet)
+      afterUpdate
       //start the next round (if has not exited)
       send
     } catch {
@@ -89,8 +97,10 @@ abstract class Predicate(
   ////////////////
   
   def send {
+    Logger("Predicate", Debug, "sending for round " + currentRound)
     val myAddress = grp.idToInet(grp.self)
     val pkts = toPkts(proc.send.toSeq)
+    atRoundChange
     for (pkt <- pkts) {
       if (pkt.recipient() == myAddress) {
         normalReceive(pkt)
@@ -99,6 +109,7 @@ abstract class Predicate(
       }
     }
     channel.flush
+    afterSend
   }
 
   def messageReceived(ctx: ChannelHandlerContext, pkt: DatagramPacket) {

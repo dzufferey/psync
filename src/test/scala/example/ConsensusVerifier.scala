@@ -5,13 +5,16 @@ import round.verification._
 import round.utils.{Logger, Arg, Options}
 import round.utils.LogLevel._
 
-object OtrVerifier extends Options {
+object ConsensusVerifier extends Options {
   
   newOption("-v", Arg.Unit(() => Logger.moreVerbose), "increase the verbosity level.")
   newOption("-q", Arg.Unit(() => Logger.lessVerbose), "decrease the verbosity level.")
   
   var v = 3
   newOption("-n", Arg.Int( i => v = i), "Ort1/2/3")
+  
+  var lv = false
+  newOption("-lv", Arg.Unit( () => lv = true), "LastVoting")
 
   var r = "report.html"
   newOption("-r", Arg.String( i => r = i), "report.html")
@@ -22,17 +25,20 @@ object OtrVerifier extends Options {
     Logger.moreVerbose
     apply(args)
 
-    val dummyIO = new OtrIO {
+    val dummyIO = new ConsensusIO {
       val initialValue = 0
       def decide(value: Int) { }
     }
 
-    val alg = v match {
-      case 1 => new OTR()
-      case 2 => new OTR2()
-      case 3 => new OTR3()
-      case _ => sys.error("unknown version")
-    }
+    val alg =
+      if  (lv) new LastVoting()
+      else
+        v match {
+          case 1 => new OTR()
+          case 2 => new OTR2()
+          case 3 => new OTR3()
+          case _ => sys.error("unknown OTR version")
+        }
 
     val verifer = new Verifier(alg, dummyIO)
 

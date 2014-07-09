@@ -12,6 +12,7 @@ class Impl(val c: Context) extends Lifting
                            with TrExtractor
                            with ProcessRewrite 
                            with RoundRewrite
+                           with Serialization
 {
   import c.universe._
 
