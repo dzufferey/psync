@@ -31,12 +31,16 @@ class Message(
   def getContent[A: SPickler: Unpickler: FastTypeTag]: A = {
     val idx: Int = payload.readerIndex()
     payload.readLong() //skip the tag
-    val length: Int = payload.readInt()
+    val length: Int = payload.readableBytes()
     val bytes = Array.ofDim[Byte](length)
     payload.readBytes(bytes)
     payload.readerIndex(idx)
     val converted = BinaryPickle(bytes).unpickle[A]
     converted
+  }
+
+  def getInt(idx: Int): Int = {
+    payload.getInt(8+idx)
   }
 
   def release = payload.release

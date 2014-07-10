@@ -4,6 +4,7 @@ a small summary explanation ...
 
 ## Compiling
 
+You will need java 7.
 This project is build using [sbt](http://www.scala-sbt.org/).
 To install sbt follow the instructions at [http://www.scala-sbt.org/release/tutorial/Setup.html](http://www.scala-sbt.org/release/tutorial/Setup.html).
 

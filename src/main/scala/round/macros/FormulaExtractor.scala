@@ -11,6 +11,13 @@ trait FormulaExtractor {
   def isTuple(t: Symbol) = {
     showRaw(t) startsWith "scala.Tuple" //TODO
   }
+  
+  object IsTuple {
+    def unapply(t: Type): Option[List[Type]] = t match {
+      case TypeRef(_, tRef, args) if isTuple(tRef) => Some(args)
+      case _ => None
+    }
+  }
 
   //TODO clean version using mirror ....
   def extractType(t: Type): round.formula.Type = {
@@ -25,8 +32,7 @@ trait FormulaExtractor {
       Wildcard
     } else {
       t match {
-        case TypeRef(_, tRef, args) if isTuple(tRef) =>
-          Product(args map extractType)
+        case IsTuple(args) => Product(args map extractType)
         case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "scala.Option" =>
           FOption(extractType(arg))
         case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "TypeName(\"Set\")" =>

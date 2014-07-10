@@ -13,26 +13,19 @@ trait Serialization {
   
   
   def picklingIO(tpt: Tree) = List(
-      q"""protected def serialize(payload: $tpt, out: _root_.io.netty.buffer.ByteBuf, withLength: Boolean = true, offset: Int = 8): Int = {
+      q"""protected def serialize(payload: $tpt, out: _root_.io.netty.buffer.ByteBuf, offset: Int = 8) {
         import scala.pickling._
         import binary._
         if (offset > 0) out.writerIndex(out.writerIndex() + offset)
         val bytes0 = payload.pickle.value
         val length = bytes0.length
-        if (withLength) {
-          out.writeInt(length)
-          out.writeBytes(bytes0)
-          length + 4
-        } else {
-          out.writeBytes(bytes0)
-          length
-        }
+        out.writeBytes(bytes0)
       }""",
-      q"""protected def deserialize(in: _root_.io.netty.buffer.ByteBuf, withLength: Boolean = true, offset: Int = 8): $tpt = {
+      q"""protected def deserialize(in: _root_.io.netty.buffer.ByteBuf, offset: Int = 8): $tpt = {
         import scala.pickling._
         import binary._
         if (offset > 0) in.readerIndex(in.readerIndex() + offset)
-        val length = if (withLength) in.readInt() else in.readableBytes()
+        val length = in.readableBytes()
         val bytes = Array.ofDim[Byte](length)
         in.readBytes(bytes)
         BinaryPickle(bytes).unpickle[$tpt]
@@ -40,27 +33,70 @@ trait Serialization {
     )
 
   //TODO we first need to get rid of Message.scala
-  def primitiveIO(tpt: Tree, length: Int, write: List[Tree], read: List[Tree]) = List(
-      q"""protected def serialize(payload: $tpt, out: _root_.io.netty.buffer.ByteBuf, withLength: Boolean = true, offset: Int = 8): Int = {
+  def primitiveIO(tpt: Tree, write: List[Tree], read: List[Tree]) = List(
+      q"""protected def serialize(payload: $tpt, out: _root_.io.netty.buffer.ByteBuf, offset: Int = 8) = {
         if (offset > 0) out.writerIndex(out.writerIndex() + offset)
-        if (withLength) {
-          out.writeInt($length.toShort)
-          ..$write
-          $length + 4
-        } else {
-          ..$write
-          $length
-        }
+        ..$write
       }""",
-      q"""protected def deserialize(in: _root_.io.netty.buffer.ByteBuf, withLength: Boolean = true, offset: Int = 8): $tpt = {
+      q"""protected def deserialize(in: _root_.io.netty.buffer.ByteBuf, offset: Int = 8): $tpt = {
         if (offset > 0) in.readerIndex(in.readerIndex() + offset)
-        val length = if (withLength) in.readInt() else in.readableBytes()
         ..$read
       }"""
   )
 
+  def primitiveType(t: Type) = {
+    import definitions._
+    t =:= BooleanTpe ||
+    t =:= ByteTpe ||
+    t =:= ShortTpe ||
+    t =:= IntTpe ||
+    t =:= LongTpe
+  }
+
+  def primitiveRead(t: Type): Tree = {
+    import definitions._
+    if (t =:= BooleanTpe) {
+      q"in.readBoolean()"
+    } else if (t =:= ByteTpe) {
+      q"in.readByte()"
+    } else if (t =:= ShortTpe) {
+      q"in.readShort()"
+    } else if (t =:= IntTpe) {
+      q"in.readInt()"
+    } else if (t =:= LongTpe) {
+      q"in.readLong()"
+    } else {
+      sys.error("not primitive")
+    }
+  }
+ 
+  def primitiveWrite(t: Type, value: Tree): Tree = {
+    import definitions._
+    if (t =:= BooleanTpe) {
+      q"out.writeBoolean($value)"
+    } else if (t =:= ByteTpe) {
+      q"out.writeByte($value)"
+    } else if (t =:= ShortTpe) {
+      q"out.writeShort($value)"
+    } else if (t =:= IntTpe) {
+      q"out.writeInt($value)"
+    } else if (t =:= LongTpe) {
+      q"out.writeLong($value)"
+    } else {
+      sys.error("not primitive")
+    }
+  }
+
   def serializationMethods(tpt: Tree): List[Tree] = {
-    picklingIO(tpt)
+    val t = tpt.tpe
+    if (primitiveType(t)) {
+      val wr = List(primitiveWrite(t, q"payload"))
+      val rd = List(primitiveRead(t))
+      primitiveIO(tpt, wr, rd)
+    } else {
+      //TODO tuple of primitive types
+      picklingIO(tpt)
+    }
   }
 
 }

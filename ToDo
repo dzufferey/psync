@@ -13,13 +13,15 @@
 # implementation
 
 - uses netty 4.0.21 when on maven
-- more predicates 
 - ghost variables: make sure they are only read in the verification part and removed at compile time
 - memory leak / null pointer when starting the first instance (message comes while instance starts ? not everything initialized)
 - test with message drop (reliability)
 - test with more processes (scalability)
 - predicate: buffer message while one thread delivers
-
+- change the (de)serialization:
+    * our own stuff for primitive types, pickling for the rest
+    * get rid of Message.scala (generate extraction primitives in process)
+- report macro bug about accessing members of outer class inside an inner class
 
 # verification
 
