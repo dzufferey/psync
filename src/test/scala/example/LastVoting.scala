@@ -73,7 +73,6 @@ class LastVoting extends Algorithm[ConsensusIO] {
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //rotating coordinator
         def coord(p: ProcessID, phi: Int): ProcessID = {
-          //println("trying to get a majority around: " + (x: Int, ts: Int, vote: Int, commit: Boolean, ready: Boolean, p, phi%n))
           (phi % n).toShort
         }
 
@@ -101,7 +100,6 @@ class LastVoting extends Algorithm[ConsensusIO] {
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //rotating coordinator
         def coord(p: ProcessID, phi: Int): ProcessID = {
-          //println("trying to get a majority around: " + (x: Int, ts: Int, vote: Int, commit: Boolean, ready: Boolean, p, phi%n))
           (phi % n).toShort
         }
 
@@ -133,7 +131,6 @@ class LastVoting extends Algorithm[ConsensusIO] {
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //rotating coordinator
         def coord(p: ProcessID, phi: Int): ProcessID = {
-          //println("trying to get a majority around: " + (x: Int, ts: Int, vote: Int, commit: Boolean, ready: Boolean, p, phi%n))
           (phi % n).toShort
         }
 
@@ -162,7 +159,6 @@ class LastVoting extends Algorithm[ConsensusIO] {
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //rotating coordinator
         def coord(p: ProcessID, phi: Int): ProcessID = {
-          //println("trying to get a majority around: " + (x: Int, ts: Int, vote: Int, commit: Boolean, ready: Boolean, p, phi%n))
           (phi % n).toShort
         }
 

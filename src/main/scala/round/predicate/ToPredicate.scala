@@ -131,7 +131,7 @@ class ToPredicate(
         normalReceive(pkt)
       } else if (round > currentRound) {
         //we are late, need to catch up
-        for (i <- currentRound until round) {
+        while(currentRound < round) {
           deliver //TODO skip the sending ?
         }
         //then back to normal
