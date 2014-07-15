@@ -44,6 +44,7 @@ trait Serialization {
       }"""
   )
 
+  //TODO char, float, double
   def primitiveType(t: Type) = {
     import definitions._
     t =:= BooleanTpe ||
@@ -87,6 +88,23 @@ trait Serialization {
     }
   }
 
+  def tupleWrite(args: List[Type], value: Tree): List[Tree] = {
+    val name = Array(TermName("_1"), TermName("_2"), TermName("_3"), TermName("_4"))
+    args.zipWithIndex.map{ case (t, idx) => val m = name(idx); primitiveWrite(t, q"$value.$m") }
+  }
+
+  def tupleRead(args: List[Type]): List[Tree] = {
+    val name = Array(q"_1", q"_2", q"_3", q"_4", q"_5")
+    val (reads, vars) = args.map( t => {
+      val v = TermName(c.freshName("tmp"))
+      val r = primitiveRead(t) 
+      (ValDef(Modifiers(), v, TypeTree(t), r), Ident(v))
+    }).unzip
+    val res = reads ::: List(q"(..$vars)")
+    //println(res)
+    res
+  }
+
   def serializationMethods(tpt: Tree): List[Tree] = {
     val t = tpt.tpe
     if (primitiveType(t)) {
@@ -94,8 +112,17 @@ trait Serialization {
       val rd = List(primitiveRead(t))
       primitiveIO(tpt, wr, rd)
     } else {
-      //TODO tuple of primitive types
-      picklingIO(tpt)
+      t match {
+        case IsTuple(args) if args.forall(primitiveType) =>
+          val wr = tupleWrite(args, q"payload")
+          val rd = tupleRead(args)
+          primitiveIO(tpt, wr, rd)
+        case _ =>
+          //TODO string
+          //TODO options
+          println("using pickling on " + showRaw(tpt))
+          picklingIO(tpt)
+      }
     }
   }
 

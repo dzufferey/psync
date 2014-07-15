@@ -61,7 +61,7 @@ abstract class Predicate(
   protected def afterUpdate { }
   
   protected def deliver {
-    Logger("Predicate", Debug, "delivering for round " + currentRound)
+    Logger("Predicate", Debug, "delivering for round " + currentRound + " (received = " + received + ")")
     val toDeliver = messages.slice(0, received)
     clear
     currentRound += 1

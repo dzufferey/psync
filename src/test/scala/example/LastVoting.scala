@@ -72,7 +72,10 @@ class LastVoting extends Algorithm[ConsensusIO] {
 
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //rotating coordinator
-        def coord(p: ProcessID, phi: Int): ProcessID = (phi % n).toShort
+        def coord(p: ProcessID, phi: Int): ProcessID = {
+          //println("trying to get a majority around: " + (x: Int, ts: Int, vote: Int, commit: Boolean, ready: Boolean, p, phi%n))
+          (phi % n).toShort
+        }
 
         def send(): Set[((Int, Int), ProcessID)] = {
           Set((x: Int, ts: Int) -> coord(id, r / 4))
@@ -85,6 +88,7 @@ class LastVoting extends Algorithm[ConsensusIO] {
             // let θ be one of the largest θ from 〈ν, θ〉received
             // vote(p) := one ν such that 〈ν, θ〉 is received
             vote <~ mailbox.maxBy(_._1._2)._1._1
+            commit <~ true
           }
         }
 
@@ -96,13 +100,16 @@ class LastVoting extends Algorithm[ConsensusIO] {
 
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //rotating coordinator
-        def coord(p: ProcessID, phi: Int): ProcessID = (phi % n).toShort
+        def coord(p: ProcessID, phi: Int): ProcessID = {
+          //println("trying to get a majority around: " + (x: Int, ts: Int, vote: Int, commit: Boolean, ready: Boolean, p, phi%n))
+          (phi % n).toShort
+        }
 
         def send(): Set[(Int, ProcessID)] = {
           if (id == coord(id, r/4) && commit) {
             broadcast(vote)
           } else {
-          Set.empty
+            Set.empty
           }
         }
 
@@ -125,7 +132,10 @@ class LastVoting extends Algorithm[ConsensusIO] {
 
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //rotating coordinator
-        def coord(p: ProcessID, phi: Int): ProcessID = (phi % n).toShort
+        def coord(p: ProcessID, phi: Int): ProcessID = {
+          //println("trying to get a majority around: " + (x: Int, ts: Int, vote: Int, commit: Boolean, ready: Boolean, p, phi%n))
+          (phi % n).toShort
+        }
 
         def send(): Set[(Boolean, ProcessID)] = {
           if ( ts == (r/4) ) {
@@ -151,7 +161,10 @@ class LastVoting extends Algorithm[ConsensusIO] {
 
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //rotating coordinator
-        def coord(p: ProcessID, phi: Int): ProcessID = (phi % n).toShort
+        def coord(p: ProcessID, phi: Int): ProcessID = {
+          //println("trying to get a majority around: " + (x: Int, ts: Int, vote: Int, commit: Boolean, ready: Boolean, p, phi%n))
+          (phi % n).toShort
+        }
 
         def send(): Set[(Int, ProcessID)] = {
           if (id == coord(id, r/4) && ready) {

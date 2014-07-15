@@ -86,7 +86,7 @@ class LockManager(self: Short,
         import scala.pickling._ 
         import binary._ 
         msg.round % 4 match {
-          case 0 => msg.getContent[(Int,Int)]._1
+          case 0 => msg.getInt(0)//getContent[(Int,Int)]._1
           case 1 => msg.getInt(0)
           case 2 => -1
           case 3 => msg.getInt(0)
