@@ -31,7 +31,7 @@ object ConsensusVerifier extends Options {
     }
 
     val alg =
-      if  (lv) new LastVoting()
+      if (lv) new LastVoting()
       else
         v match {
           case 1 => new OTR()

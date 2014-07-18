@@ -32,6 +32,14 @@ abstract class Predicate(
 
   //what do predicates implement ?
 
+  //general receive (not sure if it is the currect round).
+  //vanilla implementation looks like:
+  //  val round = Message.getTag(pkt.content).roundNbr
+  //  if (round >= currentRound) {
+  //    //we are late, need to catch up
+  //    while(currentRound < round) { deliver }
+  //    normalReceive(pkt)
+  //  } // else: this is a late message, drop it
   def receive(pkt: DatagramPacket): Unit
 
   //for messages that we know already belong to the current round.
@@ -53,7 +61,9 @@ abstract class Predicate(
   def resetReceived: Unit
 
   //register in the channel
-  dispatcher.add(instance, this)
+  def start {
+    dispatcher.add(instance, this)
+  }
 
   //things to do when changing round (overridden in sub classes)
   protected def atRoundChange { }

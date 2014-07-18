@@ -29,6 +29,7 @@ class RunTime[IO](val alg: Algorithm[IO]) {
         process.setGroup(grp)
         process.postInit
         val predicate = new ToPredicate(grp, instanceId, s.channel, s.dispatcher, process, options)
+        predicate.start
         //first round
         predicate.send
         //msg that are already received

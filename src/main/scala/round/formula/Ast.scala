@@ -83,11 +83,12 @@ case class UnInterpretedFct(symbol: String,
 
   def stripType = UnInterpretedFct(symbol)
 
-  def tpe = if (_tpe.isDefined) {
-    val fvs = tParam.map( v => (v -> Type.freshTypeVar)).toMap
-    _tpe.get alpha fvs
-  } else {
-    UnInterpreted(symbol)
+  def tpe = _tpe match {
+    case Some(t) =>
+      val fvs = tParam.map( v => (v -> Type.freshTypeVar)).toMap
+      t alpha fvs
+    case None =>
+      UnInterpreted(symbol)
   }
   override val priority = 20
 
@@ -351,9 +352,6 @@ object InterpretedFct {
 
 sealed abstract class BindingType
 
-//TODO bound variables are in a set/domain:
-//  as option since the type is the domain ...
-//  or drop and put in the def
 case class Binding(binding: BindingType, vs: List[Variable], f: Formula) extends Formula {
 
   override def toString = binding match {
