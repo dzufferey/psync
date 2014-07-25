@@ -88,7 +88,7 @@ case class UnInterpretedFct(symbol: String,
       val fvs = tParam.map( v => (v -> Type.freshTypeVar)).toMap
       t alpha fvs
     case None =>
-      UnInterpreted(symbol)
+      Wildcard //UnInterpreted(symbol)
   }
   override val priority = 20
 

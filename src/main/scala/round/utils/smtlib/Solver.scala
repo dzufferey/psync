@@ -7,10 +7,12 @@ import scala.sys.process._
 import java.io._
 
 sealed abstract class Theory
+// ?? prop/qbf ??
+case object QF_UF extends Theory
+case object UF extends Theory
 case object QF_LIA extends Theory
 case object LIA extends Theory
-case object QF_LRA extends Theory
-case object LRA extends Theory
+case object AUFLIA extends Theory
 
 class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclaration: Boolean = true) {
 

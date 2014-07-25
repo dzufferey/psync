@@ -96,6 +96,9 @@ object Typer {
   def typeLiteral[T <: AnyVal](l: Literal[T]): TypingResult[Literal[T]] =  l.value match {
     case _: Boolean => TypingSuccess(l setType Bool)
     case _: scala.Int => TypingSuccess(l setType Int)
+    case _: scala.Long => TypingSuccess(l setType Int)
+    case _: scala.Short => TypingSuccess(l setType Int)
+    case _: scala.Byte => TypingSuccess(l setType Int)
     case other => TypingError("typeOfLiteral: error with " + other + " " + other.asInstanceOf[AnyRef].getClass())
   }
 
@@ -137,6 +140,7 @@ object Typer {
             }
             val a2 = Application(fct, unwrappedArgs) setType returnT
             val (argsType, returnType) = fct.tpe match {
+              case Wildcard => sys.error("TODO arity of WildCard type (should have bee replaced by a type var or fun by now ?)")
               case Function(a, r) => (a,r)
               case other => (Nil, other)
             }
@@ -184,7 +188,7 @@ object Typer {
                 }
               case other =>
                 if (argsType.length != argsTypes.length) {
-                    (TypingError("wrong arity: " + a), TrivialCstr)
+                    (TypingError("wrong arity("+argsType.length+","+argsTypes.length+"): " + a), TrivialCstr)
                 } else {
                   val cstr =
                     ConjCstr(SingleCstr(returnT, returnType) ::
@@ -231,7 +235,6 @@ object Typer {
     case TrivialCstr => List(Map.empty[TypeVariable, Type])
     case SingleCstr(t1, t2) => unify(t1, t2).toList
     case ConjCstr(lst) =>
-      //TODO adapt to List
       (List(Map.empty[TypeVariable, Type]) /: lst)( (acc, cstr) => acc.flatMap( subst => {
         val cstr2 = cstr(subst)
         solveConstraints(cstr2).map( subst2 => mergeSubst(subst, subst2) )
@@ -251,6 +254,9 @@ object Typer {
     case (otherType, v1 @ TypeVariable(_)) =>
       if (otherType.freeParameters contains v1) None else
       Some(Map(v1 -> otherType))
+    case (UnInterpreted(i1), UnInterpreted(i2)) =>
+      if (i1 == i2) Some(Map.empty[TypeVariable, Type])
+      else None
     case (FOption(s1), FOption(s2)) =>
       unify(s1, s2)
     case (FSet(s1), FSet(s2)) =>
