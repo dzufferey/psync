@@ -7,13 +7,12 @@ import java.io._
 
 object Printer {
   
-  protected def symbol(i: Symbol) = i match {
+  protected def symbol(i: Symbol): String = i match {
     case Implies => "=>"
     case Or => "or"
     case And => "and"
     case Not => "not"
     case Eq => "="
-    //case Neq => "!=" -> replace by Not(Eq(...))
     case Geq => ">="
     case Leq => "<="
     case Gt => ">"
@@ -22,19 +21,23 @@ object Printer {
     case Minus => "-"
     case Times => "*"
     case UnInterpretedFct(f, _, _) => f
-    case other => Logger.logAndThrow("smtlib", Error, "not supported: " + other)
+    case Neq => Logger.logAndThrow("smtlib", Error, "≠ should be replaced by Not(Eq(...))")
+    case i: InterpretedFct => i.symbol
   }
 
   def tpe(t: Type): String = t match {
     case Bool => "Bool"
     case Int => "Int"
     case Wildcard => "_"
+    case FSet(elt) => sys.error("TODO FSet")
+    case FOption(elt) => sys.error("TODO FOption")
+    case Product(elts) => sys.error("TODO Product")
     case Function(args, returns) => args.map(tpe).mkString("(", ") (", ")") + " (" + tpe(returns) + ")"
     case UnInterpreted(id) => id
     case other => Logger.logAndThrow("smtlib", Error, "not supported: " + other)
   }
 
-  protected def asVar(str: String): String = {
+  def asVar(str: String): String = {
     assert(str.length > 0)
     val noDollars = str.replace("$","_")
     if (noDollars startsWith "_") "v" + noDollars

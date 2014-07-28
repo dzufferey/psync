@@ -5,16 +5,17 @@
 - expected number of messages for a round: inferred from the send function
 - locally testable safety/liveness conditions: of the form ∀ p. QF-φ(p)
 - split the sources into multiple parts/sub-projects
-  so we can use macros for the testing and debugging in the main project
-  cleaner separation between the runtime and the declarations
+  * cleaner separation between the runtime and the declarations
+  * so we can use macros for the testing and debugging in the main project
+  * Args and some utils as separate projects
 - integrate recovery
 
 
 # implementation
 
 - uses netty 4.0.21 when on maven
+  * check where the leak is (occurs only at the beginning, lazy init / race ?)
 - ghost variables: make sure they are only read in the verification part and removed at compile time
-- memory leak / null pointer when starting the first instance (message comes while instance starts ? not everything initialized)
 - test with message drop (reliability)
 - test with more processes (scalability)
 - predicate: buffer message while one thread delivers
@@ -40,7 +41,6 @@
 - find an application of LatticeAgreement
 - implement multi-Paxos, equalitarian paxos
 - specialize the OTR to avoid the "1st message → initial value"
-- performance test
 
 
 # network emulation: packet loss, delay, ...

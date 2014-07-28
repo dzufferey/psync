@@ -108,16 +108,48 @@ object Typer {
 
     def processVariables(v: Variable): (TypingResult[Variable], TypeConstraints) = {
       if (v.tpe == Wildcard) {
-        var newTpe = symbolToType.getOrElse(v.name, Type.freshTypeVar)
+        val newTpe = symbolToType.getOrElse(v.name, Type.freshTypeVar)
         symbolToType += (v.name -> newTpe)
         //Console.println("fresh type for " + v + " " + v.symbol + " -> " + newTpe)
         (TypingSuccess(v setType newTpe), TrivialCstr)
       } else {
-        var oldTpe = symbolToType.getOrElse(v.name, v.tpe)
+        val oldTpe = symbolToType.getOrElse(v.name, v.tpe)
         symbolToType += (v.name -> oldTpe)
         //Console.println(v + " -> " + SingleCstr(v.tpe, oldTpe))
         (TypingSuccess(v), SingleCstr(v.tpe, oldTpe))
       }
+    }
+
+    def processSym(s: Symbol, arity: Int): (List[Type], Type) = s.tpe match {
+      case Wildcard =>
+        symbolToType.get(s.toString) match {
+          case Some(Function(a, r)) => (a,r)
+          case Some(other) => (Nil, other)
+          case None =>
+            val a = (for (i <- 0 until arity) yield Type.freshTypeVar).toList
+            val r = Type.freshTypeVar
+            symbolToType += (s.toString -> Function(a,r))
+            (a,r)
+        }
+      case Function(a, r) => (a,r)
+      case other => (Nil, other)
+    }
+    
+    def fixedArity(tpe: List[Type], args: List[Type]) = {
+      ConjCstr((tpe zip args).map({ case (a,b) => SingleCstr(a,b) }))
+    }
+
+    def variableArity(tpe: Type, args: List[Type]) = {
+      ConjCstr(args.map(t => SingleCstr(tpe, t)))
+    }
+
+    def tpleProj(a2: Application, cstrs: List[TypeConstraints], returnT: Type, tplType: List[Type], idx: Int) = tplType match {
+      case List(Product(lst)) =>
+        (TypingSuccess(a2), ConjCstr(SingleCstr(returnT,lst(idx)) :: cstrs))
+      case List(single) =>
+        (TypingSuccess(a2), ConjCstr(cstrs)) //TODO this is under constrained
+      case _ =>
+        (TypingError("wrong arity: " + a2), TrivialCstr)
     }
 
     def process(e: Formula): (TypingResult[Formula], TypeConstraints) = e match {
@@ -139,61 +171,27 @@ object Typer {
               case other => Type.freshTypeVar
             }
             val a2 = Application(fct, unwrappedArgs) setType returnT
-            val (argsType, returnType) = fct.tpe match {
-              case Wildcard => sys.error("TODO arity of WildCard type (should have bee replaced by a type var or fun by now ?)")
-              case Function(a, r) => (a,r)
-              case other => (Nil, other)
-            }
+
+            val (argsType, returnType) = processSym(fct, args.length)
+
             fct match {
               case And | Or => //allows variable arity
-                  val cstr =
-                    ConjCstr(SingleCstr(returnT, Bool) ::
-                             argsTypes.map( a => SingleCstr(a,Bool) ) :::
-                             argsCstr)
-                  (TypingSuccess(a2), cstr)
-              case Plus | Minus => //allows variable arity
-                  val cstr =
-                    ConjCstr(SingleCstr(returnT, Int) ::
-                             argsTypes.map( a => SingleCstr(a,Int) ) :::
-                             argsCstr)
-                  (TypingSuccess(a2), cstr)
-              case Tuple => 
-                (TypingSuccess(a2), ConjCstr(argsCstr))
-              case Fst   =>
-                argsTypes match {
-                  case List(Product(fst :: xs)) =>
-                    (TypingSuccess(a2), ConjCstr(SingleCstr(returnT,fst) :: argsCstr))
-                  case List(single) =>
-                    (TypingSuccess(a2), ConjCstr(argsCstr)) //TODO this is under constrained
-                  case _ =>
-                    (TypingError("wrong arity: " + a), TrivialCstr)
-                }
-              case Snd   =>
-                argsTypes match {
-                  case List(Product(x :: snd :: xs)) =>
-                    (TypingSuccess(a2), ConjCstr(SingleCstr(returnT,snd) :: argsCstr))
-                  case List(single) =>
-                    (TypingSuccess(a2), ConjCstr(argsCstr)) //TODO this is under constrained
-                  case _ =>
-                    (TypingError("wrong arity: " + a), TrivialCstr)
-                }
-              case Trd   =>
-                argsTypes match {
-                  case List(Product(x :: y :: trd :: xs)) =>
-                    (TypingSuccess(a2), ConjCstr(SingleCstr(returnT,trd) :: argsCstr))
-                  case List(single) =>
-                    (TypingSuccess(a2), ConjCstr(argsCstr)) //TODO this is under constrained
-                  case _ =>
-                    (TypingError("wrong arity: " + a), TrivialCstr)
-                }
+                val cstr = ConjCstr(SingleCstr(returnT, Bool) :: variableArity(Bool, argsTypes) :: argsCstr)
+                (TypingSuccess(a2), cstr)
+              case Plus | Times => //allows variable arity
+                val cstr = ConjCstr(SingleCstr(returnT, Int) :: variableArity(Int, argsTypes) :: argsCstr)
+                (TypingSuccess(a2), cstr)
+
+              case Tuple => (TypingSuccess(a2), ConjCstr(argsCstr))
+              case Fst   => tpleProj(a2, argsCstr, returnT, argsTypes, 1)
+              case Snd   => tpleProj(a2, argsCstr, returnT, argsTypes, 2)
+              case Trd   => tpleProj(a2, argsCstr, returnT, argsTypes, 3)
+
               case other =>
                 if (argsType.length != argsTypes.length) {
-                    (TypingError("wrong arity("+argsType.length+","+argsTypes.length+"): " + a), TrivialCstr)
+                  (TypingError("wrong arity("+argsType.length+","+argsTypes.length+"): " + a), TrivialCstr)
                 } else {
-                  val cstr =
-                    ConjCstr(SingleCstr(returnT, returnType) ::
-                             (argsType zip argsTypes).map({ case (a,b) => SingleCstr(a,b) }) :::
-                             argsCstr)
+                  val cstr = ConjCstr(SingleCstr(returnT, returnType) :: fixedArity(argsType, argsTypes) :: argsCstr)
                   (TypingSuccess(a2), cstr)
                 }
             }

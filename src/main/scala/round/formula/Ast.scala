@@ -21,6 +21,15 @@ sealed abstract class Formula {
 
 case class Literal[T <: AnyVal](value: T) extends Formula {
 
+  value match {
+    case _: Boolean => tpe = Bool
+    case _: scala.Int => tpe = Int
+    case _: scala.Long => tpe = Int
+    case _: scala.Short => tpe = Int
+    case _: scala.Byte => tpe = Int
+    case _ => ()
+  }
+
   override def toString = value.toString
 
   def alpha(map: Map[Variable, Variable]) = this
@@ -55,6 +64,11 @@ case class Variable(name: String) extends Formula {
 
 case class Application(fct: Symbol, args: List[Formula]) extends Formula {
 
+  fct.tpe match {
+    case Function(_, ret) => tpe = ret
+    case _ => ()
+  }
+
   override def toString = fct.toString + args.mkString("(",", ",")")
 
   def alpha(map: Map[Variable, Variable]) = Application(fct, args.map(_.alpha(map)))
@@ -88,13 +102,13 @@ case class UnInterpretedFct(symbol: String,
       val fvs = tParam.map( v => (v -> Type.freshTypeVar)).toMap
       t alpha fvs
     case None =>
-      Wildcard //UnInterpreted(symbol)
+      Wildcard
   }
   override val priority = 20
 
 }
 
-sealed abstract class InterpretedFct(symbol: String, aliases: String*) extends Symbol {
+sealed abstract class InterpretedFct(val symbol: String, aliases: String*) extends Symbol {
   override def toString = symbol
 
   def allSymbols = symbol +: aliases
