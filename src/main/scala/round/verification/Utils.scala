@@ -44,14 +44,14 @@ object Utils {
   }
   
   def itemForFormula(title: String, f: Formula) = {
-    new round.utils.report.GenericItem(
+    new dzufferey.report.GenericItem(
         title,
         TextPrinter.toString(f),
         HtmlPrinter.toString(f))
   }
   
   def itemForFormula(title: String, fs: List[Formula]) = {
-    new round.utils.report.GenericItem(
+    new dzufferey.report.GenericItem(
         title,
         TextPrinter.toStringTbl(fs),
         HtmlPrinter.toStringTbl(fs))

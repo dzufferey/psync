@@ -3,6 +3,7 @@ scala_version1=2.11
 scala_version2=2.11.1
 BASEDIR=`dirname $0`
 ivy_cache="$HOME/.ivy2/cache"
+ivy_local="$HOME/.ivy2/local"
 
 dep0="$BASEDIR/target/scala-${scala_version1}/*"
 dep1="$ivy_cache/org.scala-lang/scala-library/jars/scala-library-${scala_version2}.jar"
@@ -11,5 +12,7 @@ dep3="$ivy_cache/org.apache.commons/commons-lang3/jars/*"
 dep4="$ivy_cache/io.netty/netty-all/jars/*"
 dep5="$ivy_cache/org.scala-lang/scala-pickling_${scala_version1}/jars/*"
 dep6="$ivy_cache/org.scala-lang/scala-reflect/jars/scala-reflect-${scala_version2}.jar"
+dep7="$ivy_local/io.github.dzufferey/scala-arg_${scala_version1}/0.1-SNAPSHOT/jars/*"
+dep8="$ivy_local/io.github.dzufferey/report_${scala_version1}/0.1-SNAPSHOT/jars/*"
 
-cp="$dep0:$dep1:$dep2:$dep3:$dep4:$dep5:$dep6"
+cp="$dep0:$dep1:$dep2:$dep3:$dep4:$dep5:$dep6:$dep7:$dep8"

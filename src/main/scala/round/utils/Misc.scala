@@ -4,15 +4,6 @@ import round.utils.LogLevel._
 
 object Misc {
 
-  def docToString(doc: text.Document) = {
-      val buffer = new java.io.StringWriter
-      val writer = new java.io.BufferedWriter( buffer)
-      doc.format( writer)
-      writer.newLine
-      writer.close
-      buffer.toString
-  }
-  
   def graphvizToSvgDot(dot: String): String = {
     val (code, out, err) = SysCmd(Array("dot", "-Tsvg"), dot)
     if (code == 0) {

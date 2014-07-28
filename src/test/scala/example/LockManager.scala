@@ -2,7 +2,7 @@ package example
 
 import round._
 import round.runtime._
-import round.utils.{Logger, Arg, Options}
+import round.utils.Logger
 import round.utils.LogLevel._
 import java.net.InetSocketAddress
 import io.netty.bootstrap._
@@ -245,33 +245,34 @@ class LockManagerClient(myPort: Int, remote: (String, Int)) {
 
 }
 
-object Main extends Options {
+object Main extends dzufferey.arg.Options {
+  import dzufferey.arg._
 
-  newOption("-v", Arg.Unit(() => Logger.moreVerbose), "increase the verbosity level.")
-  newOption("-q", Arg.Unit(() => Logger.lessVerbose), "decrease the verbosity level.")
+  newOption("-v", Unit(() => Logger.moreVerbose), "increase the verbosity level.")
+  newOption("-q", Unit(() => Logger.lessVerbose), "decrease the verbosity level.")
 
   var client = false
-  newOption("-c", Arg.Unit(() => client = true), "client mode (default is server mode)")
+  newOption("-c", Unit(() => client = true), "client mode (default is server mode)")
 
   var clientPort = 8889
-  newOption("-p", Arg.Int( i => clientPort = i), "port")
+  newOption("-p", Int( i => clientPort = i), "port")
   var remotePort = 8888
-  newOption("-rp", Arg.Int( i => remotePort = i), "remote port")
+  newOption("-rp", Int( i => remotePort = i), "remote port")
   var remoteAddress = "127.0.0.1"
-  newOption("-ra", Arg.String( str => remoteAddress = str), "replica address")
+  newOption("-ra", String( str => remoteAddress = str), "replica address")
 
   var id = -1
-  newOption("-id", Arg.Int( i => id = i), "the replica ID")
+  newOption("-id", Int( i => id = i), "the replica ID")
   
   var lv = false
-  newOption("-lv", Arg.Unit( () => lv = true), "use the last voting instead of the OTR")
+  newOption("-lv", Unit( () => lv = true), "use the last voting instead of the OTR")
 
   var confFile = "src/test/resources/sample-conf.xml"
-  newOption("--conf", Arg.String(str => confFile = str ), "config file")
+  newOption("--conf", String(str => confFile = str ), "config file")
 
   val usage = "..."
 
-  def main(args: Array[String]) {
+  def main(args: Array[java.lang.String]) {
     Logger.moreVerbose
     apply(args)
     if (client) {

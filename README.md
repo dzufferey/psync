@@ -8,6 +8,10 @@ This project requires java 7.
 You can build it using [sbt](http://www.scala-sbt.org/).
 To install sbt follow the instructions at [http://www.scala-sbt.org/release/tutorial/Setup.html](http://www.scala-sbt.org/release/tutorial/Setup.html).
 
+Additionally, you will need to install the following libraries:
+* [github.com/dzufferey/ScalaArg](https://github.com/dzufferey/ScalaArg)
+* [github.com/dzufferey/report](https://github.com/dzufferey/report)
+
 Then, in a console, execute:
 ```
 $ sbt

@@ -1,6 +1,5 @@
 package round.utils
 
-import round.utils.text.Document
 import java.io._
 
 object IO {
@@ -32,12 +31,6 @@ object IO {
     val fileOut = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file)))
     data(fileOut)
     fileOut.flush
-    fileOut.close
-  }
-
-  def writeDocInFile(file: File, data: Document): Unit = {
-    val fileOut = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file)))
-    data.format(fileOut)
     fileOut.close
   }
 

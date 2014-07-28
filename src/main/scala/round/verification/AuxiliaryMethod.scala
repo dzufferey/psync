@@ -49,7 +49,7 @@ class AuxiliaryMethod(val name: String,
   }
 
   def report = {
-    import round.utils.report._
+    import dzufferey.report._
     val tp = if (tParams == Nil) "" else tParams.mkString("[",",","]")
     val pr = params.zip(tpe.args).map{ case (p,t) => p.name + ": " + t }.mkString("(",",",")")
     val lst = new Sequence(name + tp + pr + ": " + tpe.returns)

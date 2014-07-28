@@ -2,34 +2,35 @@ package example
 
 import round._
 import round.runtime._
-import round.utils.{Logger, Arg, Options}
+import round.utils.Logger
 import round.utils.LogLevel._
+import dzufferey.arg._
 import java.util.concurrent.Semaphore
 import scala.util.Random
 
 object PerfTest extends Options {
   
   
-  newOption("-v", Arg.Unit(() => Logger.moreVerbose), "increase the verbosity level.")
-  newOption("-q", Arg.Unit(() => Logger.lessVerbose), "decrease the verbosity level.")
+  newOption("-v", Unit(() => Logger.moreVerbose), "increase the verbosity level.")
+  newOption("-q", Unit(() => Logger.lessVerbose), "decrease the verbosity level.")
 
   var id = -1
-  newOption("-id", Arg.Int( i => id = i), "the replica ID")
+  newOption("-id", Int( i => id = i), "the replica ID")
 
   var confFile = "src/test/resources/sample-conf.xml"
-  newOption("--conf", Arg.String(str => confFile = str ), "config file")
+  newOption("--conf", String(str => confFile = str ), "config file")
   
   var lv = false
-  newOption("-lv", Arg.Unit( () => lv = true), "use the last voting instead of the OTR")
+  newOption("-lv", Unit( () => lv = true), "use the last voting instead of the OTR")
   
   var rate = new Semaphore(10)
-  newOption("-rt", Arg.Int( i => rate = new Semaphore(i)), "use the last voting instead of the OTR")
+  newOption("-rt", Int( i => rate = new Semaphore(i)), "use the last voting instead of the OTR")
 
   var rd = new Random()
-  newOption("-r", Arg.Int( i => rd = new Random(i)), "random number generator seed")
+  newOption("-r", Int( i => rd = new Random(i)), "random number generator seed")
   
   var to = 50
-  newOption("-to", Arg.Int( i => to = i), "timeout")
+  newOption("-to", Int( i => to = i), "timeout")
 
   val usage = "..."
   
@@ -40,7 +41,7 @@ object PerfTest extends Options {
 
   def defaultHandler(msg: Message) { msg.release }
 
-  def main(args: Array[String]) {
+  def main(args: Array[java.lang.String]) {
     apply(args)
     val alg = if (lv) new LastVoting()
               else new OTR2()
@@ -56,7 +57,7 @@ object PerfTest extends Options {
       val io = new ConsensusIO {
         val v = versionNbr 
         val initialValue = r
-        def decide(value: Int) {
+        def decide(value: scala.Int) {
           Logger("PerfTest", Info, v.toString + "\t  decision is " + value)
           rate.release
         }

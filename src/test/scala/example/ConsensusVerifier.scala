@@ -2,32 +2,33 @@ package example
 
 import round._
 import round.verification._
-import round.utils.{Logger, Arg, Options}
+import round.utils.Logger
 import round.utils.LogLevel._
+import dzufferey.arg._
 
 object ConsensusVerifier extends Options {
   
-  newOption("-v", Arg.Unit(() => Logger.moreVerbose), "increase the verbosity level.")
-  newOption("-q", Arg.Unit(() => Logger.lessVerbose), "decrease the verbosity level.")
+  newOption("-v", Unit(() => Logger.moreVerbose), "increase the verbosity level.")
+  newOption("-q", Unit(() => Logger.lessVerbose), "decrease the verbosity level.")
   
   var v = 3
-  newOption("-n", Arg.Int( i => v = i), "Ort1/2/3")
+  newOption("-n", Int( i => v = i), "Ort1/2/3")
   
   var lv = false
-  newOption("-lv", Arg.Unit( () => lv = true), "LastVoting")
+  newOption("-lv", Unit( () => lv = true), "LastVoting")
 
   var r = "report.html"
-  newOption("-r", Arg.String( i => r = i), "report.html")
+  newOption("-r", String( i => r = i), "report.html")
 
   val usage = "..."
 
-  def main(args: Array[String]) {
+  def main(args: Array[java.lang.String]) {
     Logger.moreVerbose
     apply(args)
 
     val dummyIO = new ConsensusIO {
       val initialValue = 0
-      def decide(value: Int) { }
+      def decide(value: scala.Int) { }
     }
 
     val alg =

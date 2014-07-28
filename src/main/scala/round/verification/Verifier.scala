@@ -8,7 +8,7 @@ import round.formula._
 import round.utils.Logger
 import round.utils.LogLevel._
 
-import round.utils.report._
+import dzufferey.report._
 
 class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
 

@@ -1,6 +1,5 @@
 package round.formula
 
-import round.utils.text._
 import java.io.{BufferedWriter, StringWriter}
 
 abstract class Printer {

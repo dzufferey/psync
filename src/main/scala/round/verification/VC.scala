@@ -2,7 +2,7 @@ package round.verification
 
 import Utils._
 
-import round.utils.report._
+import dzufferey.report._
 import round.formula._
 import round.utils.Logger
 import round.utils.LogLevel._
