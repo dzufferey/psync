@@ -2,7 +2,8 @@ package round.utils.smtlib
 
 import round.formula._
 import round.utils._
-import round.utils.LogLevel._
+import dzufferey.utils.Logger
+import dzufferey.utils.LogLevel._
 import java.io._
 
 object Printer {

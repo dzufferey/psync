@@ -2,8 +2,8 @@ package example
 
 import round._
 import round.runtime._
-import round.utils.Logger
-import round.utils.LogLevel._
+import dzufferey.utils.Logger
+import dzufferey.utils.LogLevel._
 import java.net.InetSocketAddress
 import io.netty.bootstrap._
 import io.netty.buffer._

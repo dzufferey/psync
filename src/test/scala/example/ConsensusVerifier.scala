@@ -2,8 +2,8 @@ package example
 
 import round._
 import round.verification._
-import round.utils.Logger
-import round.utils.LogLevel._
+import dzufferey.utils.Logger
+import dzufferey.utils.LogLevel._
 import dzufferey.arg._
 
 object ConsensusVerifier extends Options {

@@ -3,8 +3,8 @@ package round.verification
 import Utils._
 
 import round.formula._
-import round.utils.Logger
-import round.utils.LogLevel._
+import dzufferey.utils.Logger
+import dzufferey.utils.LogLevel._
 
 class AuxiliaryMethod(val name: String,
                       val params: List[Variable],

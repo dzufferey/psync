@@ -4,8 +4,8 @@ import Utils._
 
 import dzufferey.report._
 import round.formula._
-import round.utils.Logger
-import round.utils.LogLevel._
+import dzufferey.utils.Logger
+import dzufferey.utils.LogLevel._
 
 class VC(description: String, hypothesis: Formula, transition: Formula, conclusion: Formula) {
 

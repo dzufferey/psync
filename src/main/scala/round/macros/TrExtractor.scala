@@ -2,7 +2,7 @@ package round.macros
 
 import round.formula._
 import round.verification._
-import round.utils.{Namer, Misc}
+import dzufferey.utils.{Namer, Misc}
 
 trait TrExtractor {
   self: Impl =>

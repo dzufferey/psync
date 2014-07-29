@@ -1,6 +1,6 @@
 package round.formula
 
-import round.utils.Namer
+import dzufferey.utils.Namer
 
 object Simplify {
 

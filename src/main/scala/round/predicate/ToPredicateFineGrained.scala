@@ -10,8 +10,8 @@ import io.netty.channel._
 import io.netty.channel.socket._
 import io.netty.util.{TimerTask, Timeout}
 
-import round.utils.Logger
-import round.utils.LogLevel._
+import dzufferey.utils.Logger
+import dzufferey.utils.LogLevel._
   
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicBoolean

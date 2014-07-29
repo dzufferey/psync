@@ -11,6 +11,7 @@ To install sbt follow the instructions at [http://www.scala-sbt.org/release/tuto
 Additionally, you will need to install the following libraries:
 * [github.com/dzufferey/ScalaArg](https://github.com/dzufferey/ScalaArg)
 * [github.com/dzufferey/report](https://github.com/dzufferey/report)
+* [github.com/dzufferey/misc-scala-utils](https://github.com/dzufferey/misc-scala-utils)
 
 Then, in a console, execute:
 ```

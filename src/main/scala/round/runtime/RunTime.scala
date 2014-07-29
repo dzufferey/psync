@@ -4,8 +4,8 @@ import round._
 import Algorithm._
 import round.predicate._
 import io.netty.buffer.ByteBuf
-import round.utils.LogLevel._
-import round.utils.Logger
+import dzufferey.utils.LogLevel._
+import dzufferey.utils.Logger
 
 
 class RunTime[IO](val alg: Algorithm[IO]) {

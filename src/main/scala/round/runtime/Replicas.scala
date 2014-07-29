@@ -1,8 +1,8 @@
 package round.runtime
 
 import round.Algorithm._
-import round.utils.Logger
-import round.utils.LogLevel._
+import dzufferey.utils.Logger
+import dzufferey.utils.LogLevel._
 
 import java.net.InetSocketAddress
 

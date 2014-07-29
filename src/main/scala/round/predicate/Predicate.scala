@@ -5,8 +5,8 @@ import round.formula._
 import Algorithm._
 import round.runtime._
 
-import round.utils.Logger
-import round.utils.LogLevel._
+import dzufferey.utils.Logger
+import dzufferey.utils.LogLevel._
 
 import scala.reflect.ClassTag
 import io.netty.buffer.ByteBuf

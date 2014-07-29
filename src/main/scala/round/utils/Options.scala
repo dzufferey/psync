@@ -1,6 +1,8 @@
 package round.utils
 
 import dzufferey.arg._
+import dzufferey.utils.Logger
+import dzufferey.utils.LogLevel._
 
 /** default configuration object */
 object Options extends Options {

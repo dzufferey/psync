@@ -1,8 +1,8 @@
 package round.runtime
 
 import round.predicate.Predicate
-import round.utils.Logger
-import round.utils.LogLevel._
+import dzufferey.utils.Logger
+import dzufferey.utils.LogLevel._
 
 import scala.concurrent.Lock
 

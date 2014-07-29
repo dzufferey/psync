@@ -1,8 +1,8 @@
 package round.utils.smtlib
 
 import round.formula._
-import round.utils._
-import round.utils.LogLevel._
+import dzufferey.utils._
+import dzufferey.utils.LogLevel._
 import scala.sys.process._
 import java.io._
 import scala.collection.mutable.{HashSet, Stack}
