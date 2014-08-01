@@ -15,7 +15,7 @@ import dzufferey.utils.LogLevel._
   
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.Semaphore
+import java.util.concurrent.locks.ReentrantReadWriteLock
 
 
 /* Same principle as ToPredicate but allows more concurrency in msg reception. */
@@ -36,7 +36,7 @@ class ToPredicateFineGrained(
   override def resetReceived { _received2.set(0) }
 
   private val maxPermits = 1000
-  private val lock2 = new Semaphore(1000, true)
+  private val lock2 = new ReentrantReadWriteLock(true)
 
   override val tt = new TimerTask {
     def run(to: Timeout) {
@@ -62,14 +62,17 @@ class ToPredicateFineGrained(
   
   //assume the thread has one permit
   override protected def deliver {
-    lock2.release //need to release to avoid deadlock
-    lock2.acquire(maxPermits)
-    //need to test again the delivery condition
-    if (_received2.intValue >= expected) {
-      super.deliver
-      expected = proc.expectedNbrMessages
+    lock2.readLock.unlock
+    lock2.writeLock.lock
+    try {
+      //need to test again the delivery condition
+      if (_received2.intValue >= expected) {
+        super.deliver
+        expected = proc.expectedNbrMessages
+      }
+    } finally {
+      lock2.writeLock.unlock
     }
-    lock2.release(maxPermits -1)
   }
 
   override protected def normalReceive(pkt: DatagramPacket) {
@@ -88,7 +91,7 @@ class ToPredicateFineGrained(
   override def receive(pkt: DatagramPacket) {
     val tag = Message.getTag(pkt.content)
     val round = tag.roundNbr
-    lock2.acquire
+    lock2.readLock.lock
     try {
       if(round == currentRound) {
         normalReceive(pkt)
@@ -103,7 +106,7 @@ class ToPredicateFineGrained(
         //late message, drop it
       }
     } finally {
-      lock2.release
+      lock2.readLock.unlock
     }
   }
 

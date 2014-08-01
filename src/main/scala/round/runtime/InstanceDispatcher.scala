@@ -4,10 +4,10 @@ import round.predicate.Predicate
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
-import scala.concurrent.Lock
-
 import io.netty.channel._
 import io.netty.channel.socket._
+
+import java.util.concurrent.locks.ReentrantLock
 
 
 //a dispatcher that scales better than the pipeline
@@ -35,11 +35,11 @@ class InstanceDispatcher(
     res
   }
 
-  private val locks = Array.ofDim[Lock](n)
+  private val locks = Array.ofDim[ReentrantLock](n)
   private val instances = Array.ofDim[List[(Int, Predicate)]](n)
 
   for ( i <- 0 until n ) {
-    locks(i) = new Lock
+    locks(i) = new ReentrantLock
     instances(i) = Nil
   }
 
@@ -50,7 +50,7 @@ class InstanceDispatcher(
   def add(inst: Int, handler: Predicate ) {
     val i = index(inst)
     val l = locks(i)
-    l.acquire
+    l.lock()
     try {
       val lst = instances(i)
       if (lst exists (_._1 == inst)) {
@@ -59,7 +59,7 @@ class InstanceDispatcher(
       val lst2 = (inst, handler) :: lst
       instances(i) = lst2
     } finally {
-      l.release
+      l.unlock()
     }
   }
   
@@ -67,13 +67,13 @@ class InstanceDispatcher(
     val i = index(inst)
     val l = locks(i)
     var oldLst: List[(Int,Predicate)] = Nil
-    l.acquire
+    l.lock()
     try {
       oldLst = instances(i)
       val lst2 = oldLst.filter( p => p._1 != inst )
       instances(i) = lst2
     } finally {
-      l.release
+      l.unlock()
     }
     if (oldLst forall (_._1 != inst)) {
       sys.error("dispatcher.remove: instance not found")

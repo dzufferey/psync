@@ -13,6 +13,8 @@ import io.netty.util.{TimerTask, Timeout}
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
+import java.util.concurrent.locks.ReentrantLock
+
 
 /* A predicate using timeout to deliver (when not all msg are received) */
 class ToPredicate(
@@ -36,7 +38,7 @@ class ToPredicate(
   def resetReceived { _received = 0 }
   //var spill = new java.util.concurrent.ConcurrentLinkedQueue[DatagramPacket]()
 
-  private val lock = new scala.concurrent.Lock
+  private val lock = new ReentrantLock
 
   //dealing with the timeout ?
   protected val defaultTO = {
@@ -63,7 +65,7 @@ class ToPredicate(
         if (changed) {
           changed = false
         } else {
-          lock.acquire
+          lock.lock()
           try {
             if (!changed) {
               Logger("ToPredicate", Debug, "delivering because of timeout")
@@ -72,7 +74,7 @@ class ToPredicate(
               changed = false
             }
           } finally {
-            lock.release
+            lock.unlock()
           }
         }
         timeout = Timer.newTimeout(this, defaultTO)
@@ -124,7 +126,7 @@ class ToPredicate(
   def receive(pkt: DatagramPacket) {
     val tag = Message.getTag(pkt.content)
     val round = tag.roundNbr
-    lock.acquire //TODO less aggressive synchronization
+    lock.lock()
     try {
       //TODO take round overflow into account
       if(round == currentRound) {
@@ -140,7 +142,7 @@ class ToPredicate(
         //late message, drop it
       }
     } finally {
-      lock.release
+      lock.unlock()
     }
   }
 
