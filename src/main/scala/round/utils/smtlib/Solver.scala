@@ -10,6 +10,7 @@ import scala.collection.mutable.{HashSet, Stack}
 class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclaration: Boolean = true) {
 
   //TODO SMTLIB does not support overloading
+  //TODO refactor to produce Command
 
   protected var stackCounter = 0
 
@@ -21,7 +22,11 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
   //////////////
 
   protected val solver = java.lang.Runtime.getRuntime.exec(Array(cmd) ++ options, null, null)
-  protected val solverInput = new BufferedWriter(new OutputStreamWriter(solver.getOutputStream()))
+  protected val solverInput = {
+    val out = solver.getOutputStream()
+    //val out = new org.apache.commons.io.output.TeeOutputStream(solver.getOutputStream(), System.out)
+    new BufferedWriter(new OutputStreamWriter(out))
+  }
   protected val solverOutput = new BufferedReader(new InputStreamReader(solver.getInputStream()))
   protected val solverError = new BufferedReader(new InputStreamReader(solver.getErrorStream()))
 
@@ -73,6 +78,13 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
     solverInput.newLine
     solverInput.flush
   }
+  
+  protected def toSolver(cmd: Command) {
+    Logger("smtlib", Debug, "> " +cmd)
+    Printer(solverInput, cmd)
+    solverInput.newLine
+    solverInput.flush
+  }
 
   protected def fromSolver: String = {
     if (solverError.ready) {
@@ -90,7 +102,7 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
   }
 
   def exit = {
-    toSolver("(exit)")
+    toSolver(Exit)
     try {
       solver.waitFor
       solverInput.close
@@ -105,7 +117,7 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
   }
   
   def declare(t: Type) = t match {
-    case UnInterpreted(id) => toSolver("(declare-sort " + id + " 0)")
+    case UnInterpreted(id) => toSolver(DeclareSort(id, 0))
     case other => Logger.logAndThrow("smtlib", Error, "not supported: " + other)
   }
 
@@ -114,13 +126,13 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
       case Function(args, r) => (args, r)
       case other => (Nil, other)
     }
-    val argsDecl = args.map(Printer.tpe).mkString("("," ",")")
-    argsDecl + " " + Printer.tpe(ret)
+    val argsDecl = args.map(Names.tpe).mkString("("," ",")")
+    argsDecl + " " + Names.tpe(ret)
   }
 
   def declare(f: Formula) = f match {
     case v @ Variable(_) =>
-      toSolver("(declare-fun " + Printer.asVar(v) + " " + typeDecl(v.tpe) + ")")
+      toSolver(DeclareFun(Printer.asVar(v), v.tpe))
     case other => Logger.logAndThrow("smtlib", Error, "not supported: " + other)
   }
   
@@ -128,10 +140,10 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
   def declare(s: Symbol) = s match {
     case UnInterpretedFct(f, t, p) =>
       Logger.assert(p.isEmpty, "smtlib", "declaring sym with params: " + p)
-      Logger.assert(t.isDefined, "smtlib", "declaring sym with unkown type: " + f)
-      toSolver("(declare-fun " + Printer.asVar(f) + " " + typeDecl(t.get) + ")")
+      Logger.assert(t.isDefined, "smtlib", "declaring sym with unknown type: " + f)
+      toSolver(DeclareFun(Printer.asVar(f), t.get))
     case i: InterpretedFct =>
-      toSolver("(declare-fun " + Printer.asVar(i.symbol) + " " + typeDecl(i.tpe) + ")")
+      toSolver(DeclareFun(Printer.asVar(i.symbol), i.tpe))
   }
 
   protected def pushOnStack[A](elts: Set[A], stack: Stack[Set[A]], decls: HashSet[A]): Set[A] = {
@@ -155,13 +167,7 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
     if (implicitDeclaration) {
       mkDeclarations(f)
     }
-    //(assert f)
-    Logger("smtlib", Debug, Printer(_, f))
-    solverInput.write("(assert ")
-    Printer(solverInput, f)
-    solverInput.write(")")
-    solverInput.newLine
-    //solverInput.flush
+    toSolver(Assert(f))
   }
   
   def push {
@@ -171,7 +177,7 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
       typeStack.push(Set[Type]())
     }
     stackCounter += 1
-    toSolver("(push 1)")
+    toSolver(Push)
   }
   
   def pop {
@@ -181,12 +187,12 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
       declaredT --= typeStack.pop
     }
     Logger.assert(stackCounter > 0, "smtlib", "pop -> stackCounter = " + stackCounter)
-    toSolver("(pop 1)")
+    toSolver(Pop)
     stackCounter -= 1
   }
   
   def checkSat: Option[Boolean] = {
-    toSolver("(check-sat)")
+    toSolver(CheckSat)
     fromSolver match {
       case "sat" => Some(true)
       case "unsat" => Some(false)

@@ -7,14 +7,12 @@
 - split the sources into multiple parts/sub-projects
   * cleaner separation between the runtime and the declarations
   * so we can use macros for the testing and debugging in the main project
-  * Args and some utils as separate projects
+  * smtlib as its own project
 - integrate recovery
 
 
 # implementation
 
-- uses netty 4.0.21 when on maven
-  * check where the leak is (occurs only at the beginning, lazy init / race ?)
 - ghost variables: make sure they are only read in the verification part and removed at compile time
 - test with message drop (reliability)
 - test with more processes (scalability)
@@ -23,6 +21,7 @@
     * our own stuff for primitive types, pickling for the rest
     * get rid of Message.scala (generate extraction primitives in process)
 - report macro bug about accessing members of outer class inside an inner class
+- graceful stop
 
 # verification
 
@@ -33,8 +32,10 @@
     * ...
 - try type checking the formula
 - decision procedure
-- depolymorphize the formula in the SMT backend
-
+- smtlib:
+    * depolymorphize the formula in the SMT backend
+    * parsing of model
+    * dump smt files
 
 # example
 
@@ -105,4 +106,34 @@ Exception in thread "main" java.lang.IndexOutOfBoundsException: readerIndex: 20 
     at round.runtime.RunTime.startInstance(RunTime.scala:34)
     at example.PerfTest$.main(PerfTest.scala:65)
     at example.PerfTest.main(PerfTest.scala)
+```
+
+```
+java.lang.NullPointerException
+    at round.predicate.Predicate$$anonfun$2.apply(Predicate.scala:147)
+    at round.predicate.Predicate$$anonfun$2.apply(Predicate.scala:146)
+    at scala.collection.TraversableLike$$anonfun$map$1.apply(TraversableLike.scala:245)
+    at scala.collection.TraversableLike$$anonfun$map$1.apply(TraversableLike.scala:245)
+    at scala.collection.IndexedSeqOptimized$class.foreach(IndexedSeqOptimized.scala:33)
+    at scala.collection.mutable.WrappedArray.foreach(WrappedArray.scala:35)
+    at scala.collection.TraversableLike$class.map(TraversableLike.scala:245)
+    at scala.collection.AbstractTraversable.map(Traversable.scala:104)
+    at round.predicate.Predicate.fromPkts(Predicate.scala:146)
+    at round.predicate.Predicate.deliver(Predicate.scala:79)
+    at round.predicate.ToPredicate.receive(ToPredicate.scala:137)
+    at round.predicate.Predicate.messageReceived(Predicate.scala:128)
+    at round.runtime.InstanceDispatcher.channelRead0(InstanceDispatcher.scala:92)
+    at round.runtime.InstanceDispatcher.channelRead0(InstanceDispatcher.scala:14)
+    at io.netty.channel.SimpleChannelInboundHandler.channelRead(SimpleChannelInboundHandler.java:105)
+    at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:333)
+    at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:319)
+    at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:787)
+    at io.netty.channel.nio.AbstractNioMessageChannel$NioMessageUnsafe.read(AbstractNioMessageChannel.java:92)
+    at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:511)
+    at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:468)
+    at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:382)
+    at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:354)
+    at io.netty.util.concurrent.SingleThreadEventExecutor$2.run(SingleThreadEventExecutor.java:116)
+    at io.netty.util.concurrent.DefaultThreadFactory$DefaultRunnableDecorator.run(DefaultThreadFactory.java:137)
+    at java.lang.Thread.run(Thread.java:744)
 ```

@@ -24,7 +24,8 @@ libraryDependencies ++=  Seq(
     "io.netty" % "netty-all" % "4.0.21.Final",
     "io.github.dzufferey" %% "scala-arg" % "0.1-SNAPSHOT",
     "io.github.dzufferey" %% "report" % "0.1-SNAPSHOT",
-    "io.github.dzufferey" %% "misc-scala-utils" % "0.1-SNAPSHOT"
+    "io.github.dzufferey" %% "misc-scala-utils" % "0.1-SNAPSHOT"//,
+//    "commons-io" % "commons-io" % "2.4"
 )
 
 resolvers += Resolver.sonatypeRepo("snapshots")

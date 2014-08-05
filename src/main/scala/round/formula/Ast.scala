@@ -137,15 +137,15 @@ case object Not extends InterpretedFct("¬", "~", "!", "unary_!", "unary_$bang")
   override val priority = 8
 }
 
-case object And extends InterpretedFct("∧", "&&", "$amp$amp") {
+case object And extends InterpretedFct("∧", "&&", "$amp$amp", "and") {
   def tpe = Bool ~> Bool ~> Bool
   override val priority = 5
 }
-case object Or extends InterpretedFct("∨", "||", "$bar$bar") {
+case object Or extends InterpretedFct("∨", "||", "$bar$bar", "or") {
   def tpe = Bool ~> Bool ~> Bool
   override val priority = 4
 }
-case object Implies extends InterpretedFct("⇒", "==>", "$eq$eq$greater") {
+case object Implies extends InterpretedFct("⇒", "==>", "$eq$eq$greater", "=>") {
   def tpe = Bool ~> Bool ~> Bool
   override val priority = 3
 }
@@ -322,13 +322,18 @@ object InterpretedFct {
     symbols = s :: symbols
     map = s.allSymbols.foldLeft(map)( (m, sym) => {
       assert(!(map contains sym), "symbol redefinition: " + sym)
-      map + (sym -> s)
+      m + (sym -> s)
     })
+    assert(s.allSymbols.forall(map contains _))
   }
   def apply(s: String): Option[InterpretedFct] = {
     map.get(s)
   }
-  def knows(s: String) = map contains s
+  def knows(s: String) = {
+    val res = map contains s
+    //println(s + " -> " + res)
+    res
+  }
 
   //need to be added manually since object are initialized lazily
   add( Not )

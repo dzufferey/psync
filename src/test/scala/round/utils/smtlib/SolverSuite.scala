@@ -10,6 +10,10 @@ class SolverSuite extends FunSuite {
   //overloading of types
   //model extraction
 
+  //import dzufferey.utils.Logger
+  //Logger.moreVerbose
+  //Logger.moreVerbose
+
   val pid = UnInterpreted("ProcessID")
 
   val a = Variable("a").setType(Bool)

@@ -275,7 +275,6 @@ trait FormulaExtractor {
 
       //defs
       case Block(defs, f) =>
-        //TODO quantify the vals
         val f2 = tree2Formula(f)
         val (vs, d) = (defs map extractValDef).unzip
         Exists(vs, d.foldLeft(f2)((x, y) => And(x, y)))

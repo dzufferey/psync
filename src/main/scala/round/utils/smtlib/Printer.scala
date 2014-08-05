@@ -5,39 +5,12 @@ import round.utils._
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 import java.io._
+import Names._
 
 object Printer {
   
-  protected def symbol(i: Symbol): String = i match {
-    case Implies => "=>"
-    case Or => "or"
-    case And => "and"
-    case Not => "not"
-    case Eq => "="
-    case Geq => ">="
-    case Leq => "<="
-    case Gt => ">"
-    case Lt => "<"
-    case Plus => "+"
-    case Minus => "-"
-    case Times => "*"
-    case UnInterpretedFct(f, _, _) => f
-    case Neq => Logger.logAndThrow("smtlib", Error, "≠ should be replaced by Not(Eq(...))")
-    case i: InterpretedFct => i.symbol
-  }
-
-  def tpe(t: Type): String = t match {
-    case Bool => "Bool"
-    case Int => "Int"
-    case Wildcard => "_"
-    case FSet(elt) => sys.error("TODO FSet")
-    case FOption(elt) => sys.error("TODO FOption")
-    case Product(elts) => sys.error("TODO Product")
-    case Function(args, returns) => args.map(tpe).mkString("(", ") (", ")") + " (" + tpe(returns) + ")"
-    case UnInterpreted(id) => id
-    case other => Logger.logAndThrow("smtlib", Error, "not supported: " + other)
-  }
-
+  //TODO refactor to print Command
+  
   def asVar(str: String): String = {
     assert(str.length > 0)
     val noDollars = str.replace("$","_")
@@ -77,6 +50,41 @@ object Printer {
   def apply(implicit writer: BufferedWriter, f: Formula) {
     printFormula(FormulaUtils.flatten(f))
     //writer.newLine
+  }
+  
+  def apply(implicit writer: BufferedWriter, cmd: Command) = cmd match {
+    case Assert(f) =>
+      writer.write("(assert ")
+      printFormula(FormulaUtils.flatten(f))
+      writer.write(")")
+
+    case DeclareSort(id, arity) =>
+      writer.write("(declare-sort ")
+      writer.write(id)
+      writer.write(" ")
+      writer.write(arity.toString)
+      writer.write(")")
+
+    case DeclareFun(id, sig) =>
+      writer.write("(declare-fun ")
+      writer.write(id)
+      writer.write(" ")
+      writer.write(typeDecl(sig))
+      writer.write(")")
+
+    case DefineSort(id, args, ret) =>
+      writer.write("(define-sort ")
+      sys.error("TODO define-sort")
+
+    case DefineFun(id, args, ret, body) =>
+      writer.write("(define-fun ")
+      sys.error("TODO define-fun")
+
+    case Exit => writer.write("(exit)")
+    case CheckSat => writer.write("(check-sat)")
+    case GetModel => writer.write("(get-model)")
+    case Push => writer.write("(push 1)")
+    case Pop => writer.write("(pop 1)")
   }
 
 }
