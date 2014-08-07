@@ -37,8 +37,8 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
   protected val declaredV = HashSet[Variable]()
   protected val declStack = Stack(Set[Variable]())
   
-  protected val declaredS = HashSet[Symbol]()
-  protected val symbolStack = Stack(Set[Symbol]())
+  protected val declaredS = HashSet[(Symbol, List[Type])]()
+  protected val symbolStack = Stack(Set[(Symbol, List[Type])]())
   
   protected val declaredT = HashSet[Type]()
   protected val typeStack = Stack(Set[Type]())
@@ -53,7 +53,7 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
 
   //default declarations
   declaredT ++= Theory.sort(th)
-  declaredS ++= Theory.fun(th)
+  declaredS ++= Theory.fun(th).map(t => (t, Nil))
 
   ///////////////
   ///////////////
@@ -116,9 +116,8 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
     }
   }
   
-  def declare(t: Type) = t match {
-    case UnInterpreted(id) => toSolver(DeclareSort(id, 0))
-    case other => Logger.logAndThrow("smtlib", Error, "not supported: " + other)
+  def declare(t: Type) = {
+    toSolver(DeclareSort(Names.tpe(t), Names.tpeArity(t)))
   }
 
   def typeDecl(t: Type) = {
@@ -131,19 +130,25 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
   }
 
   def declare(f: Formula) = f match {
-    case v @ Variable(_) =>
-      toSolver(DeclareFun(Printer.asVar(v), v.tpe))
+    case Variable(v) => toSolver(DeclareFun(v, f.tpe))
     case other => Logger.logAndThrow("smtlib", Error, "not supported: " + other)
   }
   
-  //TODO overloading
-  def declare(s: Symbol) = s match {
-    case UnInterpretedFct(f, t, p) =>
-      Logger.assert(p.isEmpty, "smtlib", "declaring sym with params: " + p)
-      Logger.assert(t.isDefined, "smtlib", "declaring sym with unknown type: " + f)
-      toSolver(DeclareFun(Printer.asVar(f), t.get))
-    case i: InterpretedFct =>
-      toSolver(DeclareFun(Printer.asVar(i.symbol), i.tpe))
+  def declare(sp: (Symbol, List[Type])) = {
+    val (s, params) = sp
+    s match {
+      case UnInterpretedFct(f, t, p) =>
+        Logger.assert(t.isDefined, "smtlib", "declaring sym with unknown type: " + f)
+        val name = Names.overloadedSymbol(s, params)
+        val tpe = s.instanciateType(params)
+        toSolver(DeclareFun(name, tpe))
+      case Eq =>
+        ()
+      case i: InterpretedFct =>
+        val name = Names.overloadedSymbol(s, params)
+        val tpe = s.instanciateType(params)
+        toSolver(DeclareFun(name, tpe))
+    }
   }
 
   protected def pushOnStack[A](elts: Set[A], stack: Stack[Set[A]], decls: HashSet[A]): Set[A] = {
@@ -157,7 +162,7 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
   def mkDeclarations(f: Formula) = {
     val newSort = pushOnStack(FormulaUtils.collectTypes(f), typeStack, declaredT)
     newSort foreach declare
-    val newSym = pushOnStack(FormulaUtils.collectSymbols(f), symbolStack, declaredS)
+    val newSym = pushOnStack(FormulaUtils.collectSymbolsWithParams(f), symbolStack, declaredS)
     newSym foreach declare
     val newVars = pushOnStack(f.freeVariables, declStack, declaredV)
     newVars foreach declare
@@ -173,7 +178,7 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
   def push {
     if (implicitDeclaration) {
       declStack.push(Set[Variable]())
-      symbolStack.push(Set[Symbol]())
+      symbolStack.push(Set[(Symbol, List[Type])]())
       typeStack.push(Set[Type]())
     }
     stackCounter += 1

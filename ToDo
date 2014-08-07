@@ -33,7 +33,6 @@
 - try type checking the formula
 - decision procedure
 - smtlib:
-    * depolymorphize the formula in the SMT backend
     * parsing of model
     * dump smt files
 

@@ -24,16 +24,28 @@ object Names {
     case i: InterpretedFct => i.symbol
   }
 
+  def overloadedSymbol(i: Symbol, ts: List[Type]) = i match {
+    case Eq => "=" //already overloaded in the theory definition
+    case normal => symbol(normal) + ts.map(tpe).mkString("","","")
+  }
+
   def tpe(t: Type): String = t match {
     case Bool => "Bool"
     case Int => "Int"
     case Wildcard => "_"
-    case FSet(elt) => sys.error("TODO FSet")
-    case FOption(elt) => sys.error("TODO FOption")
-    case Product(elts) => sys.error("TODO Product")
+    case FSet(elt) => "Set"
+    case FOption(elt) => "Option"
+    case Product(elts) => "Product" + elts.length
     case Function(args, returns) => args.map(tpe).mkString("(", ") (", ")") + " (" + tpe(returns) + ")"
     case UnInterpreted(id) => id
     case other => Logger.logAndThrow("smtlib", Error, "not supported: " + other)
+  }
+  
+  def tpeArity(t: Type): Int = t match {
+    case Bool | Int | Wildcard | UnInterpreted(_) => 0
+    case FSet(_) | FOption(_) => 1
+    case Product(elts) => elts.length
+    case other => Logger.logAndThrow("smtlib", Error, "Names.tpeArity, not supported: " + other)
   }
   
   def typeDecl(t: Type) = {

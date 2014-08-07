@@ -94,5 +94,35 @@ object FormulaUtils {
     sym
   }
 
+  def typeParams(app: Application): List[Type] = app.fct match {
+    case Tuple | Fst | Snd | Trd =>
+      sys.error("TODO typeParams for Product type: " + app)
+    case Eq | Neq | And | Or | Plus | Times => //skip those: overloaded in smtlib of flattened
+      Nil
+    case normal =>
+      val params = normal.typeParams
+      val concreteType = Function(app.args.map(_.tpe), app.tpe)
+      val subst = Typer.unify(normal.typeWithParams, concreteType)
+      subst match {
+        case Some(s) => params.map(s)
+        case None => sys.error("FormulaUtils.typeWithParams, cannot unify: " + normal.typeWithParams + ", " + concreteType)
+      }
+  }
+  
+  def collectSymbolsWithParams(f: Formula): Set[(Symbol, List[Type])] = {
+    var sym = Set[(Symbol, List[Type])]()
+    val traverser = new Traverser {
+      override def traverse(f: Formula) = {
+        super.traverse(f)
+        f match {
+          case app @ Application(s, _) => sym = sym + (s -> typeParams(app))
+          case _ => ()
+        }
+      }
+    }
+    traverser.traverse(f)
+    sym
+  }
+
 }
 

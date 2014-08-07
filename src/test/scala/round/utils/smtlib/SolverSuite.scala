@@ -6,9 +6,8 @@ import org.scalatest._
 
 class SolverSuite extends FunSuite {
 
-  //TODO (un)sat
-  //overloading of types
-  //model extraction
+  //TODO
+  //- model extraction
 
   //import dzufferey.utils.Logger
   //Logger.moreVerbose
@@ -113,6 +112,17 @@ class SolverSuite extends FunSuite {
     assert(!solver.test(form2).get, "unsat formula")
   }
 
+  test("overloading") {
+    val t1 = UnInterpreted("T1")
+    val t2 = UnInterpreted("T2")
+    val a = Variable("a").setType(t1)
+    val b = Variable("b").setType(t2)
+    val fv = Type.freshTypeVar
+    val f = UnInterpretedFct("f", Some(Function(List(fv), Int)), List(fv))
+    val form = Eq(Application(f, List(a)), Application(f, List(b)))
+    val solver = Solver(QF_UF)
+    assert( solver.test(form).get, "sat formula")
+  }
 
 }
 

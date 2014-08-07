@@ -11,16 +11,15 @@ object Printer {
   
   //TODO refactor to print Command
   
-  def asVar(str: String): String = {
+  def printable(str: String): String = {
     assert(str.length > 0)
     val noDollars = str.replace("$","_")
     if (noDollars startsWith "_") "v" + noDollars
     else noDollars
   }
-  def asVar(v: Variable): String = asVar(v.name)
 
   protected def asDecl(v: Variable): String = {
-    "(" + asVar(v) + " " + tpe(v.tpe) + ")"
+    "(" + printable(v.name) + " " + tpe(v.tpe) + ")"
   }
   
   protected def printQuantifier(q: String, vars: Iterable[Variable], f: Formula)(implicit writer: BufferedWriter) {
@@ -34,12 +33,13 @@ object Printer {
   protected def printFormula(f: Formula)(implicit writer: BufferedWriter): Unit = f match {
     case Exists(vars, f2) => printQuantifier("exists", vars, f2)
     case ForAll(vars, f2) => printQuantifier("forall", vars, f2)
-    case v @ Variable(_) => writer.write(asVar(v))
+    case Variable(v) => writer.write(printable(v))
     case Literal(l: Int) => if (l >= 0) writer.write(l.toString) else writer.write("(- " + (-l).toString + ")")
     case Literal(l) => writer.write(l.toString)
-    case Application(fct, args) => 
+    case app @ Application(fct, args) => 
+      val params = FormulaUtils.typeParams(app)
       writer.write("(")
-      writer.write(symbol(fct))
+      writer.write(printable(overloadedSymbol(fct, params)))
       for (a <- args) {
         writer.write(" ")
         printFormula(a)
@@ -60,14 +60,14 @@ object Printer {
 
     case DeclareSort(id, arity) =>
       writer.write("(declare-sort ")
-      writer.write(id)
+      writer.write(printable(id))
       writer.write(" ")
       writer.write(arity.toString)
       writer.write(")")
 
     case DeclareFun(id, sig) =>
       writer.write("(declare-fun ")
-      writer.write(id)
+      writer.write(printable(id))
       writer.write(" ")
       writer.write(typeDecl(sig))
       writer.write(")")
