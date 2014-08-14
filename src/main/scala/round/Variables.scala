@@ -1,7 +1,5 @@
 package round
 
-import Algorithm._
-
 trait Variables[IO] {
   self: Algorithm[IO] =>
 

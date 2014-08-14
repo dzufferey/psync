@@ -1,7 +1,6 @@
 package round.predicate
 
 import round._
-import Algorithm._
 import round.runtime._
 import round.utils.Timer
 
@@ -76,7 +75,7 @@ class ToPredicateFineGrained(
   }
 
   override protected def normalReceive(pkt: DatagramPacket) {
-    val id = grp.inetToId(pkt.sender)
+    val id = grp.inetToId(pkt.sender).id
     //protect from duplicate packet
     if (!from2(id).getAndSet(true)) {
       val r = _received2.getAndIncrement()

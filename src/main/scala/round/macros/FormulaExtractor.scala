@@ -8,13 +8,33 @@ trait FormulaExtractor {
   self: Impl =>
   import c.universe._
 
-  def isTuple(t: Symbol) = {
-    showRaw(t) startsWith "scala.Tuple" //TODO
-  }
   
   object IsTuple {
     def unapply(t: Type): Option[List[Type]] = t match {
-      case TypeRef(_, tRef, args) if isTuple(tRef) => Some(args)
+      case TypeRef(_, tRef, args) if showRaw(tRef) startsWith "scala.Tuple" => Some(args)
+      case _ => None
+    }
+  }
+
+  object IsSet {
+    def unapply(t: Type): Option[Type] = t match {
+      case TypeRef(_, tRef, List(arg)) =>
+        val sr = showRaw(tRef)
+        if (sr.startsWith("scala.collection.immutable.Set") || 
+            sr == "TypeName(\"Set\")") {
+          Some(arg)
+        } else {
+          None
+        }
+      case _ => None
+    }
+  }
+
+  object IsOption {
+    def unapply(t: Type): Option[Type] = t match {
+      case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "scala.Option" => Some(arg)
+      case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "scala.Some" => Some(arg)
+      case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "scala.None" => Some(arg)
       case _ => None
     }
   }
@@ -33,18 +53,20 @@ trait FormulaExtractor {
     } else {
       t match {
         case IsTuple(args) => Product(args map extractType)
-        case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "scala.Option" =>
-          FOption(extractType(arg))
-        case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "TypeName(\"Set\")" =>
-          FSet(extractType(arg))
+        case IsSet(arg) => FSet(extractType(arg))
+        case IsOption(arg) =>  FOption(extractType(arg))
         case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "TypeName(\"LocalVariable\")" =>
           round.formula.Function(List(round.verification.Utils.procType), (extractType(arg)))
         case TypeRef(_, TypeName("ProcessID"), List()) =>
           round.verification.Utils.procType
         case other =>
-          //TODO
-          //println("extractType:\n  " + other + "\n  " + showRaw(other))
-          Wildcard
+          if (other.toString == "round.ProcessID") {
+            round.verification.Utils.procType
+          } else {
+            //TODO
+            //println("extractType:\n  " + other + "\n  " + showRaw(other))
+            Wildcard
+          }
       }
     }
   }
@@ -81,11 +103,11 @@ trait FormulaExtractor {
 
   def makeBinding(b: BindingType, domain: Tree, params: List[ValDef], body: Tree): Binding = {
     assert(params.length == 1)
-    val x = params.head
-    val t = extractType(x.tpe)
-    val n = Variable(x.name.toString).setType(t)
+    val n = extractVarFromValDef(params.head)
     val f2 = tree2Formula(body)
     val d = extractDomain(domain)
+    //println("x= " + params.head + ", " + n + ", " + n.tpe)
+    //println("d= " + domain + ", " + d + ", " + d.map(_.tpe) + "\n")
     b match {
       case Exists | Comprehension =>
         Binding(b, List(n), d.map( d => And(In(n,d),f2)).getOrElse(f2))
@@ -195,9 +217,10 @@ trait FormulaExtractor {
         tree2Formula(expr)
       case q"$pkg.this.broadcast($expr)" =>
         val payload = tree2Formula(expr)
-        val msg = Variable(Namer("__msg")).setType(Product(List(payload.tpe, round.verification.Utils.procType)))
+        val tpe = Product(List(payload.tpe, round.verification.Utils.procType))
+        val msg = Variable(Namer("__msg")).setType(tpe)
         val fst = Fst(msg)
-        Comprehension(List(msg), Eq(fst, payload))
+        Comprehension(List(msg), Eq(fst, payload)).setType(FSet(tpe))
 
       //interpreted/known symbols
       case Apply(Select(l, op), args) if knows(op) => 

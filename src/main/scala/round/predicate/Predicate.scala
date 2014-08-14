@@ -2,7 +2,6 @@ package round.predicate
 
 import round._
 import round.formula._
-import Algorithm._
 import round.runtime._
 
 import dzufferey.utils.Logger

@@ -116,7 +116,15 @@ trait ProcessRewrite {
       })
       val transformer = new InsideProcess(idMap)
       //
-      val f = collectInit(body)
+      val _f = collectInit(body)
+      val f = Typer(_f) match {
+        case Typer.TypingSuccess(f) =>
+          f
+        case Typer.TypingFailure(r) =>
+          c.abort(body.head.pos, "unable to type formula corresponding to initial state: " + r)
+        case Typer.TypingError(r) =>
+          c.abort(body.head.pos, "formula typer failed on formula corresponding to initial state: " + r)
+      }
       val init = q"val initState: round.formula.Formula = $f"
       val v1 = globalList(vars).map(_liftF)
       val v2 = localList(vars).map(_liftF)

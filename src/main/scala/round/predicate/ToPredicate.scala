@@ -1,7 +1,6 @@
 package round.predicate
 
 import round._
-import Algorithm._
 import round.runtime._
 import round.utils.Timer
 
@@ -110,7 +109,7 @@ class ToPredicate(
 
   
   protected def normalReceive(pkt: DatagramPacket) {
-    val id = grp.inetToId(pkt.sender)
+    val id = grp.inetToId(pkt.sender).id
     //protect from duplicate packet
     if (!from(id)) {
       from(id) = true

@@ -39,15 +39,19 @@ object Typer {
     def apply(substitution: Map[TypeVariable, Type]) = {
       SingleCstr(t1 alpha substitution, t2 alpha substitution)
     }
-    def normalize = this
+    def normalize = if (t1 == t2) TrivialCstr else this
   }
   case class ConjCstr(lst: List[TypeConstraints]) extends TypeConstraints {
     def apply(substitution: Map[TypeVariable, Type]) = {
       ConjCstr(lst map (_(substitution)))
     }
     def normalize = {
-      val nonTrivial = lst.map(_.normalize).filter(_ != TrivialCstr)
-      nonTrivial match {
+      val nonTrivial1 = lst.map(_.normalize).filter(_ != TrivialCstr)
+      val nonTrivial2 = nonTrivial1.flatMap( t => t match {
+        case ConjCstr(lst) => lst
+        case other => List(other)
+      })
+      nonTrivial2 match {
         case Nil => TrivialCstr
         case x :: Nil => x
         case other => ConjCstr(other)
@@ -81,6 +85,7 @@ object Typer {
       //(3) unifies type equations
       val eqs2 = eqs.normalize
       //Console.println("equations extracted: " + eqs)
+      //val solution = solveConstraintsPIDhack(eqs2)
       val solution = solveConstraints(eqs2)
       //Console.println("able to solve equations: " + solution.isDefined)
       //(4) uses the type info to resolve the overloading and replace the types
@@ -183,9 +188,9 @@ object Typer {
                 (TypingSuccess(a2), cstr)
 
               case Tuple => (TypingSuccess(a2), ConjCstr(argsCstr))
-              case Fst   => tpleProj(a2, argsCstr, returnT, argsTypes, 1)
-              case Snd   => tpleProj(a2, argsCstr, returnT, argsTypes, 2)
-              case Trd   => tpleProj(a2, argsCstr, returnT, argsTypes, 3)
+              case Fst   => tpleProj(a2, argsCstr, returnT, argsTypes, 0)
+              case Snd   => tpleProj(a2, argsCstr, returnT, argsTypes, 1)
+              case Trd   => tpleProj(a2, argsCstr, returnT, argsTypes, 2)
 
               case other =>
                 if (argsType.length != argsTypes.length) {
@@ -241,11 +246,58 @@ object Typer {
     //  lst.flatMap( solveConstraints(_).toList )
   }
 
+  //TODO this is an hack to fix the Int vs ProcessID confusion
+//private val pid = round.verification.Utils.procType
+//private def keepPid(map: Map[TypeVariable, Type]) = map.filter{ case (_, t) => t != Int }
+//def solveConstraintsPIDhack(eqs: TypeConstraints): Option[Map[TypeVariable, Type]] = {
+//  def process(eqs: TypeConstraints): Option[Map[TypeVariable, Type]] = eqs match {
+//    case TrivialCstr => Some(Map.empty[TypeVariable, Type])
+//    case SingleCstr(t1, t2) =>
+//      val s = unify(t1, t2).map(keepPid)
+//      //println("loop2a: " + eqs)
+//      //println("loop2b: " + s)
+//      s
+//    case ConjCstr(lst) =>
+//      val init: Option[Map[TypeVariable, Type]] = Some(Map.empty[TypeVariable, Type])
+//      (init /: lst)( (acc, cstr) => acc.flatMap( subst => {
+//        //println("loop1a: " + subst)
+//        //println("loop1b: " + cstr)
+//        val cstr2 = cstr(subst)
+//        //println("loop1c: " + cstr2)
+//        val res = solveConstraintsPIDhack(cstr2).map( subst2 => mergeSubst(subst, subst2) )
+//        //println("loop1d: " + res)
+//        res
+//      }))
+//  }
+//  def loop(eqs: TypeConstraints, acc: Map[TypeVariable, Type]): Option[Map[TypeVariable, Type]] = {
+//    process(eqs) match {
+//      case Some(sub) =>
+//        if (sub.isEmpty) {
+//          val sub2 = solveConstraints(eqs).head
+//          Some(mergeSubst(acc, sub2))
+//        } else {
+//          val sub2 = mergeSubst(sub, acc)
+//          loop(eqs(sub2), sub2)
+//        }
+//      case None => None
+//    }
+//  }
+//  loop(eqs, Map.empty)
+//  //case DisjCstr(lst) => 
+//  //  lst.flatMap( solveConstraints(_).toList )
+//}
+
+
   def unify(t1: Type, t2: Type): Option[Map[TypeVariable, Type]] = (t1,t2) match {
+    //TODO ProcessID hack
+    //case (Int, `pid`) | (`pid`, Int) =>
+    //  Some(Map.empty[TypeVariable, Type])
     case (Bool, Bool) | (Int, Int) | (Wildcard, _) | (_, Wildcard) =>
       Some(Map.empty[TypeVariable, Type])
     case (v1 @ TypeVariable(n1), v2 @ TypeVariable(n2)) =>
-      Some(if (n1 == n2) Map.empty[TypeVariable, Type] else Map(v1 -> v2))
+      if (n1 == n2) Some(Map.empty[TypeVariable, Type])
+      else if (n1 < n2) Some(Map(v1 -> v2))
+      else Some(Map(v2 -> v1))
     case (v1 @ TypeVariable(_), otherType) =>
       if (otherType.freeParameters contains v1) None
       else Some(Map(v1 -> otherType))
@@ -254,6 +306,10 @@ object Typer {
       Some(Map(v1 -> otherType))
     case (UnInterpreted(i1), UnInterpreted(i2)) =>
       if (i1 == i2) Some(Map.empty[TypeVariable, Type])
+      else None
+    case (Product(lst1), Product(lst2)) =>
+      if (lst1.size == lst2.size)
+        solveConstraints(ConjCstr((lst1 zip lst2).map{ case (t1,t2) => SingleCstr(t1,t2)})).headOption
       else None
     case (FOption(s1), FOption(s2)) =>
       unify(s1, s2)

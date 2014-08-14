@@ -1,7 +1,6 @@
 package round.runtime
 
 import round._
-import Algorithm._
 import round.predicate._
 import io.netty.buffer.ByteBuf
 import dzufferey.utils.LogLevel._
@@ -58,7 +57,7 @@ class RunTime[IO](val alg: Algorithm[IO]) {
     options = param1 ++ additionalOpt
 
     //create the group
-    val me = options("id").toShort
+    val me = new ProcessID(options("id").toShort)
     val grp = Group(me, peers)
 
     //start the server

@@ -1,6 +1,6 @@
 package round.runtime
 
-import round.Algorithm._
+import round._
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
@@ -27,7 +27,7 @@ class Group(val self: ProcessID, val replicas: Array[Replica]) {
     catch { case _: Exception => None }
   }
   
-  def get(id: ProcessID): Replica = replicas(id)
+  def get(pid: ProcessID): Replica = replicas(pid.id)
 
   def get(address: InetSocketAddress): Replica = {
     val ip = address.getAddress.getHostAddress
@@ -41,8 +41,8 @@ class Group(val self: ProcessID, val replicas: Array[Replica]) {
     }
   }
 
-  def idToInet(processId: ProcessID): InetSocketAddress = {
-    replicas(processId).getNetAddress
+  def idToInet(pid: ProcessID): InetSocketAddress = {
+    replicas(pid.id).getNetAddress
   }
 
   def inetToId(address: InetSocketAddress): ProcessID = get(address).id
@@ -55,10 +55,10 @@ object Group {
 
   //rename the replica so that the Ids start at 0 and do not have gaps
   def renameReplica(lst: List[Replica]): (List[Replica], Map[ProcessID, ProcessID]) = {
-    val sorted = lst.sortWith( (a, b) => a.id < b.id ).zipWithIndex
-    val idMap = sorted.foldLeft(Map.empty[ProcessID,ProcessID])( (acc, p) => acc + (p._1.id -> p._2.toShort))
+    val sorted = lst.sortWith( (a, b) => a.id.id < b.id.id ).zipWithIndex
+    val idMap = sorted.foldLeft(Map.empty[ProcessID,ProcessID])( (acc, p) => acc + (p._1.id -> new ProcessID(p._2.toShort)))
     val renamed = sorted.map{ case (r, id) =>
-        if (r.id != id.toShort) Replica(idMap(r.id), r.address, r.port) else r }
+        if (r.id.id != id.toShort) Replica(idMap(r.id), r.address, r.port) else r }
     (renamed, idMap)
   }
 

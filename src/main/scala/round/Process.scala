@@ -1,7 +1,5 @@
 package round
 
-import Algorithm._
-
 abstract class Process(val id: ProcessID) {
 
   val rounds: Array[Round]

@@ -5,6 +5,8 @@ import round.formula._
 object Utils {
 
   val procType = UnInterpreted("ProcessID")
+  //TODO a method to fix the ProcessID vs Int problem ...
+
   val procI = Variable("i").setType(procType)
   val procJ = Variable("j").setType(procType)
 

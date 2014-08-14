@@ -1,7 +1,6 @@
 package example
 
 import round._
-import round.Algorithm._
 import round.macros.Macros._
 
 class OTR3 extends Algorithm[ConsensusIO] {

@@ -1,6 +1,6 @@
 package round.runtime
 
-import round.Algorithm._
+import round._
 
 import io.netty.channel.socket.DatagramPacket
 import java.net.InetSocketAddress

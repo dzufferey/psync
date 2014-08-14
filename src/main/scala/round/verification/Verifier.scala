@@ -15,7 +15,7 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
   //TODO make sure the specs are well-formed
   val spec = alg.spec 
 
-  val process = alg.process(0, dummyIO)
+  val process = alg.process(new ProcessID(0), dummyIO)
   var procInitState: Formula = process.initState
   var procLocalVars: Set[Variable] = process.localVariables.toSet
   var procGhostVars: Set[Variable] = process.ghostVariables.toSet

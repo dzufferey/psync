@@ -1,11 +1,12 @@
 package round.runtime
 
 import scala.xml._
+import round._
 
 object Config {
 
   private def parseReplica(e: Node) = {
-    Replica((e \ "id").text.toShort,
+    Replica(new ProcessID((e \ "id").text.toShort),
             (e \ "address").text,
             (e \ "port").text.toInt)
   }

@@ -1,7 +1,6 @@
 package example
 
 import round._
-import round.Algorithm._
 import round.runtime.Group
 import round.macros.Macros._
 import io.netty.buffer.ByteBuf

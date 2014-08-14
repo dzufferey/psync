@@ -1,10 +1,7 @@
 package round
 
-object Algorithm {
-  type ProcessID = Short
-}
-
-import Algorithm._
+//use a value class to keep ProcessID separated from short/int in the typechecker
+class ProcessID(val id: Short) extends AnyVal
 
 //IO is a type parameter to communicate the initial value, parameter, and callbacks
 //the use of mixing composition forces elements (like variables) to be used only with the algorithm

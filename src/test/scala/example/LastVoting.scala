@@ -1,7 +1,6 @@
 package example
 
 import round._
-import round.Algorithm._
 import round.macros.Macros._
 
 class LastVoting extends Algorithm[ConsensusIO] {
@@ -21,7 +20,7 @@ class LastVoting extends Algorithm[ConsensusIO] {
 
   //FIXME once the macro issue is sorted out ...
   //rotating coordinator
-  def coord(p: ProcessID, phi: Int): ProcessID = (phi % n).toShort
+  def coord(p: ProcessID, phi: Int): ProcessID = new ProcessID((phi % n).toShort)
 
   val spec = new Spec {
       val safetyPredicate = f(true)
@@ -72,9 +71,7 @@ class LastVoting extends Algorithm[ConsensusIO] {
 
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //rotating coordinator
-        def coord(p: ProcessID, phi: Int): ProcessID = {
-          (phi % n).toShort
-        }
+        def coord(p: ProcessID, phi: Int): ProcessID = new ProcessID((phi % n).toShort)
 
         def send(): Set[((Int, Int), ProcessID)] = {
           Set((x: Int, ts: Int) -> coord(id, r / 4))
@@ -99,9 +96,7 @@ class LastVoting extends Algorithm[ConsensusIO] {
 
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //rotating coordinator
-        def coord(p: ProcessID, phi: Int): ProcessID = {
-          (phi % n).toShort
-        }
+        def coord(p: ProcessID, phi: Int): ProcessID = new ProcessID((phi % n).toShort)
 
         def send(): Set[(Int, ProcessID)] = {
           if (id == coord(id, r/4) && commit) {
@@ -130,9 +125,7 @@ class LastVoting extends Algorithm[ConsensusIO] {
 
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //rotating coordinator
-        def coord(p: ProcessID, phi: Int): ProcessID = {
-          (phi % n).toShort
-        }
+        def coord(p: ProcessID, phi: Int): ProcessID = new ProcessID((phi % n).toShort)
 
         def send(): Set[(Boolean, ProcessID)] = {
           if ( ts == (r/4) ) {
@@ -158,9 +151,7 @@ class LastVoting extends Algorithm[ConsensusIO] {
 
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //rotating coordinator
-        def coord(p: ProcessID, phi: Int): ProcessID = {
-          (phi % n).toShort
-        }
+        def coord(p: ProcessID, phi: Int): ProcessID = new ProcessID((phi % n).toShort)
 
         def send(): Set[(Int, ProcessID)] = {
           if (id == coord(id, r/4) && ready) {

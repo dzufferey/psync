@@ -189,7 +189,17 @@ trait TrExtractor {
     collector.vds
   }
 
-  
+  protected def tryType(f: Formula, t: Tree, err: String): Formula = {
+    Typer(f) match {
+      case Typer.TypingSuccess(f) =>
+        f
+      case Typer.TypingFailure(r) =>
+        c.abort(t.pos, err +": " + r)
+      case Typer.TypingError(r) =>
+        c.abort(t.pos, err +": " + r)
+    }
+  }
+
   protected def auxiliaryFunction(d: DefDef): AuxiliaryMethod = {
     if (d.vparamss.length > 1) {
       c.abort(c.enclosingPosition, "auxiliaryFunction, currying not yet supported: " + d.name)
@@ -200,9 +210,11 @@ trait TrExtractor {
     val tpe = round.formula.Function(params.map(_.tpe), extractType(d.tpt.tpe))
     val tParams: List[TypeVariable] = d.tparams.map(extractTypeVar)
 
-    val (body2, pre) = getPreCondition(d.rhs).getOrElse((d.rhs, True()))
-    val (body3, vRet, post) = getPostCondition(body2).getOrElse(body2, Variable(Namer("__return")).setType(tpe), True())
+    val (body2, _pre) = getPreCondition(d.rhs).getOrElse((d.rhs, True()))
+    val (body3, vRet, _post) = getPostCondition(body2).getOrElse(body2, Variable(Namer("__return")).setType(tpe), True())
     val body = None //TODO Option[TransitionRelation],
+    val pre = tryType(_pre, d.rhs, "unable to type precondition of " + d.name)
+    val post = tryType(_post, body2, "unable to type postcondition of " + d.name)
     new AuxiliaryMethod(name, params, tpe, tParams, pre, body, (vRet, post))
   }
 
@@ -210,10 +222,13 @@ trait TrExtractor {
     val mailboxValDef = update.vparamss.head.head
     val mailboxIdent = Ident(TermName(mailboxValDef.name + "Snd")) //TODO type ?
     val (ssaSend, subst) = ssa(send.rhs)
-    val cstr1 = makeConstraints(ssaSend, Some(mailboxIdent), Some(mailboxIdent))
+    val _cstr1 = makeConstraints(ssaSend, Some(mailboxIdent), Some(mailboxIdent))
 
     val (ssaUpdt, subst2) = ssa(update.rhs, subst)
-    val cstr2 = makeConstraints(ssaUpdt, None, None)
+    val _cstr2 = makeConstraints(ssaUpdt, None, None)
+
+    val cstr1 = tryType(_cstr1, send, "unable to type formula corresponding to send method")
+    val cstr2 = tryType(_cstr2, update, "unable to type formula corresponding to update method")
 
     def getVar(t: Tree): Variable = tree2Formula(t) match {
       case v @ Variable(_) => v
