@@ -115,7 +115,7 @@ object Typer {
       if (v.tpe == Wildcard) {
         val newTpe = symbolToType.getOrElse(v.name, Type.freshTypeVar)
         symbolToType += (v.name -> newTpe)
-        //Console.println("fresh type for " + v + " " + v.symbol + " -> " + newTpe)
+        //Console.println("fresh type for " + v + " -> " + newTpe)
         (TypingSuccess(v setType newTpe), TrivialCstr)
       } else {
         val oldTpe = symbolToType.getOrElse(v.name, v.tpe)
@@ -214,8 +214,10 @@ object Typer {
               case ForAll | Exists => Bool
               case Comprehension =>
                 val varsT = vars3.map(_.tpe)
-                if (varsT.length == 1) varsT.head
-                else Product(varsT)
+                val innerType =
+                  if (varsT.length == 1) varsT.head
+                  else Product(varsT)
+                FSet(innerType)
             }
             val inCstr = SingleCstr(tpe.get.tpe, Bool)
             val tp = TypingSuccess(Binding(b, vars3, tpe.get) setType bTpe)
