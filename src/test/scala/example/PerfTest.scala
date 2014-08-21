@@ -24,7 +24,7 @@ object PerfTest extends Options {
   newOption("-lv", Unit( () => lv = true), "use the last voting instead of the OTR")
   
   var rate = new Semaphore(10)
-  newOption("-rt", Int( i => rate = new Semaphore(i)), "use the last voting instead of the OTR")
+  newOption("-rt", Int( i => rate = new Semaphore(i)), "fix the rate (how many instance in parallel)")
 
   var rd = new Random()
   newOption("-r", Int( i => rd = new Random(i)), "random number generator seed")

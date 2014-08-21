@@ -59,9 +59,10 @@ abstract class Predicate(
   def received: Int
   def resetReceived: Unit
 
-  //register in the channel
+  //register in the channel and send the first set of messages
   def start {
     dispatcher.add(instance, this)
+    send
   }
 
   //things to do when changing round (overridden in sub classes)
@@ -72,10 +73,10 @@ abstract class Predicate(
   protected def deliver {
     Logger("Predicate", Debug, "delivering for round " + currentRound + " (received = " + received + ")")
     val toDeliver = messages.slice(0, received)
-    clear
-    currentRound += 1
-    //push to the layer above
     val msgs = fromPkts(toDeliver)
+    currentRound += 1
+    clear
+    //push to the layer above
     try {
       //actual delivery
       proc.update(msgs.toSet)

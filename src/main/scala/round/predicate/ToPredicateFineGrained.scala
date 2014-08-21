@@ -51,6 +51,16 @@ class ToPredicateFineGrained(
       }
     }
   }
+  
+  override def start {
+    dispatcher.add(instance, this)
+    lock2.writeLock.lock
+    try {
+      send
+    } finally {
+      lock2.writeLock.unlock
+    }
+  }
 
   override protected def clear {
     super.clear

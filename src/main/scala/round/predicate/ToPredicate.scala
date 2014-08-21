@@ -82,6 +82,14 @@ class ToPredicate(
   }
   protected var timeout: Timeout = Timer.newTimeout(tt, defaultTO)
 
+  override def start {
+    lock.lock()
+    try {
+      super.start
+    } finally {
+      lock.unlock()
+    }
+  }
 
   override def stop {
     active = false
@@ -109,6 +117,7 @@ class ToPredicate(
 
   
   protected def normalReceive(pkt: DatagramPacket) {
+    assert(lock.isHeldByCurrentThread, "lock.isHeldByCurrentThread")
     val id = grp.inetToId(pkt.sender).id
     //protect from duplicate packet
     if (!from(id)) {

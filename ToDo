@@ -107,32 +107,13 @@ Exception in thread "main" java.lang.IndexOutOfBoundsException: readerIndex: 20 
     at example.PerfTest.main(PerfTest.scala)
 ```
 
+graceful shutdown:
 ```
-java.lang.NullPointerException
-    at round.predicate.Predicate$$anonfun$2.apply(Predicate.scala:147)
-    at round.predicate.Predicate$$anonfun$2.apply(Predicate.scala:146)
-    at scala.collection.TraversableLike$$anonfun$map$1.apply(TraversableLike.scala:245)
-    at scala.collection.TraversableLike$$anonfun$map$1.apply(TraversableLike.scala:245)
-    at scala.collection.IndexedSeqOptimized$class.foreach(IndexedSeqOptimized.scala:33)
-    at scala.collection.mutable.WrappedArray.foreach(WrappedArray.scala:35)
-    at scala.collection.TraversableLike$class.map(TraversableLike.scala:245)
-    at scala.collection.AbstractTraversable.map(Traversable.scala:104)
-    at round.predicate.Predicate.fromPkts(Predicate.scala:146)
-    at round.predicate.Predicate.deliver(Predicate.scala:79)
-    at round.predicate.ToPredicate.receive(ToPredicate.scala:137)
-    at round.predicate.Predicate.messageReceived(Predicate.scala:128)
-    at round.runtime.InstanceDispatcher.channelRead0(InstanceDispatcher.scala:92)
-    at round.runtime.InstanceDispatcher.channelRead0(InstanceDispatcher.scala:14)
-    at io.netty.channel.SimpleChannelInboundHandler.channelRead(SimpleChannelInboundHandler.java:105)
-    at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:333)
-    at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:319)
-    at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:787)
-    at io.netty.channel.nio.AbstractNioMessageChannel$NioMessageUnsafe.read(AbstractNioMessageChannel.java:92)
-    at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:511)
-    at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:468)
-    at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:382)
-    at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:354)
-    at io.netty.util.concurrent.SingleThreadEventExecutor$2.run(SingleThreadEventExecutor.java:116)
-    at io.netty.util.concurrent.DefaultThreadFactory$DefaultRunnableDecorator.run(DefaultThreadFactory.java:137)
-    at java.lang.Thread.run(Thread.java:744)
+Exception in thread "main" java.lang.NullPointerException
+    at round.predicate.Predicate$$anonfun$send$2.apply(Predicate.scala:117)
+    at round.predicate.Predicate$$anonfun$send$2.apply(Predicate.scala:113)
+    at scala.collection.mutable.ResizableArray$class.foreach(ResizableArray.scala:59)
+    at scala.collection.mutable.ArrayBuffer.foreach(ArrayBuffer.scala:48)
+    at round.predicate.Predicate.send(Predicate.scala:113)
 ```
+                   
