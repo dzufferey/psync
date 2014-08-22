@@ -47,8 +47,6 @@ class OTR3 extends Algorithm[ConsensusIO] {
       
     x <~ io.initialValue
 
-    type T = Int
-
     val rounds = Array[Round](
       rnd(new Round{
 

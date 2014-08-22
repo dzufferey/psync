@@ -62,8 +62,6 @@ class LastVoting extends Algorithm[ConsensusIO] {
     x <~ io.initialValue
     ts <~ 0
 
-    type T = Int
-
     val rounds = Array[Round](
       rnd(new Round{
 

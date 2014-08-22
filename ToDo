@@ -20,7 +20,8 @@
 - change the (de)serialization:
     * our own stuff for primitive types, pickling for the rest
     * get rid of Message.scala (generate extraction primitives in process)
-- report macro bug about accessing members of outer class inside an inner class
+- accessing members of outer class inside an inner class
+    * check if fixed in 2.11.2 (with the right untypcheck) or report macro bug about it
 - graceful stop
 
 # verification

@@ -47,8 +47,6 @@ class OTR2(afterDecision: Int = 2) extends Algorithm[ConsensusIO] {
     x <~ io.initialValue
     after <~ afterDecision
 
-    type T = Int
-
     val rounds = Array[Round](
       rnd(new Round{
 

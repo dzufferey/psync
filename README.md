@@ -1,6 +1,66 @@
 # Round
 
-a small summary explanation ...
+Fault-tolerant distributed systems play an important role in many critical applications.
+However, concurrency, uncertain message delays, and the occurrence of faults make those systems hard to design, implement, and verify.
+Round is a framework for writing and verifying high-level implementations of fault-tolerant distributed algorithms.
+Round provides communication-closed rounds as primitive, which both simplifies the implementation of the fault-tolerant systems, and makes them more amenable to automated verification.
+
+## Example
+
+Starting with an algorithm from the literature which usually looks like that [Charron-Bost, Schiper 09](http://infoscience.epfl.ch/record/159550/files/HO.pdf?version=1):
+```
+1: Initialization:
+2:      x_p := v_p   // v_p is the initial value of p
+3: Round r :
+4:   S_p :
+5:      send x_p to all processes
+6:   T_r :
+7:      if | HO (p, r) | > 2n/3 then
+8:          x_p := the smallest most often received value
+9:          if more than 2n/3 values received are equal to x then
+10:             decide( x )
+```
+
+For the cost of turning the algorithm it into a sightly different syntax, Round provide a distributed runtime and tools to automatically check the correctness of the algorithm.
+The same consensus algorithm that runs in Round looks like:
+```scala
+abstract class IO {
+  val initialValue: Int
+  def decide(value: Int): Unit
+}
+
+class OTR extends Algorithm[IO] {
+
+  val x = new LocalVariable[Int](0)
+
+  def process(id: ProcessID, io: IO) = p(new Process(id) {
+            
+    x <~ io.initialValue
+
+    val rounds = Array[Round](rnd(new Round{
+
+        type A = Int
+       
+        def send(): Set[(Int, ProcessID)] =
+          broadcast(x)
+       
+        def update(mailbox: Set[(Int, ProcessID)]) {
+          if (mailbox.size > 2*n/3) {
+            val v = minMostOftenReceived(mailbox)
+            x <~ v
+            if (mailbox.filter(msg => msg._1 == v).size > 2*n/3)
+              io.decide(v)
+        } }
+
+)})})}
+```
+
+
+## Status
+
+Round is still in early development.
+Currently it runs, but we do not have yet implemented the verification part.
+
 
 ## Compiling
 
@@ -12,6 +72,7 @@ Additionally, you will need to install the following libraries:
 * [github.com/dzufferey/ScalaArg](https://github.com/dzufferey/ScalaArg)
 * [github.com/dzufferey/report](https://github.com/dzufferey/report)
 * [github.com/dzufferey/misc-scala-utils](https://github.com/dzufferey/misc-scala-utils)
+Follow the directions in the REAME of the respective projects
 
 Then, in a console, execute:
 ```
