@@ -37,6 +37,7 @@ object Parser extends StandardTokenParsers {
     | "define-sort" ~> ident ~ paren(rep(ident)) ~ sort             ^^ { case id ~ args ~ ret => DefineSort(id, args, ret) }
     | "define-fun" ~> ident ~ paren(rep(typedVar)) ~ sort ~ term    ^^ { case id ~ vars ~ tpe ~ body => DefineFun(id, vars, tpe, body) }
     | "assert" ~> term                                              ^^ { f => Assert(f) }
+    | term                                                          ^^ { f => Assert(f) }
   )
 
   def binder: Parser[(List[Variable], Formula) => Formula] = (

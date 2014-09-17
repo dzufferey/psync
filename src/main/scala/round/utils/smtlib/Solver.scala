@@ -9,9 +9,6 @@ import scala.collection.mutable.{HashSet, Stack}
 
 class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclaration: Boolean = true) {
 
-  //TODO SMTLIB does not support overloading
-  //TODO refactor to produce Command
-
   protected var stackCounter = 0
 
   SysCmd.acquire
@@ -49,6 +46,7 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
 
   Logger("smtlib", Debug, "starting: " + (Array(cmd) ++ options).mkString(" "))
   toSolver("(set-option :print-success false)")
+  toSolver("(set-option :produce-models true)")
   toSolver("(set-logic "+th+")")
 
   //default declarations
