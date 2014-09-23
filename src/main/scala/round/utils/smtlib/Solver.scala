@@ -85,15 +85,19 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
   }
 
   protected def fromSolver: String = {
+    val acc = new StringBuilder()
     if (solverError.ready) {
-      val acc = new StringBuilder()
       while(solverError.ready) {
         acc.append(solverError.readLine)
         acc.append("\n")
       }
       Logger.logAndThrow("smtlib", Error, "solver returned:\n" + acc)
     } else {
-      val res = solverOutput.readLine
+      do {
+        acc.append(solverOutput.readLine)
+        acc.append("\n")
+      } while(solverOutput.ready)
+      val res = acc.toString.trim
       Logger("smtlib", Debug, "< " + res)
       res
     }
@@ -210,6 +214,13 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
     val res = checkSat
     pop
     res
+  }
+
+  def getModel: Option[Model] = {
+    toSolver(GetModel)
+    Parser.parseModel(fromSolver).map( cmds => {
+      Model(cmds, declaredS)
+    })
   }
 
 }

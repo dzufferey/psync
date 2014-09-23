@@ -124,5 +124,20 @@ class SolverSuite extends FunSuite {
     assert( solver.test(form).get, "sat formula")
   }
 
+  test("parsing model") {
+    val t1 = UnInterpreted("T1")
+    val t2 = UnInterpreted("T2")
+    val a = Variable("a").setType(t1)
+    val b = Variable("b").setType(t2)
+    val fv = Type.freshTypeVar
+    val f = UnInterpretedFct("f", Some(Function(List(fv), Int)), List(fv))
+    val form = Eq(Application(f, List(a)), Application(f, List(b)))
+    val solver = Solver(QF_UF)
+    solver.assert(form)
+    assert( solver.checkSat.get, "sat formula")
+    val model = solver.getModel
+    assert( model.isDefined, "could not parse model")
+  }
+
 }
 
