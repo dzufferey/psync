@@ -6,9 +6,9 @@ import dzufferey.utils.LogLevel._
 
 sealed abstract class Def
 sealed abstract class ValDef extends Def
-case class ValI(i: Long) extends ValDef
-case class ValB(b: Boolean) extends ValDef
-case class ValExt(idx: Int, tpe: Type) extends ValDef
+case class ValI(i: Long) extends ValDef { override def toString = i.toString }
+case class ValB(b: Boolean) extends ValDef { override def toString = b.toString }
+case class ValExt(idx: Int, tpe: Type) extends ValDef { override def toString = tpe+"!"+idx }
 case class FunDef(defs: List[(List[ValDef], ValDef)], default: ValDef) extends Def
 
 object Def {
@@ -56,12 +56,39 @@ class Model(domains: Map[Type, Set[ValExt]],
             interpretation: Map[Symbol, Def])
 {
 
-  def apply(s: Symbol, args: ValDef*): ValDef = {
-    sys.error("TODO")
+  def get(s: Symbol, args: ValDef*): Option[ValDef] = {
+    val aLst = args.toList
+    interpretation.get(s).map( _ match {
+      case v: ValDef => v
+      case f: FunDef => Def.eval(f, aLst)
+    })
   }
+
+  def apply(s: Symbol, args: ValDef*): ValDef = get(s, args:_*).get
   
 
-  //TODO pretty printing
+  override def toString = {
+    val buffer = new StringBuilder
+    buffer.append("model\n")
+    buffer.append("  domains:\n")
+    for ( (t, vals) <- domains ) {
+      buffer.append("    " + t + ": " + vals.mkString(", "))
+      buffer.append("\n")
+    }
+    buffer.append("  interpretation:\n")
+    for ( (f, df) <- interpretation) {
+      df match {
+        case v: ValDef =>
+          buffer.append("    " + f + " = " + v + "\n")
+        case FunDef(defs, default) =>
+          for ((args, v) <- defs) {
+          buffer.append("    " + f + args.mkString("(",", ",") = ") + v + "\n")
+          }
+          buffer.append("    " + f + "(_) = " + default + "\n")
+      }
+    }
+    buffer.toString
+  }
 
 }
 

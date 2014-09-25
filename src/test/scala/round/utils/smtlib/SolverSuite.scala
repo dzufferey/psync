@@ -137,6 +137,7 @@ class SolverSuite extends FunSuite {
     assert( solver.checkSat.get, "sat formula")
     val model = solver.getModel
     assert( model.isDefined, "could not parse model")
+    //Console.println(model.toString)
   }
 
 }
