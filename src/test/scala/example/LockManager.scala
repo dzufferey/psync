@@ -67,10 +67,12 @@ class LockManager(self: Short,
       //or race on receiving msg and the default handler (message was blocked in the pipeline)
       //our implementation should exclude the later case ...
       msgs.foreach(_.release)
+      semaphore.release
     } else { //if (expectedInstance > versionNbr+1){
       //we are late
       //start recovery ?
       msgs.foreach(_.release)
+      semaphore.release
     }
   }
 

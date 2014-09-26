@@ -20,7 +20,7 @@ object Simplify {
   }
 
 
-  //negation normal form (assumes normaled formula)
+  //negation normal form (assumes normalized formula)
   //TODO also recurse in Comprehension
   def nnf(f: Formula, neg: Boolean = false): Formula = f match {
     case Binding(ForAll, vs, f2) =>
@@ -49,6 +49,7 @@ object Simplify {
   def pnf(f: Formula) = {
     val f2 = boundVarUnique(nnf(f))
     //TODO
+    // ...
     sys.error("TODO")
   }
 

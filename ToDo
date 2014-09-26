@@ -23,6 +23,7 @@
 - accessing members of outer class inside an inner class
     * check if fixed in 2.11.2 (with the right untypcheck) or report macro bug about it
 - graceful stop
+- adaptative timeout (timeout too often → increment the bound)
 
 # verification
 
