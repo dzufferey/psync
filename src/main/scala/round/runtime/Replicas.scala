@@ -47,7 +47,46 @@ class Group(val self: ProcessID, val replicas: Array[Replica]) {
 
   def inetToId(address: InetSocketAddress): ProcessID = get(address).id
 
-  def size = replicas.size
+  def size: Int = {
+    var n = 0
+    for(i <- replicas.indices if replicas(i) != null) {
+      n += 1
+    }
+    //replicas.size
+    n
+  }
+
+  def add(r: Replica) = {
+    assert( r.id != self &&
+            replicas.forall( r2 => r2.id != r.id && (r2.address != r.address || r2.port != r.port))
+          )
+    val maxIdx = math.max(r.id.id, replicas.filter(_ != null).map(_.id.id).max)
+    val a2 = Array.ofDim[Replica](maxIdx+1)
+    for(i <- replicas.indices) {
+      a2(i) = replicas(i)
+    }
+    a2(r.id.id) = r
+    new Group(self, a2)
+  }
+
+  def remove(id: ProcessID) = {
+    assert( id != self && replicas.exists( r2 => r2.id == id ) )
+    val a2 = replicas.clone
+    a2(id.id) = null
+    new Group(self, a2)
+  }
+
+  def compact = {
+    val rs = replicas.toList.filter(_ != null)
+    Group(self, rs)
+  }
+
+  def firstAvailID: ProcessID = {
+    for(i <- replicas.indices if replicas(i) == null) {
+      return new ProcessID(i.toShort)
+    }
+    new ProcessID(replicas.size.toShort)
+  }
 
 }
 
@@ -72,20 +111,47 @@ object Group {
 //a 'mutable' wrapper around a group
 class Directory(private var g: Group) {
 
-  //TODO options to modify the group
+  private val lock = new java.util.concurrent.locks.ReentrantLock()
 
-  def self = g.self
+  @inline private def sync[A](fct: => A) = {
+    lock.lock
+    try {
+      fct
+    } finally {
+      lock.unlock
+    }
+  }
+
+  def self = sync( g.self )
 
   def group = g
 
-  def getSafe(address: InetSocketAddress) = g.getSafe(address)
+  def group_=(grp: Group) = sync{
+    g = grp
+  }
 
-  def get(id: ProcessID) = g.get(id)
+  def getSafe(address: InetSocketAddress) = sync(g.getSafe(address))
 
-  def get(address: InetSocketAddress) = g.get(address)
+  def get(id: ProcessID) = sync(g.get(id))
 
-  def idToInet(processId: ProcessID) = g.idToInet(processId)
+  def get(address: InetSocketAddress) = sync(g.get(address))
 
-  def inetToId(address: InetSocketAddress) = g.inetToId(address)
+  def idToInet(processId: ProcessID) = sync(g.idToInet(processId))
+
+  def inetToId(address: InetSocketAddress) = sync(g.inetToId(address))
+
+  def addReplica(r: Replica) = sync{
+    g = g.add(r)
+  }
+
+  def removeReplica(id: ProcessID) = sync{
+    g = g.remove(id)
+  }
+
+  def compact = sync{
+    g = g.compact
+  }
+  
+  def firstAvailID = sync( g.firstAvailID )
 
 }

@@ -43,18 +43,14 @@ class RunTime[IO](val alg: Algorithm[IO]) {
   /** Start the service that ... */
   def startService(
     defaultHandler: Message => Unit,
-    configFile: String = "conf.xml",
-    additionalOpt: Map[String, String] = Map.empty
+    peers: List[Replica],
+    options: Map[String, String]
   ) {
     if (srv.isDefined) {
       //already running
       return
     }
-
-    //parse config
-    val (peers,param1) = Config.parse(configFile)
-    options = param1 ++ additionalOpt
-
+    
     //create the group
     val me = new ProcessID(options("id").toShort)
     val grp = Group(me, peers)
@@ -65,6 +61,19 @@ class RunTime[IO](val alg: Algorithm[IO]) {
     val pktSrv = new PacketServer(port, grp, defaultHandler, options)
     srv = Some(pktSrv)
     pktSrv.start
+  }
+
+  def startService(
+    defaultHandler: Message => Unit,
+    configFile: String,
+    additionalOpt: Map[String, String]
+  ) {
+
+    //parse config
+    val (peers,param1) = Config.parse(configFile)
+    options = param1 ++ additionalOpt
+
+    startService(defaultHandler, peers, options)    
   }
 
   def shutdown {

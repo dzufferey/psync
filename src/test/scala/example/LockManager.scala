@@ -116,7 +116,7 @@ class LockManager(self: Short,
   }
 
   def start() {
-    consensus.startService(defaultHandler, confFile, Map("id" -> self.toString))
+    consensus.startService(defaultHandler(_), confFile, Map("id" -> self.toString))
     listenForClient //this never returns
   }
 

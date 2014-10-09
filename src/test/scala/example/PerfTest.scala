@@ -46,7 +46,7 @@ object PerfTest extends Options {
     val alg = if (lv) new LastVoting()
               else new OTR2()
     rt = new RunTime(alg)
-    rt.startService(defaultHandler, confFile, Map("id" -> id.toString, "timeout" -> to.toString))
+    rt.startService(defaultHandler(_), confFile, Map("id" -> id.toString, "timeout" -> to.toString))
     Thread.sleep(1000)
     begin = java.lang.System.currentTimeMillis()
     while (true) {

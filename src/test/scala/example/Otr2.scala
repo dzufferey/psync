@@ -3,6 +3,7 @@ package example
 import round._
 import round.macros.Macros._
 
+//a version of OTR that eventually terminates
 class OTR2(afterDecision: Int = 2) extends Algorithm[ConsensusIO] {
 
   import VarHelper._

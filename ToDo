@@ -30,12 +30,9 @@
 - add temporal elements to spec/formula
 - better structure of the specification: which invariant we can use to prove what property.
 - extraction of transition relation:
-    * in LockManager: confusion between Int and ProcessID (defined as alias ...)
     * ...
-- try type checking the formula
 - decision procedure
 - smtlib:
-    * parsing of model
     * dump smt files
 
 # example
@@ -43,6 +40,9 @@
 - find an application of LatticeAgreement
 - implement multi-Paxos, equalitarian paxos
 - specialize the OTR to avoid the "1st message → initial value"
+- a version of last voting that terminates
+- with dynamic group membership
+- with recovery
 
 
 # network emulation: packet loss, delay, ...

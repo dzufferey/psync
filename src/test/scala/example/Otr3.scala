@@ -3,6 +3,7 @@ package example
 import round._
 import round.macros.Macros._
 
+//like OTR but uses a boolean flag instead of an option for the decision
 class OTR3 extends Algorithm[ConsensusIO] {
 
 
