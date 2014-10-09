@@ -22,7 +22,7 @@ class Message(
   def round = tag.roundNbr
   
   def repack(grp: Group, tag: Tag = new Tag(0)): DatagramPacket = {
-    val src = grp.idToInet(senderId)
+    val src = grp.idToInet(senderId) //TODO case where is does not exist
     val dst = grp.idToInet(receiverId)
     //payload.setLong(0, tag.underlying)
     new DatagramPacket(payload, dst, src)

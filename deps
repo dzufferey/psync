@@ -1,4 +1,5 @@
-export JAVA_OPTS="-Xmx1536M -Xms256M -Xss64M"
+#export JAVA_OPTS="-Xmx1536M -Xms256M -Xss64M"
+#export JAVA_OPTS="-Xmx256M -Xms64M"
 scala_version1=2.11
 scala_version2=2.11.1
 BASEDIR=`dirname $0`

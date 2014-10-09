@@ -88,9 +88,13 @@ class InstanceDispatcher(
   //in Netty version 5.0 will be called: channelRead0 will be messageReceived
   override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
     val tag = Message.getTag(pkt.content)
-    findInstance(tag.instanceNbr) match {
-      case Some(inst) => inst.messageReceived(ctx, pkt)
-      case None => ctx.fireChannelRead(pkt)
+    if (!Flags.userDefinable(tag.flag)) {
+      findInstance(tag.instanceNbr) match {
+        case Some(inst) => inst.messageReceived(ctx, pkt)
+        case None => ctx.fireChannelRead(pkt)
+      }
+    } else {
+      ctx.fireChannelRead(pkt)
     }
   }
 

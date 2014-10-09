@@ -3,6 +3,7 @@ package round.runtime
 import round._
 import round.predicate._
 import io.netty.buffer.ByteBuf
+import io.netty.channel.socket._
 import dzufferey.utils.LogLevel._
 import dzufferey.utils.Logger
 
@@ -56,7 +57,9 @@ class RunTime[IO](val alg: Algorithm[IO]) {
     val grp = Group(me, peers)
 
     //start the server
-    val port = grp.get(me).port
+    val port = 
+      if (grp contains me) grp.get(me).port
+      else options("port").toInt
     Logger("RunTime", Info, "starting service on port " + port)
     val pktSrv = new PacketServer(port, grp, defaultHandler, options)
     srv = Some(pktSrv)
@@ -86,5 +89,28 @@ class RunTime[IO](val alg: Algorithm[IO]) {
     srv = None
   }
 
+  /** the first 8 bytes of the payload must be empty */
+  def sendMessage(dest: ProcessID, tag: Tag, payload: ByteBuf) = {
+    assert(Flags.userDefinable(tag.flag))
+    assert(srv.isDefined)
+    val grp = srv.get.directory
+    val dst = grp.idToInet(dest)
+    payload.setLong(0, tag.underlying)
+    val pkt =
+      if (grp.contains(grp.self)) {
+        val src = grp.idToInet(grp.self)
+        new DatagramPacket(payload, dst, src)
+      } else {
+        new DatagramPacket(payload, dst)
+      }
+    val channel = srv.get.channel
+    channel.write(pkt, channel.voidPromise())
+    channel.flush
+  }
+
+  def directory = {
+    assert(srv.isDefined)
+    srv.get.directory
+  }
 
 }

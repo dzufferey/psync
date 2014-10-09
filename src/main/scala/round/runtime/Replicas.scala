@@ -13,14 +13,14 @@ case class Replica(val id: ProcessID, val address: String, val port: Int) {
 
 }
 
-  //TODO communication group
-  //something that could also be modified:
-  //  crash -> removing
-  //  joining -> adding
-  
 class Group(val self: ProcessID, val replicas: Array[Replica]) {
 
-  //TODO some maps for faster access.
+  def others = replicas.filter( r => r != null && r.id != self)
+
+  def contains(pid: ProcessID) = {
+    val i = pid.id
+    i >= 0 && i < replicas.length && replicas(i) != null
+  }
 
   def getSafe(address: InetSocketAddress): Option[Replica] = {
     try Some(get(address))
@@ -123,12 +123,16 @@ class Directory(private var g: Group) {
   }
 
   def self = sync( g.self )
+  
+  def others = sync( g.others )
 
   def group = g
 
   def group_=(grp: Group) = sync{
     g = grp
   }
+  
+  def contains(pid: ProcessID) = sync(g.contains(pid))
 
   def getSafe(address: InetSocketAddress) = sync(g.getSafe(address))
 

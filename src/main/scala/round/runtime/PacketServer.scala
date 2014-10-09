@@ -13,13 +13,6 @@ import io.netty.channel.epoll._
 import io.netty.bootstrap.Bootstrap
 import java.net.InetSocketAddress
 
-//TODO we don't want to do buzy waiting, need to do that asynchonously
-//try using http://netty.io/
-//for an UDP example:
-//  https://github.com/netty/netty/tree/master/example/src/main/java/io/netty/example/qotm
-//for a TCP example:
-//  https://github.com/netty/netty/tree/master/example/src/main/java/io/netty/example/echo
-
 class PacketServer(
     port: Int,
     initGroup: Group,
@@ -92,11 +85,13 @@ class PackerServerHandler(
 
   //in Netty version 5.0 will be called: channelRead0 will be messageReceived
   override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
-    val src = dir.inetToId(pkt.sender)
+    val src =
+      try { dir.inetToId(pkt.sender) }
+      catch { case _: Exception => new ProcessID(-1) }
     val dst = dir.self //inetToId(pkt.recipient)
     val buf = pkt.content
     val msg = Message.wrapByteBuf(src, dst, buf)
-    //is the default handler drop the message it cal lead to leak
+    //if the default handler drop the message it can lead to leak
     defaultHandler(msg)
   }
 
