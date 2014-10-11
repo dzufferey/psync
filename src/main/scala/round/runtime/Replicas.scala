@@ -87,6 +87,8 @@ class Group(val self: ProcessID, val replicas: Array[Replica]) {
     }
     new ProcessID(replicas.size.toShort)
   }
+    
+  def asList = replicas.toList.filter(_ != null)
 
 }
 
@@ -157,5 +159,7 @@ class Directory(private var g: Group) {
   }
   
   def firstAvailID = sync( g.firstAvailID )
+  
+  def asList = sync( g.asList )
 
 }

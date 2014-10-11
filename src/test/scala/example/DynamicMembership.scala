@@ -2,28 +2,45 @@ package example
 
 import round._
 import round.runtime._
+import round.macros.Macros._
 import round.utils.{Timer, ByteBufAllocator}
+
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
-import dzufferey.arg._
+
 import java.net.InetSocketAddress
 import io.netty.util.{TimerTask, Timeout}
+
 import java.util.concurrent.{Semaphore, ConcurrentLinkedQueue}
+    
+import scala.pickling._
+import binary._
 
 sealed abstract class MembershipOp
-case class AddReplica(address: java.lang.String, port: scala.Int) extends MembershipOp
+case class AddReplica(address: String, port: Int) extends MembershipOp
 case class RemoveReplica(id: ProcessID) extends MembershipOp
 
 abstract class MembershipIO {
   val initialValue: Option[MembershipOp]
-  def decide(value: Option[MembershipOp]): scala.Unit
+  def decide(value: Option[MembershipOp]): Unit
 }
 
 //TODO we need a basic consensus algorithms for the MembershipOps
+class BasicConsensus extends Algorithm[MembershipIO] {
 
-//TODO synchonize properly
+  import VarHelper._
+  import SpecHelper._
 
-object DynamicMembership extends Options {
+  val spec = ???
+  
+  def process(id: ProcessID, io: MembershipIO) = ???
+  //p(new Process(id) {
+  //  val rounds = Array[Round]( ??? )
+  //})
+
+}
+
+object DynamicMembership extends dzufferey.arg.Options {
 
   final val Heartbeat = 3
   final val Recover = 4
@@ -37,7 +54,7 @@ object DynamicMembership extends Options {
   private var instanceNbr: Short = 0
 
   //the current view nbr (needed if we want to combine it with another algorithm that take care of doing actual work)
-  private var viewNbr = 0l
+  private var viewNbr = 0
   private var view: Directory = null
 
   //when is the last time we heard of some guy (ProcessID → last heart beat)
@@ -50,17 +67,17 @@ object DynamicMembership extends Options {
   val usage = "..."
   
   var address = "127.0.0.1"
-  newOption("-a", String( str => address = str), "replica address (default is 127.0.0.1)")
+  newOption("-a", dzufferey.arg.String( str => address = str), "replica address (default is 127.0.0.1)")
   var port = 8889
-  newOption("-p", Int( i => port = i), "port (default is 8889)")
+  newOption("-p", dzufferey.arg.Int( i => port = i), "port (default is 8889)")
   
-  var masterPort: Option[scala.Int] = None
-  newOption("-rp", Int( i => masterPort = Some(i)), "master port")
-  var masterAddress: Option[java.lang.String] = None
-  newOption("-ra", String( str => masterAddress = Some(str)), "master address")
+  var masterPort: Option[Int] = None
+  newOption("-rp", dzufferey.arg.Int( i => masterPort = Some(i)), "master port")
+  var masterAddress: Option[String] = None
+  newOption("-ra", dzufferey.arg.String( str => masterAddress = Some(str)), "master address")
   
-  newOption("-v", Unit(() => Logger.moreVerbose), "increase the verbosity level.")
-  newOption("-q", Unit(() => Logger.lessVerbose), "decrease the verbosity level.")
+  newOption("-v", dzufferey.arg.Unit(() => Logger.moreVerbose), "increase the verbosity level.")
+  newOption("-q", dzufferey.arg.Unit(() => Logger.lessVerbose), "decrease the verbosity level.")
 
   //////////////////////////////////
   // Dispatcher and custom logics //
@@ -105,7 +122,7 @@ object DynamicMembership extends Options {
           //the new replica gets a new ID
           val newId = view.firstAvailID //this is a deterministic operation
           view.addReplica(Replica(newId, address, port))
-          //the new replica is sent the current view of the system [this is similar to a recovery]
+          viewNbr += 1
           sendRecoveryInfo(newId)
      
         case Some(RemoveReplica(id)) =>
@@ -116,6 +133,7 @@ object DynamicMembership extends Options {
           Logger("DynamicMembership", Notice, "removing replica " + id)
           view.removeReplica(id)
           view.compact //this is a deterministic operation
+          viewNbr += 1
      
         case None =>
           Logger("DynamicMembership", Warning, "consensus did not converge to a decision")
@@ -166,26 +184,44 @@ object DynamicMembership extends Options {
     }
   }
 
-  def sendRecoveryInfo(dest: ProcessID) {
-    Logger("DynamicMembership", Notice, "sending recovery info to " + dest)
-    ???
-  }
-
   def onRecoverMessage(msg: Message) {
     Logger("DynamicMembership", Notice, "recover message from " + msg.senderId)
-    //if part of the group but just late, then send the current view
-    //if not part of the group, propose to add him
-    ???
+    val (host, port) = msg.getContent[(java.lang.String,scala.Int)]
+    val address = new InetSocketAddress(host, port)
+    view.getSafe(address) match {
+      case Some(replica) => sendRecoveryInfo(replica.id)
+      case None =>
+        //if not part of the group, propose to add him
+        startNextConsensus(None, Some(AddReplica(host, port)))
+    }
+  }
+
+  def sendRecoveryInfo(dest: ProcessID) {
+    Logger("DynamicMembership", Notice, "sending recovery info to " + dest)
+    val tag = Tag(0,0,View,0)
+    val payload = ByteBufAllocator.buffer(2048)
+    payload.writeLong(8)
+    val content = (viewNbr, dest.id, view.asList)
+    val array = content.pickle.value
+    payload.writeBytes(array)
+    rt.sendMessage(dest, tag, payload)
   }
 
   def onViewMessage(msg: Message) {
     Logger("DynamicMembership", Notice, "view message")
-    ???
+    val (v,id,replicas) = msg.getContent[(scala.Int,scala.Short,List[Replica])]
+    val group = Group(new ProcessID(id), replicas)
+    //TODO sync ?
+    viewNbr = v
+    view.group = group
   }
 
   def startRecovery(dest: ProcessID) {
     val tag = Tag(0,0,Recover,0)
-    val payload = ??? //TODO put its own address:port
+    val payload = ByteBufAllocator.buffer(256)
+    payload.writeLong(8)
+    val array = (address -> port).pickle.value
+    payload.writeBytes(array)
     rt.sendMessage(dest, tag, payload)
   }
 
@@ -241,7 +277,7 @@ object DynamicMembership extends Options {
   // setup //
   ///////////
 
-  private val rt = new RunTime[MembershipIO](???) 
+  private val rt = new round.runtime.RunTime[MembershipIO](new BasicConsensus)
 
   def setup() {
     val isMaster = masterPort.isDefined || masterAddress.isDefined
@@ -270,7 +306,7 @@ object DynamicMembership extends Options {
     setup()
 
     //clean-up on ctrl-c
-    Runtime.getRuntime().addShutdownHook(
+    java.lang.Runtime.getRuntime().addShutdownHook(
       new Thread() {
         override def run() {
           heartbeatTO.cancel
