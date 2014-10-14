@@ -9,6 +9,9 @@
   * so we can use macros for the testing and debugging in the main project
   * smtlib as its own project
 - integrate recovery
+- find a way to get a generic consensus algorithm:
+  currently we have problem with anonym class (new Process ...)
+  "Parameter type in structural refinement may not refer to an abstract type defined outside that refinement"
 
 
 # implementation

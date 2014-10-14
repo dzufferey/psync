@@ -40,13 +40,23 @@ class ToPredicate(
   private val lock = new ReentrantLock
 
   //dealing with the timeout ?
-  protected val defaultTO = {
+  protected var defaultTO = {
     try {
       options.getOrElse("timeout", "200").toInt
     } catch {
       case e: Exception =>
         Logger("Predicate", Warning, "timeout unspecified or wrong format, using 200")
         200 //milliseconds
+    }
+  }
+  
+  protected val adaptative = {
+    try {
+      options.getOrElse("adaptative", "false").toBoolean
+    } catch {
+      case e: Exception =>
+        Logger("Predicate", Warning, "adaptative has wrong format, reverting to false.")
+        false
     }
   }
 
@@ -58,22 +68,35 @@ class ToPredicate(
   @volatile
   protected var changed = false
 
+  protected var didTimeOut = 0
+
   protected val tt = new TimerTask {
     def run(to: Timeout) {
       if (active) {
         if (changed) {
           changed = false
+          didTimeOut -= 1
         } else {
           lock.lock()
           try {
             if (!changed) {
               Logger("ToPredicate", Debug, "delivering because of timeout")
+              didTimeOut += 1
               deliver
             } else {
+              didTimeOut -= 1
               changed = false
             }
           } finally {
             lock.unlock()
+          }
+        }
+        if (adaptative) {
+          //TODO something amortized to avoid oscillations
+          if (didTimeOut > 5) {
+            defaultTO += 10
+          } else if (didTimeOut < 10) {
+            defaultTO -= 10
           }
         }
         timeout = Timer.newTimeout(this, defaultTO)

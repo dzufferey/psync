@@ -80,7 +80,7 @@ class InstanceDispatcher(
     }
   }
 
-  private def findInstance(inst: Int): Option[Predicate] = {
+  def findInstance(inst: Int): Option[Predicate] = {
     val i = index(inst)
     instances(i).find( p => p._1 == inst).map(_._2)
   }

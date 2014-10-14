@@ -57,6 +57,10 @@ class Tag(val underlying: Long) extends AnyVal {
     new Tag(u | c)
   }
 
+  override def toString = {
+    "Tag("+ flag +","+ code +","+ instanceNbr +","+ roundNbr +")"
+  }
+
 }
 
 object Tag {

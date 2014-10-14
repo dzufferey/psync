@@ -36,7 +36,7 @@ class Group(val self: ProcessID, val replicas: Array[Replica]) {
       replicas.find( r => r.address == ip && r.port == port).get
     } catch {
       case e: Exception =>
-        Logger("Replica", Error, "could not find replica " + ip + ":" + port)
+        Logger("Replica", Warning, "could not find replica " + ip + ":" + port)
         throw e
     }
   }
@@ -90,6 +90,10 @@ class Group(val self: ProcessID, val replicas: Array[Replica]) {
     
   def asList = replicas.toList.filter(_ != null)
 
+  override def toString = {
+    "group (self = " + self.id + ")\n  " + asList.mkString("\n  ")
+  }
+
 }
 
 object Group {
@@ -105,7 +109,7 @@ object Group {
 
   def apply(self: ProcessID, lst: List[Replica]): Group = {
     val (lst2, map) = renameReplica(lst)
-    new Group(map(self), lst2.toArray)
+    new Group(map.getOrElse(self, self), lst2.toArray)
   }
 
 }
@@ -161,5 +165,7 @@ class Directory(private var g: Group) {
   def firstAvailID = sync( g.firstAvailID )
   
   def asList = sync( g.asList )
+
+  override def toString = g.toString
 
 }

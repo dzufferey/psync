@@ -138,6 +138,8 @@ trait FormulaExtractor {
     case q"$pkg.this.$fct" =>
       //c.echo(e.pos, "considering "+ e +" as an UnInterpretedFct " + showRaw(e))
       UnInterpretedFct(/*pkg.name.toString + "_" +*/ fct.toString)
+    case Ident(TermName(fct)) =>
+      UnInterpretedFct(fct.toString)
     case _ => sys.error("extractSymbol: " + showRaw(e))
   }
 

@@ -41,6 +41,17 @@ class RunTime[IO](val alg: Algorithm[IO]) {
     }
   }
 
+  /** Stop a running instance of the algorithm. */
+  def stopInstance(instanceId: Short) {
+    Logger("RunTime", Info, "stoping instance " + instanceId)
+    srv match {
+      case Some(s) =>
+        s.dispatcher.findInstance(instanceId).map(_.stop)
+      case None =>
+        sys.error("service not running")
+    }
+  }
+
   /** Start the service that ... */
   def startService(
     defaultHandler: Message => Unit,

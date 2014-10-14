@@ -32,20 +32,27 @@ case class AddReplica(address: String, port: Int) extends MembershipOp
 case class RemoveReplica(id: ProcessID) extends MembershipOp
 
 abstract class MembershipIO {
-  val initialValue: Option[MembershipOp]
-  def decide(value: Option[MembershipOp]): Unit
+  val initialValue: MembershipOp
+  def decide(value: MembershipOp): Unit
 }
 
-//TODO we need a basic consensus algorithms for the MembershipOps
+//this is the OTR but for MembershipOp
 class BasicConsensus extends Algorithm[MembershipIO] {
 
   import VarHelper._
   import SpecHelper._
 
-  val spec = ???
+  val x = new LocalVariable[MembershipOp](null)
+  val decision = new LocalVariable[Option[MembershipOp]](None) //TODO as ghost
+  val after = new LocalVariable[Int](1)
   
-  val x = new LocalVariable[Option[MembershipOp]](None)
-  val decision = new LocalVariable[Option[Option[MembershipOp]]](None) //TODO as ghost
+  //TODO
+  val spec = new Spec {
+    val safetyPredicate = f(true)
+    val livnessPredicate = List( )
+    val invariants = List( )
+    val properties = List( )
+  }
   
   def process(id: ProcessID, io: MembershipIO) = p(new Process(id) {
     
@@ -54,7 +61,7 @@ class BasicConsensus extends Algorithm[MembershipIO] {
     val rounds = Array[Round](
       rnd(new Round{
 
-        type A = Option[MembershipOp]
+        type A = MembershipOp
         
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros?)
         def mmor(mailbox: Set[(MembershipOp, ProcessID)]): MembershipOp = {
@@ -68,20 +75,25 @@ class BasicConsensus extends Algorithm[MembershipIO] {
           )
         }
         
-        def send(): Set[(Option[MembershipOp], ProcessID)] = {
+        def send(): Set[(MembershipOp, ProcessID)] = {
           broadcast(x) //macro for (x, All)
         }
 
-        def update(mailbox: Set[(Option[MembershipOp], ProcessID)]) {
-          val mb = mailbox.filter( p => p._1.isDefined ).map( p => (p._1.get, p._2) )
-          if (x.isEmpty || mb.size > 2*n/3) {
-            val v = mmor(mb)
-            x <~ Some(v)
-            if (mb.filter(msg => msg._1 == v).size > 2*n/3) { //TODO different majority ?
+        def update(mailbox: Set[(MembershipOp, ProcessID)]) {
+          if (mailbox.size > 2*n/3) {
+            val v = mmor(mailbox)
+            x <~ v
+            if (mailbox.filter(msg => msg._1 == v).size > 2*n/3) {
               if (decision.isEmpty) {
-                io.decide(Some(v))
+                io.decide(v)
               }
-              decision <~ Some(Some(v));
+              decision <~ Some(v);
+            }
+            //terminate after decision
+            if (decision.isDefined) {
+              after <~ after -1
+              if (after < 0)
+                terminate()
             }
           }
 
@@ -123,10 +135,10 @@ object DynamicMembership extends dzufferey.arg.Options {
   var port = 8889
   newOption("-p", dzufferey.arg.Int( i => port = i), "port (default is 8889)")
   
-  var masterPort: Option[Int] = None
-  newOption("-rp", dzufferey.arg.Int( i => masterPort = Some(i)), "master port")
   var masterAddress: Option[String] = None
-  newOption("-ra", dzufferey.arg.String( str => masterAddress = Some(str)), "master address")
+  newOption("-ma", dzufferey.arg.String( str => masterAddress = Some(str)), "master address")
+  var masterPort: Option[Int] = None
+  newOption("-mp", dzufferey.arg.Int( i => masterPort = Some(i)), "master port")
   
   newOption("-v", dzufferey.arg.Unit(() => Logger.moreVerbose), "increase the verbosity level.")
   newOption("-q", dzufferey.arg.Unit(() => Logger.lessVerbose), "decrease the verbosity level.")
@@ -142,19 +154,15 @@ object DynamicMembership extends dzufferey.arg.Options {
     if (semaphore.tryAcquire) {
       val nbrOk = nbr.isEmpty || nbr.get == instanceNbr + 1 //start because of sequence #
       val opOk = op.isDefined || !pending.isEmpty //start because of op
-      if (nbrOk || opOk) {
+      if (nbrOk && opOk) {
         instanceNbr = (instanceNbr + 1).asInstanceOf[Short]
-        val init =
-          if (op.isEmpty) {
-            val p = pending.poll
-            if (p == null) None
-            else Some(p)
-          } else op
+        val init = op.getOrElse(pending.poll)
+        assert(init != null, "cannot decide on initial value") 
         val io = new MembershipIO {
           val initialValue = init
-          def decide(value: Option[MembershipOp]) { onDecision(value) }
+          def decide(value: MembershipOp) { onDecision(value) }
         }
-        rt.startInstance(nbr.get, io, msg)
+        rt.startInstance(instanceNbr, io, msg)
       } else {
         //already started
         semaphore.release()
@@ -166,18 +174,20 @@ object DynamicMembership extends dzufferey.arg.Options {
     }
   }
   
-  def onDecision(dec: Option[MembershipOp]) {
+  def onDecision(dec: MembershipOp) {
     try {
       dec match {
-        case Some(AddReplica(address, port)) =>
+        case AddReplica(address, port) =>
           Logger("DynamicMembership", Notice, "adding replica " + address + ":" + port)
           //the new replica gets a new ID
           val newId = view.firstAvailID //this is a deterministic operation
+          lastHearOf(newId.id) = java.lang.System.currentTimeMillis()
           view.addReplica(Replica(newId, address, port))
           viewNbr += 1
           sendRecoveryInfo(newId)
+          Logger("DynamicMembership", Info, "current view (#"+viewNbr+"):" + view)
      
-        case Some(RemoveReplica(id)) =>
+        case RemoveReplica(id) =>
           val self = view.self
           if (id == self) {
             Logger.logAndThrow("DynamicMembership", Error, "We were kicked out of the view!")
@@ -185,10 +195,10 @@ object DynamicMembership extends dzufferey.arg.Options {
           Logger("DynamicMembership", Notice, "removing replica " + id)
           view.removeReplica(id)
           view.compact //this is a deterministic operation
+          initTO
           viewNbr += 1
+          Logger("DynamicMembership", Info, "current view (#"+viewNbr+"):" + view)
      
-        case None =>
-          Logger("DynamicMembership", Warning, "consensus did not converge to a decision")
       }
     } finally {
       //let other threads go
@@ -201,13 +211,17 @@ object DynamicMembership extends dzufferey.arg.Options {
 
   def defaultHandler(msg: Message) {
     val flag = msg.tag.flag
+    Logger("DynamicMembership", Debug, "defaultHandler(" + msg.tag + ")")
     if (flag == Flags.normal || flag == Flags.dummy) {
       //check version number to know whether we are in synch
       val inst = msg.tag.instanceNbr
       val expected = (instanceNbr + 1).asInstanceOf[Short]
 
       if (inst == expected) {
-        startNextConsensus(Some(expected), None, Set(msg))
+        val bytes = msg.getPayLoad
+        val i = BinaryPickle(bytes).unpickle[MembershipOp]
+        //val i = msg.getContent[MembershipOp]
+        startNextConsensus(Some(expected), Some(i), Set(msg))
 
       } else if (inst > expected) { //TODO inst/expected can loop around
         startRecovery(msg.senderId)
@@ -215,7 +229,9 @@ object DynamicMembership extends dzufferey.arg.Options {
 
       } else {
         //late or race to start instance -> discard the message
+        //TODO
         //or should we send a View message to the guy ? 
+        //or send the decision
         msg.release
       }
 
@@ -238,7 +254,7 @@ object DynamicMembership extends dzufferey.arg.Options {
 
   def onRecoverMessage(msg: Message) {
     Logger("DynamicMembership", Notice, "recover message from " + msg.senderId)
-    val (host, port) = msg.getContent[(java.lang.String,scala.Int)]
+    val (host, port) = msg.getContent[(String,Int)]
     val address = new InetSocketAddress(host, port)
     view.getSafe(address) match {
       case Some(replica) => sendRecoveryInfo(replica.id)
@@ -253,7 +269,7 @@ object DynamicMembership extends dzufferey.arg.Options {
     val tag = Tag(0,0,View,0)
     val payload = ByteBufAllocator.buffer(2048)
     payload.writeLong(8)
-    val content = (viewNbr, dest.id, view.asList)
+    val content = (viewNbr, instanceNbr, dest.id, view.asList)
     val array = content.pickle.value
     payload.writeBytes(array)
     rt.sendMessage(dest, tag, payload)
@@ -261,11 +277,16 @@ object DynamicMembership extends dzufferey.arg.Options {
 
   def onViewMessage(msg: Message) {
     Logger("DynamicMembership", Notice, "view message")
-    val (v,id,replicas) = msg.getContent[(scala.Int,scala.Short,List[Replica])]
+    val (v,inst,id,replicas) = msg.getContent[(Int,Short,Short,List[Replica])]
     val group = Group(new ProcessID(id), replicas)
-    //TODO sync ?
-    viewNbr = v
-    view.group = group
+    if (v > viewNbr) {
+      assert(inst > instanceNbr)
+      instanceNbr = inst
+      viewNbr = v
+      view.group = group
+      initTO
+      Logger("DynamicMembership", Info, "current view (#"+viewNbr+"):" + view)
+    }
   }
 
   def startRecovery(dest: ProcessID) {
@@ -281,19 +302,30 @@ object DynamicMembership extends dzufferey.arg.Options {
   // heart beat //
   ////////////////
 
+  def initTO = {
+    val t = java.lang.System.currentTimeMillis()
+    for (p <- view.others) {
+      lastHearOf(p.id.id) = t
+    }
+    if (heartbeatTO == null)
+      heartbeatTO = Timer.newTimeout(heartbeatTask, heartbeatPeriod)
+  }
+
   def onHeartBeat(msg: Message) {
     Logger("DynamicMembership", Debug, "heart beat")
     val src = msg.senderId
     if (view contains src) {
       assert(src.id < lastHearOf.size)
-      lastHearOf(src.id) = java.lang.System.currentTimeMillis() //TODO do we need sync ?
+      lastHearOf(src.id) = java.lang.System.currentTimeMillis() //do we need sync ?
     }
   }
   
-  private val crashTO = 1000
-  private val heartbeatPeriod = 100
+  private val crashTO = 5000
+  private val heartbeatPeriod = 1000
   private val heartbeatTask = new TimerTask {
     def run(to: Timeout) {
+
+      Logger("DynamicMembership", Debug, "running heartbeat task")
 
       //send msg to others
       val self = view.self
@@ -310,10 +342,11 @@ object DynamicMembership extends dzufferey.arg.Options {
         //check whether someone timed out
         val cur = java.lang.System.currentTimeMillis()
         val late = for (o <- others if o.id.id < lastHearOf.size && lastHearOf(o.id.id) + crashTO < cur) yield o.id
-        if (late.size > others.size / 2) {
-          //we are problably disconnected from the network, wait until is gets better
-        } else {
-          for (id <- late) pending.add(RemoveReplica(id))
+        if (!late.isEmpty) {
+          Logger("DynamicMembership", Debug, "heartbeat did not hear from: " + late.mkString(", "))
+          for (id <- late) {
+            pending.add(RemoveReplica(id))
+          }
           startNextConsensus(None, None)
         }
       }
@@ -322,7 +355,7 @@ object DynamicMembership extends dzufferey.arg.Options {
       heartbeatTO = Timer.newTimeout(this, heartbeatPeriod)
     }
   }
-  protected var heartbeatTO: Timeout = Timer.newTimeout(heartbeatTask, heartbeatPeriod)
+  protected var heartbeatTO: Timeout = null
 
 
   ///////////
@@ -332,20 +365,23 @@ object DynamicMembership extends dzufferey.arg.Options {
   private val rt = new round.runtime.RunTime[MembershipIO](new BasicConsensus)
 
   def setup() {
-    val isMaster = masterPort.isDefined || masterAddress.isDefined
-    assert(!isMaster || (masterPort.isDefined && masterAddress.isDefined))
+    val isMaster = masterPort.isEmpty && masterAddress.isEmpty
+    assert(isMaster || (masterPort.isDefined && masterAddress.isDefined))
     val id = if (isMaster) new ProcessID(0) else new ProcessID(-1)
     val self = Replica(id, address, port)
     val peers =
       if (isMaster) {
-        List(Replica(new ProcessID(0), masterAddress.get, masterPort.get))
-      } else {
-        //we are the master
         List(self)
+      } else {
+        List(Replica(new ProcessID(0), masterAddress.get, masterPort.get))
       }
     rt.startService(defaultHandler(_), peers, Map("id" -> id.id.toString, "port" -> port.toString))
     view = rt.directory
-    if (!isMaster) {
+    if (isMaster) {
+      Logger("DynamicMembership", Info, "Starting as master")
+      initTO
+    } else {
+      Logger("DynamicMembership", Info, "Connecting to master")
       startRecovery(new ProcessID(0))
     }
   }
@@ -361,7 +397,8 @@ object DynamicMembership extends dzufferey.arg.Options {
     java.lang.Runtime.getRuntime().addShutdownHook(
       new Thread() {
         override def run() {
-          heartbeatTO.cancel
+          if (heartbeatTO != null)
+            heartbeatTO.cancel
           if (rt != null)
             rt.shutdown
         }
