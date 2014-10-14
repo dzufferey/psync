@@ -83,39 +83,3 @@ java.lang.RuntimeException: cannot run more than one instance with the same ID: 
 ```
 SEVERE: LEAK: ByteBuf.release() was not called before it's garbage-collected. Enable advanced leak reporting to find out where the leak occurred. To enable advanced leak reporting, specify the JVM option '-Dio.netty.leakDetectionLevel=advanced' or call ResourceLeakDetector.setLevel()
 ```
-
-```
-Exception in thread "main" java.lang.IndexOutOfBoundsException: readerIndex: 20 (expected: 0 <= readerIndex <= writerIndex(12))
-    at io.netty.buffer.AbstractByteBuf.readerIndex(AbstractByteBuf.java:73)
-    at example.OTR2$$anon$1$$anon$2.deserialize(Otr2.scala:54)
-    at example.OTR2$$anon$1$$anon$2.deserialize(Otr2.scala:54)
-    at round.Round.round$Round$$decode$1(Round.scala:62)
-    at round.Round$$anonfun$1.apply(Round.scala:66)
-    at round.Round$$anonfun$1.apply(Round.scala:66)
-    at scala.collection.TraversableLike$$anonfun$map$1.apply(TraversableLike.scala:245)
-    at scala.collection.TraversableLike$$anonfun$map$1.apply(TraversableLike.scala:245)
-    at scala.collection.immutable.Set$Set4.foreach(Set.scala:179)
-    at scala.collection.TraversableLike$class.map(TraversableLike.scala:245)
-    at scala.collection.AbstractSet.scala$collection$SetLike$$super$map(Set.scala:47)
-    at scala.collection.SetLike$class.map(SetLike.scala:93)
-    at scala.collection.AbstractSet.map(Set.scala:47)
-    at round.Round.unpackUpdate(Round.scala:66)
-    at round.Process.update(Process.scala:33)
-    at round.predicate.Predicate.deliver(Predicate.scala:82)
-    at round.predicate.ToPredicate.afterSend(ToPredicate.scala:107)
-    at round.predicate.Predicate.send(Predicate.scala:122)
-    at round.runtime.RunTime.startInstance(RunTime.scala:34)
-    at example.PerfTest$.main(PerfTest.scala:65)
-    at example.PerfTest.main(PerfTest.scala)
-```
-
-graceful shutdown:
-```
-Exception in thread "main" java.lang.NullPointerException
-    at round.predicate.Predicate$$anonfun$send$2.apply(Predicate.scala:117)
-    at round.predicate.Predicate$$anonfun$send$2.apply(Predicate.scala:113)
-    at scala.collection.mutable.ResizableArray$class.foreach(ResizableArray.scala:59)
-    at scala.collection.mutable.ArrayBuffer.foreach(ArrayBuffer.scala:48)
-    at round.predicate.Predicate.send(Predicate.scala:113)
-```
-                   

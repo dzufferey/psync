@@ -55,9 +55,10 @@ class OTR extends Algorithm[ConsensusIO] {
 
         type A = Int
 
-        //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
+        //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros ??)
         //min most often received
         def mmor(mailbox: Set[(Int, ProcessID)]): Int = {
+          //TODO requires that mailbox is not empty
           val byValue = mailbox.groupBy(_._1)
           val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong << 32) + v }
           //a cleaner way of selectin the element is:

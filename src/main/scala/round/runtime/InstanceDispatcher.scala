@@ -85,6 +85,13 @@ class InstanceDispatcher(
     instances(i).find( p => p._1 == inst).map(_._2)
   }
 
+  /** remove all the instances from the dispatch table */
+  def clear {
+    for ( i <- 0 until n ) {
+      instances(i) = Nil
+    }
+  }
+
   //in Netty version 5.0 will be called: channelRead0 will be messageReceived
   override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
     val tag = Message.getTag(pkt.content)

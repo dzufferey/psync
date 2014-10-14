@@ -48,13 +48,14 @@ class PacketServer(
   val dispatcher = new InstanceDispatcher
 
   def close {
+    dispatcher.clear
     try {
+      group.shutdownGracefully
+    } finally {
       if (chan != null) {
         chan.close
         chan = null
       }
-    } finally {
-      group.shutdownGracefully
     }
   }
 

@@ -84,6 +84,7 @@ trait FormulaExtractor {
     case AppliedTypeTree(Ident(TypeName("Set")), List(tpe)) => FSet(extractType(tpe))
     case Ident(TypeName("ProcessID")) => round.verification.Utils.procType
     case Select(Ident(pkg), TypeName(tn)) => UnInterpreted(pkg.toString + "." + tn)
+    case Ident(TypeName(tn)) => UnInterpreted(tn)
     case _ => sys.error("TODO extractType from Tree: " + showRaw(t))
   }
   

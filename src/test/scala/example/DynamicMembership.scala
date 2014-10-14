@@ -15,8 +15,19 @@ import java.util.concurrent.{Semaphore, ConcurrentLinkedQueue}
     
 import scala.pickling._
 import binary._
+          
+import scala.math.Ordered._
 
-sealed abstract class MembershipOp
+sealed abstract class MembershipOp extends Ordered[MembershipOp] {
+  def compare(that: MembershipOp) = {
+    (this, that) match {
+      case (AddReplica(a1,p1), AddReplica(a2,p2)) => (a1 -> p1) compare (a2 -> p2)
+      case (AddReplica(a1,p1), RemoveReplica(i2)) => -1
+      case (RemoveReplica(i1), AddReplica(a2,p2)) => 1
+      case (RemoveReplica(i1), RemoveReplica(i2)) => i1.id compare i2.id
+    }
+  }
+}
 case class AddReplica(address: String, port: Int) extends MembershipOp
 case class RemoveReplica(id: ProcessID) extends MembershipOp
 
@@ -33,10 +44,51 @@ class BasicConsensus extends Algorithm[MembershipIO] {
 
   val spec = ???
   
-  def process(id: ProcessID, io: MembershipIO) = ???
-  //p(new Process(id) {
-  //  val rounds = Array[Round]( ??? )
-  //})
+  val x = new LocalVariable[Option[MembershipOp]](None)
+  val decision = new LocalVariable[Option[Option[MembershipOp]]](None) //TODO as ghost
+  
+  def process(id: ProcessID, io: MembershipIO) = p(new Process(id) {
+    
+    x <~ io.initialValue
+
+    val rounds = Array[Round](
+      rnd(new Round{
+
+        type A = Option[MembershipOp]
+        
+        //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros?)
+        def mmor(mailbox: Set[(MembershipOp, ProcessID)]): MembershipOp = {
+          //TODO requires not empty
+          val byValue = mailbox.groupBy(_._1)
+          val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong, v) }
+          m._1
+        } ensuring { v1 =>
+          mailbox.map(_._1).forall( v2 =>
+            mailbox.filter(_._1 == v1).size > mailbox.filter(_._1 == v2).size || v1 <= v2
+          )
+        }
+        
+        def send(): Set[(Option[MembershipOp], ProcessID)] = {
+          broadcast(x) //macro for (x, All)
+        }
+
+        def update(mailbox: Set[(Option[MembershipOp], ProcessID)]) {
+          val mb = mailbox.filter( p => p._1.isDefined ).map( p => (p._1.get, p._2) )
+          if (x.isEmpty || mb.size > 2*n/3) {
+            val v = mmor(mb)
+            x <~ Some(v)
+            if (mb.filter(msg => msg._1 == v).size > 2*n/3) { //TODO different majority ?
+              if (decision.isEmpty) {
+                io.decide(Some(v))
+              }
+              decision <~ Some(Some(v));
+            }
+          }
+
+        }
+      })
+    )
+  })
 
 }
 
