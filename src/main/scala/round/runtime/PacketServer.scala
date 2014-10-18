@@ -86,12 +86,7 @@ class PackerServerHandler(
 
   //in Netty version 5.0 will be called: channelRead0 will be messageReceived
   override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
-    val src =
-      try { dir.inetToId(pkt.sender) }
-      catch { case _: Exception => new ProcessID(-1) }
-    val dst = dir.self //inetToId(pkt.recipient)
-    val buf = pkt.content
-    val msg = Message.wrapByteBuf(src, dst, buf)
+    val msg = new Message(pkt, dir.group)
     //if the default handler drop the message it can lead to leak
     defaultHandler(msg)
   }

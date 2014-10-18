@@ -7,11 +7,10 @@
 - split the sources into multiple parts/sub-projects
   * cleaner separation between the runtime and the declarations
   * so we can use macros for the testing and debugging in the main project
-  * smtlib as its own project
-- integrate recovery
 - find a way to get a generic consensus algorithm:
   currently we have problem with anonym class (new Process ...)
   "Parameter type in structural refinement may not refer to an abstract type defined outside that refinement"
+- can we squeeze pre/post conditions into annotations and get that into the method signature ??
 
 
 # implementation
@@ -25,8 +24,6 @@
     * get rid of Message.scala (generate extraction primitives in process)
 - accessing members of outer class inside an inner class
     * check if fixed in 2.11.2 (with the right untypcheck) or report macro bug about it
-- graceful stop
-- adaptative timeout (timeout too often → increment the bound)
 
 # verification
 

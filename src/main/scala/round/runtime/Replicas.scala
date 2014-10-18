@@ -6,7 +6,7 @@ import dzufferey.utils.LogLevel._
 
 import java.net.InetSocketAddress
 
-case class Replica(val id: ProcessID, val address: String, val port: Int) {
+case class Replica(id: ProcessID, address: String, port: Int) {
 
   lazy val netAddress = new InetSocketAddress(address, port)
   def getNetAddress = netAddress

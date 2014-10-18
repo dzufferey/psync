@@ -33,8 +33,7 @@ class RunTime[IO](val alg: Algorithm[IO]) {
         predicate.start
         //msg that are already received
         for(m <- messages) {
-          val pkt = m.repack(grp, Tag(instanceId, 1))
-          predicate.receive(pkt)
+          predicate.receive(m.packet)
         }
       case None =>
         sys.error("service not running")

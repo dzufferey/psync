@@ -31,7 +31,7 @@ abstract class Predicate(
 
   //what do predicates implement ?
 
-  //general receive (not sure if it is the currect round).
+  //general receive (not sure if it is the correct round).
   //vanilla implementation looks like:
   //  val round = Message.getTag(pkt.content).roundNbr
   //  if (round >= currentRound) {

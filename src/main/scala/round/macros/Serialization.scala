@@ -32,7 +32,6 @@ trait Serialization {
       }"""
     )
 
-  //TODO we first need to get rid of Message.scala
   def primitiveIO(tpt: Tree, write: List[Tree], read: List[Tree]) = List(
       q"""protected def serialize(payload: $tpt, out: _root_.io.netty.buffer.ByteBuf, offset: Int = 8) = {
         if (offset > 0) out.writerIndex(out.writerIndex() + offset)
@@ -44,14 +43,16 @@ trait Serialization {
       }"""
   )
 
-  //TODO char, float, double
   def primitiveType(t: Type) = {
     import definitions._
     t =:= BooleanTpe ||
     t =:= ByteTpe ||
+    t =:= CharTpe ||
     t =:= ShortTpe ||
     t =:= IntTpe ||
-    t =:= LongTpe
+    t =:= LongTpe ||
+    t =:= FloatTpe ||
+    t =:= DoubleTpe
   }
 
   def primitiveRead(t: Type): Tree = {
@@ -60,12 +61,18 @@ trait Serialization {
       q"in.readBoolean()"
     } else if (t =:= ByteTpe) {
       q"in.readByte()"
+    } else if (t =:= CharTpe) {
+      q"in.readChar()"
     } else if (t =:= ShortTpe) {
       q"in.readShort()"
     } else if (t =:= IntTpe) {
       q"in.readInt()"
     } else if (t =:= LongTpe) {
       q"in.readLong()"
+    } else if (t =:= FloatTpe) {
+      q"in.readFloat()"
+    } else if (t =:= DoubleTpe) {
+      q"in.readDouble()"
     } else {
       sys.error("not primitive")
     }
@@ -77,12 +84,18 @@ trait Serialization {
       q"out.writeBoolean($value)"
     } else if (t =:= ByteTpe) {
       q"out.writeByte($value)"
+    } else if (t =:= CharTpe) {
+      q"out.writeChar($value)"
     } else if (t =:= ShortTpe) {
       q"out.writeShort($value)"
     } else if (t =:= IntTpe) {
       q"out.writeInt($value)"
     } else if (t =:= LongTpe) {
       q"out.writeLong($value)"
+    } else if (t =:= FloatTpe) {
+      q"out.writeFloat($value)"
+    } else if (t =:= DoubleTpe) {
+      q"out.writeDouble($value)"
     } else {
       sys.error("not primitive")
     }

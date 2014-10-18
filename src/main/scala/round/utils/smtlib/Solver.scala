@@ -7,7 +7,11 @@ import scala.sys.process._
 import java.io._
 import scala.collection.mutable.{HashSet, Stack}
 
-class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclaration: Boolean = true) {
+class Solver( th: Theory,
+              cmd: String,
+              options: Iterable[String],
+              implicitDeclaration: Boolean,
+              dumpToFile: Option[String]) {
 
   protected var stackCounter = 0
 
@@ -26,6 +30,8 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
   }
   protected val solverOutput = new BufferedReader(new InputStreamReader(solver.getInputStream()))
   protected val solverError = new BufferedReader(new InputStreamReader(solver.getErrorStream()))
+
+  protected val fileDump = dumpToFile.map( file => new BufferedWriter(new FileWriter(file)) )
 
   //////////////////
   // Declarations //
@@ -75,6 +81,10 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
     solverInput.write(cmd)
     solverInput.newLine
     solverInput.flush
+    for (f <- fileDump) {
+      f.write(cmd)
+      f.newLine
+    }
   }
   
   protected def toSolver(cmd: Command) {
@@ -82,6 +92,10 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
     Printer(solverInput, cmd)
     solverInput.newLine
     solverInput.flush
+    for (f <- fileDump) {
+      Printer(f, cmd)
+      f.newLine
+    }
   }
 
   protected def fromSolver: String = {
@@ -110,6 +124,7 @@ class Solver(th: Theory, cmd: String, options: Iterable[String], implicitDeclara
       solverInput.close
       solverOutput.close
       solverError.close
+      for (f <- fileDump) f.close
     } finally {
       if (!released) {
         SysCmd.release
@@ -235,8 +250,12 @@ object Solver {
   var solver = "z3"
   var solverArg = Array("-smt2", "-in")
 
-  def apply(th: Theory, implicitDeclaration: Boolean = true) = {
-    new Solver(th, solver, solverArg, implicitDeclaration)
+  def apply(th: Theory) = {
+    new Solver(th, solver, solverArg, true, None)
+  }
+  
+  def apply(th: Theory, file: String) = {
+    new Solver(th, solver, solverArg, true, Some(file))
   }
 
 }

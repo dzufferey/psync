@@ -12,22 +12,17 @@ import binary._
 
 //TODO simplify to be just a ByteBufHolder ?
 
-class Message(
-    val payload: ByteBuf,
-    val senderId: ProcessID,
-    val receiverId: ProcessID,
-    val tag: Tag) {
+class Message(val packet: DatagramPacket, dir: Group){
+
+  def payload: ByteBuf = packet.content
+  def senderId: ProcessID = dir.self
+  lazy val receiverId: ProcessID =  try { dir.inetToId(packet.sender) }
+                                    catch { case _: Exception => new ProcessID(-1) }
+  lazy val tag: Tag = new Tag(payload.getLong(0))
 
   def instance = tag.instanceNbr
   def round = tag.roundNbr
   
-  def repack(grp: Group, tag: Tag = new Tag(0)): DatagramPacket = {
-    val src = grp.idToInet(senderId) //TODO case where is does not exist
-    val dst = grp.idToInet(receiverId)
-    //payload.setLong(0, tag.underlying)
-    new DatagramPacket(payload, dst, src)
-  }
-
   def getContent[A: SPickler: Unpickler: FastTypeTag]: A = {
     val bytes = getPayLoad
     val converted = BinaryPickle(bytes).unpickle[A]
@@ -61,17 +56,6 @@ object Message {
   
   def getTag(buffer: ByteBuf): Tag = {
     new Tag(buffer.getLong(0))
-  }
-
-  def wrapByteBuf(
-        sender: ProcessID,
-        receiver: ProcessID,
-        buffer: ByteBuf
-      ): Message = {
-    val tag = new Tag(buffer.getLong(0))
-     //val length = buffer.readInt()
-    //val payload = buffer.slice(buffer.readerIndex, length)
-    new Message(buffer/*payload*/, sender, receiver, tag)
   }
 
 

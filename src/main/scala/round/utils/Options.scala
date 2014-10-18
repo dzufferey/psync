@@ -26,7 +26,10 @@ object Options extends Options {
   //var maxChildren = -1
   //newOption("--maxChildren", Arg.Int ( i => maxChildren = i), "limit the number of children that can be spawned at the same time (default: no limit).")
  
+  var dumpVcs = false
+
   newOption("--smtSolver", String(str => smtlib.Solver.setCmd(str.split(" "))), "The smt sovler (+ options) to use (default: \"z3 -smt2 -in\").")
+  newOption("--dumpVcs", Unit( () => dumpVcs = true ), "dump the SMT queries into files.")
  
   val usage = "..."
 

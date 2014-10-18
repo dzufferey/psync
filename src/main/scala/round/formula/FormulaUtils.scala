@@ -124,5 +124,24 @@ object FormulaUtils {
     sym
   }
 
+  def collectGroundTerms(f: Formula): Set[Formula] = {
+    def collect(f: Formula, bound: Set[Variable]): (Set[Formula], Boolean) = f match {
+      case Binding(_, vs, f) => (collect(f, bound ++ vs)._1, false)
+      case a @ Application(fct, args) =>
+        val (acc, ground) = args.foldLeft( (Set[Formula](),true))( (acc,f) => {
+          val (x,y) = collect(f, bound)
+          (acc._1 ++ x, acc._2 && y)
+        })
+        if (ground && a.tpe != Bool) (acc + a, true)
+        else (acc, false)
+      case l @ Literal(_) =>
+        (Set(l), true)
+      case v @ Variable(_) =>
+        if (bound(v)) (Set(), false)
+        else (Set(v), true)
+    }
+    collect(f, Set())._1
+  }
+
 }
 

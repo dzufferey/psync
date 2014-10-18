@@ -4,20 +4,33 @@ import Utils._
 
 import dzufferey.report._
 import round.formula._
+import round.logic._
+import round.utils.smtlib._
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
+import dzufferey.utils.Namer
 
 class VC(description: String, hypothesis: Formula, transition: Formula, conclusion: Formula) {
 
   protected var solved = false
   protected var status: Either[Boolean, String] = Left(false)
 
+  protected lazy val fName = {
+    Namer(description.replaceAll(" ", "_")) + ".smt"
+  }
+
   def solve {
     try {
-      //TODO matching quantifier!
-      val satQuery = And(And(hypothesis, transition), Not(conclusion))
-      Logger("VC", Warning, "TODO: solve!!")
-      status = Right("TODO")
+      Logger("VC", Info, "solving: " + description)
+      val reduced = CL.entailment(And(hypothesis, transition), conclusion)
+      val solver = if (round.utils.Options.dumpVcs) Solver(UFLIA, fName)
+                   else Solver(UFLIA)
+      solver.test(reduced) match {
+        case Some(b) =>
+          status = Left(b)
+        case None =>
+          status = Right("could not solve " + reduced)
+      }
       solved = true
     } catch { case e: Exception =>
       status = Right("Exception: " + e.getMessage + "\n" + e.getStackTrace)
