@@ -10,6 +10,8 @@
 - find a way to get a generic consensus algorithm:
   currently we have problem with anonym class (new Process ...)
   "Parameter type in structural refinement may not refer to an abstract type defined outside that refinement"
+  need to either find a way of processing Process differently or encapsulate instance variables differently
+  it is possible to add the type parameter when rewriting the class ?
 - can we squeeze pre/post conditions into annotations and get that into the method signature ??
 
 

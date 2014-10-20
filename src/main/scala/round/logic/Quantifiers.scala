@@ -27,7 +27,25 @@ object Quantifiers {
     ???
   }
 
-  def dropExistentialPrefix(f: Formula): Formula = {
+  def existentiallyQantified(f: Formula): Set[Variable] = {
+    def process(acc: Set[Variable], f: Formula) = f match {
+      case Exists(vs, _) => acc ++ vs
+      case _ => acc
+    }
+    FormulaUtils.collect(Set[Variable](), process, f)
+  }
+
+  def universallyQantified(f: Formula): Set[Variable] = {
+    def process(acc: Set[Variable], f: Formula) = f match {
+      case ForAll(vs, _) => acc ++ vs
+      case _ => acc
+    }
+    FormulaUtils.collect(Set[Variable](), process, f)
+  }
+  
+  protected def getQuantPrefix(f: Formula, exists: Boolean): (Formula, List[Variable]) = {
+
+    var introduced = List[Variable]()
 
     def renameVar(v: Variable, vs: Set[Variable]): Variable = {
       var v2 = v.name
@@ -35,26 +53,43 @@ object Quantifiers {
       while (taken contains v2) {
         v2 = Namer(v2)
       }
-      Copier.Variable(v, v2)
+      val vv = Copier.Variable(v, v2)
+      introduced = vv :: introduced
+      vv
+    }
+
+    def handleQuant(vs: List[Variable], f: Formula, fv: Set[Variable]): (Formula, Set[Variable]) = {
+      val subst = vs.map(v => (v -> renameVar(v, fv)) ).toMap
+      val f2 = FormulaUtils.alpha(subst, f)
+      val fv2 = fv ++ subst.values
+      process(f2, fv2)
     }
 
     def process(f: Formula, fv: Set[Variable]): (Formula, Set[Variable]) = f match {
-      case ForAll(_, _) => (f, fv)
-      case Exists(vs, f) =>
-        val subst = vs.map(v => (v -> renameVar(v, fv)) ).toMap
-        val f2 = FormulaUtils.alpha(subst, f)
-        val fv2 = fv ++ subst.values
-        process(f2, fv2)
+      case ForAll(vs, f2) =>
+        if (!exists) handleQuant(vs, f2, fv)
+        else (f, fv)
+      case Exists(vs, f2) =>
+        if (exists) handleQuant(vs, f2, fv)
+        else (f, fv)
       case a @ Application(fct, args) =>
         val (args2, fv2) = Misc.mapFold(args, fv, process)
         (Copier.Application(a, fct, args2), fv2)
       case other => (other, fv)
     }
 
-    process(f, f.freeVariables)._1
+    (process(f, f.freeVariables)._1, introduced)
   }
 
+  /** remove top level ∃, returns the new formula and the newly introduced variables */
+  def getExistentialPrefix(f: Formula): (Formula, List[Variable]) = getQuantPrefix(f, true)
 
+  /** remove top level ∀, returns the new formula and the newly introduced variables */
+  def getUniversalPrefix(f: Formula): (Formula, List[Variable]) = getQuantPrefix(f, false)
+
+
+  /** replace ∃ below ∀ by skolem functions.
+   *  assumes the bound var have unique names. */
   def skolemize(f: Formula): Formula = {
 
     def skolemify(v: Variable, bound: Set[Variable]) = {

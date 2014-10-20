@@ -67,31 +67,27 @@ object FormulaUtils {
     case other => List(other)
   }
 
-  def collectTypes(f: Formula): Set[Type] = {
-    var tpes = Set[Type]()
+  def collect[T](init: T, fct: (T, Formula) => T, f: Formula): T = {
+    var acc = init
     val traverser = new Traverser {
       override def traverse(f: Formula) = {
         super.traverse(f)
-        tpes = tpes + f.tpe 
+        acc = fct(acc, f)
       }
     }
     traverser.traverse(f)
-    tpes
+    acc
   }
 
+  def collectTypes(f: Formula): Set[Type] =
+    collect(Set[Type](), (acc: Set[Type], f: Formula) => acc + f.tpe, f)
+
   def collectSymbols(f: Formula): Set[Symbol] = {
-    var sym = Set[Symbol]()
-    val traverser = new Traverser {
-      override def traverse(f: Formula) = {
-        super.traverse(f)
-        f match {
-          case Application(s, _) => sym = sym + s
-          case _ => ()
-        }
-      }
+    def process(acc: Set[Symbol], f: Formula) = f match {
+      case Application(s, _) => acc + s
+      case _ => acc
     }
-    traverser.traverse(f)
-    sym
+    collect(Set[Symbol](), process, f)
   }
 
   def typeParams(app: Application): List[Type] = app.fct match {
@@ -110,18 +106,11 @@ object FormulaUtils {
   }
   
   def collectSymbolsWithParams(f: Formula): Set[(Symbol, List[Type])] = {
-    var sym = Set[(Symbol, List[Type])]()
-    val traverser = new Traverser {
-      override def traverse(f: Formula) = {
-        super.traverse(f)
-        f match {
-          case app @ Application(s, _) => sym = sym + (s -> typeParams(app))
-          case _ => ()
-        }
-      }
+    def process(acc: Set[(Symbol, List[Type])], f: Formula) = f match {
+      case app @ Application(s, _) => acc + (s -> typeParams(app))
+      case _ => acc
     }
-    traverser.traverse(f)
-    sym
+    collect(Set[(Symbol, List[Type])](), process, f)
   }
 
   def collectGroundTerms(f: Formula): Set[Formula] = {
