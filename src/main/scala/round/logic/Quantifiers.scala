@@ -19,6 +19,15 @@ object Quantifiers {
     }
   }
 
+  /*  Sometime we introduce constant as shorthand for set.
+   *  Negation makes them universal.
+   *  This method fix this and put the ∃ back. */
+  def fixUniquelyDefinedUniversal(f: Formula): Formula = {
+    //
+    Logger("CL", Warning, "TODO fixUniquelyDefinedUniversal!!")
+    f
+  }
+
   def isEPR(axiom: Formula): Boolean = {
     ???
   }
