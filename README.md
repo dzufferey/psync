@@ -99,3 +99,8 @@ The default configuration uses 3 replicas running on the local host.
   `./runLockManagerTest.sh -c -p 9000 -ra 127.0.0.1 -rp 8888`
   The client will then send one request each time you press the enter key.
 
+## Assembly and deployement
+
+To simplify the deployement of this project, we use the [sbt-assembly](https://github.com/sbt/sbt-assembly) plugin to produce a single jar containing all the dependencies.
+Run `sbt assembly` to produce a this jar.
+

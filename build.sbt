@@ -9,7 +9,7 @@ scalacOptions in Compile ++= Seq(
     "-deprecation",
     "-feature",
     "-language:implicitConversions",
-    "-Xmax-classfile-name", "130"//,
+    "-Xmax-classfile-name", "110"//,
 //    "-Ymacro-debug-lite"
 //    "-Xlog-implicits"
 //    "-Xlog-implicit-conversions"

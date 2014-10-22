@@ -18,3 +18,8 @@ dep8="$ivy_local/io.github.dzufferey/report_${scala_version1}/0.1-SNAPSHOT/jars/
 dep9="$ivy_local/io.github.dzufferey/misc-scala-utils_${scala_version1}/0.1-SNAPSHOT/jars/*"
 
 cp="$dep0:$dep1:$dep2:$dep3:$dep4:$dep5:$dep6:$dep7:$dep8:$dep9"
+
+#with assembly we need only the following two jars:
+#  target/scala-2.11/round-assembly-0.1-SNAPSHOT.jar
+#  target/scala-2.11/round_2.11-0.1-SNAPSHOT-tests.jar
+

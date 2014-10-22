@@ -62,10 +62,49 @@ object FormulaUtils {
     p.transform(f)
   }
 
-  def getConjunts(f: Formula): List[Formula] = f match {
-    case And(lst) => lst.flatMap(getConjunts)
+  def getConjuncts(f: Formula): List[Formula] = f match {
+    case And(lst) => lst.flatMap(getConjuncts)
     case other => List(other)
   }
+  
+  def getDisjuncts(f: Formula): List[Formula] = f match {
+    case Or(lst) => lst.flatMap(getDisjuncts)
+    case other => List(other)
+  }
+
+  def restoreQuantifierPrefix(prefix: List[(BindingType,List[Variable])], qf: Formula): Formula = {
+    prefix.foldRight(qf)( ( p, acc) => Binding(p._1, p._2, acc).setType(Bool) )
+  }
+
+  /* assumes PNF */
+  def getQuantifierPrefix(f: Formula): (List[(BindingType,List[Variable])], Formula) = f match {
+    case ForAll(vs, f2) =>
+      val (prf, f3) = getQuantifierPrefix(f2)
+      ((ForAll -> vs) :: prf, f3)
+    case Exists(vs, f2) =>
+      val (prf, f3) = getQuantifierPrefix(f2)
+      ((Exists -> vs) :: prf, f3)
+    case other =>
+      (Nil, other)
+  }
+  
+  def existentiallyBound(f: Formula): Set[Variable] = {
+    def process(acc: Set[Variable], f: Formula) = f match {
+      case Exists(vs, _) => acc ++ vs
+      case _ => acc
+    }
+    FormulaUtils.collect(Set[Variable](), process, f)
+  }
+
+  def universallyBound(f: Formula): Set[Variable] = {
+    def process(acc: Set[Variable], f: Formula) = f match {
+      case ForAll(vs, _) => acc ++ vs
+      case _ => acc
+    }
+    FormulaUtils.collect(Set[Variable](), process, f)
+  }
+  
+
 
   def collect[T](init: T, fct: (T, Formula) => T, f: Formula): T = {
     var acc = init

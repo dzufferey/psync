@@ -402,10 +402,9 @@ case object ForAll extends BindingType {
     case Binding(ForAll, v, f) => Some(v,f)
     case _ => None
   }
-  def apply(vs:List[Variable], f: Formula) = {
-    val fa = Binding(ForAll, vs, f)
-    fa.tpe = Bool
-    fa
+  def apply(vs:List[Variable], f: Formula) = f match {
+    case ForAll(vs2, f2) => Binding(ForAll, vs ::: vs2, f2)
+    case _ => if (vs.isEmpty) f else Binding(ForAll, vs, f).setType(Bool)
   }
 }
 case object Exists extends BindingType {
@@ -413,10 +412,9 @@ case object Exists extends BindingType {
     case Binding(Exists, v, f) => Some(v,f)
     case _ => None
   }
-  def apply(vs:List[Variable], f: Formula) = {
-    val ex = Binding(Exists, vs, f)
-    ex.tpe = Bool
-    ex
+  def apply(vs:List[Variable], f: Formula) = f match {
+    case Exists(vs2, f2) => Binding(Exists, vs ::: vs2, f2)
+    case _ => if (vs.isEmpty) f else Binding(Exists, vs, f).setType(Bool)
   }
 }
 

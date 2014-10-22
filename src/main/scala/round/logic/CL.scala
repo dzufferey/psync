@@ -67,7 +67,7 @@ object CL {
     val gt = FormulaUtils.collectGroundTerms(h2)
     //what can be used to instantiate the unsupported quantifiers: ext ∪ gt
 
-    val cs1 = FormulaUtils.getConjunts(c1)
+    val cs1 = FormulaUtils.getConjuncts(c1)
     val cs2 = cs1.flatMap( c => {
       val (qf, vs) = getUnsupportedQuantifierPrefix(c)
       matchQuantifiers(qf, vs, ext, gt)
@@ -78,9 +78,12 @@ object CL {
     reduce(query)
   }
   
-  def reduce(fomula: Formula): Formula = {
-    Logger("CL", Warning, "TODO reduce!!")
-    ???
+  def reduce(formula: Formula): Formula = {
+    val n1 = normalize(formula)
+    val n2 = Quantifiers.getExistentialPrefix(n1)._1
+    val conjuncts = FormulaUtils.getConjuncts(n2)
+    Logger("CL", Warning, "TODO reduce:\n  " + conjuncts.mkString("\n  "))
+    False()
   }
   
 }

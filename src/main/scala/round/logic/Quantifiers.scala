@@ -21,11 +21,46 @@ object Quantifiers {
 
   /*  Sometime we introduce constant as shorthand for set.
    *  Negation makes them universal.
-   *  This method fix this and put the ∃ back. */
-  def fixUniquelyDefinedUniversal(f: Formula): Formula = {
-    //
-    Logger("CL", Warning, "TODO fixUniquelyDefinedUniversal!!")
-    f
+   *  This method fix this and put the ∃ back.
+   *  assumes formula in PNF, looks only at the top level ∀
+   */
+  def fixUniquelyDefinedUniversal(f: Formula): Formula = f match {
+    case ForAll(vs, f) =>
+      val (swappable, rest) = vs.partition(_.tpe match {case FSet(_) => true; case _ => false})
+      Logger("CL", Debug, "fix uniquely defined universal swappable: " + swappable.mkString(", "))
+
+      //we are looking for clause like A = {x. ...} ⇒ ...
+      val (prefix, f2) = FormulaUtils.getQuantifierPrefix(f)
+      val avoid = f.boundVariables ++ vs
+      val disj = FormulaUtils.getDisjuncts(f2)
+      Logger("CL", Debug, "fix uniquely defined universal disj:\n " + disj.mkString("\n "))
+      def interesting(v: Variable, f: Formula): Boolean = {
+        //Logger("CL", Debug, "XXXX " + f.freeVariables.mkString(", "))
+        (swappable contains v) && (f.freeVariables intersect avoid).isEmpty
+      }
+      val (_defs, restf) = disj.partition( f => f match {
+        case Not(List(Eq(List(v @ Variable(_), c @ Comprehension(_,_))))) if interesting(v, c) => true
+        case Not(List(Eq(List(c @ Comprehension(_,_), v @ Variable(_))))) if interesting(v, c) => true
+        case _ => false
+      })
+      val eqs = _defs.map( f => f match {
+        case Not(List(eq)) => eq 
+        case _ => ???
+      })
+      val defs = eqs.map{
+        case Eq(List(v @ Variable(_), c @ Comprehension(_,_))) => v -> c
+        case Eq(List(c @ Comprehension(_,_), v @ Variable(_))) => v -> c
+        case _ => ???
+      }.toMap
+      Logger("CL", Debug, "fix uniquely defined universal defs: " + defs.mkString(", "))
+      val swapped = defs.keySet
+      val restf2 = restf.foldLeft(False(): Formula)(Or(_, _))
+      val withDefs = eqs.foldLeft(restf2)(And(_, _))
+      val withPrefix = FormulaUtils.restoreQuantifierPrefix(prefix, withDefs)
+      val remaining = swappable.filterNot(swapped contains _) ::: rest
+      Logger("CL", Info, "fix uniquely defined universal for: " + swapped.mkString(", "))
+      ForAll(remaining, withPrefix)
+    case other => other
   }
 
   def isEPR(axiom: Formula): Boolean = {
@@ -36,22 +71,6 @@ object Quantifiers {
     ???
   }
 
-  def existentiallyQantified(f: Formula): Set[Variable] = {
-    def process(acc: Set[Variable], f: Formula) = f match {
-      case Exists(vs, _) => acc ++ vs
-      case _ => acc
-    }
-    FormulaUtils.collect(Set[Variable](), process, f)
-  }
-
-  def universallyQantified(f: Formula): Set[Variable] = {
-    def process(acc: Set[Variable], f: Formula) = f match {
-      case ForAll(vs, _) => acc ++ vs
-      case _ => acc
-    }
-    FormulaUtils.collect(Set[Variable](), process, f)
-  }
-  
   protected def getQuantPrefix(f: Formula, exists: Boolean): (Formula, List[Variable]) = {
 
     var introduced = List[Variable]()
@@ -95,7 +114,6 @@ object Quantifiers {
 
   /** remove top level ∀, returns the new formula and the newly introduced variables */
   def getUniversalPrefix(f: Formula): (Formula, List[Variable]) = getQuantPrefix(f, false)
-
 
   /** replace ∃ below ∀ by skolem functions.
    *  assumes the bound var have unique names. */

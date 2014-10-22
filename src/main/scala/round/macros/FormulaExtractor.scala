@@ -1,7 +1,7 @@
 package round.macros
 
 import round.formula._
-import round.logic._
+import round.verification._
 import dzufferey.utils.Namer
 
 trait FormulaExtractor {

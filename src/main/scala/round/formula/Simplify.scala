@@ -96,7 +96,7 @@ object Simplify {
         (Nil, other)
     }
     val (quantifiers, qf) = pull(f2, true)
-    quantifiers.foldRight(qf)( ( p, acc) => Binding(p._1, p._2, acc).setType(Bool) )
+    FormulaUtils.restoreQuantifierPrefix(quantifiers, qf)
   }
 
   def isPnf(f: Formula): Boolean = {
@@ -155,7 +155,23 @@ object Simplify {
   }
   
   def simplifyBool(f: Formula): Formula = {
-    sys.error("TODO")
+    def fct(f: Formula) = f match {
+      case Or(lst) =>
+        val lst2 = lst.filterNot(_ == False())
+        if (lst2.exists(_ == True())) True()
+        else if (lst2.isEmpty) False()
+        else Application(Or, lst2).setType(Bool)
+      case And(lst) =>
+        val lst2 = lst.filterNot(_ == True())
+        if (lst2.exists(_ == False())) False()
+        else if (lst2.isEmpty) True()
+        else Application(And, lst2).setType(Bool)
+      case Not(List(Literal(b: Boolean))) =>
+        Literal(!b)
+      case other =>
+        other
+    }
+    FormulaUtils.map(fct, f)
   }
 
   def simplify(f: Formula): Formula = {

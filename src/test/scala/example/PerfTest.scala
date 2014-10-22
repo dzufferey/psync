@@ -6,6 +6,7 @@ import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 import dzufferey.arg._
 import java.util.concurrent.Semaphore
+import java.util.concurrent.locks.ReentrantLock
 import scala.util.Random
 
 object PerfTest extends Options {
@@ -20,6 +21,9 @@ object PerfTest extends Options {
   var confFile = "src/test/resources/sample-conf.xml"
   newOption("--conf", String(str => confFile = str ), "config file")
   
+  var logFile = ""
+  newOption("--log", String(str => logFile = str ), "log file prefix")
+
   var lv = false
   newOption("-lv", Unit( () => lv = true), "use the last voting instead of the OTR")
   
@@ -41,8 +45,15 @@ object PerfTest extends Options {
 
   def defaultHandler(msg: Message) { msg.release }
 
+  val lck = new ReentrantLock 
+  var log: java.io.BufferedWriter = null
+
   def main(args: Array[java.lang.String]) {
     apply(args)
+    if (logFile != "") {
+      val fw = new java.io.FileWriter(logFile + "_" + id + ".log");
+      log = new java.io.BufferedWriter(fw);
+    } 
     val alg = if (lv) new LastVoting()
               else new OTR2()
     rt = new RunTime(alg)
@@ -58,8 +69,16 @@ object PerfTest extends Options {
         val v = versionNbr 
         val initialValue = r
         def decide(value: scala.Int) {
-          Logger("PerfTest", Info, v.toString + "\t  decision is " + value)
           rate.release
+          if (log != null) {
+            lck.lock
+            try {
+              log.write("instance " + v.toString + "\tdecision " + value)
+              log.newLine()
+            } finally {
+              lck.unlock
+            }
+          }
         }
       }
       rt.startInstance(versionNbr.toShort, io)
@@ -73,6 +92,9 @@ object PerfTest extends Options {
         val end = java.lang.System.currentTimeMillis()
         val duration = (end - begin) / 1000
         println("#instances = " + versionNbr + ", Δt = " + duration + ", throughput = " + (versionNbr/duration))
+        if (log != null) {
+          log.close
+        }
       }
     }
   )

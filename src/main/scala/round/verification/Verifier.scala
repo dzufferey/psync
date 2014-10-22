@@ -127,7 +127,7 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
       val tr = process.rounds(i).rawTR
       val aux =  process.rounds(i).auxSpec
       val f = tr.makeFullTr(procLocalVars ++ procGhostVars, aux)
-      val fs = FormulaUtils.getConjunts(f)
+      val fs = FormulaUtils.getConjuncts(f)
       lst.add(itemForFormula("Transition Relation", fs))
       //TR variables
       lst.add(new Text("Pre Variables", tr.old.mkString(", ")))
@@ -145,7 +145,8 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
   def check: Report = {
     val vcs = generateVCs
     //solve the queries
-    vcs.par.foreach(_.par.foreach(_.solve))
+    //vcs.par.foreach(_.par.foreach(_.solve))
+    vcs.foreach(_.par.foreach(_.solve))
     //generate a report:
     
     val status = if (vcs.forall(_.exists(_.isValid))) " (success)" else " (failed)"
