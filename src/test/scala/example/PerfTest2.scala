@@ -27,7 +27,7 @@ class PerfTest2(id: Int,
   val lck = new ReentrantLock
 
   if (log != null) {
-    log.write("idx\tver\tval\tinst")
+    log.write("idx\tinst\tval")
     log.newLine()
   }
 
@@ -42,6 +42,7 @@ class PerfTest2(id: Int,
   for (i <- 0 until nbrValues) {
     running(i) = new Semaphore(1)
     backOff(i) = new ConcurrentLinkedQueue[Short]()
+    versions(i) = i.toShort
   }
 
   val nbr = new AtomicLong(0l)
@@ -54,31 +55,24 @@ class PerfTest2(id: Int,
     start(idx, v, v2 != 0, Set(msg))
   }
 
-  def instForVersion(idx: Short, version: Short): Short = {
-    (version * nbrValues + idx).toShort
+  def leq(i1: Short, i2: Short) = {
+    val delta = (i2 - i1).toShort
+    assert(delta % nbrValues == 0)
+    delta >= 0
   }
+
+  def max(i1: Short, i2: Short) = if (leq(i1,i2)) i2 else i1
   
   def start(idx: Short, value: Short, self: Boolean, msg: Set[Message]) {
     if (running(idx).tryAcquire) {
-      var version = (versions(idx) + 1).toShort
-      var instanceNbr = instForVersion(idx, version)
-      //TODO in case of msg check that we have the right instance!
+      var instanceNbr = (versions(idx) + nbrValues).toShort
+      //in case of msg check that we have the right instance!
       if (!msg.isEmpty) {
         val m = msg.head
         val inst = m.instance
-        if (self || inst == instanceNbr) {
-          //version if fine we can start the instance
-        } else if ( inst > instanceNbr ||
-                    (inst < 0 && instanceNbr > 0 && instanceNbr + _rate * nbrValues >= inst)
-                  ) {
-          //we are late
-          var i = 0
-          do {
-            assert(i <= _rate)
-            instanceNbr = (instanceNbr + nbrValues).toShort
-            i += 1
-          } while (instanceNbr != inst)
-          version = (version + i).toShort
+        if (self || leq(instanceNbr, inst)) {
+          //take the largest of inst/instanceNbr
+          instanceNbr = max(instanceNbr, inst)
         } else {
           //that message came late, drop it
           m.release
@@ -86,21 +80,23 @@ class PerfTest2(id: Int,
           return
         }
       }
-      versions(idx) = version
+      versions(idx) = instanceNbr
       val io = new ConsensusIO {
         val initialValue = (idx << 16) | (value & 0xFFFF)
         def decide(value: scala.Int) {
           val idx = (value >>> 16).toShort
           val v = (value & 0xFFFF).toShort
+          //save result
           values(idx) = v
+          //releases resources
           running(idx).release()
-          if (self)
-            rate.release
+          if (self) rate.release
+          //log
           nbr.incrementAndGet
           if (log != null) {
             lck.lock
             try {
-              log.write(idx.toString + "\t" + version + "\t" + v + "\t" + instanceNbr)
+              log.write(idx.toString + "\t" + instanceNbr + "\t" + v)
               log.newLine()
             } finally {
               lck.unlock
@@ -108,8 +104,7 @@ class PerfTest2(id: Int,
           }
           //check for pending request
           val b = backOff(idx).poll
-          if (b != 0)
-            start(idx, b, true, Set())
+          if (b != 0) start(idx, b, true, Set())
         }
       }
       rt.startInstance(instanceNbr, io, msg)
@@ -155,7 +150,7 @@ object PerfTest2 extends dzufferey.arg.Options {
   newOption("-n", dzufferey.arg.Int( i => n = i), "number of different values that we can modify")
 
   var rate = 10
-  newOption("-rt", dzufferey.arg.Int( i => rate = i), "fix the rate (#instance in parallel)")
+  newOption("-rt", dzufferey.arg.Int( i => rate = i), "fix the rate (#queries in parallel)")
 
   var rd = new Random()
   newOption("-r", dzufferey.arg.Int( i => rd = new Random(i)), "random number generator seed")
@@ -177,12 +172,14 @@ object PerfTest2 extends dzufferey.arg.Options {
     //let the system setup before starting
     Thread.sleep(1000)
     begin = java.lang.System.currentTimeMillis()
+
+    //makes queries ...
     while (true) {
-      val slot = (rd.nextInt() % n).abs.toShort
-      var value = rd.nextInt().toShort
-      while (value == 0) value = rd.nextInt().toShort
+      val slot = rd.nextInt(n).toShort
+      var value = (rd.nextInt(32766) + 1).toShort
       system.propose(slot, value)
     }
+
   }
   
   Runtime.getRuntime().addShutdownHook(

@@ -151,6 +151,8 @@ class ToPredicate(
         deliver
       }
       changed = true
+    } else {
+      pkt.release
     }
   }
 
@@ -171,6 +173,7 @@ class ToPredicate(
         normalReceive(pkt)
       } else {
         //late message, drop it
+        pkt.release
       }
     } finally {
       lock.unlock()

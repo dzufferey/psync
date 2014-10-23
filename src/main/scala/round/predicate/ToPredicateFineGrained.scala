@@ -93,6 +93,8 @@ class ToPredicateFineGrained(
       if (r >= expected) {
         deliver
       }
+    } else {
+      pkt.release
     }
     changed = true
   }
@@ -113,6 +115,7 @@ class ToPredicateFineGrained(
         normalReceive(pkt)
       } else {
         //late message, drop it
+        pkt.release
       }
     } finally {
       lock2.readLock.unlock

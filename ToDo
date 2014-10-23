@@ -70,23 +70,8 @@ java.lang.ArrayIndexOutOfBoundsException: -1
     at java.lang.Thread.run(Thread.java:744)
 ```
 
-```
-Exception in thread "main"
-Exception in thread "main"
-java.lang.RuntimeException: cannot run more than one instance with the same ID: 4
-java.lang.RuntimeException: cannot run more than one instance with the same ID: 4
-    at scala.sys.package$.error(package.scala:27)   at scala.sys.package$.error(package.scala:27)
-    at round.runtime.InstanceDispatcher.add(InstanceDispatcher.scala:57)    at round.runtime.InstanceDispatcher.add(InstanceDispatcher.scala:57)
-    at round.predicate.Predicate.start(Predicate.scala:65)  at round.predicate.Predicate.start(Predicate.scala:65)
-    at round.runtime.RunTime.startInstance(RunTime.scala:32)    at round.runtime.RunTime.startInstance(RunTime.scala:32)
-    at example.PerfTest$.main(PerfTest.scala:65)    at example.PerfTest$.main(PerfTest.scala:65)
-    at example.PerfTest.main(PerfTest.scala)    at example.PerfTest.main(PerfTest.scala)
-```
-
-```
-SEVERE: LEAK: ByteBuf.release() was not called before it's garbage-collected. Enable advanced leak reporting to find out where the leak occurred. To enable advanced leak reporting, specify the JVM option '-Dio.netty.leakDetectionLevel=advanced' or call ResourceLeakDetector.setLevel()
-```
-
+there is race when stopping the runtime and the instance terminates "naturally"
+this is not bad as the thread throwing the expection is part of the group that will be shutdown.
 ```
 java.lang.RuntimeException: dispatcher.remove: instance not found
     at scala.sys.package$.error(package.scala:27)
