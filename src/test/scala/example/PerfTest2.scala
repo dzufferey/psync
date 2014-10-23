@@ -10,6 +10,8 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.ConcurrentLinkedQueue
 import scala.util.Random
 
+//TODO add recovery a la PerfTest, but make sure we always have a decision!
+  
 class PerfTest2(id: Int,
                 confFile: String,
                 nbrValues: Short,
@@ -18,7 +20,7 @@ class PerfTest2(id: Int,
                 additionalOptions: Map[String,String]
                )
 {
-  
+
   val rate = new Semaphore(_rate)
 
   val log: java.io.BufferedWriter =
@@ -112,8 +114,8 @@ class PerfTest2(id: Int,
       //if an instance is already running push if to the backoff queue if it is one of our own query
       if (self) {
         backOff(idx).add(value)
-        msg.foreach(_.release)
       }
+      msg.foreach(_.release)
     }
   }
 

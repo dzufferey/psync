@@ -2,6 +2,7 @@ package example
 
 import round._
 import round.runtime._
+import round.utils.ByteBufAllocator
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 import dzufferey.arg._
@@ -35,6 +36,9 @@ object PerfTest extends Options {
   
   var to = 50
   newOption("-to", Int( i => to = i), "timeout")
+  
+  var after = 2
+  newOption("-after", Int( i => after = i), "#round after decision")
 
   val usage = "..."
   
@@ -43,7 +47,88 @@ object PerfTest extends Options {
 
   var rt: RunTime[ConsensusIO] = null
 
-  def defaultHandler(msg: Message) { msg.release }
+  final val Decision = 3
+  final val TooLate = 4
+  
+  private val nDecisions = 1000
+  private val decisionLocks = Array.ofDim[ReentrantLock](nDecisions)
+  private val decisions = Array.ofDim[(Short, scala.Int)](nDecisions)
+  for (i <- 0 until nDecisions) decisionLocks(i) = new ReentrantLock()
+
+  private def decIdx(i: scala.Int) = {
+    val idx = i % nDecisions
+    if (idx < 0) idx + nDecisions else idx
+  }
+  private def pushDecision(inst: Short, dec: scala.Int) {
+    decisions(decIdx(inst)) = (inst -> dec)
+  }
+  private def getDec(i: Short): Option[scala.Int] = {
+    val candidate = decisions(decIdx(i))
+    if (candidate == null || candidate._1 != i) None
+    else Some(candidate._2)
+  }
+
+  def defaultHandler(msg: Message) {
+    val inst = msg.instance
+    if ((inst - versionNbr.toShort).toShort < 0) { //with wrapping
+      val l = decisionLocks(decIdx(inst))
+      l.lock
+      try {
+        val flag = msg.tag.flag
+        if (flag == Flags.normal || flag == Flags.dummy) {
+          trySendDecision(inst, msg.senderId)
+        } else if (flag == Decision) {
+          Logger("PerfTest", Info, inst + " got decision! (" + versionNbr + ")")
+          onDecision(inst, -1, msg.getInt(0))
+          rt.stopInstance(inst)
+        } else if (flag == TooLate) {
+          Logger("PerfTest", Warning, inst + " too late! (" + versionNbr + ")")
+          rt.stopInstance(inst)
+        } else {
+          sys.error("unknown or error flag: " + flag)
+        }
+      } finally {
+        l.unlock
+      }
+    }
+    msg.release
+  }
+
+  def onDecision(inst: Short, versionNbr: Long, value: scala.Int) {
+    val l = decisionLocks(decIdx(inst))
+    l.lock
+    try {
+      if (getDec(inst).isEmpty) {
+        pushDecision(inst, value)
+        rate.release
+        Logger("PerfTest", Info, "instance " + inst + "\tver" + versionNbr + "\tdecision " + value)
+        if (log != null) {
+          lck.lock
+          try {
+            log.write("instance " + inst + "\tver" + versionNbr + "\tdecision " + value)
+            log.newLine()
+          } finally {
+            lck.unlock
+          }
+        }
+      }
+    } finally {
+      l.unlock
+    }
+  }
+          
+  def trySendDecision(inst: Short, senderId: ProcessID) = {
+    val payload = ByteBufAllocator.buffer(16)
+    payload.writeLong(8)
+    val tag = getDec(inst) match {
+      case Some(d) =>
+        payload.writeInt(d)
+        Tag(inst,0,Decision,0)
+      case None =>
+        Tag(inst,0,TooLate,0)
+    }
+    rt.sendMessage(senderId, tag, payload)
+  }
 
   val lck = new ReentrantLock 
   var log: java.io.BufferedWriter = null
@@ -55,33 +140,24 @@ object PerfTest extends Options {
       log = new java.io.BufferedWriter(fw)
     } 
     val alg = if (lv) new LastVoting()
-              else new OTR2()
+              else new OTR2(after)
     rt = new RunTime(alg)
     rt.startService(defaultHandler(_), confFile, Map("id" -> id.toString, "timeout" -> to.toString))
     Thread.sleep(1000)
     begin = java.lang.System.currentTimeMillis()
     while (true) {
       rate.acquire
-      versionNbr = versionNbr + 1
+      val next = versionNbr + 1
       val r = rd.nextInt()
-      Logger("PerfTest", Info, versionNbr.toString + "\t  starting with value " + r)
+      Logger("PerfTest", Info, next.toString + "\t  starting with value " + r)
       val io = new ConsensusIO {
-        val v = versionNbr 
+        val inst = next.toShort
+        val v = next
         val initialValue = r
-        def decide(value: scala.Int) {
-          rate.release
-          if (log != null) {
-            lck.lock
-            try {
-              log.write("instance " + v.toString + "\tdecision " + value)
-              log.newLine()
-            } finally {
-              lck.unlock
-            }
-          }
-        }
+        def decide(value: scala.Int) { onDecision(inst, v, value) }
       }
-      rt.startInstance(versionNbr.toShort, io)
+      rt.startInstance(next.toShort, io)
+      versionNbr = next
     }
   }
   

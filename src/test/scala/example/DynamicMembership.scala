@@ -11,6 +11,7 @@ import dzufferey.utils.LogLevel._
 import java.net.InetSocketAddress
 import io.netty.util.{TimerTask, Timeout}
 
+import java.util.concurrent.locks.ReentrantLock
 import java.util.concurrent.{Semaphore, ConcurrentLinkedQueue}
     
 import scala.pickling._
@@ -109,6 +110,7 @@ object DynamicMembership extends dzufferey.arg.Options {
   final val Heartbeat = 3
   final val Recover = 4
   final val View = 5
+  final val Decision = 6
   
   ///////////////
   // Variables //
@@ -149,6 +151,7 @@ object DynamicMembership extends dzufferey.arg.Options {
 
   private val pending = new ConcurrentLinkedQueue[MembershipOp]()
   private val semaphore = new Semaphore(1) //at most one consensus at the time
+  private val decisionLock = new ReentrantLock
   
   private def startNextConsensus(nbr: Option[Short], op: Option[MembershipOp], msg: Set[Message] = Set.empty) = {
     if (semaphore.tryAcquire) {
@@ -159,8 +162,9 @@ object DynamicMembership extends dzufferey.arg.Options {
         val init = op.getOrElse(pending.poll)
         assert(init != null, "cannot decide on initial value") 
         val io = new MembershipIO {
+          val inst = instanceNbr
           val initialValue = init
-          def decide(value: MembershipOp) { onDecision(value) }
+          def decide(value: MembershipOp) { onDecision(inst, value) }
         }
         rt.startInstance(instanceNbr, io, msg)
       } else {
@@ -173,35 +177,53 @@ object DynamicMembership extends dzufferey.arg.Options {
       msg.foreach(_.release)
     }
   }
+
+  private val nDecisions = 10
+  private val decisions = Array.ofDim[(Short, MembershipOp)](nDecisions)
+
+  private def decIdx(i: Int) = i % nDecisions
+  private def pushDecision(inst: Short, dec: MembershipOp) {
+    decisions(decIdx(inst)) = (inst -> dec)
+  }
+  private def getDec(i: Short): Option[MembershipOp] = {
+    val candidate = decisions(decIdx(i))
+    if (candidate == null || candidate._1 != i) None
+    else Some(candidate._2)
+  }
   
-  def onDecision(dec: MembershipOp) {
+  def onDecision(inst: Short, dec: MembershipOp) {
+    decisionLock.lock
     try {
-      dec match {
-        case AddReplica(address, port) =>
-          Logger("DynamicMembership", Notice, "adding replica " + address + ":" + port)
-          //the new replica gets a new ID
-          val newId = view.firstAvailID //this is a deterministic operation
-          lastHearOf(newId.id) = java.lang.System.currentTimeMillis()
-          view.addReplica(Replica(newId, address, port))
-          viewNbr += 1
-          sendRecoveryInfo(newId)
-          Logger("DynamicMembership", Info, "current view (#"+viewNbr+"):" + view)
-     
-        case RemoveReplica(id) =>
-          val self = view.self
-          if (id == self) {
-            Logger.logAndThrow("DynamicMembership", Error, "We were kicked out of the view!")
-          }
-          Logger("DynamicMembership", Notice, "removing replica " + id)
-          view.removeReplica(id)
-          view.compact //this is a deterministic operation
-          initTO
-          viewNbr += 1
-          Logger("DynamicMembership", Info, "current view (#"+viewNbr+"):" + view)
-     
+      if (inst == instanceNbr && getDec(inst).isEmpty) { //check for race with recovery
+        pushDecision(inst, dec)
+        dec match {
+          case AddReplica(address, port) =>
+            Logger("DynamicMembership", Notice, "adding replica " + address + ":" + port)
+            //the new replica gets a new ID
+            val newId = view.firstAvailID //this is a deterministic operation
+            lastHearOf(newId.id) = java.lang.System.currentTimeMillis()
+            view.addReplica(Replica(newId, address, port))
+            viewNbr += 1
+            sendRecoveryInfo(newId)
+            Logger("DynamicMembership", Info, "current view (#"+viewNbr+"):" + view)
+      
+          case RemoveReplica(id) =>
+            val self = view.self
+            if (id == self) {
+              Logger.logAndThrow("DynamicMembership", Error, "We were kicked out of the view!")
+            }
+            Logger("DynamicMembership", Notice, "removing replica " + id)
+            view.removeReplica(id)
+            view.compact //this is a deterministic operation
+            initTO
+            viewNbr += 1
+            Logger("DynamicMembership", Info, "current view (#"+viewNbr+"):" + view)
+      
+        }
       }
     } finally {
       //let other threads go
+      decisionLock.unlock
       semaphore.release
     }
     //check if there are pending operations
@@ -229,9 +251,7 @@ object DynamicMembership extends dzufferey.arg.Options {
 
       } else {
         //late or race to start instance -> discard the message
-        //TODO
-        //or should we send a View message to the guy ? 
-        //or send the decision
+        trySendDecision(msg)
         msg.release
       }
 
@@ -245,6 +265,9 @@ object DynamicMembership extends dzufferey.arg.Options {
       msg.release
     } else if (flag == View) {
       onViewMessage(msg)
+      msg.release
+    } else if (flag == Decision) {
+      onDecisionMessage(msg)
       msg.release
     } else {
       Logger("DynamicMembership", Warning, "received an unkown message: flag = " + flag)
@@ -296,6 +319,27 @@ object DynamicMembership extends dzufferey.arg.Options {
     val array = (address -> port).pickle.value
     payload.writeBytes(array)
     rt.sendMessage(dest, tag, payload)
+  }
+
+  def onDecisionMessage(msg: Message) {
+    val inst = msg.instance
+    val dec = msg.getContent[MembershipOp]
+    onDecision(inst, dec)
+    rt.stopInstance(inst)
+  }
+
+  def trySendDecision(msg: Message) {
+    getDec(msg.instance) match {
+      case Some(d) =>
+        val tag = Tag(msg.instance,0,Decision,0)
+        val payload = ByteBufAllocator.buffer(256)
+        payload.writeLong(8)
+        val array = d.pickle.value
+        payload.writeBytes(array)
+        rt.sendMessage(msg.senderId, tag, payload)
+      case None =>
+        //otherwise the replica will have to recover by other means
+    }
   }
 
   ////////////////

@@ -40,12 +40,10 @@
 
 # example
 
-- find an application of LatticeAgreement
-- implement multi-Paxos, equalitarian paxos
-- specialize the OTR to avoid the "1st message → initial value"
 - a version of last voting that terminates
-- with dynamic group membership
 - with recovery
+- find an application of LatticeAgreement
+- specialize the OTR to avoid the "1st message → initial value"
 
 
 # network emulation: packet loss, delay, ...
@@ -53,6 +51,20 @@
 - http://www.linuxfoundation.org/collaborate/workgroups/networking/netem
 - https://gist.github.com/trongthanh/1196596
 - http://www.cs.virginia.edu/~sdb7e/os_project/assignment.html
+
+----------
+    tc qdisc add dev lo root netem delay 100ms loss 0.1%
+    tc qdisc del dev lo root netem
+----------
+    tc qdisc change dev eth0 root netem loss 0.1%
+This causes 1/10th of a percent (i.e 1 out of 1000) packets to be randomly dropped.
+    tc qdisc change dev eth0 root netem loss 0.3% 25%
+This will cause 0.3% of packets to be lost, and each successive probability depends by a quarter on the last one.
+----------
+    tc qdisc change dev eth0 root netem duplicate 1%
+    tc qdisc change dev eth0 root netem corrupt 0.1%
+    tc qdisc change dev eth0 root netem delay 10ms reorder 25% 50%
+In this example, 25% of packets (with a correlation of 50%) will get sent immediately, others will be delayed by 10ms.
 
 # bugs
 

@@ -91,6 +91,9 @@ abstract class Predicate(
   //deregister
   def stop {
     dispatcher.remove(instance)
+    val toFree = messages.slice(0, received)
+    clear
+    for (m <- toFree) m.release
     Logger("Predicate", Info, "stopping instance " + instance)
   }
 

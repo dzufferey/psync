@@ -10,8 +10,6 @@ import io.netty.buffer.ByteBuf
 import scala.pickling._
 import binary._
 
-//TODO simplify to be just a ByteBufHolder ?
-
 class Message(val packet: DatagramPacket, dir: Group){
 
   def payload: ByteBuf = packet.content

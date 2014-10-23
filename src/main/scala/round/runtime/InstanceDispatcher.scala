@@ -24,10 +24,13 @@ class InstanceDispatcher(
       7
     }
   }
-  private val shift = {
-    val res = 32 - exp
-    assert(res >= 0)
-    res
+  private val mask = {
+    var x = 0
+    for (_ <- 0 until exp) {
+      x = x << 1
+      x |= 1
+    }
+    x
   }
   private val n = {
     val res = 1 << exp // 2^exp
@@ -43,9 +46,7 @@ class InstanceDispatcher(
     instances(i) = Nil
   }
 
-  private def index(inst: Int): Int = {
-    inst << shift >>> shift
-  }
+  private def index(inst: Int): Int = inst & mask
 
   def add(inst: Int, handler: Predicate ) {
     val i = index(inst)
@@ -76,7 +77,7 @@ class InstanceDispatcher(
       l.unlock()
     }
     if (oldLst forall (_._1 != inst)) {
-      sys.error("dispatcher.remove: instance not found " + inst)
+      Logger("Predicate", Warning, "dispatcher.remove: instance not found " + inst)
     }
   }
 

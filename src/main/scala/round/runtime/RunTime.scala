@@ -42,7 +42,7 @@ class RunTime[IO](val alg: Algorithm[IO]) {
 
   /** Stop a running instance of the algorithm. */
   def stopInstance(instanceId: Short) {
-    Logger("RunTime", Info, "stoping instance " + instanceId)
+    Logger("RunTime", Info, "stopping instance " + instanceId)
     srv match {
       case Some(s) =>
         s.dispatcher.findInstance(instanceId).map(_.stop)
