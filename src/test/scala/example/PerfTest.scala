@@ -51,8 +51,8 @@ object PerfTest extends Options {
   def main(args: Array[java.lang.String]) {
     apply(args)
     if (logFile != "") {
-      val fw = new java.io.FileWriter(logFile + "_" + id + ".log");
-      log = new java.io.BufferedWriter(fw);
+      val fw = new java.io.FileWriter(logFile + "_" + id + ".log")
+      log = new java.io.BufferedWriter(fw)
     } 
     val alg = if (lv) new LastVoting()
               else new OTR2()

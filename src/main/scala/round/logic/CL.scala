@@ -77,13 +77,19 @@ object CL {
     val query = cs3.foldLeft(h2)(And(_,_))
     reduce(query)
   }
+
+  protected def collectSets(f: Formula): Set[Formula] = {
+    //look at all the terms of type FSet(procType)
+    ???
+  }
   
   def reduce(formula: Formula): Formula = {
     val n1 = normalize(formula)
     val n2 = Quantifiers.getExistentialPrefix(n1)._1
-    val conjuncts = FormulaUtils.getConjuncts(n2)
+    val rawConjuncts = FormulaUtils.getConjuncts(n2)
+    val conjuncts = rawConjuncts.map(f => Simplify.simplify(Simplify.pnf(f)))
     Logger("CL", Warning, "TODO reduce:\n  " + conjuncts.mkString("\n  "))
-    False()
+    ???
   }
   
 }

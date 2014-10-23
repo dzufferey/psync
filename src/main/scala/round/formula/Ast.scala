@@ -42,14 +42,21 @@ object True {
     case Literal(true) => Some(())
     case _ => None
   }
-  def apply(): Literal[Boolean] = Literal(true)
+  def apply(): Literal[Boolean] = Literal(true).setType(Bool)
 }
 object False {
   def unapply(f: Formula): Option[Unit] = f match {
     case Literal(false) => Some(())
     case _ => None
   }
-  def apply(): Literal[Boolean] = Literal(false)
+  def apply(): Literal[Boolean] = Literal(false).setType(Bool)
+}
+object IntLit {
+  def unapply(f: Formula): Option[scala.Int] = f match {
+    case Literal(i: scala.Int) => Some(i)
+    case _ => None
+  }
+  def apply(i: scala.Int): Literal[scala.Int] = Literal(i).setType(Int)
 }
 
 case class Variable(name: String) extends Formula {

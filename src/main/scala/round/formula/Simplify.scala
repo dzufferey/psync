@@ -43,6 +43,14 @@ object Simplify {
       assert(other.tpe == Bool)
       if (neg) Not(other) else other
   }
+
+  def cnf(f: Formula): Formula = {
+    ???
+  }
+  
+  def dnf(f: Formula): Formula = {
+    ???
+  }
   
 
   //prenex normal form
@@ -112,6 +120,11 @@ object Simplify {
     !hasQ(rmQ(f))
   }
 
+  /** try to push the quantifiers as low as possible. */
+  def reversePnf(f: Formula): Formula = {
+    ???
+  }
+
   //makes all the bound variables different
   def boundVarUnique(f: Formula): Formula = {
     def s(subst: Map[String, String], v: Variable): Variable = {
@@ -141,17 +154,130 @@ object Simplify {
             Map.empty[String, String])._1
   }
 
-  //TODO cnf/dnf
-
-  
   def simplifySet(f: Formula): Formula = {
-    sys.error("TODO")
+    //TODO
+    ???
+  }
+  
+  def lcm(m: scala.Int, n: scala.Int) = {
+    var a = m
+    var b = n
+    while (a != b) {
+      if (a < b) a += m
+      else       b += n
+    }
+    a
+  }
+  
+  def simplifyQuantifiers(f: Formula): Formula = {
+    def fct(formula: Formula) = formula match {
+      case ForAll(vs, f) =>
+        val free = f.freeVariables
+        val vs2 = vs.filter(free contains _)
+        if (vs2.isEmpty) f else ForAll(vs2, f)
+      case Exists(vs, f) =>
+        val free = f.freeVariables
+        val vs2 = vs.filter(free contains _)
+        if (vs2.isEmpty) f else Exists(vs2, f)
+      case other => other 
+    }
+    FormulaUtils.map(fct, f)
   }
   
   def simplifyInt(f: Formula): Formula = {
-    //TODO division: from 'x > 2n/3' to '3x > 2n'
-    //TODO constant folding
-    sys.error("TODO")
+    //division: from 'x > 2n/3' to '3x > 2n'
+    def getDenom(f: Formula): scala.Int = f match {
+      case Plus(lst) => lst.foldLeft(1)( (acc, f) => lcm(acc, getDenom(f)) )
+      case Minus(lst) => lst.foldLeft(1)( (acc, f) => lcm(acc, getDenom(f)) )
+      case Times(lst) => lst.foldLeft(1)( (acc, f) => acc * getDenom(f) )
+      case Divides(List(a, IntLit(i))) => i * getDenom(a)
+      case other => 1
+    }
+    def rmDenom(f: Formula, i: scala.Int): Formula = f match {
+      case Plus(lst) => Application(Plus, lst.map(rmDenom(_, i))).setType(Int)
+      case Minus(lst) => Application(Minus, lst.map(rmDenom(_, i))).setType(Int)
+      case Times(lst) => 
+        val init = (Nil: List[Formula], i)
+        val (lst2, csts) = lst.foldLeft(init)( (acc, f) => rmDenom(f, acc._2) match {
+          case Times(IntLit(i) :: xs) => (xs::: acc._1, i)
+          case other => (other :: acc._1, 1)
+        })
+        if (csts == 1) Application(Times, lst2.reverse).setType(Int)
+        else Application(Times, IntLit(csts) :: lst2.reverse).setType(Int)
+      case Divides(List(a, IntLit(i2))) =>
+        assert(i % i2 == 0, "simplifyInt: not divisible by denominator")
+        val m = i / i2
+        if (m == 1) a else Times(IntLit(m), a)
+      case other => Times(IntLit(i), other)
+    }
+    def removeDiv(lhs: Formula, rhs: Formula): (Formula, Formula) = {
+      val d = lcm(getDenom(lhs), getDenom(rhs))
+      if (d == 1 || d == 0) lhs -> rhs
+      else {
+        val l2 = rmDenom(lhs, d)
+        val r2 = rmDenom(rhs, d)
+        if (d >= 0) l2 -> r2
+        else r2 -> l2
+      }
+    }
+    def fct(f: Formula): Formula = f match {
+      case Minus(List(x, IntLit(i))) =>
+        fct(Plus(x , IntLit(-i)))
+      case Plus(lst) =>
+        val init = (Nil: List[Formula], 0)
+        val (lst2, csts) = lst.foldLeft( init )( (acc, f) => f match {
+          case Plus(l2) => (l2 ::: acc._1, acc._2)
+          case IntLit(i) => (acc._1, acc._2 + i)
+          case other => (other::acc._1, acc._2)
+        })
+        if (lst2.isEmpty) {
+          IntLit(csts)
+        } else if (csts == 0) {
+          Application(Plus, lst2.reverse).setType(Int)
+        } else {
+          Application(Plus, (IntLit(csts) :: lst2).reverse).setType(Int)
+        }
+      case Times(lst) =>
+        val init = (Nil: List[Formula], 1)
+        val (lst2, csts) = lst.foldLeft( init )( (acc, f) => f match {
+          case Times(l2) => (l2 ::: acc._1, acc._2)
+          case IntLit(i) => (acc._1, acc._2 * i)
+          case other => (other::acc._1, acc._2)
+        })
+        if (lst2.isEmpty) {
+          IntLit(csts)
+        } else if (csts == 0) {
+          IntLit(0)
+        } else if (csts == 1) {
+          Application(Times, lst2.reverse).setType(Int)
+        } else {
+          Application(Times, (IntLit(csts) :: lst2).reverse).setType(Int)
+        }
+      case Divides(List(IntLit(i1), IntLit(i2))) if i1 % i2 == 0 => IntLit(i1/i2)
+      case Divides(List(a, IntLit(1))) => a
+      case Divides(List(a, b)) if a == b => IntLit(1)
+      case Eq(List(a, b)) if a.tpe == Int =>
+        removeDiv(a, b) match {
+          case (IntLit(i1), IntLit(i2)) =>
+            if (i1 == i2) True()
+            else False()
+          case (a2, b2) =>
+            if (a2 == b2) True()
+            else Eq(a2, b2)
+        }
+      case Lt(List(a, b)) =>
+        removeDiv(a, b) match {
+          case (IntLit(i1), IntLit(i2)) =>
+            if (i1 < i2) True()
+            else False()
+          case (a2, b2) =>
+            if (a2 == b2) False()
+            else Lt(a2, b2)
+        }
+      case other =>
+        other
+    }
+    FormulaUtils.map(fct, f)
   }
   
   def simplifyBool(f: Formula): Formula = {
@@ -175,7 +301,12 @@ object Simplify {
   }
 
   def simplify(f: Formula): Formula = {
-    sys.error("TODO")
+    val f1 = normalize(f)
+    val f2 = FormulaUtils.flatten(f1)
+    val f3 = simplifyInt(f2)
+    val f4 = simplifyBool(f3)
+    val f5 = simplifyQuantifiers(f4)
+    f5
   }
 
 

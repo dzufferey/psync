@@ -76,7 +76,7 @@ class InstanceDispatcher(
       l.unlock()
     }
     if (oldLst forall (_._1 != inst)) {
-      sys.error("dispatcher.remove: instance not found")
+      sys.error("dispatcher.remove: instance not found " + inst)
     }
   }
 

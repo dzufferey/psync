@@ -47,6 +47,7 @@ class OTR3 extends Algorithm[ConsensusIO] {
   def process(id: ProcessID, io: ConsensusIO) = p(new Process(id) {
       
     x <~ io.initialValue
+    decided <~ false
 
     val rounds = Array[Round](
       rnd(new Round{

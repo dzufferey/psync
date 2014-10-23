@@ -34,28 +34,35 @@ object Quantifiers {
       val avoid = f.boundVariables ++ vs
       val disj = FormulaUtils.getDisjuncts(f2)
       Logger("CL", Debug, "fix uniquely defined universal disj:\n " + disj.mkString("\n "))
-      def interesting(v: Variable, f: Formula): Boolean = {
-        //Logger("CL", Debug, "XXXX " + f.freeVariables.mkString(", "))
-        (swappable contains v) && (f.freeVariables intersect avoid).isEmpty
-      }
+      def interesting(v: Variable, f: Formula): Boolean = (swappable contains v)
       val (_defs, restf) = disj.partition( f => f match {
         case Not(List(Eq(List(v @ Variable(_), c @ Comprehension(_,_))))) if interesting(v, c) => true
         case Not(List(Eq(List(c @ Comprehension(_,_), v @ Variable(_))))) if interesting(v, c) => true
         case _ => false
       })
-      val eqs = _defs.map( f => f match {
-        case Not(List(eq)) => eq 
-        case _ => ???
-      })
+      val eqs = _defs.collect{ case Not(List(eq)) => eq }
+      assert(eqs.size == _defs.size)
+      def checkDependencies(v: Variable, c: Formula): Formula = {
+        val deps = (f.freeVariables intersect avoid) - v
+        skolemify(v, deps)
+      }
       val defs = eqs.map{
-        case Eq(List(v @ Variable(_), c @ Comprehension(_,_))) => v -> c
-        case Eq(List(c @ Comprehension(_,_), v @ Variable(_))) => v -> c
+        case Eq(List(v @ Variable(_), c @ Comprehension(_,_))) =>
+          v -> (checkDependencies(v,c), c)
+        case Eq(List(c @ Comprehension(_,_), v @ Variable(_))) =>
+          v -> (checkDependencies(v,c), c)
         case _ => ???
       }.toMap
       Logger("CL", Debug, "fix uniquely defined universal defs: " + defs.mkString(", "))
+      def subst(f: Formula) = f match {
+        case v @ Variable(_) if defs contains v => defs(v)._1
+        case other => other
+      }
+      val eqs2 = defs.values.map{ case (a,b) => Eq(a, b) }
       val swapped = defs.keySet
       val restf2 = restf.foldLeft(False(): Formula)(Or(_, _))
-      val withDefs = eqs.foldLeft(restf2)(And(_, _))
+      val restf3 = FormulaUtils.map(subst, restf2)
+      val withDefs = eqs2.foldLeft(restf3)(And(_, _))
       val withPrefix = FormulaUtils.restoreQuantifierPrefix(prefix, withDefs)
       val remaining = swappable.filterNot(swapped contains _) ::: rest
       Logger("CL", Info, "fix uniquely defined universal for: " + swapped.mkString(", "))
@@ -114,20 +121,20 @@ object Quantifiers {
 
   /** remove top level ∀, returns the new formula and the newly introduced variables */
   def getUniversalPrefix(f: Formula): (Formula, List[Variable]) = getQuantPrefix(f, false)
+    
+  protected def skolemify(v: Variable, bound: Set[Variable]) = {
+    if (bound.isEmpty) {
+      v
+    } else {
+      val args = bound.toList
+      val fct = UnInterpretedFct(v.name, Some(Function(args.map(_.tpe), v.tpe)))
+      Copier.Application(v, fct, args)
+    }
+  }
 
   /** replace ∃ below ∀ by skolem functions.
    *  assumes the bound var have unique names. */
   def skolemize(f: Formula): Formula = {
-
-    def skolemify(v: Variable, bound: Set[Variable]) = {
-      if (bound.isEmpty) {
-        v
-      } else {
-        val args = bound.toList
-        val fct = UnInterpretedFct(v.name, Some(Function(args.map(_.tpe), v.tpe)))
-        Copier.Application(v, fct, args)
-      }
-    }
 
     def process(bound: Set[Variable], f: Formula): Formula = f match {
       case l @ Literal(_) => l
