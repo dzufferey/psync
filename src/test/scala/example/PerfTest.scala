@@ -10,7 +10,7 @@ import java.util.concurrent.Semaphore
 import java.util.concurrent.locks.ReentrantLock
 import scala.util.Random
 
-object PerfTest extends Options {
+object PerfTest extends Options with DecisionLog[scala.Int] {
   
   
   newOption("-v", Unit(() => Logger.moreVerbose), "increase the verbosity level.")
@@ -50,24 +50,6 @@ object PerfTest extends Options {
   final val Decision = 3
   final val TooLate = 4
   
-  private val nDecisions = 1000
-  private val decisionLocks = Array.ofDim[ReentrantLock](nDecisions)
-  private val decisions = Array.ofDim[(Short, scala.Int)](nDecisions)
-  for (i <- 0 until nDecisions) decisionLocks(i) = new ReentrantLock()
-
-  private def decIdx(i: scala.Int) = {
-    val idx = i % nDecisions
-    if (idx < 0) idx + nDecisions else idx
-  }
-  private def pushDecision(inst: Short, dec: scala.Int) {
-    decisions(decIdx(inst)) = (inst -> dec)
-  }
-  private def getDec(i: Short): Option[scala.Int] = {
-    val candidate = decisions(decIdx(i))
-    if (candidate == null || candidate._1 != i) None
-    else Some(candidate._2)
-  }
-
   def defaultHandler(msg: Message) {
     val inst = msg.instance
     if ((inst - versionNbr.toShort).toShort < 0) { //with wrapping

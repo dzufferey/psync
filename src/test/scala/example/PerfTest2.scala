@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import scala.util.Random
 
 //TODO add recovery a la PerfTest, but make sure we always have a decision!
-  
+
 class PerfTest2(id: Int,
                 confFile: String,
                 nbrValues: Short,
@@ -57,14 +57,6 @@ class PerfTest2(id: Int,
     start(idx, v, v2 != 0, Set(msg))
   }
 
-  def leq(i1: Short, i2: Short) = {
-    val delta = (i2 - i1).toShort
-    assert(delta % nbrValues == 0)
-    delta >= 0
-  }
-
-  def max(i1: Short, i2: Short) = if (leq(i1,i2)) i2 else i1
-  
   def start(idx: Short, value: Short, self: Boolean, msg: Set[Message]) {
     if (running(idx).tryAcquire) {
       var instanceNbr = (versions(idx) + nbrValues).toShort
@@ -72,9 +64,9 @@ class PerfTest2(id: Int,
       if (!msg.isEmpty) {
         val m = msg.head
         val inst = m.instance
-        if (self || leq(instanceNbr, inst)) {
+        if (self || Instance.leq(instanceNbr, inst)) {
           //take the largest of inst/instanceNbr
-          instanceNbr = max(instanceNbr, inst)
+          instanceNbr = Instance.max(instanceNbr, inst)
         } else {
           //that message came late, drop it
           m.release

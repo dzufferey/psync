@@ -9,8 +9,7 @@ import io.netty.channel.socket._
 
 import java.util.concurrent.locks.ReentrantLock
 
-
-//a dispatcher that scales better than the pipeline
+/** a dispatcher that scales better than putting all the instance in the pipeline */
 class InstanceDispatcher(
     options: Map[String, String] = Map.empty
   ) extends SimpleChannelInboundHandler[DatagramPacket](false)

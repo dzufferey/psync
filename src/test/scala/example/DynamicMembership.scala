@@ -105,7 +105,7 @@ class BasicConsensus extends Algorithm[MembershipIO] {
 
 }
 
-object DynamicMembership extends dzufferey.arg.Options {
+object DynamicMembership extends dzufferey.arg.Options with DecisionLog[MembershipOp] {
 
   final val Heartbeat = 3
   final val Recover = 4
@@ -178,21 +178,9 @@ object DynamicMembership extends dzufferey.arg.Options {
     }
   }
 
-  private val nDecisions = 10
-  private val decisions = Array.ofDim[(Short, MembershipOp)](nDecisions)
-
-  private def decIdx(i: Int) = i % nDecisions
-  private def pushDecision(inst: Short, dec: MembershipOp) {
-    decisions(decIdx(inst)) = (inst -> dec)
-  }
-  private def getDec(i: Short): Option[MembershipOp] = {
-    val candidate = decisions(decIdx(i))
-    if (candidate == null || candidate._1 != i) None
-    else Some(candidate._2)
-  }
-  
   def onDecision(inst: Short, dec: MembershipOp) {
-    decisionLock.lock
+    val l = decisionLocks(decIdx(inst))
+    l.lock
     try {
       if (inst == instanceNbr && getDec(inst).isEmpty) { //check for race with recovery
         pushDecision(inst, dec)
@@ -223,7 +211,7 @@ object DynamicMembership extends dzufferey.arg.Options {
       }
     } finally {
       //let other threads go
-      decisionLock.unlock
+      l.unlock
       semaphore.release
     }
     //check if there are pending operations
@@ -245,7 +233,7 @@ object DynamicMembership extends dzufferey.arg.Options {
         //val i = msg.getContent[MembershipOp]
         startNextConsensus(Some(expected), Some(i), Set(msg))
 
-      } else if (inst > expected) { //TODO inst/expected can loop around
+      } else if (Instance.lt(expected, inst)) {
         startRecovery(msg.senderId)
         msg.release
 
