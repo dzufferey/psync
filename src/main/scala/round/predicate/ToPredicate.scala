@@ -80,7 +80,7 @@ class ToPredicate(
           lock.lock()
           try {
             if (!changed) {
-              Logger("ToPredicate", Debug, "delivering because of timeout")
+              Logger("ToPredicate", Debug, "delivering because of timeout: " + instance)
               didTimeOut += 1
               deliver
             } else {
@@ -99,7 +99,9 @@ class ToPredicate(
             defaultTO -= 10
           }
         }
-        timeout = Timer.newTimeout(this, defaultTO)
+        if (active) {
+          timeout = Timer.newTimeout(this, defaultTO)
+        }
       }
     }
   }
@@ -143,7 +145,7 @@ class ToPredicate(
     assert(lock.isHeldByCurrentThread, "lock.isHeldByCurrentThread")
     val id = grp.inetToId(pkt.sender).id
     //protect from duplicate packet
-    if (!from(id)) {
+    if (!from(id) && active) {
       from(id) = true
       messages(received) = pkt
       _received += 1

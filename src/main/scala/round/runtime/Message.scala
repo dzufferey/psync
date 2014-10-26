@@ -13,8 +13,8 @@ import binary._
 class Message(val packet: DatagramPacket, dir: Group){
 
   def payload: ByteBuf = packet.content
-  def senderId: ProcessID = dir.self
-  lazy val receiverId: ProcessID =  try { dir.inetToId(packet.sender) }
+  def receiverId: ProcessID = dir.self
+  lazy val senderId: ProcessID =  try { dir.inetToId(packet.sender) }
                                     catch { case _: Exception => new ProcessID(-1) }
   lazy val tag: Tag = new Tag(payload.getLong(0))
 

@@ -31,7 +31,7 @@ class PerfTest2(id: Int,
   val log: java.io.BufferedWriter =
     if (logFile.isDefined) new java.io.BufferedWriter(new java.io.FileWriter(logFile.get + "_" + id + ".log"))
     else null
-  val lck = new ReentrantLock
+  val logLock = new ReentrantLock
 
   if (log != null) {
     log.write("idx\tinst\tval")
@@ -51,7 +51,7 @@ class PerfTest2(id: Int,
     backOff(i) = new ConcurrentLinkedQueue[Short]()
     versions(i) = i.toShort
   }
-
+  def lock(idx: Short) = decisionLocks(decIdx(idx))
   val nbr = new AtomicLong(0l)
   val selfStarted = new ConcurrentSkipListSet[Short]()
 
@@ -69,48 +69,62 @@ class PerfTest2(id: Int,
 
     } else if (flag == Decision) {
       val inst = msg.instance
-      processDecision(inst, msg.getInt(0))
+      Logger("PerfTest", Info, inst + " got a decision message")
+      val value = msg.getInt(0)
+      val idx = (value >>> 16).toShort
+      val first = processDecision(inst, value)
       msg.release
       rt.stopInstance(inst)
+      if (first) checkPending(idx) 
 
     } else if (flag == Recovery) {
       val inst = msg.instance
       val value = msg.getInt(0)
-      val newInstance = msg.getInt(4)
-      assert((inst - newInstance) % nbrValues == 0)
-      assert(decIdx(inst) == decIdx(newInstance))
-      processDecision(inst, value, Some(newInstance.toShort)) 
+      val idx = (value >>> 16).toShort
+      val newInstance = msg.getInt(4).toShort
+      Logger("PerfTest", Info, inst + " recovery to " + newInstance)
+      assert((inst - newInstance).toShort % nbrValues == 0, "inst = " + inst + ", newInst = " + newInstance)
+      val first = processDecision(inst, value, Some(newInstance)) 
       msg.release
       rt.stopInstance(inst)
+      if (first) checkPending(idx) 
 
     } else {
        sys.error("unknown or error flag: " + flag)
     }
   }
 
-  def processDecision(instance: Short, value: Int, recovery: Option[Short] = None) { 
-    val l = decisionLocks(decIdx(instance))
+  def processDecision(instance: Short, value: Int, recovery: Option[Short] = None) = { 
     var firstTime = false
     val idx = (value >>> 16).toShort
     val v = (value & 0xFFFF).toShort
+    val l = lock(idx)
+    var myInst: Short = 0
     l.lock
     try {
-      if (getDec(instance).isEmpty) {
-        firstTime = true
-        pushDecision(instance, value)
-        //save result
-        values(idx) = v
-        //check if we need to update the verison
-        for (newInstance <- recovery) {
-          assert(Instance.leq(versions(idx), newInstance))
-          versions(idx) = newInstance
+      val current = versions(idx)
+      myInst = recovery match {
+        case Some(v) =>
+          //assert(Instance.lt(instance, v), instance.toString + ", " + v)
+          v
+        case None =>
+          instance
+      }
+      if (!Instance.lt(myInst, current)) {
+        if (running(idx).availablePermits() == 0) {
+          Logger("PerfTest", Info, instance + " decide: " + idx + ", " + v)
+          pushDecision(myInst, value)
+          versions(idx) = myInst
+          values(idx) = v
+          firstTime = true
+          //releases resources
+          running(idx).release()
         }
-        //releases resources
-        running(idx).release()
       }
     } finally {
       l.unlock
     }
+
     if (firstTime) {
       if (selfStarted contains instance) {
         rate.release
@@ -121,15 +135,16 @@ class PerfTest2(id: Int,
 
       //log
       if (log != null) {
-        lck.lock
+        logLock.lock
         try {
-          log.write(idx.toString + "\t" + instance + "\t" + v)
+          log.write(idx.toString + "\t" + myInst + "\t" + v)
           log.newLine()
         } finally {
-          lck.unlock
+          logLock.unlock
         }
       }
     }
+    firstTime
   }
   
   /** send either the decision if it is still on the log, or the currrent value and version */
@@ -137,22 +152,31 @@ class PerfTest2(id: Int,
     val inst = m.instance
     val idx = (m.getInt(0) >>> 16).toShort
     val payload = ByteBufAllocator.buffer(16)
+    val sender = m.senderId
     payload.writeLong(8)
     var tag = Tag(0,0)
     getDec(inst) match {
       case Some(d) =>
+        Logger("PerfTest", Info, "sending decision to " + sender.id)
         tag = Tag(inst,0,Decision,0)
         payload.writeInt(d)
       case None =>
-        tag = Tag(inst,0,Recovery,0)
-        val l = decisionLocks(decIdx(inst))
+        val l = lock(idx)
         l.lock
         try {
+          val currInst = versions(idx)
           val value = values(idx)
           val d = (idx << 16) | (value.toInt & 0xFFFF)
-          payload.writeInt(d)
-          val currInst = versions(idx)
-          payload.writeInt(currInst)
+          if (currInst == inst) {
+            Logger("PerfTest", Info, "sending decision to " + sender.id)
+            tag = Tag(inst,0,Decision,0)
+            payload.writeInt(d)
+          } else {
+            Logger("PerfTest", Info, "sending recovery to " + sender.id)
+            tag = Tag(inst,0,Recovery,0)
+            payload.writeInt(d)
+            payload.writeInt(currInst)
+          }
         } finally {
           l.unlock
         }
@@ -163,38 +187,47 @@ class PerfTest2(id: Int,
   /** */
   def start(idx: Short, value: Short, self: Boolean, msg: Set[Message]) {
     if (running(idx).tryAcquire) {
-      var instanceNbr = (versions(idx) + nbrValues).toShort
 
-      //in case of msg check that we have the right instance!
-      if (!msg.isEmpty) {
-        assert(msg.size == 1)
-        val m = msg.head
-        val inst = m.instance
-        if (Instance.leq(instanceNbr, inst)) {
-          //take the largest of inst/instanceNbr
-          instanceNbr = inst
-        } else {
-          //that message came late, send recovery info 
-          instanceNbr = Instance.max(instanceNbr, inst)
-          sendRecoveryInfo(m)
-          //if we don't have a pending value, stop here
-          if (!self) {
-            running(idx).release()
-            m.release
-            return
+      var instanceNbr: Short = 0
+
+      val l = lock(idx)
+      l.lock
+      try {
+
+        instanceNbr = (versions(idx) + nbrValues).toShort
+       
+        //in case of msg check that we have the right instance!
+        if (!msg.isEmpty) {
+          assert(msg.size == 1)
+          val m = msg.head
+          val inst = m.instance
+          if (Instance.leq(instanceNbr, inst)) {
+            //take the largest of inst/instanceNbr
+            instanceNbr = inst
+          } else {
+            //that message came late, send recovery info 
+            instanceNbr = Instance.max(instanceNbr, inst)
+            sendRecoveryInfo(m)
+            //if we don't have a pending value, stop here
+            if (!self) {
+              running(idx).release()
+              m.release
+              return
+            }
           }
         }
+       
+        //good to go
+        versions(idx) = instanceNbr
+      } finally {
+        l.unlock
       }
 
-      //good to go, prepare the IO object
-      versions(idx) = instanceNbr
       val io = new ConsensusIO {
         val initialValue = (idx << 16) | (value & 0xFFFF)
         def decide(value: Int) {
-          processDecision(instanceNbr, value)
-          //check for pending request
-          val b = backOff(idx).poll
-          if (b != 0) start(idx, b, true, Set())
+          val first = processDecision(instanceNbr, value)
+          if (first) checkPending(idx)
         }
       }
       if (self) {
@@ -203,12 +236,25 @@ class PerfTest2(id: Int,
       rt.startInstance(instanceNbr, io, msg)
 
     } else {
+      Logger("PerfTest", Debug, "backing off " + idx)
       //an instance is already running push the request to the backoff queue if it is one of our own query
       if (self) {
         backOff(idx).add(value)
       }
-      msg.foreach(_.release)
+      for (m <- msg) {
+        var instanceNbr = versions(idx)
+        val inst = m.instance
+        if (Instance.lt(inst, instanceNbr)) {
+          sendRecoveryInfo(m)
+        }
+        m.release
+      }
     }
+  }
+
+  def checkPending(idx: Short) {
+    val b = backOff(idx).poll
+    if (b != 0) start(idx, b, true, Set())
   }
 
   def propose(idx: Short, value: Short) {

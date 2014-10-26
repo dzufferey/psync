@@ -83,11 +83,11 @@ object PerfTest extends Options with DecisionLog[scala.Int] {
       if (getDec(inst).isEmpty) {
         pushDecision(inst, value)
         rate.release
-        Logger("PerfTest", Info, "instance " + inst + "\tver" + versionNbr + "\tdecision " + value)
+        Logger("PerfTest", Info, "instance " + inst + "\tver " + versionNbr + "\tdecision " + value)
         if (log != null) {
           lck.lock
           try {
-            log.write("instance " + inst + "\tver" + versionNbr + "\tdecision " + value)
+            log.write("instance " + inst + "\tver " + versionNbr + "\tdecision " + value)
             log.newLine()
           } finally {
             lck.unlock
@@ -100,6 +100,7 @@ object PerfTest extends Options with DecisionLog[scala.Int] {
   }
           
   def trySendDecision(inst: Short, senderId: ProcessID) = {
+    Logger("PerfTest", Info, inst + " sending recovery to " + senderId)
     val payload = ByteBufAllocator.buffer(16)
     payload.writeLong(8)
     val tag = getDec(inst) match {

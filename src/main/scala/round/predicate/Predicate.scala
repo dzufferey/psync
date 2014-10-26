@@ -79,7 +79,8 @@ abstract class Predicate(
     //push to the layer above
     try {
       //actual delivery
-      proc.update(msgs.toSet)
+      val mset = msgs.toSet
+      proc.update(mset)
       afterUpdate
       //start the next round (if has not exited)
       send
@@ -90,11 +91,16 @@ abstract class Predicate(
   
   //deregister
   def stop {
-    dispatcher.remove(instance)
-    val toFree = messages.slice(0, received)
-    clear
-    for (m <- toFree) m.release
     Logger("Predicate", Info, "stopping instance " + instance)
+    dispatcher.remove(instance)
+    var idx = 0
+    while (idx < n) {
+      if (messages(idx) != null) {
+        messages(idx).release
+        messages(idx) = null
+      }
+      idx += 1
+    }
   }
 
   protected def clear {
