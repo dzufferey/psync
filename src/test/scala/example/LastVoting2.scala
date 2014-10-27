@@ -3,10 +3,16 @@ package example
 import round._
 import round.macros.Macros._
 
-class LastVoting extends Algorithm[ConsensusIO] {
+object Sanity {
+  def a(v: Int) { assert(v != 0, v.toString) }
+}
+
+class LastVoting2(afterDecision: Int = 2) extends Algorithm[ConsensusIO] {
 
   import VarHelper._
   import SpecHelper._
+
+  import Sanity._
 
   val V = new Domain[Int]
 
@@ -17,6 +23,7 @@ class LastVoting extends Algorithm[ConsensusIO] {
   val commit = new LocalVariable[Boolean](false)
   val vote = new LocalVariable[Int](0)
   val decision = new LocalVariable[Option[Int]](None) //TODO as ghost
+  val after = new LocalVariable[Int](afterDecision)
 
   //FIXME once the macro issue is sorted out ...
   //rotating coordinator
@@ -61,6 +68,9 @@ class LastVoting extends Algorithm[ConsensusIO] {
       
     x <~ io.initialValue
     ts <~ -1
+    ready <~ false
+    commit <~ false
+    //decision <~ None
 
     val rounds = Array[Round](
       rnd(new Round{
@@ -72,17 +82,19 @@ class LastVoting extends Algorithm[ConsensusIO] {
         def coord(p: ProcessID, phi: Int): ProcessID = new ProcessID((phi % n).toShort)
 
         def send(): Set[((Int, Int), ProcessID)] = {
-          Set((x: Int, ts: Int) -> coord(id, r / 4))
+          broadcast((x: Int, ts: Int))
+          //Set((x: Int, ts: Int) -> coord(id, r / 4))
         }
-
+        
         override def expectedNbrMessages = if (id == coord(id, r/4)) n/2 + 1 else 0
-
+        
         def update(mailbox: Set[((Int, Int), ProcessID)]) {
           if (id == coord(id, r/4) && mailbox.size > n/2) {
             // let θ be one of the largest θ from 〈ν, θ〉received
             // vote(p) := one ν such that 〈ν, θ〉 is received
             vote <~ mailbox.maxBy(_._1._2)._1._1
             commit <~ true
+            a(vote)
           }
         }
 
@@ -98,6 +110,7 @@ class LastVoting extends Algorithm[ConsensusIO] {
 
         def send(): Set[(Int, ProcessID)] = {
           if (id == coord(id, r/4) && commit) {
+            a(vote)
             broadcast(vote)
           } else {
             Set.empty
@@ -105,12 +118,13 @@ class LastVoting extends Algorithm[ConsensusIO] {
         }
 
         override def expectedNbrMessages = 1
-
+        
         def update(mailbox: Set[(Int, ProcessID)]) {
           val mb2 = mailbox.filter( _._2 == coord(id, r/4) )
           if (mb2.size > 0) {
             x <~ mb2.head._1
             ts <~ r/4
+            a(x)
           }
         }
 
@@ -119,25 +133,27 @@ class LastVoting extends Algorithm[ConsensusIO] {
       rnd(new Round{
 
         //place holder for ACK
-        type A = Boolean 
+        type A = Int
 
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //rotating coordinator
         def coord(p: ProcessID, phi: Int): ProcessID = new ProcessID((phi % n).toShort)
 
-        def send(): Set[(Boolean, ProcessID)] = {
+        def send(): Set[(Int, ProcessID)] = {
           if ( ts == (r/4) ) {
-            Set( true -> coord(id, r/4) )
+            Set( (x: Int) -> coord(id, r/4) )
           } else {
             Set.empty
           }
         }
 
         override def expectedNbrMessages = if (id == coord(id, r/4)) n/2 + 1 else 0
-
-        def update(mailbox: Set[(Boolean, ProcessID)]) {
+        
+        def update(mailbox: Set[(Int, ProcessID)]) {
           if (id == coord(id, r/4) && mailbox.size > n/2) {
             ready <~ true
+            vote <~ mailbox.head._1 //TODO this is fine but there is something wrong!!
+            a(vote)
           }
         }
 
@@ -172,6 +188,12 @@ class LastVoting extends Algorithm[ConsensusIO] {
           }
           ready <~ false
           commit <~ false
+          if (decision.isDefined) {
+            after <~ after - 1
+            if(after <= 0) {
+              terminate()
+            }
+          }
         }
 
       })

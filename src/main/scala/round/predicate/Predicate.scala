@@ -85,7 +85,12 @@ abstract class Predicate(
       //start the next round (if has not exited)
       send
     } catch {
-      case e: TerminateInstance => stop
+      case e: TerminateInstance =>
+        stop
+      case e: Throwable =>
+        Logger("Predicate", Error, "got an error " + e + " terminating instance: " + instance)
+        stop
+        throw e
     }
   }
   

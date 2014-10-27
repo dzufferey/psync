@@ -36,6 +36,7 @@ trait ProcessRewrite {
     val name = TermName(mvd.name)
     val tpe = mvd.tpe
     val init = mvd.default
+    //val decl = q"@volatile var $name: $tpe = $init"
     val decl = q"var $name: $tpe = $init"
     val ident = q"$name"
     (decl, ident)
@@ -110,7 +111,7 @@ trait ProcessRewrite {
       //TODO enclosingClass
       val vars = getVariables(c.enclosingClass) ::: defaultVariables
       val implVars = vars.filter( !_.ghost ) 
-      val (newDefs, idMap) = vars.foldLeft((Nil: List[ValDef],Map.empty[String,Ident]))( (acc, mvd) => {
+      val (newDefs, idMap) = implVars.foldLeft((Nil: List[ValDef],Map.empty[String,Ident]))( (acc, mvd) => {
         val (vdef, id) = mkLocalDecl(mvd)
         (acc._1 :+ vdef, acc._2 + (mvd.name -> id))
       })

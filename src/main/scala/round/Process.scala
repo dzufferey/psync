@@ -27,13 +27,10 @@ abstract class Process(val id: ProcessID) {
   }
 
   final def update(msgs: Set[(io.netty.buffer.ByteBuf,ProcessID)]) {
-    //TODO may set HO
     currentRound.unpackUpdate(msgs)
   }
 
   final def expectedNbrMessages: Int = currentRound.expectedNbrMessages
-
-  //TODO when to insert dummy ?
 
   //////////////////////
   // for verification //

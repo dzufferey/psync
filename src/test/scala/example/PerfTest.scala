@@ -52,25 +52,21 @@ object PerfTest extends Options with DecisionLog[scala.Int] {
   
   def defaultHandler(msg: Message) {
     val inst = msg.instance
-    if ((inst - versionNbr.toShort).toShort < 0) { //with wrapping
-      val l = decisionLocks(decIdx(inst))
-      l.lock
-      try {
-        val flag = msg.tag.flag
-        if (flag == Flags.normal || flag == Flags.dummy) {
+    if (Instance.leq(inst, versionNbr.toShort)) {
+      val flag = msg.tag.flag
+      if (flag == Flags.normal || flag == Flags.dummy) {
+        if (Instance.lt(inst, versionNbr.toShort)) {
           trySendDecision(inst, msg.senderId)
-        } else if (flag == Decision) {
-          Logger("PerfTest", Info, inst + " got decision! (" + versionNbr + ")")
-          onDecision(inst, -1, msg.getInt(0))
-          rt.stopInstance(inst)
-        } else if (flag == TooLate) {
-          Logger("PerfTest", Warning, inst + " too late! (" + versionNbr + ")")
-          rt.stopInstance(inst)
-        } else {
-          sys.error("unknown or error flag: " + flag)
         }
-      } finally {
-        l.unlock
+      } else if (flag == Decision) {
+        Logger("PerfTest", Info, inst + " got decision! (" + versionNbr + ")")
+        onDecision(inst, -1, msg.getInt(0))
+        rt.stopInstance(inst)
+      } else if (flag == TooLate) {
+        Logger("PerfTest", Warning, inst + " too late! (" + versionNbr + ")")
+        rt.stopInstance(inst)
+      } else {
+        sys.error("unknown or error flag: " + flag)
       }
     }
     msg.release
@@ -87,7 +83,7 @@ object PerfTest extends Options with DecisionLog[scala.Int] {
         if (log != null) {
           lck.lock
           try {
-            log.write("instance " + inst + "\tver " + versionNbr + "\tdecision " + value)
+            log.write(inst + "\t" + versionNbr + "\t" + value)
             log.newLine()
           } finally {
             lck.unlock
@@ -122,7 +118,7 @@ object PerfTest extends Options with DecisionLog[scala.Int] {
       val fw = new java.io.FileWriter(logFile + "_" + id + ".log")
       log = new java.io.BufferedWriter(fw)
     } 
-    val alg = if (lv) new LastVoting()
+    val alg = if (lv) new LastVoting2(after)
               else new OTR2(after)
     rt = new RunTime(alg)
     rt.startService(defaultHandler(_), confFile, Map("id" -> id.toString, "timeout" -> to.toString))

@@ -27,6 +27,7 @@
 - accessing members of outer class inside an inner class
     * check if fixed in 2.11.2 (with the right untypcheck) or report macro bug about it
 - Timer: default tick is 100ms, way to high!
+- allow `print(ln)` in the TR
 
 # verification
 

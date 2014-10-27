@@ -130,12 +130,17 @@ sealed abstract class InterpretedFct(val symbol: String, aliases: String*) exten
 
   def arity = tpe.arity
 
-  def apply(arg: Formula, args: Formula*): Formula = {
-    val allArgs = (arg +: args).toList
-    assert(allArgs.lengthCompare(arity) == 0)
-    Application(this, allArgs)
+  def application(args: List[Formula]): Formula = {
+    assert(args.lengthCompare(arity) == 0, "arity of " + symbol + " is " + arity + ", given args: " + args.mkString(", "))
+    Application(this, args)
     //TODO fill the type as much as possible
   }
+
+  def apply(arg: Formula, args: Formula*): Formula = {
+    val allArgs = (arg +: args).toList
+    application(allArgs)
+  }
+
   def unapply(f: Formula): Option[List[Formula]] = {
     val t = this
     f match {

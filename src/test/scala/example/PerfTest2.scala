@@ -18,6 +18,8 @@ class PerfTest2(id: Int,
                 confFile: String,
                 nbrValues: Short,
                 _rate: Short,
+                lv: Boolean,
+                after: Int,
                 logFile: Option[String],
                 additionalOptions: Map[String,String]
                ) extends DecisionLog[Int]
@@ -38,16 +40,17 @@ class PerfTest2(id: Int,
     log.newLine()
   }
 
-  val alg =  new OTR2()
+  val alg = if (lv) new LastVoting2(after)
+            else new OTR2(after)
   val rt = new RunTime(alg)
   rt.startService(defaultHandler(_), confFile, additionalOptions + ("id" -> id.toString))
 
   val values   = Array.ofDim[Short](nbrValues)
   val versions = Array.ofDim[Short](nbrValues)
-  val running  = Array.ofDim[Semaphore](nbrValues)
+  val running  = Array.ofDim[Option[Short]](nbrValues)
   val backOff  = Array.ofDim[ConcurrentLinkedQueue[Short]](nbrValues)
   for (i <- 0 until nbrValues) {
-    running(i) = new Semaphore(1)
+    running(i) = None
     backOff(i) = new ConcurrentLinkedQueue[Short]()
     versions(i) = i.toShort
   }
@@ -57,12 +60,14 @@ class PerfTest2(id: Int,
 
   def defaultHandler(msg: Message) {
     val flag = msg.tag.flag
+    Logger("PerfTest", Debug, "defaultHandler: " + msg.instance)
 
     //might need to start a new instance:
     // initial values is either taken from the backOff queue or the message
     if (flag == Flags.normal || flag == Flags.dummy) {
       val value = msg.getInt(0)
       val idx = (value >>> 16).toShort
+      //println("(0) id: " + id + " idx: " + idx + ", instance: " + msg.instance + ", round:" + msg.round)
       val v2 = backOff(idx).poll
       val v = if (v2 != 0) v2 else (value & 0xFFFF).toShort
       start(idx, v, v2 != 0, Set(msg))
@@ -72,6 +77,7 @@ class PerfTest2(id: Int,
       Logger("PerfTest", Info, inst + " got a decision message")
       val value = msg.getInt(0)
       val idx = (value >>> 16).toShort
+      //println("(1) id: " + id + " idx: " + idx + ", instance: " + inst)
       val first = processDecision(inst, value)
       msg.release
       rt.stopInstance(inst)
@@ -82,6 +88,7 @@ class PerfTest2(id: Int,
       val value = msg.getInt(0)
       val idx = (value >>> 16).toShort
       val newInstance = msg.getInt(4).toShort
+      //println("(2) id: " + id + " idx: " + idx + ", instance: " + inst + ", newInstance: " + newInstance)
       Logger("PerfTest", Info, inst + " recovery to " + newInstance)
       assert((inst - newInstance).toShort % nbrValues == 0, "inst = " + inst + ", newInst = " + newInstance)
       val first = processDecision(inst, value, Some(newInstance)) 
@@ -98,28 +105,30 @@ class PerfTest2(id: Int,
     var firstTime = false
     val idx = (value >>> 16).toShort
     val v = (value & 0xFFFF).toShort
+    assert(v != 0,  "instance: " + instance + ", idx " + idx + ", value " + v)
     val l = lock(idx)
     var myInst: Short = 0
     l.lock
     try {
-      val current = versions(idx)
       myInst = recovery match {
         case Some(v) =>
-          //assert(Instance.lt(instance, v), instance.toString + ", " + v)
+          assert(Instance.leq(instance, v), instance.toString + ", " + v)
           v
         case None =>
           instance
       }
-      if (!Instance.lt(myInst, current)) {
-        if (running(idx).availablePermits() == 0) {
-          Logger("PerfTest", Info, instance + " decide: " + idx + ", " + v)
-          pushDecision(myInst, value)
-          versions(idx) = myInst
-          values(idx) = v
-          firstTime = true
-          //releases resources
-          running(idx).release()
-        }
+      running(idx) match {
+        case Some(ran) =>
+          if (Instance.leq(ran, myInst)) {
+            Logger("PerfTest", Info, myInst + " decide: " + idx + ", " + v)
+            pushDecision(myInst, value)
+            versions(idx) = myInst
+            values(idx) = v
+            firstTime = true
+            //releases resources
+            running(idx) = None
+          }
+        case None =>
       }
     } finally {
       l.unlock
@@ -127,8 +136,11 @@ class PerfTest2(id: Int,
 
     if (firstTime) {
       if (selfStarted contains instance) {
-        rate.release
+        rate.release()
         selfStarted.remove(instance)
+        Logger("PerfTest", Info, instance + "     selfStarted")
+      } else {
+        Logger("PerfTest", Info, instance + " not selfStarted")
       }
       
       nbr.incrementAndGet
@@ -157,22 +169,25 @@ class PerfTest2(id: Int,
     var tag = Tag(0,0)
     getDec(inst) match {
       case Some(d) =>
-        Logger("PerfTest", Info, "sending decision to " + sender.id)
+        Logger("PerfTest", Info, "sending decision " + (d >>> 16) + ", " + (d & 0xFFFF).toShort +
+                                 " to " + sender.id + " for instance " + inst)
         tag = Tag(inst,0,Decision,0)
         payload.writeInt(d)
       case None =>
         val l = lock(idx)
         l.lock
         try {
-          val currInst = versions(idx)
+          var currInst = versions(idx)
           val value = values(idx)
           val d = (idx << 16) | (value.toInt & 0xFFFF)
           if (currInst == inst) {
-            Logger("PerfTest", Info, "sending decision to " + sender.id)
+            Logger("PerfTest", Info, "sending decision " + (d >>> 16) + ", " + (d & 0xFFFF).toShort +
+                                     " to " + sender.id + " for instance " + inst)
             tag = Tag(inst,0,Decision,0)
             payload.writeInt(d)
           } else {
-            Logger("PerfTest", Info, "sending recovery to " + sender.id)
+            Logger("PerfTest", Info, "sending recovery " + (d >>> 16) + ", " + (d & 0xFFFF).toShort +
+                                     " to " + sender.id + " for instance " + inst + " -> " + currInst)
             tag = Tag(inst,0,Recovery,0)
             payload.writeInt(d)
             payload.writeInt(currInst)
@@ -185,47 +200,65 @@ class PerfTest2(id: Int,
   }
 
   /** */
-  def start(idx: Short, value: Short, self: Boolean, msg: Set[Message]) {
-    if (running(idx).tryAcquire) {
+  def start(idx: Short, value: Short, self: Boolean, _msg: Set[Message]) {
+    var canGo = false
+    var instanceNbr: Short = 0
+    var msg = _msg
 
-      var instanceNbr: Short = 0
+    val l = lock(idx)
+    l.lock
+    try {
+        
+      instanceNbr = versions(idx)
 
-      val l = lock(idx)
-      l.lock
-      try {
+      //recovery
+      msg = msg.filter( m => {
+        val inst = m.instance
+        if (Instance.lt(inst, instanceNbr)) {
+          sendRecoveryInfo(m)
+          m.release
+          false
+        } else {
+          true
+        }
+      })
 
-        instanceNbr = (versions(idx) + nbrValues).toShort
-       
+      instanceNbr = (instanceNbr + nbrValues).toShort
+
+      if (running(idx).isEmpty) {
+
         //in case of msg check that we have the right instance!
         if (!msg.isEmpty) {
           assert(msg.size == 1)
           val m = msg.head
           val inst = m.instance
-          if (Instance.leq(instanceNbr, inst)) {
-            //take the largest of inst/instanceNbr
-            instanceNbr = inst
+          if (Instance.lt(inst, instanceNbr)) {
+            m.release
+            msg = Set()
           } else {
-            //that message came late, send recovery info 
             instanceNbr = Instance.max(instanceNbr, inst)
-            sendRecoveryInfo(m)
-            //if we don't have a pending value, stop here
-            if (!self) {
-              running(idx).release()
-              m.release
-              return
-            }
+            canGo = true
           }
         }
-       
-        //good to go
-        versions(idx) = instanceNbr
-      } finally {
-        l.unlock
+
+        canGo = canGo || self
+
+        if (canGo) {
+          //good to go
+          running(idx) = Some(instanceNbr)
+        }
+
       }
 
+    } finally {
+      l.unlock
+    }
+
+    if (canGo) {
       val io = new ConsensusIO {
         val initialValue = (idx << 16) | (value & 0xFFFF)
         def decide(value: Int) {
+          Logger("PerfTest", Info, instanceNbr + " normal decision")
           val first = processDecision(instanceNbr, value)
           if (first) checkPending(idx)
         }
@@ -233,6 +266,7 @@ class PerfTest2(id: Int,
       if (self) {
         selfStarted add instanceNbr
       }
+      Logger("PerfTest", Info, "(" + id + ") starting instance " + instanceNbr + " with " + idx + ", " + value + ", self " + self)
       rt.startInstance(instanceNbr, io, msg)
 
     } else {
@@ -242,11 +276,6 @@ class PerfTest2(id: Int,
         backOff(idx).add(value)
       }
       for (m <- msg) {
-        var instanceNbr = versions(idx)
-        val inst = m.instance
-        if (Instance.lt(inst, instanceNbr)) {
-          sendRecoveryInfo(m)
-        }
         m.release
       }
     }
@@ -297,6 +326,12 @@ object PerfTest2 extends dzufferey.arg.Options {
   
   var to = 50
   newOption("-to", dzufferey.arg.Int( i => to = i), "timeout")
+  
+  var lv = false
+  newOption("-lv", dzufferey.arg.Unit( () => lv = true), "use the last voting instead of the OTR")
+  
+  var after = 2
+  newOption("-after", dzufferey.arg.Int( i => after = i), "#round after decision")
 
   val usage = "..."
   
@@ -307,7 +342,7 @@ object PerfTest2 extends dzufferey.arg.Options {
   def main(args: Array[java.lang.String]) {
     apply(args)
     val opts = Map("timeout" -> to.toString)
-    system = new PerfTest2(id, confFile, n.toShort, rate.toShort, logFile, opts)
+    system = new PerfTest2(id, confFile, n.toShort, rate.toShort, lv, after, logFile, opts)
 
     //let the system setup before starting
     Thread.sleep(1000)

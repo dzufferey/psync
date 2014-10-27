@@ -47,7 +47,9 @@ abstract class Round {
   protected def deserialize(in: ByteBuf, offset: Int = 8): A
 
   final def packSend: Set[(ByteBuf, ProcessID)] = {
-    send().map{ case (value, dst) =>
+    val msgs = send()
+    //println("sending: " + msgs.mkString(", "))
+    msgs.map{ case (value, dst) =>
       val buf = utils.ByteBufAllocator.buffer()
       serialize(value, buf)
       (buf, dst)

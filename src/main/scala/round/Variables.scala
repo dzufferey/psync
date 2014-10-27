@@ -20,17 +20,15 @@ trait Variables[IO] {
 
 
   class LocalVariable[A](val default: A) extends Variable[A] {
-
-    private var value = default
-
-    def <~(v: A) { value = v }
-
-    def get: A = value
-
-    override def equals(any: Any) = value == any
-
-    def apply(p: ProcessID): A = get //TODO
-
+  //private var value = default
+  //def <~(v: A) { value = v }
+  //def get: A = value
+  //override def equals(any: Any) = value == any
+  //def apply(p: ProcessID): A = get //TODO
+    def <~(v: A) { sys.error("only for compilation purpose, removed by macros") }
+    def get: A = sys.error("only for compilation purpose, removed by macros")
+    override def equals(any: Any) = sys.error("only for compilation purpose, removed by macros")
+    def apply(p: ProcessID): A = sys.error("only for compilation purpose, removed by macros")
   }
 
   class GhostVariable[A] extends Variable[A] {
