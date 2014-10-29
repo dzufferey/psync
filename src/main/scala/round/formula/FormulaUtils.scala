@@ -20,6 +20,12 @@ object FormulaUtils {
   }
   
   /* Requires that bound variables are bound to variables (otherwise fails) */
+  def mapWithScope(fct: (Set[Variable], Formula) => Formula, f: Formula): Formula = {
+    val m = new MapperWithScope(fct)
+    m.transform(f)
+  }
+
+  /* Requires that bound variables are bound to variables (otherwise fails) */
   def mapAll(fct: Formula => Formula, f: Formula): Formula = {
     val m = new MapperAll(fct)
     m.transform(f)
@@ -143,7 +149,10 @@ object FormulaUtils {
 
   def typeParams(app: Application): List[Type] = app.fct match {
     case Tuple | Fst | Snd | Trd =>
-      sys.error("TODO typeParams for Product type: " + app)
+      app.args.head.tpe match {
+        case Product(tps) => tps
+        case other => sys.error("TODO typeParams for Product type: " + other)
+      }
     case Eq | Neq | And | Or | Plus | Times => //skip those: overloaded in smtlib of flattened
       Nil
     case normal =>

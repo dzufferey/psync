@@ -44,18 +44,23 @@ object Utils {
     FormulaUtils.map(map, f)
   }
   
-  def itemForFormula(title: String, f: Formula) = {
-    new dzufferey.report.GenericItem(
-        title,
-        TextPrinter.toString(f),
-        HtmlPrinter.toString(f))
+  def itemForFormula(title: String, f: Formula): dzufferey.report.Item = {
+    val conjuncts = FormulaUtils.getConjuncts(f)
+    itemForFormula(title, conjuncts)
   }
   
-  def itemForFormula(title: String, fs: List[Formula]) = {
-    new dzufferey.report.GenericItem(
-        title,
-        TextPrinter.toStringTbl(fs),
-        HtmlPrinter.toStringTbl(fs))
+  def itemForFormula(title: String, fs: List[Formula]): dzufferey.report.Item = {
+    if (fs.length == 1) {
+      new dzufferey.report.GenericItem(
+          title,
+          TextPrinter.toString(fs.head),
+          HtmlPrinter.toString(fs.head))
+    } else {
+      new dzufferey.report.GenericItem(
+          title,
+          TextPrinter.toStringTbl(fs),
+          HtmlPrinter.toStringTbl(fs))
+    }
   }
 
 

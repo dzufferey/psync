@@ -14,10 +14,12 @@ class VC(description: String, hypothesis: Formula, transition: Formula, conclusi
 
   protected var solved = false
   protected var status: Either[Boolean, String] = Left(false)
+  protected var reduced: Formula = False()
 
   protected lazy val fName = {
     Namer(description.replaceAll(" ", "_")) + ".smt"
   }
+
 
   def solve {
     try {
@@ -25,7 +27,7 @@ class VC(description: String, hypothesis: Formula, transition: Formula, conclusi
       Logger("vC", Debug, "hypothesis:\n  " + FormulaUtils.getConjuncts(hypothesis).mkString("\n  "))
       Logger("vC", Debug, "transition:\n  " + FormulaUtils.getConjuncts(transition).mkString("\n  "))
       Logger("VC", Debug, "conclusion:\n  " + FormulaUtils.getConjuncts(conclusion).mkString("\n  "))
-      val reduced = CL.entailment(And(hypothesis, transition), conclusion)
+      reduced = CL.entailment(And(hypothesis, transition), conclusion)
       val solver = if (round.utils.Options.dumpVcs) Solver(UFLIA, fName)
                    else Solver(UFLIA)
       solver.test(reduced) match {
@@ -55,6 +57,7 @@ class VC(description: String, hypothesis: Formula, transition: Formula, conclusi
     lst.add(itemForFormula("Hypothesis", hypothesis))
     lst.add(itemForFormula("Transition", transition))
     lst.add(itemForFormula("Conclusion", conclusion))
+    lst.add(itemForFormula("Reduced formula", reduced))
     status match {
       case Right(reason) => lst.add(new PreformattedText("Reason", reason))
       case _ => 

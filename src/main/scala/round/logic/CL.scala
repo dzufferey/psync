@@ -94,20 +94,44 @@ object CL {
     reduce(query)
   }
 
-  protected def collectComprehensionDefinitions(conjuncts: List[Formula]): Set[(Set[Variable], Formula, Formula)] = {
-    //look at all the terms of type FSet(procType)
-    val init = Set[(Set[Variable], Formula, Formula)]()
-    def process(acc: Set[(Set[Variable], Formula, Formula)], bound: Set[Variable], f: Formula) = f match {
-      case Eq(List(id, c @ Comprehension(vs, body))) if vs.forall(_.tpe == procType) => 
+  //TODO assumes positive occurance!!
+  protected def namedComprehensions(conjuncts: List[Formula]): (List[Formula], Set[(Set[Variable], Formula, Formula)]) = {
+    var acc = Set[(Set[Variable], Formula, Formula)]()
+    def process(bound: Set[Variable], f: Formula) = f match {
+      case Eq(List(id, c @ Comprehension(vs, body))) => 
         val scope = bound intersect (body.freeVariables -- vs)
-        acc + ((scope, id, c))
-      case Eq(List(c @ Comprehension(vs, body), id)) if vs.forall(_.tpe == procType) => 
+        acc += ((scope, id, c))
+        True()
+      case Eq(List(c @ Comprehension(vs, body), id)) => 
         val scope = bound intersect (body.freeVariables -- vs)
-        acc + ((scope, id, c))
-      case _ => acc
+        acc += ((scope, id, c))
+        True()
+      case other =>
+        other
     }
-    val defs = FormulaUtils.collectWithScope(init, process, Application(And, conjuncts))
-    defs
+    val f2 = FormulaUtils.mapWithScope(process, Application(And, conjuncts))
+    (FormulaUtils.getConjuncts(f2), acc)
+  }
+  
+  protected def anonymComprehensions(conjuncts: List[Formula]): (List[Formula], Set[(Set[Variable], Formula, Formula)]) = {
+    var acc = Set[(Set[Variable], Formula, Formula)]()
+    def process(bound: Set[Variable], f: Formula) = f match {
+      case c @ Comprehension(vs, body) => 
+        val scope = bound intersect (body.freeVariables -- vs)
+        val id = Quantifiers.skolemify(Variable(Namer("_comp")).setType(c.tpe), scope)
+        acc += ((scope, id, c))
+        id
+      case other =>
+        other
+    }
+    val f2 = FormulaUtils.mapWithScope(process, Application(And, conjuncts))
+    (FormulaUtils.getConjuncts(f2), acc)
+  }
+
+  protected def collectComprehensionDefinitions(conjuncts: List[Formula]): (List[Formula], Set[(Set[Variable], Formula, Formula)]) = {
+    val (f1, defs1) = namedComprehensions(conjuncts)
+    val (f2, defs2) = anonymComprehensions(f1)
+    (f2, defs1 ++ defs2)
   }
 
   protected val cardinalityAxioms = {
@@ -130,6 +154,7 @@ object CL {
     }
     val (bound1, id1, def1) = rename(set1)
     val (bound2, id2, def2) = rename(set2)
+    assert(id1.tpe == procType && id2.tpe == procType)
     val params = bound1 ++ bound2
     val tt = Quantifiers.skolemify(Variable(Namer("venn_tt")).setType(Int), params)
     val tf = Quantifiers.skolemify(Variable(Namer("venn_tf")).setType(Int), params)
@@ -172,21 +197,41 @@ object CL {
     FormulaUtils.getConjuncts(ForAll(params.toList, Application(And, conjuncts ::: triggers)))
   }
 
-  protected def addILP(conjuncts: List[Formula]): List[Formula] = {
-    val c1 = collectComprehensionDefinitions(conjuncts)
+  /** from A={i. P(i)} to ∀ i. P(i) ⇔ i∈A */
+  protected def membershipAxioms(compDef: (Set[Variable], Formula, Formula)): Formula = {
+    compDef._3 match {
+      case c @ Comprehension(List(i), f) =>
+        val bound = compDef._1
+        assert(!bound(i))
+        val name = compDef._2
+        ForAll(i :: bound.toList, Eq(f, In(i, name)))
+      case _ =>
+        sys.error("expected comprehension, found " + compDef._3)
+    }
+  }
+
+  protected def reduceComprehension(conjuncts: List[Formula]): List[Formula] = {
+    val (woComp, c1) = collectComprehensionDefinitions(conjuncts)
     val c2 = c1.map{ case (a,b,c) => (a,b,Some(c): Option[Formula]) } //def as an option, HO is not a comprehension
     val v = Variable("v").setType(procType)
-    val c3 = if (conjuncts exists hasHO) c2 + ((Set(v), Application(HO, List(v)), None)) else c2
-    Logger("CL", Debug, "addILP, comprehensions:\n  " + c1.mkString("\n  "))
-    val ilp = for (s1 <- c3; s2 <- c3 if s1 != s2) yield mkPairILP(s1, s2)
-    conjuncts ::: ilp.toList.flatten
+    val c3 = if (woComp exists hasHO) c2 + ((Set(v), Application(HO, List(v)), None)) else c2
+    Logger("CL", Debug, "reduceComprehension, comprehensions:\n  " + c1.mkString("\n  "))
+    val ilp = for (s1 <- c3; s2 <- c3 if s1 != s2 &&
+                                         s1._2.tpe == procType &&
+                                         s2._2.tpe == procType)
+              yield mkPairILP(s1, s2)
+    val membership = c1.toList map membershipAxioms
+    woComp ::: membership ::: ilp.toList.flatten
   }
 
   /* add axioms for set operations */ 
   protected def addSetAxioms(conjuncts: List[Formula]): List[Formula] = {
     Logger("CL", Warning, "TODO addSetAxioms")
+    //TODO
     conjuncts
   }
+
+  //TODO add axioms for inclusion and card, ....
   
   def reduce(formula: Formula): Formula = {
     val n1 = normalize(formula)
@@ -194,11 +239,17 @@ object CL {
     val rawConjuncts = FormulaUtils.getConjuncts(n2)
     val conjuncts = rawConjuncts.map(f => Quantifiers.skolemize(Simplify.simplify(Simplify.pnf(f))))
     Logger("CL", Info, "reducing:\n  " + conjuncts.mkString("\n  "))
-    val withILP = addILP(conjuncts)
+    val withILP = reduceComprehension(conjuncts)
     Logger("CL", Debug, "with ILP:\n  " + withILP.mkString("\n  "))
     val withSetAx = addSetAxioms(withILP)
     Logger("CL", Warning, "further reduction in:\n  " + withSetAx.mkString("\n  "))
-    Typer(formula).get
+    Typer(Application(And, withSetAx)) match {
+      case Typer.TypingSuccess(f) => f
+      case Typer.TypingFailure(r) =>
+        Logger.logAndThrow("CL", Error, "could not type:\n  " + formula + "\n  " + r)
+      case Typer.TypingError(r) =>
+        Logger.logAndThrow("CL", Error, "typer failed on:\n  " + formula + "\n  " + r)
+    }
   }
   
 }

@@ -84,6 +84,25 @@ abstract class Transformer {
 
 }
 
+abstract class TransformerWithScope {
+
+  def transform(bound: Set[Variable], f: Formula): Formula = f match {
+    case l @ Literal(_) => l
+    case v @ Variable(_) => v
+    case f @ Application(fct, args) =>
+      val args2 = args.map(transform(bound, _))
+      Copier.Application(f, fct, args2)
+    case b @ Binding(bt, vs, f) =>
+      val bound2 = bound ++ vs
+      val vs2 = vs.map(transform(bound2,_).asInstanceOf[Variable]) //this is bad but ...
+      val f2 = transform(bound2, f)
+      Copier.Binding(b, bt, vs2, f2)
+  }
+  
+  def transform(f: Formula): Formula = transform(Set(), f)
+
+}
+
 class Mapper(fct: Formula => Formula) extends Transformer {
   override def transform(f: Formula): Formula = f match {
     case b @ Binding(bt, vs, f) =>
@@ -94,6 +113,12 @@ class Mapper(fct: Formula => Formula) extends Transformer {
       fct(Copier.Binding(b, bt, vs, m2.transform(f)))
     case other =>
       fct(super.transform(f))
+  }
+}
+
+class MapperWithScope(fct: (Set[Variable], Formula) => Formula) extends TransformerWithScope {
+  override def transform(bound: Set[Variable], f: Formula): Formula = {
+    fct(bound, super.transform(bound, f))
   }
 }
 
