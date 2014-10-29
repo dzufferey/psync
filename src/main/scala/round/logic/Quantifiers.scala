@@ -122,7 +122,8 @@ object Quantifiers {
   /** remove top level ∀, returns the new formula and the newly introduced variables */
   def getUniversalPrefix(f: Formula): (Formula, List[Variable]) = getQuantPrefix(f, false)
     
-  protected def skolemify(v: Variable, bound: Set[Variable]) = {
+  /** create a skolem constant corresponding to a variable */
+  def skolemify(v: Variable, bound: Set[Variable]) = {
     if (bound.isEmpty) {
       v
     } else {

@@ -120,26 +120,27 @@ trait FormulaExtractor {
   def extractSymbol(e: Tree): round.formula.Symbol = e match {
     case Select(
               Apply(TypeApply(Select(Select(This(_), TermName("VarHelper")), TermName("init")), List(TypeTree())),
-              List(Select(This(_), v))), TermName("apply")) =>
-      UnInterpretedFct(round.verification.Utils.initPrefix + v.toString)
+              List(fct @ Select(This(_), v))), TermName("apply")) =>
+      UnInterpretedFct(round.verification.Utils.initPrefix + v.toString, Some(extractType(fct.tpe))) //TODO type parameters ?!
     case Select(
               Apply(TypeApply(Select(Select(This(_), TermName("VarHelper")), TermName("old")), List(TypeTree())),
-              List(Select(This(_), v))), TermName("apply")) =>
-      UnInterpretedFct(round.verification.Utils.oldPrefix + v.toString)
+              List(fct @ Select(This(_), v))), TermName("apply")) =>
+      UnInterpretedFct(round.verification.Utils.oldPrefix + v.toString, Some(extractType(fct.tpe))) //TODO type parameters ?!
     case TypeApply(Select(Select(Ident(scala), TermName("Some")), TermName("apply")), List(tpt)) =>
       FSome
     //TODO clean that part
     case q"${fct: RefTree}.apply" =>
-      //c.echo(e.pos, "considering "+ e +" as an UnInterpretedFct " + showRaw(e))
-      UnInterpretedFct(fct.name.toString)
+      //c.echo(e.pos, "(1) considering "+ e +" as an UnInterpretedFct " + showRaw(e) + " with type " + e.tpe)
+      UnInterpretedFct(fct.name.toString, Some(extractType(e.tpe))) //TODO type parameters
     case q"${fct: RefTree}.$fct2" =>
-      //c.echo(e.pos, "considering "+ e +" as an UnInterpretedFct " + showRaw(e))
-      UnInterpretedFct(fct.name.toString + "_" + fct2.toString)
+      //c.echo(e.pos, "(2) considering "+ e +" as an UnInterpretedFct " + showRaw(e + " with type " + e.tpe))
+      UnInterpretedFct(fct.name.toString + "_" + fct2.toString, Some(extractType(e.tpe))) //TODO type parameters
     case q"$pkg.this.$fct" =>
-      //c.echo(e.pos, "considering "+ e +" as an UnInterpretedFct " + showRaw(e))
-      UnInterpretedFct(/*pkg.name.toString + "_" +*/ fct.toString)
+      //c.echo(e.pos, "(3) considering "+ e +" as an UnInterpretedFct " + showRaw(e + " with type " + e.tpe))
+      UnInterpretedFct(/*pkg.name.toString + "_" +*/ fct.toString, Some(extractType(e.tpe))) //TODO type parameters
     case Ident(TermName(fct)) =>
-      UnInterpretedFct(fct.toString)
+      //c.echo(e.pos, "(4) considering "+ e +" as an UnInterpretedFct " + showRaw(e + " with type " + e.tpe))
+      UnInterpretedFct(fct.toString, Some(extractType(e.tpe))) //TODO type parameters
     case _ => sys.error("extractSymbol: " + showRaw(e))
   }
 

@@ -49,6 +49,7 @@ class RoundTransitionRelation(val send: Formula,
   def makeFullTr(vars: Set[Variable], aux: Map[String, AuxiliaryMethod]): Formula = {
     assert(old forall ((vars + mailboxSend + mailboxUpdt) contains _))
     val localVars = vars ++ local ++ old ++ primed + mailboxSend + mailboxUpdt
+    Logger("TransitionRelation", Debug, "makeFullTr, localize with" + localVars.mkString(", "))
     val i = procI //TODO check it is not captured/ing
     val inliner = new InlinePost(aux, localVars, i)
     val sendLocal = inliner.transform(localize(localVars, i, send))

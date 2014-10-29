@@ -33,19 +33,20 @@ object Names {
     case Bool => "Bool"
     case Int => "Int"
     case Wildcard => "_"
-    case FSet(elt) => "Set"
-    case FOption(elt) => "Option"
-    case Product(elts) => "Product" + elts.length
+    case FSet(elt) => "Set_"+tpe(elt)+"_"
+    case FOption(elt) => "Option_"+tpe(elt)+"_"
+    case Product(elts) => "Product" + elts.map(tpe).mkString("_","-","_")
     case Function(args, returns) => args.map(tpe).mkString("(", ") (", ")") + " (" + tpe(returns) + ")"
     case UnInterpreted(id) => id
     case other => Logger.logAndThrow("smtlib", Error, "not supported: " + other)
   }
   
   def tpeArity(t: Type): Int = t match {
-    case Bool | Int | Wildcard | UnInterpreted(_) => 0
-    case FSet(_) | FOption(_) => 1
-    case Product(elts) => elts.length
-    case other => Logger.logAndThrow("smtlib", Error, "Names.tpeArity, not supported: " + other)
+    case _ => 0
+  //case Bool | Int | Wildcard | UnInterpreted(_) => 0
+  //case FSet(_) | FOption(_) => 1
+  //case Product(elts) => elts.length
+  //case other => Logger.logAndThrow("smtlib", Error, "Names.tpeArity, not supported: " + other)
   }
   
   def typeDecl(t: Type) = {

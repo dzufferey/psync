@@ -93,7 +93,7 @@ object FormulaUtils {
       case Exists(vs, _) => acc ++ vs
       case _ => acc
     }
-    FormulaUtils.collect(Set[Variable](), process, f)
+    collect(Set[Variable](), process, f)
   }
 
   def universallyBound(f: Formula): Set[Variable] = {
@@ -101,7 +101,7 @@ object FormulaUtils {
       case ForAll(vs, _) => acc ++ vs
       case _ => acc
     }
-    FormulaUtils.collect(Set[Variable](), process, f)
+    collect(Set[Variable](), process, f)
   }
   
 
@@ -112,6 +112,18 @@ object FormulaUtils {
       override def traverse(f: Formula) = {
         super.traverse(f)
         acc = fct(acc, f)
+      }
+    }
+    traverser.traverse(f)
+    acc
+  }
+
+  def collectWithScope[T](init: T, fct: (T, Set[Variable], Formula) => T, f: Formula): T = {
+    var acc = init
+    val traverser = new TraverserWithScope {
+      override def traverse(bound: Set[Variable], f: Formula) = {
+        super.traverse(bound, f)
+        acc = fct(acc, bound, f)
       }
     }
     traverser.traverse(f)

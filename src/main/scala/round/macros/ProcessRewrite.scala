@@ -15,7 +15,7 @@ trait ProcessRewrite {
   private def defaultVariables = List(
     MyVarDef("r", tq"Int", q"-1", false, false),
     MyVarDef("_r", tq"Int", q"-1", false, false),
-    MyVarDef("n", tq"Int", q"0", true, false),
+    MyVarDef("n", tq"Int", q"0", false, false),
     MyVarDef("HO", tq"Set[ProcessID]", q"Set[ProcessID]()", true, true)
   )
 
@@ -87,6 +87,7 @@ trait ProcessRewrite {
     }
   }
 
+  //TODO also the initial value of the variables in case they are not initialized
   def collectInit(ts: List[Tree]): Formula = {
     ts.foldLeft(True(): Formula)( (acc, t) => t match {
       case a @ Apply(Select(_, TermName("$less$tilde")), List(_)) =>
@@ -105,9 +106,22 @@ trait ProcessRewrite {
     decls.filter(v => v.local && v.ghost).map( d => Variable(d.name).setType(extractType(d.tpe)))
   }
 
+  protected def emitNonOverflowingString(s: String): Tree = {
+    if (s.length < 60000) {
+      q"$s"
+    } else {
+      val chuncks = s.grouped(10000).toList.map(s => q"builder.append($s)")
+      q"""{ val builder = new StringBuilder
+            ..$chuncks
+            builder.toString
+          }"""
+    }
+  }
 
   def processRewrite(t: Tree): Tree = t match {
-    case q"new ..$parents { ..$body }" => //TODO make sure it is a Process
+    //TODO make sure it is a Process
+    //TODO can we add type parameters to allow generic consensus
+    case q"new ..$parents { ..$body }" =>
       //TODO enclosingClass
       val vars = getVariables(c.enclosingClass) ::: defaultVariables
       val implVars = vars.filter( !_.ghost ) 
@@ -137,10 +151,10 @@ trait ProcessRewrite {
       val body2 = init :: _v1 :: _v2 :: _v3 :: newDefs ::: defaultMethods ::: transformer.transformTrees(body)
       val tree = q"new ..$parents { ..$body2 }"
       //
-      val s1 = t.toString
-      val s2 = tree.toString
+      val s1 = emitNonOverflowingString(t.toString)
+      val s2 = emitNonOverflowingString(tree.toString)
       val _s1 = q"val beforeProcessing: String = $s1"
-      val _s2 = q"val afterProcessing: String = $s2"
+      val _s2 = q"val afterProcessing: String = $s2" //TODO emit compact string!!
       //
       val body3 = _s1 :: _s2 :: body2
       val tree2 = q"new ..$parents { ..$body3 }"

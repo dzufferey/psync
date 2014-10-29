@@ -24,6 +24,10 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
 
   val additionalAxioms = alg.axiomList
 
+  def retype(f: Formula): Formula = {
+    ???
+  }
+
   def checkProgress(
         descr: String,
         invariant1: Formula,
@@ -146,7 +150,7 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
     val vcs = generateVCs
     //solve the queries
     //vcs.par.foreach(_.par.foreach(_.solve))
-    vcs.foreach(_.par.foreach(_.solve))
+    vcs.foreach(_.foreach(_.solve))
     //generate a report:
     
     val status = if (vcs.forall(_.exists(_.isValid))) " (success)" else " (failed)"

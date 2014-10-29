@@ -324,6 +324,7 @@ case object Trd extends InterpretedFct("_3") {
   override val priority = 20
 }
 
+
 object InterpretedFct {
   private var symbols: List[InterpretedFct] = Nil
   private var map: Map[String,InterpretedFct] = Map.empty

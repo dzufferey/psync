@@ -21,7 +21,10 @@ class VC(description: String, hypothesis: Formula, transition: Formula, conclusi
 
   def solve {
     try {
-      Logger("VC", Info, "solving: " + description)
+      Logger("VC", Notice, "solving: " + description)
+      Logger("vC", Debug, "hypothesis:\n  " + FormulaUtils.getConjuncts(hypothesis).mkString("\n  "))
+      Logger("vC", Debug, "transition:\n  " + FormulaUtils.getConjuncts(transition).mkString("\n  "))
+      Logger("VC", Debug, "conclusion:\n  " + FormulaUtils.getConjuncts(conclusion).mkString("\n  "))
       val reduced = CL.entailment(And(hypothesis, transition), conclusion)
       val solver = if (round.utils.Options.dumpVcs) Solver(UFLIA, fName)
                    else Solver(UFLIA)
@@ -33,7 +36,7 @@ class VC(description: String, hypothesis: Formula, transition: Formula, conclusi
       }
       solved = true
     } catch { case e: Exception =>
-      status = Right("Exception: " + e.getMessage + "\n" + e.getStackTrace)
+      status = Right("Exception: " + e.getMessage + "\n  " + e.getStackTrace.mkString("\n  "))
       solved = true
     }
   }

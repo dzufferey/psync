@@ -44,12 +44,27 @@ abstract class Traverser {
     case Literal(value) => ()
     case Variable(v) => ()
     case Application(fct, args) =>
-      //traverse(fct)
       args foreach traverse
     case Binding(_, vs, f) =>
       vs foreach traverse
       traverse(f)
   }
+
+}
+
+abstract class TraverserWithScope {
+
+  def traverse(bound: Set[Variable], f: Formula): Unit = f match {
+    case Literal(value) => ()
+    case Variable(v) => ()
+    case Application(fct, args) =>
+      args.foreach(traverse(bound,_))
+    case Binding(_, vs, f) =>
+      vs.foreach(traverse(bound,_))
+      traverse(bound ++ vs, f)
+  }
+
+  def traverse(f: Formula): Unit = traverse(Set(), f)
 
 }
 
