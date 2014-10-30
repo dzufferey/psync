@@ -17,7 +17,7 @@ class VC(description: String, hypothesis: Formula, transition: Formula, conclusi
   protected var reduced: Formula = False()
 
   protected lazy val fName = {
-    Namer(description.replaceAll(" ", "_")) + ".smt"
+    Namer(description.replaceAll(" ", "_")) + ".smt2"
   }
 
 

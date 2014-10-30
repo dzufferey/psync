@@ -19,7 +19,7 @@ sealed abstract class Formula {
   val boundVariables: Set[Variable]
 }
 
-case class Literal[T <: AnyVal](value: T) extends Formula {
+case class Literal[T](value: T) extends Formula {//removed <: AnyVal to allow unit
 
   value match {
     case _: Boolean => tpe = Bool
@@ -36,6 +36,13 @@ case class Literal[T <: AnyVal](value: T) extends Formula {
   lazy val freeVariables = Set[Variable]()
   lazy val boundVariables = Set[Variable]()
 
+}
+object UnitLit {
+  def unapply(f: Formula): Option[Unit] = f match {
+    case Literal(()) => Some(())
+    case _ => None
+  }
+  def apply(): Literal[Unit] = Literal(()).setType(UnitT())
 }
 object True {
   def unapply(f: Formula): Option[Unit] = f match {

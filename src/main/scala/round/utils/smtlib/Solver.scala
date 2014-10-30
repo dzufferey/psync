@@ -65,6 +65,7 @@ class Solver( th: Theory,
   override def finalize {
     try {
       solver.exitValue
+      fileDump.foreach(_.close)
     } catch {
       case _: java.lang.IllegalThreadStateException =>
         solver.destroy
@@ -84,6 +85,7 @@ class Solver( th: Theory,
     for (f <- fileDump) {
       f.write(cmd)
       f.newLine
+      f.flush
     }
   }
   
@@ -95,6 +97,7 @@ class Solver( th: Theory,
     for (f <- fileDump) {
       Printer(f, cmd)
       f.newLine
+      f.flush
     }
   }
 
@@ -224,8 +227,13 @@ class Solver( th: Theory,
   }
 
   def test(f: Formula): Option[Boolean] = {
+    test(FormulaUtils.getConjuncts(f))
+  }
+
+  def test(conjuncts: List[Formula]): Option[Boolean] = {
+    conjuncts.foreach(Checks(_))
     push
-    assert(f)
+    conjuncts.foreach(assert(_))
     val res = checkSat
     pop
     res

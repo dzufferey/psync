@@ -21,6 +21,7 @@ object Names {
     case Times => "*"
     case UnInterpretedFct(f, _, _) => f
     case Neq => Logger.logAndThrow("smtlib", Error, "≠ should be replaced by Not(Eq(...))")
+    case In => "in"
     case i: InterpretedFct => i.symbol
   }
 
@@ -35,6 +36,7 @@ object Names {
     case Wildcard => "_"
     case FSet(elt) => "Set_"+tpe(elt)+"_"
     case FOption(elt) => "Option_"+tpe(elt)+"_"
+    case UnitT() => "Unit"
     case Product(elts) => "Product" + elts.map(tpe).mkString("_","-","_")
     case Function(args, returns) => args.map(tpe).mkString("(", ") (", ")") + " (" + tpe(returns) + ")"
     case UnInterpreted(id) => id

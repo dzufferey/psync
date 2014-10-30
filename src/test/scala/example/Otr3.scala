@@ -29,7 +29,7 @@ class OTR3 extends Algorithm[ConsensusIO] {
         })),
         f(V.exists( v => {
            val A = P.filter( i => x(i) == v);
-           A.size == n && P.forall( i => decided(i) ==> (decision(i) == v))
+           A.size == (n: Int) && P.forall( i => decided(i) ==> (decision(i) == v))
         })),
         f(V.exists( v => P.forall( i => decided(i) && decision(i) == v) ))
       ) //how to relate the invariants and the magic rounds

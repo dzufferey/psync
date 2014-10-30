@@ -243,12 +243,13 @@ object CL {
     Logger("CL", Debug, "with ILP:\n  " + withILP.mkString("\n  "))
     val withSetAx = addSetAxioms(withILP)
     Logger("CL", Warning, "further reduction in:\n  " + withSetAx.mkString("\n  "))
-    Typer(Application(And, withSetAx)) match {
+    val last = withSetAx
+    Typer(Application(And, last)) match {
       case Typer.TypingSuccess(f) => f
       case Typer.TypingFailure(r) =>
-        Logger.logAndThrow("CL", Error, "could not type:\n  " + formula + "\n  " + r)
+        Logger.logAndThrow("CL", Error, "could not type:\n  " + last + "\n  " + r)
       case Typer.TypingError(r) =>
-        Logger.logAndThrow("CL", Error, "typer failed on:\n  " + formula + "\n  " + r)
+        Logger.logAndThrow("CL", Error, "typer failed on:\n  " + last + "\n  " + r)
     }
   }
   

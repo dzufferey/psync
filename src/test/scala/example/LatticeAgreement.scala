@@ -69,16 +69,20 @@ class LatticeAgreement extends Algorithm[LatticeIO] {
     val rounds = Array[Round](
       rnd(new Round {
         
-        type A = Set[Int]
+        type A = Lattice.T
+        //type A = Set[Int]
 
-        def send(): Set[(A, ProcessID)] = {
+        def send(): Set[(Lattice.T, ProcessID)] = {
+        //def send(): Set[(Set[Int], ProcessID)] = {
           broadcast(proposed)
         }
 
-        def update(mailbox: Set[(A, ProcessID)]) {
+        def update(mailbox: Set[(Lattice.T, ProcessID)]) {
+        //def update(mailbox: Set[(Set[Int], ProcessID)]) {
           if (active) {
-            if (mailbox.filter(_._1 == proposed).size > n/2) {
+            if (mailbox.filter(_._1 == (proposed: Lattice.T)).size > n/2) {
               io.decide(proposed)
+              decision <~ Some(proposed)
               active <~ false
             } else {
               proposed <~ Lattice.join(proposed, mailbox.map(_._1).toSeq:_*)

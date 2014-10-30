@@ -154,7 +154,7 @@ trait ProcessRewrite {
       val s1 = emitNonOverflowingString(t.toString)
       val s2 = emitNonOverflowingString(tree.toString)
       val _s1 = q"val beforeProcessing: String = $s1"
-      val _s2 = q"val afterProcessing: String = $s2" //TODO emit compact string!!
+      val _s2 = q"val afterProcessing: String = $s2"
       //
       val body3 = _s1 :: _s2 :: body2
       val tree2 = q"new ..$parents { ..$body3 }"

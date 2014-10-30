@@ -72,7 +72,7 @@ class BasicConsensus extends Algorithm[MembershipIO] {
           m._1
         } ensuring { v1 =>
           mailbox.map(_._1).forall( v2 =>
-            mailbox.filter(_._1 == v1).size > mailbox.filter(_._1 == v2).size || v1 <= v2
+            mailbox.filter(_._1 == v1).size > mailbox.filter(_._1 == v2).size || v1.compare(v2) <= 0
           )
         }
         

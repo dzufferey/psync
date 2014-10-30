@@ -24,10 +24,6 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
 
   val additionalAxioms = alg.axiomList
 
-  def retype(f: Formula): Formula = {
-    ???
-  }
-
   def checkProgress(
         descr: String,
         invariant1: Formula,
@@ -120,6 +116,12 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
 
   def reportProcess: Item = {
     val lst = new Sequence("Process")
+
+    val vars = new List("Variables")
+    vars.add(new Text("Global", process.globalVariables.map(v => v.name+": " +v.tpe).mkString(", ")))
+    vars.add(new Text("Local", process.localVariables.map(v => v.name+": " +v.tpe).mkString(", ")))
+    vars.add(new Text("Ghost", process.ghostVariables.map(v => v.name+": " +v.tpe).mkString(", ")))
+    lst.add(vars)
     
     lst.add(itemForFormula("Initial state", procInitState))
 
@@ -129,7 +131,7 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
       lst.add(new PreformattedText("Send", process.rounds(i).sendStr))
       lst.add(new PreformattedText("Update", process.rounds(i).updtStr))
       val tr = process.rounds(i).rawTR
-      val aux =  process.rounds(i).auxSpec
+      val aux = process.rounds(i).auxSpec
       val f = tr.makeFullTr(procLocalVars ++ procGhostVars, aux)
       val fs = FormulaUtils.getConjuncts(f)
       lst.add(itemForFormula("Transition Relation", fs))

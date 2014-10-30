@@ -20,6 +20,8 @@ object ConsensusVerifier extends Options {
   var r = "report.html"
   newOption("-r", String( i => r = i), "report.html")
 
+  newOption("-dumpVcs", Unit( () => round.utils.Options.dumpVcs = true), "dump the SMT queries into files")
+
   val usage = "..."
 
   def main(args: Array[java.lang.String]) {

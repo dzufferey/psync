@@ -39,6 +39,13 @@ trait FormulaExtractor {
     }
   }
 
+  object IsUnit {
+    def unapply(t: Type): Boolean = t match {
+      case TypeRef(_, tRef, List()) if showRaw(tRef) == "scala.Unit" => true
+      case _ => false
+    }
+  }
+
   //TODO clean version using mirror ....
   def extractType(t: Type): round.formula.Type = {
     import definitions._
@@ -55,18 +62,23 @@ trait FormulaExtractor {
         case IsTuple(args) => Product(args map extractType)
         case IsSet(arg) => FSet(extractType(arg))
         case IsOption(arg) =>  FOption(extractType(arg))
+        case IsUnit() => UnitT()
+        case MethodType(args, returnT) =>
+          round.formula.Function(args.map(arg => extractType(arg.typeSignature)), extractType(returnT))
         case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "TypeName(\"LocalVariable\")" =>
           round.formula.Function(List(round.verification.Utils.procType), (extractType(arg)))
-        case TypeRef(_, TypeName("ProcessID"), List()) =>
-          round.verification.Utils.procType
+        case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "TypeName(\"GhostVariable\")" =>
+          round.formula.Function(List(round.verification.Utils.procType), (extractType(arg)))
+        case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "TypeName(\"GlobalVariable\")" =>
+          extractType(arg)
+        case t @ TypeRef(_, _, List()) =>
+          val str = t.toString
+          if (str == "round.ProcessID") round.verification.Utils.procType
+          else UnInterpreted(str)
         case other =>
-          if (other.toString == "round.ProcessID") {
-            round.verification.Utils.procType
-          } else {
-            //TODO
-            //println("extractType:\n  " + other + "\n  " + showRaw(other))
-            Wildcard
-          }
+          //TODO
+          //println("extractType:\n  " + other + "\n  " + showRaw(other))
+          Wildcard
       }
     }
   }
@@ -130,17 +142,21 @@ trait FormulaExtractor {
       FSome
     //TODO clean that part
     case q"${fct: RefTree}.apply" =>
-      //c.echo(e.pos, "(1) considering "+ e +" as an UnInterpretedFct " + showRaw(e) + " with type " + e.tpe)
-      UnInterpretedFct(fct.name.toString, Some(extractType(e.tpe))) //TODO type parameters
+      val tpe = extractType(e.tpe)
+      //c.echo(e.pos, "(1) "+ e +" as an UnInterpretedFct with type " + e.tpe + ", " + tpe)
+      UnInterpretedFct(fct.name.toString, Some(tpe)) //TODO type parameters
     case q"${fct: RefTree}.$fct2" =>
-      //c.echo(e.pos, "(2) considering "+ e +" as an UnInterpretedFct " + showRaw(e + " with type " + e.tpe))
-      UnInterpretedFct(fct.name.toString + "_" + fct2.toString, Some(extractType(e.tpe))) //TODO type parameters
+      val tpe = extractType(e.tpe)
+      //c.echo(e.pos, "(2) "+ e +" as an UnInterpretedFct with type " + e.tpe + ", " + tpe)
+      UnInterpretedFct(fct.name.toString + "_" + fct2.toString, Some(tpe)) //TODO type parameters
     case q"$pkg.this.$fct" =>
-      //c.echo(e.pos, "(3) considering "+ e +" as an UnInterpretedFct " + showRaw(e + " with type " + e.tpe))
-      UnInterpretedFct(/*pkg.name.toString + "_" +*/ fct.toString, Some(extractType(e.tpe))) //TODO type parameters
+      val tpe = extractType(e.tpe)
+      //c.echo(e.pos, "(3) "+ e +" as an UnInterpretedFct with type " + e.tpe + ", " + tpe)
+      UnInterpretedFct(/*pkg.name.toString + "_" +*/ fct.toString, Some(tpe)) //TODO type parameters
     case Ident(TermName(fct)) =>
-      //c.echo(e.pos, "(4) considering "+ e +" as an UnInterpretedFct " + showRaw(e + " with type " + e.tpe))
-      UnInterpretedFct(fct.toString, Some(extractType(e.tpe))) //TODO type parameters
+      val tpe = extractType(e.tpe)
+      //c.echo(e.pos, "(4) "+ e +" as an UnInterpretedFct with type " + e.tpe + "," + tpe)
+      UnInterpretedFct(fct.toString, Some(tpe)) //TODO type parameters
     case _ => sys.error("extractSymbol: " + showRaw(e))
   }
 
@@ -220,7 +236,12 @@ trait FormulaExtractor {
         val r2 = tree2Formula(r)
         Implies(l2,r2)
       case Apply(TypeApply(Select(Select(This(_), TermName("VarHelper")), TermName("getter")), List(TypeTree())), List(expr)) =>
-        tree2Formula(expr)
+        val f = tree2Formula(expr)
+        //getter are called within a process, so need to remove the arg from the type.
+        f.tpe match {
+          case round.formula.Function(List(t), ret) if t == round.verification.Utils.procType => f.setType(ret)
+          case _ => f
+        }
       case q"$pkg.this.broadcast($expr)" =>
         val payload = tree2Formula(expr)
         val tpe = Product(List(payload.tpe, round.verification.Utils.procType))
@@ -308,9 +329,9 @@ trait FormulaExtractor {
         val (vs, d) = (defs map extractValDef).unzip
         Exists(vs, d.foldLeft(f2)((x, y) => And(x, y)))
 
-      case Literal(Constant(())) => True() //TODO should be a decent subtitute
+      case Literal(Constant(())) => UnitLit()
 
-      case EmptyTree => True() //TODO should be a decent subtitute
+      case EmptyTree => UnitLit()
 
       case other => sys.error("did not expect:\n" + other + "\n" + showRaw(other))
     }
@@ -329,10 +350,13 @@ trait FormulaExtractor {
     body match {
      
       case If(cond, thenp, elsep) =>
-        val condCstr = makeConstraints(cond, None, None)
+        val id = c.freshName("cond")
+        val cnd = Ident(TermName(id))
+        val cvar = Variable(id).setType(Bool)
+        val condCstr = makeConstraints(cond, Some(cnd), None)
         val thenCstr = makeConstraints(thenp, currRet, globalRet)
         val elseCstr = makeConstraints(elsep, currRet, globalRet)
-        Or(And(condCstr, thenCstr), And(Not(condCstr), elseCstr))
+        And(condCstr, Or(And(cvar, thenCstr), And(Not(cvar), elseCstr)))
      
       case Block(stats, expr) =>
         val statsCstr = stats.map(makeConstraints(_, None, globalRet))
@@ -357,14 +381,18 @@ trait FormulaExtractor {
         if (currRet.isDefined) {
           makeConstraints(Assign(currRet.get, term))
         } else {
-          tree2Formula(term)
+          //Eq(tree2Formula(term), UnitLit())
+          //tree2Formula(term)
+          True()
         }
      
       case term: RefTree =>
         if (currRet.isDefined) {
           makeConstraints(Assign(currRet.get, term))
         } else {
-          tree2Formula(term)
+          //Eq(tree2Formula(term), UnitLit())
+          //tree2Formula(term)
+          True()
         }
       
       case Match(selector, cases) =>
