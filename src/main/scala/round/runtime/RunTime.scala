@@ -101,7 +101,7 @@ class RunTime[IO](val alg: Algorithm[IO]) {
 
   /** the first 8 bytes of the payload must be empty */
   def sendMessage(dest: ProcessID, tag: Tag, payload: ByteBuf) = {
-    assert(Flags.userDefinable(tag.flag))
+    assert(Flags.userDefinable(tag.flag) || tag.flag == Flags.dummy) //TODO in the long term, we might want to remove the dummy
     assert(srv.isDefined)
     val grp = srv.get.directory
     val dst = grp.idToInet(dest)

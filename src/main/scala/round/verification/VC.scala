@@ -21,6 +21,7 @@ class VC(description: String, hypothesis: Formula, transition: Formula, conclusi
   }
 
 
+  //TODO update to get the model if sat.
   def solve {
     try {
       Logger("VC", Notice, "solving: " + description)
@@ -46,7 +47,7 @@ class VC(description: String, hypothesis: Formula, transition: Formula, conclusi
   def isValid: Boolean = {
     if (!solved) solve
     status match {
-      case Left(true) => true
+      case Left(false) => true
       case _ => false
     }
   }

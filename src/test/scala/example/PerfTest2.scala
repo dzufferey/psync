@@ -196,7 +196,7 @@ class PerfTest2(id: Int,
           l.unlock
         }
     }
-    rt.sendMessage(m.senderId, tag, payload)
+    rt.sendMessage(sender, tag, payload)
   }
 
   /** */
@@ -255,8 +255,9 @@ class PerfTest2(id: Int,
     }
 
     if (canGo) {
+      val v = (idx << 16) | (value & 0xFFFF)
       val io = new ConsensusIO {
-        val initialValue = (idx << 16) | (value & 0xFFFF)
+        val initialValue = v
         def decide(value: Int) {
           Logger("PerfTest", Info, instanceNbr + " normal decision")
           val first = processDecision(instanceNbr, value)
@@ -268,6 +269,7 @@ class PerfTest2(id: Int,
       }
       Logger("PerfTest", Info, "(" + id + ") starting instance " + instanceNbr + " with " + idx + ", " + value + ", self " + self)
       rt.startInstance(instanceNbr, io, msg)
+      wakeupOthers(instanceNbr, v)
 
     } else {
       Logger("PerfTest", Debug, "backing off " + idx)
@@ -277,6 +279,19 @@ class PerfTest2(id: Int,
       }
       for (m <- msg) {
         m.release
+      }
+    }
+  }
+  
+  def wakeupOthers(inst: Short, initValue: Int) {
+    if (lv) {
+      val dir = rt.directory
+      for (o <- dir.others) {
+        val payload = ByteBufAllocator.buffer(16)
+        payload.writeLong(8)
+        var tag = Tag(inst,0,Flags.dummy,0)
+        payload.writeInt(initValue)
+        rt.sendMessage(o.id, tag, payload)
       }
     }
   }

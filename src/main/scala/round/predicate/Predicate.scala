@@ -139,7 +139,17 @@ abstract class Predicate(
   def messageReceived(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
     val tag = Message.getTag(pkt.content)
     if (instance == tag.instanceNbr) {
-      receive(pkt)
+      if (tag.flag == Flags.normal) {
+        receive(pkt)
+      } else if (tag.flag == Flags.dummy) {
+        Logger("Predicate", Debug, "messageReceived: dummy flag (ignoring)")
+        pkt.release
+      } else if (tag.flag == Flags.error) {
+        Logger("Predicate", Warning, "messageReceived: error flag (pushing to user)")
+        ctx.fireChannelRead(pkt)
+      } else {
+        Logger("Predicate", Warning, "messageReceived: unknown flag -> " + tag.flag + " (ignoring)")
+      }
     } else {
       ctx.fireChannelRead(pkt)
     }

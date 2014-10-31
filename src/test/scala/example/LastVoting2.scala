@@ -7,7 +7,7 @@ object Sanity {
   def a(v: Int) { assert(v != 0, v.toString) }
 }
 
-class LastVoting2(afterDecision: Int = 2) extends Algorithm[ConsensusIO] {
+class LastVoting2(afterDecision: Int = 1) extends Algorithm[ConsensusIO] {
 
   import VarHelper._
   import SpecHelper._
@@ -84,8 +84,7 @@ class LastVoting2(afterDecision: Int = 2) extends Algorithm[ConsensusIO] {
         def coord(p: ProcessID, phi: Int): ProcessID = new ProcessID((phi % n).toShort)
 
         def send(): Set[((Int, Int), ProcessID)] = {
-          broadcast((x: Int, ts: Int))
-          //Set((x: Int, ts: Int) -> coord(id, r / 4))
+          Set((x: Int, ts: Int) -> coord(id, r / 4))
         }
         
         override def expectedNbrMessages = if (id == coord(id, r/4)) n/2 + 1 else 0

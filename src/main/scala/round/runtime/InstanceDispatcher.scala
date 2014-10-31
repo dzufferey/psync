@@ -76,7 +76,7 @@ class InstanceDispatcher(
       l.unlock()
     }
     if (oldLst forall (_._1 != inst)) {
-      Logger("Predicate", Warning, "dispatcher.remove: instance not found " + inst)
+      Logger("InstanceDispatcher", Warning, "dispatcher.remove: instance not found " + inst)
     }
   }
 
