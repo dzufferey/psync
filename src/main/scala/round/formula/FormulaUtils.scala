@@ -110,6 +110,16 @@ object FormulaUtils {
     collect(Set[Variable](), process, f)
   }
   
+  
+  def traverse(fct: Formula => Unit, f: Formula) {
+    val traverser = new Traverser {
+      override def traverse(f: Formula) = {
+        super.traverse(f)
+        fct(f)
+      }
+    }
+    traverser.traverse(f)
+  }
 
 
   def collect[T](init: T, fct: (T, Formula) => T, f: Formula): T = {
@@ -148,10 +158,11 @@ object FormulaUtils {
   }
 
   def typeParams(app: Application): List[Type] = app.fct match {
-    case Tuple | Fst | Snd | Trd =>
+    case Tuple => app.args.map(_.tpe)
+    case Fst | Snd | Trd =>
       app.args.head.tpe match {
         case Product(tps) => tps
-        case other => sys.error("TODO typeParams for Product type: " + other)
+        case other => sys.error("typeParams expected product type: " + other + " in " + app)
       }
     case Eq | Neq | And | Or | Plus | Times => //skip those: overloaded in smtlib of flattened
       Nil
@@ -160,7 +171,9 @@ object FormulaUtils {
       val concreteType = Function(app.args.map(_.tpe), app.tpe)
       val subst = Typer.unify(normal.typeWithParams, concreteType)
       subst match {
-        case Some(s) => params.map(s)
+        case Some(s) =>
+          //println("typeWithParams: " + app.fct + ", " + concreteType + ", " + normal.typeWithParams + ", " + subst)
+          params.map(s)
         case None => sys.error("FormulaUtils.typeWithParams, cannot unify: " + normal.typeWithParams + ", " + concreteType)
       }
   }

@@ -10,12 +10,9 @@ import java.util.concurrent.Semaphore
 import java.util.concurrent.locks.ReentrantLock
 import scala.util.Random
 
-object PerfTest extends Options with DecisionLog[scala.Int] {
+object PerfTest extends round.utils.DefaultOptions with DecisionLog[scala.Int] {
   
   
-  newOption("-v", Unit(() => Logger.moreVerbose), "increase the verbosity level.")
-  newOption("-q", Unit(() => Logger.lessVerbose), "decrease the verbosity level.")
-
   var id = -1
   newOption("-id", Int( i => id = i), "the replica ID")
 

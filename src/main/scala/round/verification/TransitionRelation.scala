@@ -16,17 +16,41 @@ class RoundTransitionRelation(val send: Formula,
                               val local: List[Variable],
                               val primed: List[Variable]) {
 
+  def retype(env: Set[Variable]): RoundTransitionRelation = {
+    assert(mailboxSend.tpe != Wildcard, "mailboxSend has Wildcard type")
+    assert(mailboxUpdt.tpe != Wildcard, "mailboxUpdt has Wildcard type")
+    assert(local.forall(_.tpe != Wildcard), "some local variables has Wildcard type")
+    //match old and primed with env
+    val substOld = old.map( v => v -> env.find(_ == v).get ).toMap
+    val substPrimed = primed.map( v => v -> env.find(v2 => v.name.startsWith(v2.name)).get ).toMap
+    val subst = substOld ++ substPrimed
+    assert(subst.forall(_._2.tpe != Wildcard), "some env variables has Wildcard type")
+    new RoundTransitionRelation(
+      FormulaUtils.alpha(subst, send),
+      mailboxSend,
+      FormulaUtils.alpha(subst, update),
+      mailboxUpdt,
+      old.map(substOld),
+      local,
+      primed.map(substPrimed)
+    )
+  }
+
   //link mailboxes with HO:
   //  ∀ i j v. (i, v) ∈ mailboxUpdt(j) ⇔ (i ∈ HO(j) ∧ (j, v) ∈ mailboxSend(i))
-  val mailboxLink = {
+  lazy val mailboxLink = {
     val i = procI
     val j = procJ
-    val v = Variable("v") //TODO get type from mailbox
+    val vTpe = mailboxSend.tpe match {
+      case FSet(Product(List(t, p))) => assert(p == procType); t
+      case other => sys.error("mailbox type is " + other)
+    }
+    val v = Variable("v").setType(vTpe)
     val iv = Application(Tuple, List(v, i))
     val jv = Application(Tuple, List(v, j))
     val mi = skolemify(mailboxSend, i)
     val mj = skolemify(mailboxUpdt, j)
-    val ho = In(i, skolemify(Variable("HO"), j))
+    val ho = In(i, skolemify(Variable("HO").setType(FSet(procType)), j))
     ForAll(List(i, j, v), Eq(In(iv, mj), And(ho, In(jv, mi))))
   }
   
@@ -50,7 +74,10 @@ class RoundTransitionRelation(val send: Formula,
     assert(old forall ((vars + mailboxSend + mailboxUpdt) contains _))
     val localVars = vars ++ local ++ old ++ primed + mailboxSend + mailboxUpdt
     Logger("TransitionRelation", Debug, "makeFullTr, localize with" + localVars.mkString(", "))
-    val i = procI //TODO check it is not captured/ing
+    val i = procI
+    //check it is not captured/ing
+    assert(!(send.freeVariables contains i), "capture is send")
+    assert(!(update.freeVariables contains i), "capture is update")
     val inliner = new InlinePost(aux, localVars, i)
     val sendLocal = inliner.transform(localize(localVars, i, send))
     val updateLocal = inliner.transform(localize(localVars, i, update))
@@ -60,7 +87,7 @@ class RoundTransitionRelation(val send: Formula,
             ForAll(List(i), updateLocal) ))
   }
   
-  val primedSubst: Map[UnInterpretedFct, UnInterpretedFct] = {
+  lazy val primedSubst: Map[UnInterpretedFct, UnInterpretedFct] = {
     val map = (old zip primed).flatMap{ case (o,p) =>
       val o1 = skolemify(o)
       val o2 = o1.stripType

@@ -5,14 +5,18 @@ import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
 /** default configuration object */
-object Options extends Options {
- 
+abstract class DefaultOptions extends Options {
+
   //verbosity
   newOption("-v", Unit(() => Logger.moreVerbose), "increase the verbosity level.")
   newOption("-q", Unit(() => Logger.lessVerbose), "decrease the verbosity level.")
   newOption("--hide", String( str => Logger.disallow(str)), "hide the output with given prefix.")
   newOption("--noAssert", Unit(() => Logger.disableAssert), "remove some assertions.")
  
+}
+
+object Options extends DefaultOptions {
+  
   //general reporting option
   var report = false
   var reportOutput: Option[java.lang.String] = None
@@ -22,10 +26,6 @@ object Options extends Options {
   newOption("--report", String(str => { report = true; reportOutput = Some(str) } ), "output a report with given name.")
   newOption("--stats", Unit(() => stats = true), "print statistics about the execution.")
  
-  //general config stuff
-  //var maxChildren = -1
-  //newOption("--maxChildren", Arg.Int ( i => maxChildren = i), "limit the number of children that can be spawned at the same time (default: no limit).")
- 
   var dumpVcs = false
 
   newOption("--smtSolver", String(str => smtlib.Solver.setCmd(str.split(" "))), "The smt sovler (+ options) to use (default: \"z3 -smt2 -in\").")
@@ -33,4 +33,5 @@ object Options extends Options {
  
   val usage = "..."
 
+ 
 }

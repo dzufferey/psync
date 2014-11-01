@@ -247,11 +247,8 @@ class LockManagerClient(myPort: Int, remote: (String, Int)) {
 
 }
 
-object Main extends dzufferey.arg.Options {
+object Main extends round.utils.DefaultOptions {
   import dzufferey.arg._
-
-  newOption("-v", Unit(() => Logger.moreVerbose), "increase the verbosity level.")
-  newOption("-q", Unit(() => Logger.lessVerbose), "decrease the verbosity level.")
 
   var client = false
   newOption("-c", Unit(() => client = true), "client mode (default is server mode)")

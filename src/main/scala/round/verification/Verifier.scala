@@ -16,11 +16,46 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
   val spec = alg.spec 
 
   val process = alg.process(new ProcessID(0), dummyIO)
-  var procInitState: Formula = process.initState
-  var procLocalVars: Set[Variable] = process.localVariables.toSet
-  var procGhostVars: Set[Variable] = process.ghostVariables.toSet
+  val procLocalVars: Set[Variable] = process.localVariables.toSet
+  val procGhostVars: Set[Variable] = process.ghostVariables.toSet
+  val procAllVars = procLocalVars ++ procGhostVars ++ process.globalVariables
 
-  var roundsTR = process.rounds.map( r => (r.rawTR, r.auxSpec) )
+  assert(procAllVars.forall(_.tpe != Wildcard))
+
+  val procInitState: Formula = {
+    //fix the types!
+    def fillType(f: Formula) = f match {
+      case v: Variable if procAllVars contains v =>
+        val v2 = procAllVars.find(_ == v).get
+        assert(v.tpe match {
+            case Wildcard | TypeVariable(_) => true
+            case tpe => tpe == v2.tpe
+          }, "v.tpe = " + v.tpe + ", v2.tpe = " + v2.tpe)
+        v.setType(v2.tpe)
+      case _ => ()
+    }
+    FormulaUtils.traverse( fillType, process.initState)
+    val f2 = Typer(process.initState).get
+    def guessType1(f: Formula) {
+      f.tpe match {
+        case TypeVariable(v) =>
+          Logger("Verifier", Warning, "guessing type for " + f + ": " + f.tpe)
+          f.setType(UnInterpreted("u"+v))
+        case _ => ()
+      }
+    }
+    def guessType2(f: Formula) = f match {
+      case Application(UnInterpretedFct(fct, None, Nil), args) =>
+        val concreteType = Function(args.map(_.tpe), f.tpe)
+        Logger("Verifier", Warning, "guessing type for " + fct + ": " + concreteType)
+        Application(UnInterpretedFct(fct, Some(concreteType), Nil), args)
+      case other => other
+    }
+    FormulaUtils.traverse( guessType1, f2)
+    FormulaUtils.map( guessType2, f2)
+  }
+
+  var roundsTR = process.rounds.map( r => (r.rawTR.retype(procAllVars), r.auxSpec) )
 
   val additionalAxioms = alg.axiomList
 
@@ -130,15 +165,15 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
       val lst = new List("Round " + i)
       lst.add(new PreformattedText("Send", process.rounds(i).sendStr))
       lst.add(new PreformattedText("Update", process.rounds(i).updtStr))
-      val tr = process.rounds(i).rawTR
-      val aux = process.rounds(i).auxSpec
+      val tr = roundsTR(i)._1
+      val aux = roundsTR(i)._2
       val f = tr.makeFullTr(procLocalVars ++ procGhostVars, aux)
       val fs = FormulaUtils.getConjuncts(f)
       lst.add(itemForFormula("Transition Relation", fs))
       //TR variables
-      lst.add(new Text("Pre Variables", tr.old.mkString(", ")))
-      lst.add(new Text("Local Variables", tr.local.mkString(", ")))
-      lst.add(new Text("Post Variables", tr.primed.mkString(", ")))
+      lst.add(new Text("Pre Variables", tr.old.map(v => v.name+": " +v.tpe).mkString(", ")))
+      lst.add(new Text("Local Variables", tr.local.map(v => v.name+": " +v.tpe).mkString(", ")))
+      lst.add(new Text("Post Variables", tr.primed.map(v => v.name+": " +v.tpe).mkString(", ")))
       //auxiliary methods
       for ( a <- aux.values ) lst.add(a.report)
       rnds.add(lst)

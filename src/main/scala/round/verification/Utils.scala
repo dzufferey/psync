@@ -11,6 +11,7 @@ object Utils {
 
   //x → x(i)
   def skolemify(x: Variable): UnInterpretedFct = {
+    //println("skolemify " + x + ": " + x.tpe)
     UnInterpretedFct(x.toString, Some(Function(List(procType), x.tpe)))
   }
   def skolemify(x: Variable, i: Formula): Formula = {

@@ -7,6 +7,12 @@ import scala.sys.process._
 import java.io._
 import scala.collection.mutable.{HashSet, Stack}
 
+abstract class Result
+case class Sat(model: Option[Model] = None) extends Result
+case object UnSat extends Result
+case object Unknown extends Result
+case class Failure(reason: String) extends Result
+
 class Solver( th: Theory,
               cmd: String,
               options: Iterable[String],
@@ -157,13 +163,13 @@ class Solver( th: Theory,
   def declare(sp: (Symbol, List[Type])) = {
     val (s, params) = sp
     s match {
+      case Eq => //has a special status
+        ()
       case UnInterpretedFct(f, t, p) =>
         Logger.assert(t.isDefined, "smtlib", "declaring sym with unknown type: " + f)
         val name = Names.overloadedSymbol(s, params)
         val tpe = s.instanciateType(params)
         toSolver(DeclareFun(name, tpe))
-      case Eq =>
-        ()
       case i: InterpretedFct =>
         val name = Names.overloadedSymbol(s, params)
         val tpe = s.instanciateType(params)
@@ -216,21 +222,39 @@ class Solver( th: Theory,
     stackCounter -= 1
   }
   
-  def checkSat: Option[Boolean] = {
+  def checkSat: Result = {
     toSolver(CheckSat)
     fromSolver match {
-      case "sat" => Some(true)
-      case "unsat" => Some(false)
-      case "unknown" => None
-      case other => Logger.logAndThrow("smtlib", Error, "checkSat: solver said " + other)
+      case "sat" => Sat()
+      case "unsat" => UnSat
+      case "unknown" => Unknown
+      case other =>
+        Logger("smtlib", Warning, "checkSat: solver said " + other)
+        Failure(other)
+    }
+  }
+  
+  def getModel: Option[Model] = {
+    toSolver(GetModel)
+    Thread.sleep(10) //sleep a bit to let z3 make the model. TODO better!
+    Parser.parseModel(fromSolver).map( cmds => {
+      Model(cmds, declaredS)
+    })
+  }
+
+  def testB(f: Formula): Boolean = {
+    test(f) match {
+      case Sat(_) => true
+      case UnSat => false
+      case _ => sys.error("result is not (un)sat.")
     }
   }
 
-  def test(f: Formula): Option[Boolean] = {
+  def test(f: Formula): Result = {
     test(FormulaUtils.getConjuncts(f))
   }
 
-  def test(conjuncts: List[Formula]): Option[Boolean] = {
+  def test(conjuncts: List[Formula]): Result = {
     conjuncts.foreach(Checks(_))
     push
     conjuncts.foreach(assert(_))
@@ -239,11 +263,26 @@ class Solver( th: Theory,
     res
   }
 
-  def getModel: Option[Model] = {
-    toSolver(GetModel)
-    Parser.parseModel(fromSolver).map( cmds => {
-      Model(cmds, declaredS)
-    })
+  def testWithModel(f: Formula): Result = {
+    testWithModel(FormulaUtils.getConjuncts(f))
+  }
+
+  def testWithModel(conjuncts: List[Formula]): Result = {
+    conjuncts.foreach(Checks(_))
+    push
+    conjuncts.foreach(assert(_))
+    val res = checkSat match {
+      case Sat(None) =>
+        getModel match {
+          case Some(m) => Sat(Some(m))
+          case None =>
+            Logger("smtlib", Warning, "testWithModel: could not get model")
+            Sat()
+        }
+      case other => other
+    }
+    pop
+    res
   }
 
 }

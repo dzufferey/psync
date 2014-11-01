@@ -2,7 +2,7 @@ name := "round"
 
 version := "0.1-SNAPSHOT"
 
-scalaVersion := "2.11.2"
+scalaVersion := "2.11.4"
 
 scalacOptions in Compile ++= Seq(
     "-unchecked",
@@ -19,7 +19,7 @@ libraryDependencies ++=  Seq(
     "org.scala-lang" % "scala-reflect" % scalaVersion.value,
     //"org.scala-lang" % "scala-actors" % scalaVersion.value
     "org.scala-lang.modules" %% "scala-xml" % "1.0.2",
-    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.1",
+    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.2",
     "org.scalatest" %% "scalatest" % "2.2.1" % "test",
     "org.scalacheck" %% "scalacheck" % "1.11.6" % "test",
     //"org.scala-lang" %% "scala-pickling" % "0.10.0-SNAPSHOT",

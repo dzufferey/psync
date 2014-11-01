@@ -19,9 +19,13 @@ object Names {
     case Plus => "+"
     case Minus => "-"
     case Times => "*"
-    case UnInterpretedFct(f, _, _) => f
-    case Neq => Logger.logAndThrow("smtlib", Error, "≠ should be replaced by Not(Eq(...))")
+    case Fst => "fst"
+    case Snd => "snd"
+    case Trd => "trd"
+    case Tuple => "tuple"
     case In => "in"
+    case Neq => Logger.logAndThrow("smtlib", Error, "≠ should be replaced by Not(Eq(...))")
+    case UnInterpretedFct(f, _, _) => f
     case i: InterpretedFct => i.symbol
   }
 
@@ -33,13 +37,13 @@ object Names {
   def tpe(t: Type): String = t match {
     case Bool => "Bool"
     case Int => "Int"
-    case Wildcard => "_"
     case FSet(elt) => "Set_"+tpe(elt)+"_"
     case FOption(elt) => "Option_"+tpe(elt)+"_"
     case UnitT() => "Unit"
     case Product(elts) => "Product" + elts.map(tpe).mkString("_","-","_")
     case Function(args, returns) => args.map(tpe).mkString("(", ") (", ")") + " (" + tpe(returns) + ")"
     case UnInterpreted(id) => id
+    case Wildcard => Logger.logAndThrow("smtlib", Error, "Wildcard types should have been instanciated!")
     case other => Logger.logAndThrow("smtlib", Error, "not supported: " + other)
   }
   

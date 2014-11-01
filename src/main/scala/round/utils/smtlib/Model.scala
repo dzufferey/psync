@@ -106,6 +106,7 @@ object Model {
     val toSym = declared.foldLeft(Map[String, Symbol]())( (acc, decl) => {
       acc + (Names.overloadedSymbol(decl._1, decl._2) -> decl._1)
     })
+    //println("toSym: " + toSym)
 
     def tryParseVal(f: Formula): Option[ValDef] = f match {
       case Literal(b: Boolean) => Some(ValB(b))

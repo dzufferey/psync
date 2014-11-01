@@ -220,7 +220,8 @@ trait TrExtractor {
 
   protected def processSendUpdate(send: DefDef, update: DefDef): RoundTransitionRelation = {
     val mailboxValDef = update.vparamss.head.head
-    val mailboxIdent = Ident(TermName(mailboxValDef.name + "Snd")) //TODO type ?
+    val mailbox = extractVarFromValDef(mailboxValDef)
+    val mailboxIdent = Ident(TermName(mailboxValDef.name + "Snd"))
     val (ssaSend, subst) = ssa(send.rhs)
     val _cstr1 = makeConstraints(ssaSend, Some(mailboxIdent), Some(mailboxIdent))
 
@@ -244,14 +245,13 @@ trait TrExtractor {
       (kv._1 :: kv._2).map(getVar) ::: acc
     }) 
     val local1 = allVars.filter( x => !(oldV.contains(x) || newV.contains(x)))
-    val local2 = tree2Formula(mailboxIdent).asInstanceOf[Variable]
+    val local2 = tree2Formula(mailboxIdent).asInstanceOf[Variable].setType(mailbox.tpe)
     val local3 = getValDefs(send.rhs).map(extractVarFromValDef)
     val local4 = getValDefs(update.rhs).map(extractVarFromValDef)
-    val localV = local1 ::: local2 :: local3 ::: local4
+    val localV = local1 ::: local2 :: mailbox :: local3 ::: local4
 
-    new RoundTransitionRelation(cstr1, getVar(mailboxIdent),
-                                cstr2, extractVarFromValDef(mailboxValDef),
-                                oldV, localV, newV)
+    new RoundTransitionRelation(cstr1, getVar(mailboxIdent).setType(mailbox.tpe),
+                                cstr2, mailbox, oldV, localV, newV)
   }
 
   

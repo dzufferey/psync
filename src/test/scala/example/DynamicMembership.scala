@@ -105,7 +105,7 @@ class BasicConsensus extends Algorithm[MembershipIO] {
 
 }
 
-object DynamicMembership extends dzufferey.arg.Options with DecisionLog[MembershipOp] {
+object DynamicMembership extends round.utils.DefaultOptions with DecisionLog[MembershipOp] {
 
   final val Heartbeat = 3
   final val Recover = 4
@@ -142,9 +142,6 @@ object DynamicMembership extends dzufferey.arg.Options with DecisionLog[Membersh
   var masterPort: Option[Int] = None
   newOption("-mp", dzufferey.arg.Int( i => masterPort = Some(i)), "master port")
   
-  newOption("-v", dzufferey.arg.Unit(() => Logger.moreVerbose), "increase the verbosity level.")
-  newOption("-q", dzufferey.arg.Unit(() => Logger.lessVerbose), "decrease the verbosity level.")
-
   //////////////////////////////////
   // Dispatcher and custom logics //
   //////////////////////////////////

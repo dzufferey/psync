@@ -34,11 +34,8 @@
 - add temporal elements to spec/formula
 - better structure of the specification: which invariant we can use to prove what property.
 - extraction of initial state: if a variable is not initialized in the process, take the default value in the declaration
-- extraction of transition relation:
-    * ...
 - decision procedure
-- smtlib:
-    * dump smt files
+- rewrite the TR so we get directly set of processes for mailbox (easier to handle cardinality cstr later)
 
 # example
 

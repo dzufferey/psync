@@ -312,7 +312,7 @@ trait FormulaExtractor {
         Variable(n).setType(extractType(fld.tpe))
 
       case q"$expr.$member" =>
-        val fct: round.formula.Symbol = UnInterpretedFct(member.toString)
+        val fct: round.formula.Symbol = UnInterpretedFct(member.toString) //TODO type
         val args = List(tree2Formula(expr))
         Application(fct, args)
      

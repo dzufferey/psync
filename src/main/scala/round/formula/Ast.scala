@@ -314,21 +314,25 @@ case object Tuple extends InterpretedFct("") {
   val typeWithParams = Wildcard ~> Wildcard
   override val fix = Fix.Prefix
   override val priority = 20
+  override def instanciateType(ts: List[Type]) = Product(ts)
 }
 case object Fst extends InterpretedFct("_1") {
   val typeWithParams = Wildcard ~> Wildcard
   override val fix = Fix.Suffix
   override val priority = 20
+  override def instanciateType(ts: List[Type]) = Product(ts)
 }
 case object Snd extends InterpretedFct("_2") {
   val typeWithParams = Wildcard ~> Wildcard
   override val fix = Fix.Suffix
   override val priority = 20
+  override def instanciateType(ts: List[Type]) = Product(ts)
 }
 case object Trd extends InterpretedFct("_3") {
   val typeWithParams = Wildcard ~> Wildcard
   override val fix = Fix.Suffix
   override val priority = 20
+  override def instanciateType(ts: List[Type]) = Product(ts)
 }
 
 

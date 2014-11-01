@@ -6,10 +6,7 @@ import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 import dzufferey.arg._
 
-object ConsensusVerifier extends Options {
-  
-  newOption("-v", Unit(() => Logger.moreVerbose), "increase the verbosity level.")
-  newOption("-q", Unit(() => Logger.lessVerbose), "decrease the verbosity level.")
+object ConsensusVerifier extends round.utils.DefaultOptions {
   
   var v = 3
   newOption("-n", Int( i => v = i), "Ort1/2/3")

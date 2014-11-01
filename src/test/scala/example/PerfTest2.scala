@@ -316,10 +316,7 @@ class PerfTest2(id: Int,
 
 }
 
-object PerfTest2 extends dzufferey.arg.Options {
-
-  newOption("-v", dzufferey.arg.Unit(() => Logger.moreVerbose), "increase the verbosity level.")
-  newOption("-q", dzufferey.arg.Unit(() => Logger.lessVerbose), "decrease the verbosity level.")
+object PerfTest2 extends round.utils.DefaultOptions {
 
   var id = -1
   newOption("-id", dzufferey.arg.Int( i => id = i), "the replica ID")
