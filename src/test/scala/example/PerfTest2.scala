@@ -12,8 +12,6 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.ConcurrentSkipListSet
 import scala.util.Random
 
-//TODO add recovery a la PerfTest, but make sure we always have a decision!
-
 class PerfTest2(id: Int,
                 confFile: String,
                 nbrValues: Short,
@@ -214,7 +212,7 @@ class PerfTest2(id: Int,
       //recovery
       msg = msg.filter( m => {
         val inst = m.instance
-        if (Instance.lt(inst, instanceNbr)) {
+        if (Instance.leq(inst, instanceNbr)) {
           sendRecoveryInfo(m)
           m.release
           false

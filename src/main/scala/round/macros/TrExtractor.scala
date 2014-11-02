@@ -194,9 +194,9 @@ trait TrExtractor {
       case Typer.TypingSuccess(f) =>
         f
       case Typer.TypingFailure(r) =>
-        c.abort(t.pos, err +": " + r)
+        c.abort(t.pos, err +": " + r + "\n" + f)
       case Typer.TypingError(r) =>
-        c.abort(t.pos, err +": " + r)
+        c.abort(t.pos, err +": " + r + "\n" + f)
     }
   }
 

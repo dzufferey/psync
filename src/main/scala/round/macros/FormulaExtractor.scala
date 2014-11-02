@@ -190,8 +190,10 @@ trait FormulaExtractor {
       val i = InterpretedFct(s).get
       val args2 = args map tree2Formula
       //TODO in case of static fct, remove the first arg as it is a package/object, e.g., None
-      if (i.arity == args2.size - 1) i.application(args2.tail)
-      else i.application(args2)
+      val res = if (i.arity == args2.size - 1) i.application(args2.tail)
+                else i.application(args2)
+      //println("mkKnown: " + res + " arity: " + i.arity)
+      res
     } else if (AxiomatizedFct.knows(s)) {
       val u = AxiomatizedFct.symbol(s).get
       val args2 = args map tree2Formula
