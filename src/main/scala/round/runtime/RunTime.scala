@@ -33,7 +33,11 @@ class RunTime[IO](val alg: Algorithm[IO]) {
         predicate.start
         //msg that are already received
         for(m <- messages) {
-          predicate.receive(m.packet)
+          if (!Flags.userDefinable(m.flag)) {
+            predicate.receive(m.packet)
+          } else {
+            m.release
+          }
         }
       case None =>
         sys.error("service not running")

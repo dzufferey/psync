@@ -18,6 +18,7 @@ class Message(val packet: DatagramPacket, dir: Group){
                                     catch { case _: Exception => new ProcessID(-1) }
   lazy val tag: Tag = new Tag(payload.getLong(0))
 
+  def flag = tag.flag
   def instance = tag.instanceNbr
   def round = tag.roundNbr
   

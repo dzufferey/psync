@@ -76,9 +76,7 @@ java.lang.ArrayIndexOutOfBoundsException: -1
     at round.predicate.Predicate.deliver(Predicate.scala:82)
     at round.predicate.ToPredicate$$anon$1.run(ToPredicate.scala:72)
     at io.netty.util.HashedWheelTimer$HashedWheelTimeout.expire(HashedWheelTimer.java:568)
-    at io.netty.util.HashedWheelTimer$HashedWheelBucket.expireTimeouts(HashedWheelTimer.java:644)
-    at io.netty.util.HashedWheelTimer$Worker.run(HashedWheelTimer.java:365)
-    at java.lang.Thread.run(Thread.java:744)
+    ...
 ```
 
 there is race when stopping the runtime and the instance terminates "naturally"
@@ -94,16 +92,5 @@ java.lang.RuntimeException: dispatcher.remove: instance not found
     at round.predicate.Predicate.messageReceived(Predicate.scala:128)
     at round.runtime.InstanceDispatcher.channelRead0(InstanceDispatcher.scala:100)
     at round.runtime.InstanceDispatcher.channelRead0(InstanceDispatcher.scala:14)
-    at io.netty.channel.SimpleChannelInboundHandler.channelRead(SimpleChannelInboundHandler.java:105)
-    at io.netty.channel.AbstractChannelHandlerContext.invokeChannelRead(AbstractChannelHandlerContext.java:333)
-    at io.netty.channel.AbstractChannelHandlerContext.fireChannelRead(AbstractChannelHandlerContext.java:319)
-    at io.netty.channel.DefaultChannelPipeline.fireChannelRead(DefaultChannelPipeline.java:787)
-    at io.netty.channel.nio.AbstractNioMessageChannel$NioMessageUnsafe.read(AbstractNioMessageChannel.java:92)
-    at io.netty.channel.nio.NioEventLoop.processSelectedKey(NioEventLoop.java:511)
-    at io.netty.channel.nio.NioEventLoop.processSelectedKeysOptimized(NioEventLoop.java:468)
-    at io.netty.channel.nio.NioEventLoop.processSelectedKeys(NioEventLoop.java:382)
-    at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:354)
-    at io.netty.util.concurrent.SingleThreadEventExecutor$2.run(SingleThreadEventExecutor.java:116)
-    at io.netty.util.concurrent.DefaultThreadFactory$DefaultRunnableDecorator.run(DefaultThreadFactory.java:137)
-    at java.lang.Thread.run(Thread.java:745)
+    ...
 ```
