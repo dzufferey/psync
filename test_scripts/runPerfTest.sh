@@ -1,5 +1,5 @@
 #!/bin/bash
-source deps
+source `dirname $0`/deps
 
 t=60
 

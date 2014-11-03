@@ -1,4 +1,4 @@
 #!/bin/bash
-source deps
+source `dirname $0`/deps
 
 exec java -cp ${cp} example.ConsensusVerifier $*

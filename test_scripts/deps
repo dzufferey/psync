@@ -2,7 +2,7 @@
 #export JAVA_OPTS="-Xmx256M -Xms64M"
 scala_version1=2.11
 scala_version2=2.11.4
-BASEDIR=`dirname $0`
+BASEDIR=`dirname $0`/..
 ivy_cache="$HOME/.ivy2/cache"
 ivy_local="$HOME/.ivy2/local"
 
