@@ -163,8 +163,8 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
     val rnds = new List("Rounds")
     for ( i <- process.rounds.indices ) {
       val lst = new List("Round " + i)
-      lst.add(new PreformattedText("Send", process.rounds(i).sendStr))
-      lst.add(new PreformattedText("Update", process.rounds(i).updtStr))
+      lst.add(new Code("Send", process.rounds(i).sendStr))
+      lst.add(new Code("Update", process.rounds(i).updtStr))
       val tr = roundsTR(i)._1
       val aux = roundsTR(i)._2
       val f = tr.makeFullTr(procLocalVars ++ procGhostVars, aux)
@@ -193,8 +193,8 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
     val status = if (vcs.forall(_.exists(_.isValid))) " (success)" else " (failed)"
     val report = new Report("Verification of " + alg.getClass.toString + status)
 
-    report.add(new PreformattedText("Code Before Processing", process.beforeProcessing))
-    report.add(new PreformattedText("Code After Processing", process.afterProcessing))
+    //report.add(new Code("Code Before Processing", process.beforeProcessing))
+    report.add(new Code("Code After Processing", process.afterProcessing))
     report.add(reportSpec)
     report.add(reportProcess)
 

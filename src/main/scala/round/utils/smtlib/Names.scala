@@ -40,7 +40,7 @@ object Names {
     case FSet(elt) => "Set_"+tpe(elt)+"_"
     case FOption(elt) => "Option_"+tpe(elt)+"_"
     case UnitT() => "Unit"
-    case Product(elts) => "Product" + elts.map(tpe).mkString("_","-","_")
+    case Product(elts) => "Product" + elts.map(tpe).mkString("_","_","_")
     case Function(args, returns) => args.map(tpe).mkString("(", ") (", ")") + " (" + tpe(returns) + ")"
     case UnInterpreted(id) => id
     case Wildcard => Logger.logAndThrow("smtlib", Error, "Wildcard types should have been instanciated!")
