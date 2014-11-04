@@ -170,8 +170,8 @@ class SolverSuite extends FunSuite {
       //(declare-fun inProcessID (ProcessID Set_ProcessID_) Bool)
       (In, List(round.verification.Utils.procType))
     )
-    val parsed = Model(cmds, decls) 
-    ()
+//  val parsed = Model(cmds, decls) 
+//  ()
   }
 
 }

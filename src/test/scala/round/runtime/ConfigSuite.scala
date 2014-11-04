@@ -16,7 +16,7 @@ class ConfigSuite extends FunSuite {
     assert(peers(3) == Replica(new ProcessID(3), "127.0.0.1", 4447))
     assert(conf.size == 3)
     assert(conf.get("transport layer") == Some("UDP"))
-    assert(conf.get("timeout") == Some("200"))
+    assert(conf.get("timeout") == Some("100"))
     assert(conf.get("group") == Some("nio"))
   }
 
