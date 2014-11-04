@@ -72,6 +72,7 @@ Additionally, you will need to install the following libraries:
 * [github.com/dzufferey/ScalaArg](https://github.com/dzufferey/ScalaArg)
 * [github.com/dzufferey/report](https://github.com/dzufferey/report)
 * [github.com/dzufferey/misc-scala-utils](https://github.com/dzufferey/misc-scala-utils)
+
 Follow the directions in the REAME of the respective projects
 
 Then, in a console, execute:
