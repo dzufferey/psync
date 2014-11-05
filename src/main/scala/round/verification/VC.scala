@@ -56,7 +56,7 @@ class VC(description: String, hypothesis: Formula, transition: Formula, conclusi
     lst.add(itemForFormula("Reduced formula", reduced))
     status match {
       case Sat(Some(model)) => lst.add(new PreformattedText("Model", model.toString))
-      case Unknown => lst.add(new PreformattedText("Reason", "solver returned unkown"))
+      case Unknown => lst.add(new PreformattedText("Reason", "solver returned unknown"))
       case Failure(reason) => lst.add(new PreformattedText("Reason", reason))
       case _ => 
     }

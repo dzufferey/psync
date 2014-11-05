@@ -21,6 +21,5 @@ dep10="$ivy_cache/org.scala-lang.modules/scala-parser-combinators_${scala_versio
 cp="$dep0:$dep1:$dep2:$dep3:$dep4:$dep5:$dep6:$dep7:$dep8:$dep9:$dep10"
 
 #with assembly we need only the following two jars:
-#  target/scala-2.11/round-assembly-0.1-SNAPSHOT.jar
-#  target/scala-2.11/round_2.11-0.1-SNAPSHOT-tests.jar
+#cp="$BASEDIR/target/scala-2.11/round-assembly-0.1-SNAPSHOT.jar:$BASEDIR/target/scala-2.11/round_2.11-0.1-SNAPSHOT-tests.jar"
 

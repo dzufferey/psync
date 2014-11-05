@@ -260,6 +260,10 @@ trait FormulaExtractor {
         mkKnown(op, List(l))
 
       // set operation, comparison, cardinality
+      case q"scala.this.Predef.Set.empty[$tpt]" =>
+        val t = extractType(tpt)
+        val v = Variable(c.freshName("v")).setType(t)
+        Comprehension(List(v), False()).setType(FSet(t))
       case q"scala.this.Predef.Set.apply[$tpt](..$args)" =>
         val t = extractType(tpt)
         val v = Variable(c.freshName("v")).setType(t)

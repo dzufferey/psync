@@ -134,7 +134,9 @@ object Simplify {
     def process(f: Formula, used: Set[String], subst: Map[String, String]): (Formula, Set[String]) = f match {
       case Binding(bt, vs, f2) =>
         val masking = vs.filter(v => used(v.name))
-        val subst2 = subst ++ masking.map( v => (v.name, Namer(v.name)) )
+        val newSubst = masking.map( v => (v.name, Namer(v.name)) )
+        //println("boundVarUnique, renamings: " + newSubst)
+        val subst2 = subst ++ newSubst
         val vs2 = vs.map(s(subst2,_))
         val used2 = vs2.foldLeft(used)(_ + _.name)
         val (f3, used3) = process(f2, used2, subst2)

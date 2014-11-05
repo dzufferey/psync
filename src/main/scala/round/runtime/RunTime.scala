@@ -33,7 +33,7 @@ class RunTime[IO](val alg: Algorithm[IO]) {
         predicate.start
         //msg that are already received
         for(m <- messages) {
-          if (!Flags.userDefinable(m.flag)) {
+          if (!Flags.userDefinable(m.flag) && m.flag != Flags.dummy) {
             predicate.receive(m.packet)
           } else {
             m.release

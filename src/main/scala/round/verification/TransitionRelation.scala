@@ -22,7 +22,7 @@ class RoundTransitionRelation(val send: Formula,
     assert(local.forall(_.tpe != Wildcard), "some local variables has Wildcard type")
     //match old and primed with env
     val substOld = old.map( v => v -> env.find(_ == v).get ).toMap
-    val substPrimed = primed.map( v => v -> env.find(v2 => v.name.startsWith(v2.name)).get ).toMap
+    val substPrimed = primed.map( v => v -> v.setType(env.find(v2 => v.name.startsWith(v2.name)).get.tpe) ).toMap
     val subst = substOld ++ substPrimed
     assert(subst.forall(_._2.tpe != Wildcard), "some env variables has Wildcard type")
     new RoundTransitionRelation(

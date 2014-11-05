@@ -17,7 +17,6 @@ class PerfTest2(id: Int,
                 nbrValues: Short,
                 _rate: Short,
                 lv: Boolean,
-                after: Int,
                 logFile: Option[String],
                 additionalOptions: Map[String,String]
                ) extends DecisionLog[Int]
@@ -38,8 +37,16 @@ class PerfTest2(id: Int,
     log.newLine()
   }
 
-  val alg = if (lv) new LastVoting2(after)
-            else new OTR2(after)
+  val alg = {
+    if (additionalOptions contains "after") {
+      val after = additionalOptions("after").toInt
+      if (lv) new LastVoting2(after)
+      else new OTR2(after)
+    } else {
+      if (lv) new LastVoting2()
+      else new OTR2()
+    }
+  }
   val rt = new RunTime(alg)
   rt.startService(defaultHandler(_), confFile, additionalOptions + ("id" -> id.toString))
 
@@ -340,7 +347,7 @@ object PerfTest2 extends round.utils.DefaultOptions {
   var lv = false
   newOption("-lv", dzufferey.arg.Unit( () => lv = true), "use the last voting instead of the OTR")
   
-  var after = 2
+  var after = -1
   newOption("-after", dzufferey.arg.Int( i => after = i), "#round after decision")
 
   val usage = "..."
@@ -351,8 +358,10 @@ object PerfTest2 extends round.utils.DefaultOptions {
 
   def main(args: Array[java.lang.String]) {
     apply(args)
-    val opts = Map("timeout" -> to.toString)
-    system = new PerfTest2(id, confFile, n.toShort, rate.toShort, lv, after, logFile, opts)
+    val opts =
+      if (after >= 0) Map("timeout" -> to.toString, "after" -> after.toString)
+      else Map("timeout" -> to.toString)
+    system = new PerfTest2(id, confFile, n.toShort, rate.toShort, lv, logFile, opts)
 
     //let the system setup before starting
     Thread.sleep(1000)

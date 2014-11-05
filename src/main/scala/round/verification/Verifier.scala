@@ -27,10 +27,7 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
     def fillType(f: Formula) = f match {
       case v: Variable if procAllVars contains v =>
         val v2 = procAllVars.find(_ == v).get
-        assert(v.tpe match {
-            case Wildcard | TypeVariable(_) => true
-            case tpe => tpe == v2.tpe
-          }, "v.tpe = " + v.tpe + ", v2.tpe = " + v2.tpe)
+        assert(Typer.unify(v.tpe, v2.tpe).isDefined, "v.tpe = " + v.tpe + ", v2.tpe = " + v2.tpe)
         v.setType(v2.tpe)
       case _ => ()
     }

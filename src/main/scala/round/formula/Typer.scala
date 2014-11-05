@@ -46,7 +46,15 @@ object Typer {
     def apply(substitution: Map[TypeVariable, Type]) = {
       SingleCstr(t1 alpha substitution, t2 alpha substitution)
     }
-    def normalize = if (t1 == t2) TrivialCstr else this
+    def normalize = {
+      if (t1 == t2) TrivialCstr else {
+        (t1, t2) match {
+          case (TypeVariable(v1), TypeVariable(v2)) if v2 < v1 => SingleCstr(t2, t1)
+          case (other, tv @ TypeVariable(_)) => SingleCstr(tv, other)
+          case (_, _) => this
+        }
+      }
+    }
   }
   case class ConjCstr(lst: List[TypeConstraints]) extends TypeConstraints {
     def apply(substitution: Map[TypeVariable, Type]) = {
@@ -57,7 +65,7 @@ object Typer {
       val nonTrivial2 = nonTrivial1.flatMap( t => t match {
         case ConjCstr(lst) => lst
         case other => List(other)
-      })
+      }).toSet.toList
       nonTrivial2 match {
         case Nil => TrivialCstr
         case x :: Nil => x
@@ -144,6 +152,14 @@ object Typer {
             symbolToType += (s.toString -> Function(a,r))
             (a,r)
         }
+    //case Function(List(Wildcard), Wildcard) =>
+    //  s match {
+    //    case Tuple =>
+    //    case Fst =>
+    //    case Snd =>
+    //    case Trd =>
+    //    case _ => (a,r)
+    //  }
       case Function(a, r) => (a,r)
       case other => (Nil, other)
     }
@@ -185,7 +201,7 @@ object Typer {
             val argsTypes = unwrappedArgs.map(_.tpe)
             val returnT = fct match {
               case Tuple => Product(argsTypes)
-              case other => Type.freshTypeVar
+              case other => Type.freshTypeVar //TODO see if we already know the type
             }
             val a2 = Application(fct, unwrappedArgs) setType returnT
 

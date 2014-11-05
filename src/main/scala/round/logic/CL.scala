@@ -68,6 +68,7 @@ object CL {
         Logger("CL", Notice, "did not find any instantiation candidate for " + v + ": " + v.tpe)
         acc.map( f => ForAll(List(v), f) )
       } else {
+        Logger("CL", Info, "instantiating " + v + ": " + v.tpe + " with " + candidates.mkString(", "))
         acc.flatMap( f => Quantifiers.instantiateWithTerms(v, f, candidates.toSet) )
       }
     })
@@ -242,12 +243,16 @@ object CL {
     val withILP = reduceComprehension(conjuncts)
     Logger("CL", Debug, "with ILP:\n  " + withILP.mkString("\n  "))
     val withSetAx = addSetAxioms(withILP)
+    val withOpt = OptionAxioms.addAxioms(withILP)
+    val withTpl = TupleAxioms.addAxioms(withOpt)
+    //val withTpl = TupleAxioms.addAxioms(withOpt)
+    Logger("CL", Debug, "with axiomatized theories:\n  " + withTpl.mkString("\n  "))
     Logger("CL", Warning, "further reduction in:\n  " + withSetAx.mkString("\n  "))
-    val last = withSetAx
+    val last = withTpl
     Typer(Application(And, last)) match {
       case Typer.TypingSuccess(f) => f
       case Typer.TypingFailure(r) =>
-        Logger.logAndThrow("CL", Error, "could not type:\n  " + last + "\n  " + r)
+        Logger.logAndThrow("CL", Error, "could not type:\n  " + last.map(_.toStringFull).mkString("\n  ") + "\n  " + r)
       case Typer.TypingError(r) =>
         Logger.logAndThrow("CL", Error, "typer failed on:\n  " + last + "\n  " + r)
     }

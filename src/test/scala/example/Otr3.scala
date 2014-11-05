@@ -37,7 +37,7 @@ class OTR3 extends Algorithm[ConsensusIO] {
       val properties = List(
         ("Termination",    f(P.forall( i => decided(i)) )),
         ("Agreement",      f(P.forall( i => P.forall( j => (decided(i) && decided(j)) ==> (decision(i) == decision(j)) )))),
-        ("Validity",       f(V.exists( v => P.forall( i => init(x)(i) == v ==> P.forall( j => decided(j) ==> (decision(j) == v) ))))),
+        ("Validity",       f(P.forall( i => decided(i) ==> P.exists( j => init(x)(j) == decision(i) )))),
         ("Integrity",      f(P.exists( j => P.forall( i => decided(i) ==> (decision(i) == init(x)(j)) )))),
         ("Irrevocability", f(P.forall( i => old(decided)(i) ==> (decided(i) && old(decision)(i) == decision(i)) )))
       )

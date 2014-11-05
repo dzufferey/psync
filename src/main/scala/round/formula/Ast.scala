@@ -4,7 +4,7 @@ package round.formula
 
 sealed abstract class Formula {
 
-  def toStringFull = "(" + toString + ": " + tpe + ")"
+  def toStringFull: String // = "(" + toString + ": " + tpe + ")"
 
   var tpe: Type = Wildcard
 
@@ -31,6 +31,7 @@ case class Literal[T](value: T) extends Formula {//removed <: AnyVal to allow un
   }
 
   override def toString = value.toString
+  def toStringFull = "(" + toString + ": " + tpe + ")"
 
   def alpha(map: Map[Variable, Variable]) = this
   lazy val freeVariables = Set[Variable]()
@@ -69,6 +70,7 @@ object IntLit {
 case class Variable(name: String) extends Formula {
 
   override def toString = name
+  def toStringFull = "(" + toString + ": " + tpe + ")"
 
   def alpha(map: Map[Variable, Variable]) = map.getOrElse(this, this)
   lazy val freeVariables = Set[Variable](this)
@@ -84,6 +86,7 @@ case class Application(fct: Symbol, args: List[Formula]) extends Formula {
   }
 
   override def toString = fct.toString + args.mkString("(",", ",")")
+  def toStringFull = "(" + fct.toString + args.map(_.toStringFull).mkString("(",", ",")") + ": " + tpe + ")"
 
   def alpha(map: Map[Variable, Variable]) = Application(fct, args.map(_.alpha(map)))
   lazy val freeVariables = (Set[Variable]() /: args)(_ ++ _.freeVariables)
@@ -405,8 +408,12 @@ sealed abstract class BindingType
 case class Binding(binding: BindingType, vs: List[Variable], f: Formula) extends Formula {
 
   override def toString = binding match {
-    case Exists | ForAll => binding + " " + vs.mkString(""," ","") + ". " + f
-    case Comprehension => "{ "+ vs.mkString(""," ","") + ". " + f + "}"
+    case Exists | ForAll => binding + " " + vs.mkString(" ") + ". " + f
+    case Comprehension => "{ "+ vs.mkString(" ") + ". " + f + "}"
+  }
+  def toStringFull = binding match {
+    case Exists | ForAll => binding + " " + vs.map(_.toStringFull).mkString(" ") + ". " + f.toStringFull
+    case Comprehension => "{ "+ vs.map(_.toStringFull).mkString(" ") + ". " + f.toStringFull + "}"
   }
 
   def alpha(map: Map[Variable, Variable]) = Binding(binding, vs, f.alpha(map -- vs))
