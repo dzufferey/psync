@@ -263,6 +263,7 @@ class PerfTest2(id: Int,
       val v = (idx << 16) | (value & 0xFFFF)
       val io = new ConsensusIO {
         val initialValue = v
+        //TODO we should reduce the amount of work done here: pass it to another thread and let the algorithm thread continue.
         def decide(value: Int) {
           Logger("PerfTest", Info, instanceNbr + " normal decision")
           val first = processDecision(instanceNbr, value)
@@ -350,6 +351,9 @@ object PerfTest2 extends round.utils.DefaultOptions {
   var after = -1
   newOption("-after", dzufferey.arg.Int( i => after = i), "#round after decision")
 
+  var delay = 1000
+  newOption("-delay", dzufferey.arg.Int( i => delay = i), "delay in ms before making queries (allow the replicas to setup)")
+
   val usage = "..."
   
   var begin = 0l
@@ -364,7 +368,7 @@ object PerfTest2 extends round.utils.DefaultOptions {
     system = new PerfTest2(id, confFile, n.toShort, rate.toShort, lv, logFile, opts)
 
     //let the system setup before starting
-    Thread.sleep(1000)
+    Thread.sleep(delay)
     begin = java.lang.System.currentTimeMillis()
 
     //makes queries ...
