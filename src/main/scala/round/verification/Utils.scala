@@ -44,6 +44,17 @@ object Utils {
     }
     FormulaUtils.map(map, f)
   }
+
+  /** a state property does not refer to either init, nor old */
+  def isStateProperty(f: Formula) = {
+    !isRelationalProperty(f)
+  }
+
+  /** a relational property may refers to init or old */
+  def isRelationalProperty(f: Formula) = {
+    val syms = FormulaUtils.collectSymbols(f).collect{ case s: UnInterpretedFct => s }
+    syms.exists( s => s.symbol.startsWith(initPrefix) || s.symbol.startsWith(oldPrefix) )
+  }
   
   def itemForFormula(title: String, f: Formula): dzufferey.report.Item = {
     val conjuncts = FormulaUtils.getConjuncts(f)

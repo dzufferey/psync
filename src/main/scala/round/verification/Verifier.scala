@@ -12,7 +12,6 @@ import dzufferey.report._
 
 class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
 
-  //TODO make sure the specs are well-formed
   val spec = alg.spec 
 
   val process = alg.process(new ProcessID(0), dummyIO)
@@ -54,7 +53,7 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
 
   var roundsTR = process.rounds.map( r => (r.rawTR.retype(procAllVars), r.auxSpec) )
 
-  val additionalAxioms = alg.axiomList
+  val additionalAxioms = alg.axiomList.map(_.formula)
 
   def checkProgress(
         descr: String,
@@ -63,7 +62,7 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
         round: (RoundTransitionRelation,Map[String,AuxiliaryMethod])
       ): VC = {
     val withPost = round._1.makeFullTr(procLocalVars ++ procGhostVars, round._2)
-    new VC("progress of " + descr, invariant1, withPost, round._1.primeFormula(invariant2))
+    new SingleVC("progress of " + descr, invariant1, withPost, round._1.primeFormula(invariant2), additionalAxioms)
   }
 
   def checkInductiveness(
@@ -73,47 +72,84 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
       ): VC = {
     val tr = round._1
     val withPost = tr.makeFullTr(procLocalVars ++ procGhostVars, round._2)
-    new VC("inductiveness of " + descr, invariant, withPost, tr.primeFormula(invariant))
+    new SingleVC("inductiveness of " + descr, invariant, withPost, tr.primeFormula(invariant), additionalAxioms)
   }
 
-  /* for each sublist, at least one VC has to hold. */
-  def generateVCs: Seq[Seq[VC]] = {
+  def checkProperty(
+        descr: String,
+        invariant: Formula,
+        property: Formula
+      ): VC = {
+    //check whether we have a state or relational property
+    if (isStateProperty(property)) {
+      new SingleVC(descr, invariant, True(), property, additionalAxioms)
+    } else {
+      new CompositeVC(descr, true,
+        for (r <- roundsTR.indices) yield {
+          val (tr, aux) = roundsTR(r)
+          val f = And(invariant, property)
+          new SingleVC(
+            "relational property preserved at round " + r,
+            f,
+            tr.makeFullTr(procLocalVars ++ procGhostVars, aux),
+            tr.primeFormula(f),
+            additionalAxioms
+          )
+        }
+      )
+    }
+  }
+
+  /* for each sublist, at least one VC has to hold.
+   * TODO better structure
+   */
+  def generateVCs: Seq[VC] = {
 
     //1st invariant is implied by initial state
-    val initVC = new VC("initial state implies invariant 0",
-                        ForAll(List(procI), localize(procLocalVars ++ procGhostVars, procI, procInitState)),
-                        True(),
-                        removeInitPrefix(removeOldPrefix(spec.invariants(0))))
+    val initVC = new SingleVC(
+      "Initial state implies invariant 0",
+      ForAll(List(procI), localize(procLocalVars ++ procGhostVars, procI, procInitState)),
+      True(),
+      removeInitPrefix(removeOldPrefix(spec.invariants(0))),
+      additionalAxioms
+    )
 
     //invariants are inductive
-    val inductVCs =
+    val inductVCs: scala.List[VC] =
       for ( (inv, idx) <- spec.invariants.zipWithIndex;
             r <- roundsTR.indices)
        yield checkInductiveness("invariant " + idx + " at round " + r, inv, roundsTR(r))
+
     //-magic round => from one invariant to the next one
     val pairedInvs = spec.invariants.sliding(2).filter(_.length >= 2).toList
-    val progressVCs =
+    val progressVCs: scala.List[VC] =
       for ( (invs, idx) <- pairedInvs.zipWithIndex ) yield {
-        for (r <- roundsTR.indices) yield checkProgress("progress from " + idx + " to " + (idx+1) + " at round " + r,
-                                                        invs(0),
-                                                        invs(1),
-                                                        roundsTR(r))
+        new CompositeVC("progress from " + idx + " to " + (idx+1), false,
+          for (r <- roundsTR.indices) yield checkProgress("progress from " + idx + " to " + (idx+1) + " at round " + r,
+                                                          invs(0),
+                                                          invs(1),
+                                                          roundsTR(r))
+        )
       }
+
     //TODO increment of r
+    Logger("Verifier", Warning, "TODO: increment of r")
 
     //invariants => properties
-    val propertiesVCs =
+    val propertiesVCs: scala.List[VC] =
       for ( (name, formula) <- spec.properties ) yield {
-        for ( (inv, idx) <- spec.invariants.zipWithIndex) yield {
-          new VC("invariant " + idx + " implies " + name, inv, True(), formula)
-        }
+        new CompositeVC("property: " + name, false,
+          for ( (inv, idx) <- spec.invariants.zipWithIndex) yield {
+            checkProperty("invariant " + idx + " implies " + name, inv, formula)
+          }
+        )
       }
 
     //TODO auxiliaryFunction preconditions
     Logger("Verifier", Warning, "TODO: preconditions of auxiliary methods")
 
     //pack everything
-    List(initVC) :: inductVCs.map(List(_)) ::: progressVCs ::: propertiesVCs
+    initVC :: inductVCs ::: progressVCs ::: propertiesVCs
   }
 
 
@@ -138,7 +174,7 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
     lst.add(props)
 
     val axioms = new List("Additional Axioms")
-    for( a <- additionalAxioms )
+    for( a <-  alg.axiomList)
       axioms.add(itemForFormula(a.name, a.formula))
     lst.add(axioms)
 
@@ -184,10 +220,10 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
     val vcs = generateVCs
     //solve the queries
     //vcs.par.foreach(_.par.foreach(_.solve))
-    vcs.foreach(_.foreach(_.solve))
+    vcs.foreach(_.solve)
     //generate a report:
     
-    val status = if (vcs.forall(_.exists(_.isValid))) " (success)" else " (failed)"
+    val status = if (vcs.forall(_.isValid)) " (success)" else " (failed)"
     val report = new Report("Verification of " + alg.getClass.toString + status)
 
     //report.add(new Code("Code Before Processing", process.beforeProcessing))
@@ -196,11 +232,8 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
     report.add(reportProcess)
 
     val rVcs = new Sequence("Verification Conditions")
-    for ( (vs, idx) <- vcs.zipWithIndex) {
-      val status = if (vs.exists(_.isValid)) " (success)" else " (failed)"
-      val lst = new List("VCs group " + idx + status)
-      for (v <- vs) lst.add(v.report)
-      rVcs.add(lst)
+    for ( vc <- vcs) {
+      rVcs.add(vc.report)
     }
     report.add(rVcs)
 

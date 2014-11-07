@@ -12,23 +12,21 @@
   "Parameter type in structural refinement may not refer to an abstract type defined outside that refinement"
   need to either find a way of processing Process differently or encapsulate instance variables differently
   it is possible to add the type parameter when rewriting the class ?
-- can we squeeze pre/post conditions into annotations and get that into the method signature ??
 
 
 # implementation
 
 - ghost variables: make sure they are only read in the verification part and removed at compile time
-- test with message drop (reliability)
 - test with more processes (scalability)
 - predicate: buffer message while one thread delivers
 - change the (de)serialization:
     * our own stuff for primitive types, pickling for the rest
-    * get rid of Message.scala (generate extraction primitives in process)
 - accessing members of outer class inside an inner class
-    * check if fixed in 2.11.2 (with the right untypcheck) or report macro bug about it
-- Timer: default tick is 100ms, way to high!
+    * check if fixed in 2.11.4 (with the right untypcheck) or report macro bug about it
 - allow `print(ln)` in the TR
-- clean the typer (less fresh type vars ...)
+- clean the typer:
+    * less fresh type vars
+    * better diagnostic
 
 # verification
 
@@ -37,6 +35,7 @@
 - extraction of initial state: if a variable is not initialized in the process, take the default value in the declaration
 - decision procedure
 - rewrite the TR so we get directly set of processes for mailbox (easier to handle cardinality cstr later)
+- extract the spec of aux fct from the type annotation
 
 # example
 
