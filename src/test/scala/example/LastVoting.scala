@@ -124,15 +124,15 @@ class LastVoting extends Algorithm[ConsensusIO] {
       rnd(new Round{
 
         //place holder for ACK
-        type A = Boolean 
+        type A = Int
 
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //rotating coordinator
         def coord(p: ProcessID, phi: Int): ProcessID = new ProcessID((phi % n).toShort)
 
-        def send(): Set[(Boolean, ProcessID)] = {
+        def send(): Set[(Int, ProcessID)] = {
           if ( ts == (r/4) ) {
-            Set( true -> coord(id, r/4) )
+            Set( (x: Int) -> coord(id, r/4) )
           } else {
             Set.empty
           }
@@ -140,7 +140,7 @@ class LastVoting extends Algorithm[ConsensusIO] {
 
         override def expectedNbrMessages = if (id == coord(id, r/4)) n/2 + 1 else 0
 
-        def update(mailbox: Set[(Boolean, ProcessID)]) {
+        def update(mailbox: Set[(Int, ProcessID)]) {
           if (id == coord(id, r/4) && mailbox.size > n/2) {
             ready <~ true
           }

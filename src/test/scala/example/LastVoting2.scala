@@ -3,16 +3,10 @@ package example
 import round._
 import round.macros.Macros._
 
-object Sanity {
-  def a(v: Int) { assert(v != 0, v.toString) }
-}
-
 class LastVoting2(afterDecision: Int = 1) extends Algorithm[ConsensusIO] {
 
   import VarHelper._
   import SpecHelper._
-
-  import Sanity._
 
   val V = new Domain[Int]
 
@@ -70,9 +64,9 @@ class LastVoting2(afterDecision: Int = 1) extends Algorithm[ConsensusIO] {
       
     x <~ io.initialValue
     ts <~ -1
+    decision <~ None
     ready <~ false
     commit <~ false
-    decision <~ None
 
     val rounds = Array[Round](
       rnd(new Round{
@@ -86,16 +80,15 @@ class LastVoting2(afterDecision: Int = 1) extends Algorithm[ConsensusIO] {
         def send(): Set[((Int, Int), ProcessID)] = {
           Set((x: Int, ts: Int) -> coord(id, r / 4))
         }
-        
+
         override def expectedNbrMessages = if (id == coord(id, r/4)) n/2 + 1 else 0
-        
+
         def update(mailbox: Set[((Int, Int), ProcessID)]) {
           if (id == coord(id, r/4) && mailbox.size > n/2) {
             // let θ be one of the largest θ from 〈ν, θ〉received
             // vote(p) := one ν such that 〈ν, θ〉 is received
             vote <~ mailbox.maxBy(_._1._2)._1._1
             commit <~ true
-            a(vote)
           }
         }
 
@@ -111,7 +104,6 @@ class LastVoting2(afterDecision: Int = 1) extends Algorithm[ConsensusIO] {
 
         def send(): Set[(Int, ProcessID)] = {
           if (id == coord(id, r/4) && commit) {
-            a(vote)
             broadcast(vote)
           } else {
             Set.empty
@@ -119,13 +111,12 @@ class LastVoting2(afterDecision: Int = 1) extends Algorithm[ConsensusIO] {
         }
 
         override def expectedNbrMessages = 1
-        
+
         def update(mailbox: Set[(Int, ProcessID)]) {
           val mb2 = mailbox.filter( _._2 == coord(id, r/4) )
           if (mb2.size > 0) {
             x <~ mb2.head._1
             ts <~ r/4
-            a(x)
           }
         }
 
@@ -149,12 +140,10 @@ class LastVoting2(afterDecision: Int = 1) extends Algorithm[ConsensusIO] {
         }
 
         override def expectedNbrMessages = if (id == coord(id, r/4)) n/2 + 1 else 0
-        
+
         def update(mailbox: Set[(Int, ProcessID)]) {
           if (id == coord(id, r/4) && mailbox.size > n/2) {
             ready <~ true
-            vote <~ mailbox.head._1 //TODO this is fine but there is something wrong!!
-            a(vote)
           }
         }
 
