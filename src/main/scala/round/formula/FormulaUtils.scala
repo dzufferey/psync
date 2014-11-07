@@ -204,6 +204,15 @@ object FormulaUtils {
     }
     collect(f, Set())._1
   }
+  
+  def collectVariables(f: Formula): Set[Variable] = {
+    def process(acc: Set[Variable], f: Formula): Set[Variable] = f match {
+      case Binding(_, vs, f) => acc ++ vs
+      case v: Variable => acc + v
+      case _ => acc
+    }
+    collect(Set[Variable](), process, f)
+  }
 
 }
 

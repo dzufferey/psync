@@ -5,6 +5,7 @@ import Utils._
 import round._
 import round.formula._
 
+import dzufferey.utils.Namer
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
@@ -20,6 +21,43 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
   val procAllVars = procLocalVars ++ procGhostVars ++ process.globalVariables
 
   assert(procAllVars.forall(_.tpe != Wildcard))
+
+  //to avoid capture during later renaming
+  def warmup {
+    Logger("Verifier", Debug, "Warming up the Namer")
+    def w(f: Formula) {
+      FormulaUtils.collectVariables(f).foreach(v => Namer.warmup(v.name))
+    }
+    def wv(v: Variable) { Namer.warmup(v.name) }
+
+    for( v <- procAllVars) wv(v)
+    w(spec.safetyPredicate)
+    spec.livnessPredicate.foreach(w)
+    spec.invariants.foreach(w)
+    spec.properties.map(_._2).foreach(w)
+    w(process.initState)
+    for(r <- process.rounds) {
+      val t = r.rawTR
+      w(t.send)
+      w(t.update)
+      wv(t.mailboxSend)
+      wv(t.mailboxUpdt)
+      t.old.foreach(wv)
+      t.local.foreach(wv)
+      t.primed.foreach(wv)
+      for( a <- r.auxSpec.values ) {
+        a.params.foreach(wv)
+        w(a.pre)
+        a.body.foreach( tr => {
+          (tr.old ++ tr.local ++ tr.primed).foreach(wv)
+          w(tr.tr)
+        })
+        wv(a.post._1)
+        w(a.post._2)
+      }
+    }
+  }
+  warmup
 
   val procInitState: Formula = {
     //fix the types!
@@ -83,7 +121,7 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
     //check whether we have a state or relational property
     if (isStateProperty(property)) {
       new SingleVC(descr, invariant, True(), property, additionalAxioms)
-    } else {
+    } else if (isRelationalProperty(property)) {
       new CompositeVC(descr, true,
         for (r <- roundsTR.indices) yield {
           val (tr, aux) = roundsTR(r)
@@ -97,6 +135,29 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
           )
         }
       )
+    } else if (isGlobalProperty(property)) {
+      new CompositeVC(descr, true,
+        new SingleVC(
+          "global property hold initially",
+          ForAll(List(procI), localize(procLocalVars ++ procGhostVars, procI, procInitState)),
+          True(),
+          removeInitPrefix(property),
+          additionalAxioms
+        ) +:
+        roundsTR.indices.map( r => {
+          val (tr, aux) = roundsTR(r)
+          val f = And(invariant, property)
+          new SingleVC(
+            "global property preserved at round " + r,
+            f,
+            tr.makeFullTr(procLocalVars ++ procGhostVars, aux),
+            tr.primeFormula(f),
+            additionalAxioms
+          )
+        })
+      )
+    } else {
+      sys.error("unknown type of property: " + property)
     }
   }
 
