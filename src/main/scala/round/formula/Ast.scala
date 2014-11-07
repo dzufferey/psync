@@ -142,8 +142,17 @@ sealed abstract class InterpretedFct(val symbol: String, aliases: String*) exten
 
   def application(args: List[Formula]): Formula = {
     assert(args.lengthCompare(arity) == 0, "arity of " + symbol + " is " + arity + ", given args: " + args.mkString(", "))
-    Application(this, args)
-    //TODO fill the type as much as possible
+    val app = Application(this, args)
+    val t = tpe
+    val ret = Type.freshTypeVar
+    //fill the type as much as possible
+    Typer.unify(t, Function(args.map(_.tpe), ret)) match {
+      case Some(subst) if subst contains ret =>
+        //println(symbol + args.mkString("(",",",")") + ": " + subst(ret))
+        app.setType(subst(ret))
+      case _ =>
+        app
+    }
   }
 
   def apply(arg: Formula, args: Formula*): Formula = {

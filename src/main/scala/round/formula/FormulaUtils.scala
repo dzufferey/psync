@@ -172,7 +172,7 @@ object FormulaUtils {
       val subst = Typer.unify(normal.typeWithParams, concreteType)
       subst match {
         case Some(s) =>
-          //println("typeWithParams: " + app.fct + ", " + concreteType + ", " + normal.typeWithParams + ", " + subst)
+          //println("typeWithParams: " + app.fct + ", " + concreteType + ", " + params + ", " + subst + ", " + s)
           params.map(s)
         case None => sys.error("FormulaUtils.typeWithParams, cannot unify: " + normal.typeWithParams + ", " + concreteType)
       }

@@ -135,11 +135,11 @@ object CL {
     (f2, defs1 ++ defs2)
   }
 
-  protected val cardinalityAxioms = {
+  protected val procIdCardinalityAxioms = {
     val s = Variable("s").setType(FSet(procType))
     List(
-      ForAll(List(s), Leq(Literal(0), Cardinality(s))),
-      ForAll(List(s), Leq(Cardinality(s), n))
+      ForAll(List(s), Leq(Cardinality(s), n)),
+      Lt(Literal(0), n)
     )
   }
 
@@ -198,14 +198,24 @@ object CL {
     FormulaUtils.getConjuncts(ForAll(params.toList, Application(And, conjuncts ::: triggers)))
   }
 
-  /** from A={i. P(i)} to ∀ i. P(i) ⇔ i∈A */
-  protected def membershipAxioms(compDef: (Set[Variable], Formula, Formula)): Formula = {
+  /** from A={i. P(i)} to ∀ i. P(i) ⇔ i∈A 
+   *  if it is a set of processID also add |A|=n ⇒ (∀i. P(i))
+   */
+  protected def membershipAxioms(compDef: (Set[Variable], Formula, Formula)): List[Formula] = {
     compDef._3 match {
       case c @ Comprehension(List(i), f) =>
         val bound = compDef._1
         assert(!bound(i))
         val name = compDef._2
-        ForAll(i :: bound.toList, Eq(f, In(i, name)))
+        val member = ForAll(i :: bound.toList, Eq(f, In(i, name)))
+        if (i.tpe == procType) {
+          List(
+            ForAll(bound.toList, Implies(Eq(Cardinality(name), n), ForAll(List(i), f))),
+            member
+          )
+        } else {
+          List(member)
+        }
       case _ =>
         sys.error("expected comprehension, found " + compDef._3)
     }
@@ -221,21 +231,32 @@ object CL {
                                          s1._2.tpe == procType &&
                                          s2._2.tpe == procType)
               yield mkPairILP(s1, s2)
-    val membership = c1.toList map membershipAxioms
-    woComp ::: membership ::: ilp.toList.flatten
+    val membership = c1.toList flatMap membershipAxioms
+    woComp ::: procIdCardinalityAxioms ::: membership ::: ilp.toList.flatten
   }
 
   /* add axioms for set operations */ 
   protected def addSetAxioms(conjuncts: List[Formula]): List[Formula] = {
-    Logger("CL", Warning, "TODO addSetAxioms")
-    //TODO
-    conjuncts
+    val f = Application(And, conjuncts)
+    val setOps = FormulaUtils.collectSymbolsWithParams(f).collect{
+        case p @ (Union | Intersection | SubsetEq | SupersetEq, _) => p
+      }
+    for (p <- setOps) {
+      Logger("CL", Warning, "TODO addSetAxioms for" + p)
+    }
+   
+    val tps = FormulaUtils.collectTypes(f).collect{ case f: FSet => f }.toList
+    conjuncts ::: tps.map( t => {
+      val s = Variable("s").setType(t)
+      ForAll(List(s), Leq(Literal(0), Cardinality(s)))
+    })
   }
 
   //TODO add axioms for inclusion and card, ....
   
   def reduce(formula: Formula): Formula = {
-    val n1 = normalize(formula)
+    val typed = Typer(formula).get 
+    val n1 = normalize(typed)
     val n2 = Quantifiers.getExistentialPrefix(n1)._1
     val rawConjuncts = FormulaUtils.getConjuncts(n2)
     val conjuncts = rawConjuncts.map(f => Quantifiers.skolemize(Simplify.simplify(Simplify.pnf(f))))
@@ -243,7 +264,7 @@ object CL {
     val withILP = reduceComprehension(conjuncts)
     Logger("CL", Debug, "with ILP:\n  " + withILP.mkString("\n  "))
     val withSetAx = addSetAxioms(withILP)
-    val withOpt = OptionAxioms.addAxioms(withILP)
+    val withOpt = OptionAxioms.addAxioms(withSetAx)
     val withTpl = TupleAxioms.addAxioms(withOpt)
     //val withTpl = TupleAxioms.addAxioms(withOpt)
     Logger("CL", Debug, "with axiomatized theories:\n  " + withTpl.mkString("\n  "))
