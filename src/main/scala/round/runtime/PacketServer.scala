@@ -16,7 +16,7 @@ import java.net.InetSocketAddress
 class PacketServer(
     port: Int,
     initGroup: Group,
-    defaultHandler: Message => Unit,
+    defaultHandler: Message => Unit, //defaultHandler is responsible for releasing the ByteBuf payload
     options: Map[String, String] = Map.empty)
 {
 
@@ -29,28 +29,36 @@ class PacketServer(
     } else if (g == "nio") {
       false
     } else {
-      Logger("Predicate", Warning, "event group is unknown, using nio instead")
+      Logger("PacketServer", Warning, "event group is unknown, using nio instead")
       false
     }
   }
     
   if (options.getOrElse("transport layer", "udp").toLowerCase != "udp") {
-     Logger("Predicate", Warning, "transport layer: only UDP supported for the moment")
+     Logger("PacketServer", Warning, "transport layer: only UDP supported for the moment")
   }
+
+  private val executor = java.util.concurrent.Executors.newCachedThreadPool()
+  //private val executor = java.util.concurrent.Executors.newFixedThreadPool(8)
 
   private val group: EventLoopGroup =
     if (epoll) new EpollEventLoopGroup()
     else new NioEventLoopGroup()
 
+  def submitTask[T](task: java.util.concurrent.Callable[T]) = {
+    executor.submit(task)
+  }
+
   private var chan: Channel = null
   def channel: Channel = chan
 
-  val dispatcher = new InstanceDispatcher
+  val dispatcher = new InstanceDispatcher(executor, defaultHandler, directory)
 
   def close {
     dispatcher.clear
     try {
       group.shutdownGracefully
+      executor.shutdownNow
     } finally {
       if (chan != null) {
         chan.close
@@ -65,11 +73,9 @@ class PacketServer(
       b.group(group)
         .channel(if (epoll) classOf[EpollDatagramChannel]
                  else classOf[NioDatagramChannel])
-        .handler(new PackerServerHandler(directory, defaultHandler))
+        .handler(new PackerServerHandler(dispatcher))
 
       chan = b.bind(port).sync().channel()
-      //add the dispatcher
-      chan.pipeline.addFirst("dispatcher", dispatcher)
       //chan.closeFuture().await() //closeFuture is a notification when the channel is closed
     } finally {
       //close
@@ -78,17 +84,13 @@ class PacketServer(
 
 }
 
-//defaultHanlder is responsible for releasing the ByteBuf payload
 class PackerServerHandler(
-    dir: Directory,
-    defaultHandler: Message => Unit
+    dispatcher: InstanceDispatcher
   ) extends SimpleChannelInboundHandler[DatagramPacket](false) {
 
   //in Netty version 5.0 will be called: channelRead0 will be messageReceived
   override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
-    val msg = new Message(pkt, dir.group)
-    //if the default handler drop the message it can lead to leak
-    defaultHandler(msg)
+    dispatcher.dispatch(pkt)
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {

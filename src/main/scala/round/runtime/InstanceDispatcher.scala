@@ -4,15 +4,15 @@ import round.predicate.Predicate
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
-import io.netty.channel._
 import io.netty.channel.socket._
-
 import java.util.concurrent.locks.ReentrantLock
 
 /** a dispatcher that scales better than putting all the instance in the pipeline */
 class InstanceDispatcher(
-    options: Map[String, String] = Map.empty
-  ) extends SimpleChannelInboundHandler[DatagramPacket](false)
+    executor: java.util.concurrent.Executor,
+    defaultHandler: Message => Unit,
+    dir: Directory,
+    options: Map[String, String] = Map.empty)
 {
 
   private val exp = {
@@ -92,17 +92,45 @@ class InstanceDispatcher(
     }
   }
 
-  //in Netty version 5.0 will be called: channelRead0 will be messageReceived
-  override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
-    val tag = Message.getTag(pkt.content)
-    if (!Flags.userDefinable(tag.flag)) {
-      findInstance(tag.instanceNbr) match {
-        case Some(inst) => inst.messageReceived(ctx, pkt)
-        case None => ctx.fireChannelRead(pkt)
+  /** call the default handler */
+  private def default(pkt: DatagramPacket) {
+    val msg = new Message(pkt, dir.group)
+    defaultHandler(msg)
+  }
+
+  private val messageQueue = new java.util.concurrent.ArrayBlockingQueue[DatagramPacket](1024)
+
+  private val localDispatch = new Runnable {
+    def run {
+      while(true) {
+        val pkt = messageQueue.take
+        executor.execute(new Runnable {
+          def run {
+            try {
+              val tag = Message.getTag(pkt.content)
+              findInstance(tag.instanceNbr) match {
+                case Some(inst) =>
+                  if (!inst.messageReceived(pkt))
+                    default(pkt)
+                case None => 
+                  default(pkt)
+              }
+            } catch {
+              case e: Exception =>
+                Logger("InstanceDispatcher", Warning, "got " + e + "\n  " + e.getStackTrace.mkString("\n  "))
+            }
+          }
+        })
       }
-    } else {
-      ctx.fireChannelRead(pkt)
     }
+  }
+
+  private val t1 = new Thread(localDispatch)
+  t1.setDaemon(true)
+  t1.start()
+
+  def dispatch(pkt: DatagramPacket) {
+    messageQueue.put(pkt)
   }
 
 }

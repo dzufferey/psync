@@ -1,6 +1,7 @@
 package round
 
 import io.netty.buffer.ByteBuf
+import io.netty.buffer.ByteBufAllocator
 
 import scala.pickling._
 import binary._
@@ -46,22 +47,22 @@ abstract class Round {
 
   protected def deserialize(in: ByteBuf, offset: Int = 8): A
 
-  final def packSend: Set[(ByteBuf, ProcessID)] = {
+  final def packSend(alloc: ByteBufAllocator): Set[(ProcessID, ByteBuf)] = {
     val msgs = send()
     //println("sending: " + msgs.mkString(", "))
     msgs.map{ case (value, dst) =>
-      val buf = utils.ByteBufAllocator.buffer()
+      val buf = alloc.buffer()
       serialize(value, buf)
-      (buf, dst)
+      (dst, buf)
     }
   }
 
-  final def unpackUpdate(msg: Set[(ByteBuf,ProcessID)]) = {
-    def decode(p: (ByteBuf,ProcessID)): (A, ProcessID) = {
-      val p1 = p._1
+  final def unpackUpdate(msg: Set[(ProcessID, ByteBuf)]) = {
+    def decode(p: (ProcessID, ByteBuf)): (A, ProcessID) = {
+      val p1 = p._2
       val a = deserialize(p1)
       p1.release
-      (a, p._2)
+      (a, p._1)
     }
     val decoded = msg.map(decode)
     update(decoded)

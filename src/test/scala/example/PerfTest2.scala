@@ -2,7 +2,6 @@ package example
 
 import round._
 import round.runtime._
-import round.utils.ByteBufAllocator
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 import java.util.concurrent.Semaphore
@@ -11,6 +10,7 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.ConcurrentSkipListSet
 import scala.util.Random
+import io.netty.buffer.PooledByteBufAllocator
 
 class PerfTest2(id: Int,
                 confFile: String,
@@ -65,7 +65,7 @@ class PerfTest2(id: Int,
 
   def defaultHandler(msg: Message) {
     val flag = msg.tag.flag
-    Logger("PerfTest", Debug, "defaultHandler: " + msg.instance)
+    //Logger("PerfTest", Debug, "defaultHandler: " + msg.instance)
 
     //might need to start a new instance:
     // initial values is either taken from the backOff queue or the message
@@ -79,7 +79,7 @@ class PerfTest2(id: Int,
 
     } else if (flag == Decision) {
       val inst = msg.instance
-      Logger("PerfTest", Info, inst + " got a decision message")
+      //Logger("PerfTest", Info, inst + " got a decision message")
       val value = msg.getInt(0)
       val idx = (value >>> 16).toShort
       //println("(1) id: " + id + " idx: " + idx + ", instance: " + inst)
@@ -94,7 +94,7 @@ class PerfTest2(id: Int,
       val idx = (value >>> 16).toShort
       val newInstance = msg.getInt(4).toShort
       //println("(2) id: " + id + " idx: " + idx + ", instance: " + inst + ", newInstance: " + newInstance)
-      Logger("PerfTest", Info, inst + " recovery to " + newInstance)
+      //Logger("PerfTest", Info, inst + " recovery to " + newInstance)
       assert((inst - newInstance).toShort % nbrValues == 0, "inst = " + inst + ", newInst = " + newInstance)
       val first = processDecision(inst, value, Some(newInstance)) 
       msg.release
@@ -125,7 +125,7 @@ class PerfTest2(id: Int,
       running(idx) match {
         case Some(ran) =>
           if (Instance.leq(ran, myInst)) {
-            Logger("PerfTest", Info, myInst + " decide: " + idx + ", " + v)
+            //Logger("PerfTest", Info, myInst + " decide: " + idx + ", " + v)
             pushDecision(myInst, value)
             versions(idx) = myInst
             values(idx) = v
@@ -143,9 +143,9 @@ class PerfTest2(id: Int,
       if (selfStarted contains instance) {
         rate.release()
         selfStarted.remove(instance)
-        Logger("PerfTest", Info, instance + "     selfStarted")
+        //Logger("PerfTest", Info, instance + "     selfStarted")
       } else {
-        Logger("PerfTest", Info, instance + " not selfStarted")
+        //Logger("PerfTest", Info, instance + " not selfStarted")
       }
       
       nbr.incrementAndGet
@@ -168,14 +168,14 @@ class PerfTest2(id: Int,
   def sendRecoveryInfo(m: Message) = {
     val inst = m.instance
     val idx = (m.getInt(0) >>> 16).toShort
-    val payload = ByteBufAllocator.buffer(16)
+    val payload = PooledByteBufAllocator.DEFAULT.buffer()
     val sender = m.senderId
     payload.writeLong(8)
     var tag = Tag(0,0)
     getDec(inst) match {
       case Some(d) =>
-        Logger("PerfTest", Info, "sending decision " + (d >>> 16) + ", " + (d & 0xFFFF).toShort +
-                                 " to " + sender.id + " for instance " + inst)
+        //Logger("PerfTest", Info, "sending decision " + (d >>> 16) + ", " + (d & 0xFFFF).toShort +
+        //                         " to " + sender.id + " for instance " + inst)
         tag = Tag(inst,0,Decision,0)
         payload.writeInt(d)
       case None =>
@@ -186,13 +186,13 @@ class PerfTest2(id: Int,
           val value = values(idx)
           val d = (idx << 16) | (value.toInt & 0xFFFF)
           if (currInst == inst) {
-            Logger("PerfTest", Info, "sending decision " + (d >>> 16) + ", " + (d & 0xFFFF).toShort +
-                                     " to " + sender.id + " for instance " + inst)
+            //Logger("PerfTest", Info, "sending decision " + (d >>> 16) + ", " + (d & 0xFFFF).toShort +
+            //                         " to " + sender.id + " for instance " + inst)
             tag = Tag(inst,0,Decision,0)
             payload.writeInt(d)
           } else {
-            Logger("PerfTest", Info, "sending recovery " + (d >>> 16) + ", " + (d & 0xFFFF).toShort +
-                                     " to " + sender.id + " for instance " + inst + " -> " + currInst)
+            //Logger("PerfTest", Info, "sending recovery " + (d >>> 16) + ", " + (d & 0xFFFF).toShort +
+            //                         " to " + sender.id + " for instance " + inst + " -> " + currInst)
             tag = Tag(inst,0,Recovery,0)
             payload.writeInt(d)
             payload.writeInt(currInst)
@@ -265,20 +265,22 @@ class PerfTest2(id: Int,
         val initialValue = v
         //TODO we should reduce the amount of work done here: pass it to another thread and let the algorithm thread continue.
         def decide(value: Int) {
-          Logger("PerfTest", Info, instanceNbr + " normal decision")
+          //Logger("PerfTest", Info, instanceNbr + " normal decision")
           val first = processDecision(instanceNbr, value)
-          if (first) checkPending(idx)
+          if (first) {
+            rt.submitTask( () => checkPending(idx) )
+          }
         }
       }
       if (self) {
         selfStarted add instanceNbr
       }
-      Logger("PerfTest", Info, "(" + id + ") starting instance " + instanceNbr + " with " + idx + ", " + value + ", self " + self)
+      //Logger("PerfTest", Info, "(" + id + ") starting instance " + instanceNbr + " with " + idx + ", " + value + ", self " + self)
       rt.startInstance(instanceNbr, io, msg)
       wakeupOthers(instanceNbr, v)
 
     } else {
-      Logger("PerfTest", Debug, "backing off " + idx)
+      //Logger("PerfTest", Debug, "backing off " + idx)
       //an instance is already running push the request to the backoff queue if it is one of our own query
       if (self) {
         backOff(idx).add(value)
@@ -293,7 +295,7 @@ class PerfTest2(id: Int,
     if (lv) {
       val dir = rt.directory
       for (o <- dir.others) {
-        val payload = ByteBufAllocator.buffer(16)
+        val payload = PooledByteBufAllocator.DEFAULT.buffer()
         payload.writeLong(8)
         var tag = Tag(inst,0,Flags.dummy,0)
         payload.writeInt(initValue)

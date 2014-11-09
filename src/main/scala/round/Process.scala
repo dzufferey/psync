@@ -21,12 +21,14 @@ abstract class Process(val id: ProcessID) {
 
   protected def currentRound: Round //defined by macros
 
-  final def send(): Set[(io.netty.buffer.ByteBuf,ProcessID)] = {
+  protected var allocator: io.netty.buffer.ByteBufAllocator = io.netty.buffer.PooledByteBufAllocator.DEFAULT
+
+  final def send(): Set[(ProcessID, io.netty.buffer.ByteBuf)] = {
     incrementRound
-    currentRound.packSend
+    currentRound.packSend(allocator)
   }
 
-  final def update(msgs: Set[(io.netty.buffer.ByteBuf,ProcessID)]) {
+  final def update(msgs: Set[(ProcessID, io.netty.buffer.ByteBuf)]) {
     currentRound.unpackUpdate(msgs)
   }
 

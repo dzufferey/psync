@@ -14,6 +14,8 @@ class RunTime[IO](val alg: Algorithm[IO]) {
 
   private var options = Map.empty[String, String]
 
+  private var defltHandler: Message => Unit = null
+
   /** Start an instance of the algorithm. */
   def startInstance(
       instanceId: Short,
@@ -101,6 +103,13 @@ class RunTime[IO](val alg: Algorithm[IO]) {
       case None =>
     }
     srv = None
+  }
+
+  def submitTask[T](fct: () => T) = {
+    assert(srv.isDefined)
+    srv.get.submitTask(new java.util.concurrent.Callable[T]{
+      def call: T = fct()
+    })
   }
 
   /** the first 8 bytes of the payload must be empty */

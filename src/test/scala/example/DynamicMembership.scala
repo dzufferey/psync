@@ -3,7 +3,8 @@ package example
 import round._
 import round.runtime._
 import round.macros.Macros._
-import round.utils.{Timer, ByteBufAllocator}
+import round.utils.Timer
+import io.netty.buffer.PooledByteBufAllocator
 
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
@@ -275,7 +276,7 @@ object DynamicMembership extends round.utils.DefaultOptions with DecisionLog[Mem
   def sendRecoveryInfo(dest: ProcessID) {
     Logger("DynamicMembership", Notice, "sending recovery info to " + dest)
     val tag = Tag(0,0,View,0)
-    val payload = ByteBufAllocator.buffer(2048)
+    val payload = PooledByteBufAllocator.DEFAULT.buffer()
     payload.writeLong(8)
     val content = (viewNbr, instanceNbr, dest.id, view.asList)
     val array = content.pickle.value
@@ -299,7 +300,7 @@ object DynamicMembership extends round.utils.DefaultOptions with DecisionLog[Mem
 
   def startRecovery(dest: ProcessID) {
     val tag = Tag(0,0,Recover,0)
-    val payload = ByteBufAllocator.buffer(256)
+    val payload = PooledByteBufAllocator.DEFAULT.buffer()
     payload.writeLong(8)
     val array = (address -> port).pickle.value
     payload.writeBytes(array)
@@ -317,7 +318,7 @@ object DynamicMembership extends round.utils.DefaultOptions with DecisionLog[Mem
     getDec(msg.instance) match {
       case Some(d) =>
         val tag = Tag(msg.instance,0,Decision,0)
-        val payload = ByteBufAllocator.buffer(256)
+        val payload = PooledByteBufAllocator.DEFAULT.buffer()
         payload.writeLong(8)
         val array = d.pickle.value
         payload.writeBytes(array)
@@ -362,7 +363,7 @@ object DynamicMembership extends round.utils.DefaultOptions with DecisionLog[Mem
         val others = view.others
         for (o <- others) {
           val tag = Tag(0,0,Heartbeat,0)
-          val payload = ByteBufAllocator.buffer(16)
+          val payload = PooledByteBufAllocator.DEFAULT.buffer()
           payload.writeLong(0l) //leav space for the tag
           payload.writeShort(self.id) //not really needed
           rt.sendMessage(o.id, tag, payload)

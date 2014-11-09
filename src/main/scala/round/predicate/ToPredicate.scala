@@ -37,16 +37,14 @@ class ToPredicate(
   def resetReceived { _received = 0 }
   //var spill = new java.util.concurrent.ConcurrentLinkedQueue[DatagramPacket]()
 
-  private val lock = new ReentrantLock
-
   //dealing with the timeout ?
   protected var defaultTO = {
     try {
-      options.getOrElse("timeout", "200").toInt
+      options.getOrElse("timeout", "20").toInt
     } catch {
       case e: Exception =>
-        Logger("Predicate", Warning, "timeout unspecified or wrong format, using 200")
-        200 //milliseconds
+        Logger("Predicate", Warning, "timeout unspecified or wrong format, using 20")
+        20 //milliseconds
     }
   }
   
@@ -80,7 +78,7 @@ class ToPredicate(
           lock.lock()
           try {
             if (!changed) {
-              Logger("ToPredicate", Debug, "delivering because of timeout: " + instance)
+              //Logger("ToPredicate", Debug, "delivering because of timeout: " + instance)
               didTimeOut += 1
               deliver
             } else {
@@ -131,7 +129,7 @@ class ToPredicate(
 
   override protected def atRoundChange {
     expected = proc.expectedNbrMessages
-    Logger("ToPredicate", Debug, "expected # msg: " + expected)
+    //Logger("ToPredicate", Debug, "expected # msg: " + expected)
   }
 
   override protected def afterSend {
