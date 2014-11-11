@@ -16,19 +16,50 @@ class RoundTransitionRelation(val send: Formula,
                               val local: List[Variable],
                               val primed: List[Variable]) {
 
+  //TODO clean that method!
   def retype(env: Set[Variable]): RoundTransitionRelation = {
     assert(mailboxSend.tpe != Wildcard, "mailboxSend has Wildcard type")
     assert(mailboxUpdt.tpe != Wildcard, "mailboxUpdt has Wildcard type")
     assert(local.forall(_.tpe != Wildcard), "some local variables has Wildcard type")
+    Logger("TransitionRelation", Debug, "retype env:\n  " + env.map(a => a+":"+a.tpe).mkString("\n  "))
+    Logger("TransitionRelation", Debug, "retype old:\n  " + old.map(a => a+":"+a.tpe).mkString("\n  "))
+    Logger("TransitionRelation", Debug, "retype primed:\n  " + primed.map(a => a+":"+a.tpe).mkString("\n  "))
     //match old and primed with env
     val substOld = old.map( v => v -> env.find(_ == v).get ).toMap
-    val substPrimed = primed.map( v => v -> v.setType(env.find(v2 => v.name.startsWith(v2.name)).get.tpe) ).toMap
+    def rmSuffix(prefix: String) = {
+      val idx = prefix.lastIndexOf("$")
+      if (idx == -1) prefix
+      else prefix.substring(0, idx)
+    }
+    val substPrimed = primed.map( v => v -> v.setType(env.find(v2 => rmSuffix(v.name) == (v2.name)).get.tpe) ).toMap
     val subst = substOld ++ substPrimed
     assert(subst.forall(_._2.tpe != Wildcard), "some env variables has Wildcard type")
+    Logger("TransitionRelation", Debug, "retype subst:\n  " + subst.map{ case (a,b) => a+":"+a.tpe+" → "+b+":"+b.tpe }.mkString("\n  "))
+    def fixMB(f: Formula) = {
+      for (v <- f.freeVariables) {
+        if (v == mailboxSend) v.setType(mailboxSend.tpe)
+        if (v == mailboxUpdt) v.setType(mailboxUpdt.tpe)
+      }
+      f
+    }
+    def fixType(f: Formula) = {
+      val traverser = new Traverser{
+        override def traverse(f: Formula) = {
+          super.traverse(f)
+          f match {
+            case v @ Variable(_) if subst contains v=>
+              v.setType(subst(v).tpe)
+            case _ =>
+          }
+        }
+      }
+      traverser.traverse(f)
+      f
+    }
     new RoundTransitionRelation(
-      FormulaUtils.alpha(subst, send),
+      fixType(fixMB(FormulaUtils.alpha(subst, send))),
       mailboxSend,
-      FormulaUtils.alpha(subst, update),
+      fixType(fixMB(FormulaUtils.alpha(subst, update))),
       mailboxUpdt,
       old.map(substOld),
       local,
@@ -60,10 +91,14 @@ class RoundTransitionRelation(val send: Formula,
         case Eq(List(retVal, Application(UnInterpretedFct(fct, _, tParams), args))) if aux contains fct =>
           Logger("TransitionRelation", Debug, "inline post in " + f)
           val auxDef = aux(fct).applyType(tParams)
-          val post = auxDef.makePostAssume(args, retVal)
-          val loc = localize(vars, i, post)
-          Logger("TransitionRelation", Debug, "resulting in " + loc)
-          super.transform(loc)
+          auxDef.makePostAssume(args, retVal) match {
+            case Some(post) =>
+              val loc = localize(vars, i, post)
+              Logger("TransitionRelation", Debug, "resulting in " + loc)
+              super.transform(loc)
+            case None =>
+              super.transform(f)
+          }
         case other =>
           super.transform(other)
       }
@@ -129,7 +164,7 @@ class TransitionRelation(_tr: Formula,
       f match {
         case Eq(List(retVal, Application(UnInterpretedFct(fct, _, tParams), args))) if aux contains fct =>
           val auxDef = aux(fct).applyType(tParams)
-          super.transform(auxDef.makePostAssume(args, retVal))
+          super.transform(auxDef.makePostAssume(args, retVal).getOrElse(f))
         case other => other
       }
     }

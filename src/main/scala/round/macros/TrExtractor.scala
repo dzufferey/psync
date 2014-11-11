@@ -211,11 +211,16 @@ trait TrExtractor {
     val tParams: List[TypeVariable] = d.tparams.map(extractTypeVar)
 
     val (body2, _pre) = getPreCondition(d.rhs).getOrElse((d.rhs, True()))
-    val (body3, vRet, _post) = getPostCondition(body2).getOrElse(body2, Variable(Namer("__return")).setType(tpe), True())
-    val body = None //TODO Option[TransitionRelation],
     val pre = tryType(_pre, d.rhs, "unable to type precondition of " + d.name)
-    val post = tryType(_post, body2, "unable to type postcondition of " + d.name)
-    new AuxiliaryMethod(name, params, tpe, tParams, pre, body, (vRet, post))
+    getPostCondition(body2) match { //.getOrElse(body2, Variable(Namer("__return")).setType(tpe), True())
+      case Some((body3, vRet, _post)) =>
+        val body = None //TODO Option[TransitionRelation],
+        val post = tryType(_post, body2, "unable to type postcondition of " + d.name)
+        new AuxiliaryMethod(name, params, tpe, tParams, pre, body, Some((vRet, post)))
+      case None =>
+        val body = None //TODO Option[TransitionRelation],
+        new AuxiliaryMethod(name, params, tpe, tParams, pre, body, None)
+    }
   }
 
   protected def processSendUpdate(send: DefDef, update: DefDef): RoundTransitionRelation = {
@@ -240,6 +245,7 @@ trait TrExtractor {
     val keys = subst2.keys.toList
     val oldV = keys.map(getVar)
     val newV = keys.map( k => getVar(subst2(k).last))
+    //println("typed update cstr: " + cstr2)
 
     val allVars = subst2.foldLeft(Nil: List[Variable])( (acc, kv) => {
       (kv._1 :: kv._2).map(getVar) ::: acc
@@ -248,7 +254,11 @@ trait TrExtractor {
     val local2 = tree2Formula(mailboxIdent).asInstanceOf[Variable].setType(mailbox.tpe)
     val local3 = getValDefs(send.rhs).map(extractVarFromValDef)
     val local4 = getValDefs(update.rhs).map(extractVarFromValDef)
-    val localV = local1 ::: local2 :: mailbox :: local3 ::: local4
+    val localC = local1 ::: local2 :: mailbox :: local3 ::: local4
+    val localB = And(cstr1, cstr2).boundVariables
+    val localF = And(cstr1, cstr2).freeVariables
+    val localV = localC.filter(x => !localB(x)) //otherwise we capture var bound in comprehensions with the getValDefs
+    //val localV = localC.filter(x => localF(x)) //otherwise we capture var bound in comprehensions with the getValDefs
 
     new RoundTransitionRelation(cstr1, getVar(mailboxIdent).setType(mailbox.tpe),
                                 cstr2, mailbox, oldV, localV, newV)

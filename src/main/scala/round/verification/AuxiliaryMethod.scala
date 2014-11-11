@@ -12,7 +12,7 @@ class AuxiliaryMethod(val name: String,
                       val tParams: List[TypeVariable],
                       val pre: Formula,
                       val body: Option[TransitionRelation],
-                      val post: (Variable, Formula) ) {
+                      val post: Option[(Variable, Formula)] ) {
 
   //TODO check the old vars in body are the same as the args
   //TODO instantiate the types went generating VCs
@@ -43,9 +43,11 @@ class AuxiliaryMethod(val name: String,
   }
 
   /* Generate the postcondition of the call with 'args' as arguments and return value assigned to 'ret'. */
-  def makePostAssume(args: List[Formula], ret: Formula): Formula = {
-    val post2 = argsSubst(args)(post._2)
-    FormulaUtils.map(( x => if (x == post._1) ret else x), post2)
+  def makePostAssume(args: List[Formula], ret: Formula): Option[Formula] = {
+    post.map( post => {
+      val post2 = argsSubst(args)(post._2)
+      FormulaUtils.map(( x => if (x == post._1) ret else x), post2)
+    })
   }
 
   def report = {
@@ -54,7 +56,11 @@ class AuxiliaryMethod(val name: String,
     val pr = params.zip(tpe.args).map{ case (p,t) => p.name + ": " + t }.mkString("(",",",")")
     val lst = new Sequence(name + tp + pr + ": " + tpe.returns)
     lst.add(itemForFormula("Precondition", pre))
-    lst.add(itemForFormula("Postcondition("+post._1+")", post._2))
+    if (post.isDefined) {
+        lst.add(itemForFormula("Postcondition("+post.get._1+")", post.get._2))
+    } else {
+        lst.add(new Text("Postcondition", "undefined"))
+    }
     for (b <- body) lst.add(b.report)
     lst
   }

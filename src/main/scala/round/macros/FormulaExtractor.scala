@@ -119,14 +119,16 @@ trait FormulaExtractor {
     val n = extractVarFromValDef(params.head)
     val f2 = tree2Formula(body)
     val d = extractDomain(domain)
-    //println("x= " + params.head + ", " + n + ", " + n.tpe)
-    //println("d= " + domain + ", " + d + ", " + d.map(_.tpe) + "\n")
-    b match {
+    val res = b match {
       case Exists | Comprehension =>
         Binding(b, List(n), d.map( d => And(In(n,d),f2)).getOrElse(f2))
       case ForAll =>
         Binding(b, List(n), d.map( d => Implies(In(n,d),f2)).getOrElse(f2))
     }
+    //println("x= " + params.head + ", " + n + ", " + n.tpe)
+    //println("d= " + domain + ", " + d + ", " + d.map(_.tpe))
+    //println("  " + res)
+    res
   }
 
   def extractSymbol(e: Tree): round.formula.Symbol = e match {
@@ -207,15 +209,25 @@ trait FormulaExtractor {
   def mkMinMaxBy(name: String, set: Tree, v: ValDef, expr: Tree, ineq: InterpretedFct): Formula = {
     val vf = extractVarFromValDef(v)
     val t = vf.tpe
-    val s = Variable("S").setType(FSet(t))
     val u = UnInterpretedFct(name, Some(FSet(t) ~> t)) //TODO type param ?
-    val app = Application(u, List(s))
-    val expr2 = tree2Formula(expr)
-    val expr3 = FormulaUtils.mapAll({ case `vf` => app; case f => f }, expr2)
-    val axioms = List( ForAll(List(vf, s), And(In(app, s), Geq(expr3, expr2))) )
-    AxiomatizedFct.add(new AxiomatizedFct(u, axioms))
     val set2 = tree2Formula(set)
-    Application(u, List(set2))
+    val res = Application(u, List(set2)).setType(t)
+    val expr2 = tree2Formula(expr)
+    val expr3 = FormulaUtils.mapAll({ case `vf` => res; case f => f }, expr2)
+    val cstr = ForAll(List(vf), Implies(In(vf, set2), ineq(expr3, expr2))) 
+    addCstr( cstr )
+    //println(name + " -> " + Some(FSet(t) ~> t))
+    res
+  }
+
+  var auxCstr: List[Formula] = Nil
+  def addCstr(f: Formula) {
+    auxCstr = f :: auxCstr
+  }
+  def getCstr = {
+    val res = auxCstr
+    auxCstr = Nil
+    res
   }
 
   def tree2Formula(e: Tree): Formula = {
@@ -229,8 +241,11 @@ trait FormulaExtractor {
         val y = Ident(TermName(c.freshName("y")))
         val yF = Variable(y.toString).setType(extractType(tpt1))
         val fCstr = makeConstraints(f, Some(y), Some(y))
-        val dCstr = In(extractVarFromValDef(x), tree2Formula(domain))
-        Comprehension(List(yF), And(dCstr, fCstr))
+        val vx = extractVarFromValDef(x)
+        val witness = Application(UnInterpretedFct(c.freshName("witness"), Some(yF.tpe ~> vx.tpe)), List(yF)).setType(vx.tpe)
+        val fCstr2 = FormulaUtils.replace(vx, witness, fCstr)
+        val dCstr = In(witness, tree2Formula(domain))
+        Comprehension(List(yF), And(dCstr, fCstr2))
 
       //our stuff
       case q"$scope.SpecHelper.BoolOps($l).==>($r)" =>
@@ -274,6 +289,17 @@ trait FormulaExtractor {
         mkMinMaxBy(c.freshName("maxBy"), set, v, expr, Geq)
       case q"$set.minBy[$tpt]( $v => $expr )($ordering)" =>
         mkMinMaxBy(c.freshName("minBy"), set, v, expr, Leq)
+      case q"$set.head" =>
+        val s = tree2Formula(set)
+        val t = extractType(e.tpe)
+        val st = s.tpe match {
+          case Wildcard => FSet(t)
+          case other => other
+        }
+        val h = UnInterpretedFct(c.freshName("head"), Some(st ~> t), Nil)
+        val res = Application(h, List(s)).setType(t)
+        addCstr( In(res, s) )
+        res
 
       // tuples
       case q"scala.Tuple2.apply[..$tpt](..$args)" =>
@@ -345,9 +371,20 @@ trait FormulaExtractor {
     val t = extractType(e.tpe)
     formula.setType(t)
   }
-
+  
   /* constraints for a loop-free block in SSA. */
   def makeConstraints(
+      body: Tree,
+      currRet: Option[Tree] = None,
+      globalRet: Option[Tree] = None
+    ): Formula =
+  {
+    val c1 = makeConstraints1(body, currRet, globalRet)
+    val c2 = getCstr
+    c2.foldLeft(c1)(And(_,_))
+  }
+  
+  def makeConstraints1(
       body: Tree,
       currRet: Option[Tree] = None,
       globalRet: Option[Tree] = None
@@ -359,21 +396,21 @@ trait FormulaExtractor {
         val id = c.freshName("cond")
         val cnd = Ident(TermName(id))
         val cvar = Variable(id).setType(Bool)
-        val condCstr = makeConstraints(cond, Some(cnd), None)
-        val thenCstr = makeConstraints(thenp, currRet, globalRet)
-        val elseCstr = makeConstraints(elsep, currRet, globalRet)
+        val condCstr = makeConstraints1(cond, Some(cnd), None)
+        val thenCstr = makeConstraints1(thenp, currRet, globalRet)
+        val elseCstr = makeConstraints1(elsep, currRet, globalRet)
         And(condCstr, Or(And(cvar, thenCstr), And(Not(cvar), elseCstr)))
      
       case Block(stats, expr) =>
-        val statsCstr = stats.map(makeConstraints(_, None, globalRet))
-        val retCstr = makeConstraints(expr, currRet, globalRet)
+        val statsCstr = stats.map(makeConstraints1(_, None, globalRet))
+        val retCstr = makeConstraints1(expr, currRet, globalRet)
         statsCstr.foldRight(retCstr)(And(_,_))
      
       case Return(expr) =>
-        globalRet.map( ret => makeConstraints(Assign(ret, expr))).getOrElse(True())
+        globalRet.map( ret => makeConstraints1(Assign(ret, expr))).getOrElse(True())
       
       case Typed(e, _) =>
-        makeConstraints(e, currRet, globalRet)
+        makeConstraints1(e, currRet, globalRet)
       
       case Apply(Select(lhs, TermName("$less$tilde")), List(rhs)) =>
         Eq(tree2Formula(lhs), tree2Formula(rhs))
@@ -381,11 +418,11 @@ trait FormulaExtractor {
         Eq(tree2Formula(lhs), tree2Formula(rhs))
      
       case ValDef(mods, name, tpe, rhs) =>
-        makeConstraints(rhs, Some(Ident(name)), globalRet)
+        makeConstraints1(rhs, Some(Ident(name)), globalRet)
      
       case term: TermTree => 
         if (currRet.isDefined) {
-          makeConstraints(Assign(currRet.get, term))
+          makeConstraints1(Assign(currRet.get, term))
         } else {
           //Eq(tree2Formula(term), UnitLit())
           //tree2Formula(term)
@@ -394,7 +431,7 @@ trait FormulaExtractor {
      
       case term: RefTree =>
         if (currRet.isDefined) {
-          makeConstraints(Assign(currRet.get, term))
+          makeConstraints1(Assign(currRet.get, term))
         } else {
           //Eq(tree2Formula(term), UnitLit())
           //tree2Formula(term)

@@ -143,7 +143,13 @@ class Solver( th: Theory,
   }
   
   def declare(t: Type) = {
-    toSolver(DeclareSort(Names.tpe(t), Names.tpeArity(t)))
+    try {
+      toSolver(DeclareSort(Names.tpe(t), Names.tpeArity(t)))
+    } catch {
+      case e: Exception =>
+        //collectTypes returns a bit more than what it should
+        Logger("smtlib", Warning, "unsupported type: " + t)
+    }
   }
 
   def typeDecl(t: Type) = {
@@ -169,7 +175,13 @@ class Solver( th: Theory,
         Logger.assert(t.isDefined, "smtlib", "declaring sym with unknown type: " + f)
         val name = Names.overloadedSymbol(s, params)
         val tpe = s.instanciateType(params)
-        toSolver(DeclareFun(name, tpe))
+        try {
+          toSolver(DeclareFun(name, tpe))
+        } catch {
+          case e: Exception =>
+            //collectSymbolsWithParams returns a bit more than what it should
+            Logger.logAndThrow("smtlib", Error, "unsupported type: " + name + ": " + tpe + " from " + f + ": " + t + p.mkString("[",",","]") + " and " + params)
+        }
       case i: InterpretedFct =>
         val name = Names.overloadedSymbol(s, params)
         val tpe = s.instanciateType(params)

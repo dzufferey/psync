@@ -60,7 +60,7 @@ case object Wildcard extends Type {
 }
 
 case class Product(cmpts: List[Type]) extends Type {
-  override def toString = cmpts.mkString("","*","")
+  override def toString = cmpts.mkString("(","*",")")
   def freeParameters = (Set[TypeVariable]() /: cmpts)(_ ++ _.freeParameters)
   def alpha(subst: Map[TypeVariable, Type]) = Product(cmpts.map(_.alpha(subst))) 
 }

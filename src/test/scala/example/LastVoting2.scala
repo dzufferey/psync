@@ -46,8 +46,8 @@ class LastVoting2(afterDecision: Int = 1) extends Algorithm[ConsensusIO] {
       val invariants = List(
         safetyInv,
         round.formula.And(safetyInv, f(P.exists( i => commit(i) ))),
-        round.formula.And(safetyInv, f(P.exists( i => commit(i) && P.forall( j => ts(j) == r/2 && x(j) == vote(i) )))),
-        round.formula.And(safetyInv, f(P.exists( i => commit(i) && ready(i) && P.forall( j => ts(j) == r/2 && x(j) == vote(i) )))),
+        round.formula.And(safetyInv, f(P.exists( i => commit(i) && P.forall( j => ts(j) == r/4 && x(j) == vote(i) )))),
+        round.formula.And(safetyInv, f(P.exists( i => commit(i) && ready(i) && P.forall( j => ts(j) == r/4 && x(j) == vote(i) )))),
         round.formula.And(safetyInv, f(V.exists( v => P.forall( i => decision(i) == Some(v) ))))
       )
 

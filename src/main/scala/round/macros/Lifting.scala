@@ -124,12 +124,10 @@ trait Lifting {
     val tParams = aux.tParams.map(_liftT)
     val pre = aux.pre
     val body = aux.body.map(_liftTR)
-    val post = (_liftF(aux.post._1), _liftF(aux.post._2))
+    val post = aux.post.map( p => (_liftF(p._1), _liftF(p._2)) )
     q"new round.verification.AuxiliaryMethod($name, $params, $tpe, $tParams, $pre, $body, $post)"
   }
 
-
-  
   implicit val liftF = new Liftable[Formula] {
     def apply(f: Formula) = _liftF(f)
   }

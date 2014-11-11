@@ -77,6 +77,7 @@ object CL {
   /** preprocess and reduce (hypothesis ∧ ¬conclusion),
    *  returned formula can be checked for satisfiability. */
   def entailment(hypothesis: Formula, conclusion: Formula): Formula = {
+    assert(Typer(And(hypothesis, Not(conclusion))).success)
     val h1 = normalize(hypothesis)
     val c1 = normalize(Not(conclusion))
     
@@ -268,10 +269,11 @@ object CL {
     val withTpl = TupleAxioms.addAxioms(withOpt)
     //val withTpl = TupleAxioms.addAxioms(withOpt)
     Logger("CL", Debug, "with axiomatized theories:\n  " + withTpl.mkString("\n  "))
-    Logger("CL", Warning, "further reduction in:\n  " + withSetAx.mkString("\n  "))
     val last = withTpl
     Typer(Application(And, last)) match {
-      case Typer.TypingSuccess(f) => f
+      case Typer.TypingSuccess(f) =>
+        Logger("CL", Info, "reduced formula:\n  " + FormulaUtils.getConjuncts(f).mkString("\n  "))
+        f
       case Typer.TypingFailure(r) =>
         Logger.logAndThrow("CL", Error, "could not type:\n  " + last.map(_.toStringFull).mkString("\n  ") + "\n  " + r)
       case Typer.TypingError(r) =>

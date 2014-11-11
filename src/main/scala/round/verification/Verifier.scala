@@ -52,8 +52,10 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
           (tr.old ++ tr.local ++ tr.primed).foreach(wv)
           w(tr.tr)
         })
-        wv(a.post._1)
-        w(a.post._2)
+        a.post.map( p => {
+          wv(p._1)
+          w(p._2)
+        })
       }
     }
   }
@@ -180,6 +182,12 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
       for ( (inv, idx) <- spec.invariants.zipWithIndex;
             r <- roundsTR.indices)
        yield checkInductiveness("invariant " + idx + " at round " + r, inv, roundsTR(r))
+    val roundInc: scala.List[VC] =
+      for ( (inv, idx) <- spec.invariants.zipWithIndex)
+        yield new SingleVC("inductiveness of invariant " + idx + " at round increment ",
+                            inv,
+                            Eq(rp, Plus(Literal(1),r)),
+                            FormulaUtils.alpha(Map(r -> rp), inv))
 
     //-magic round => from one invariant to the next one
     val pairedInvs = spec.invariants.sliding(2).filter(_.length >= 2).toList
@@ -193,8 +201,6 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
         )
       }
 
-    //TODO increment of r
-    Logger("Verifier", Warning, "TODO: increment of r")
 
     //invariants => properties
     val propertiesVCs: scala.List[VC] =
@@ -210,7 +216,7 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
     Logger("Verifier", Warning, "TODO: preconditions of auxiliary methods")
 
     //pack everything
-    initVC :: inductVCs ::: progressVCs ::: propertiesVCs
+    initVC :: inductVCs ::: roundInc ::: progressVCs ::: propertiesVCs
   }
 
 

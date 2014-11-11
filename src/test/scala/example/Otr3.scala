@@ -62,7 +62,7 @@ class OTR3 extends Algorithm[ConsensusIO] {
           val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong, v) }
           //val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong << 32) + v }
           m._1
-        } ensuring { v1 =>
+        } ensuring { v1 => ////
           mailbox.map(_._1).forall( v2 =>
             mailbox.filter(_._1 == v1).size > mailbox.filter(_._1 == v2).size || v1 <= v2
           )

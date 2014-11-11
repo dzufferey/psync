@@ -19,6 +19,12 @@ object FormulaUtils {
     m.transform(f)
   }
   
+  def replace(from: Formula, to: Formula, f: Formula): Formula = {
+    def fct(e: Formula) = if (e == from) to else e
+    val m = new Mapper(fct)
+    m.transform(f)
+  }
+  
   /* Requires that bound variables are bound to variables (otherwise fails) */
   def mapWithScope(fct: (Set[Variable], Formula) => Formula, f: Formula): Formula = {
     val m = new MapperWithScope(fct)

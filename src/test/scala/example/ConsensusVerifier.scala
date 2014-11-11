@@ -9,10 +9,10 @@ import dzufferey.arg._
 object ConsensusVerifier extends round.utils.DefaultOptions {
   
   var v = 3
-  newOption("-n", Int( i => v = i), "Ort1/2/3")
+  newOption("-n", Int( i => v = i), "1/2/3")
   
   var lv = false
-  newOption("-lv", Unit( () => lv = true), "LastVoting")
+  newOption("-lv", Unit( () => lv = true), "LastVoting (default OTR)")
 
   var r = "report.html"
   newOption("-r", String( i => r = i), "report.html")
@@ -30,15 +30,12 @@ object ConsensusVerifier extends round.utils.DefaultOptions {
       def decide(value: scala.Int) { }
     }
 
-    val alg =
-      if (lv) new LastVoting()
-      else
-        v match {
-          case 1 => new OTR()
-          case 2 => new OTR2()
-          case 3 => new OTR3()
-          case _ => sys.error("unknown OTR version")
-        }
+    val alg = v match {
+        case 1 => if (lv) new LastVoting() else new OTR()
+        case 2 => if (lv) new LastVoting2() else new OTR2()
+        case 3 => if (lv) new LastVoting3() else new OTR3()
+        case _ => sys.error("unknown OTR version")
+      }
 
     val verifer = new Verifier(alg, dummyIO)
 

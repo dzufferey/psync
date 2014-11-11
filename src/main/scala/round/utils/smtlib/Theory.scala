@@ -27,7 +27,7 @@ object Theory {
 
   def fun(t: Theory) = {
     val base = List(And, Or, Not, Eq)
-    val intF = List(Plus, Minus, Times, Leq, Lt, Geq, Gt)
+    val intF = List(Plus, Minus, Times, Divides, Leq, Lt, Geq, Gt)
     if (hasInt(t)) {
       base ::: intF
     } else {

@@ -136,51 +136,62 @@ object Typer {
       } else {
         val oldTpe = varToType.getOrElse(v.name, v.tpe)
         varToType += (v.name -> oldTpe)
-        Logger("Typer", level1, "variable " + v + " -> " + SingleCstr(v.tpe, oldTpe))
-        (TypingSuccess(v), SingleCstr(v.tpe, oldTpe))
+        val cstr = SingleCstr(v.tpe, oldTpe).normalize
+        Logger("Typer", level1, "variable " + v + " -> " + cstr)
+        (TypingSuccess(v), cstr)
       }
     }
 
-    def processSym(s: Symbol, arity: Int): (List[Type], Type) = s.tpe match {
-      case Wildcard =>
-        symbolToType.get(s.toString) match {
-          case Some(Function(a, r)) => (a,r)
-          case Some(other) => (Nil, other)
-          case None =>
-            val a = (for (i <- 0 until arity) yield Type.freshTypeVar).toList
-            val r = Type.freshTypeVar
-            symbolToType += (s.toString -> Function(a,r))
-            (a,r)
+    def processSym(s: Symbol, argsT: List[Type]): (Type, TypeConstraints) = s match {
+      case And | Or => //allows variable arity
+        val cstr = variableArity(Bool, argsT)
+        (Bool, cstr)
+      case Plus | Times => //allows variable arity
+        val cstr = variableArity(Int, argsT)
+        (Int, cstr)
+      case Tuple =>
+        (Product(argsT), TrivialCstr)
+      case Fst =>
+        argsT match {
+          case List(Product(t)) => (t(0), TrivialCstr)
+          case other => (Type.freshTypeVar, TrivialCstr)
         }
-    //case Function(List(Wildcard), Wildcard) =>
-    //  s match {
-    //    case Tuple =>
-    //    case Fst =>
-    //    case Snd =>
-    //    case Trd =>
-    //    case _ => (a,r)
-    //  }
-      case Function(a, r) => (a,r)
-      case other => (Nil, other)
+      case Snd =>
+        argsT match {
+          case List(Product(t)) => (t(1), TrivialCstr)
+          case other => (Type.freshTypeVar, TrivialCstr)
+        }
+      case Trd =>
+        argsT match {
+          case List(Product(t)) => (t(2), TrivialCstr)
+          case other => (Type.freshTypeVar, TrivialCstr)
+        }
+      case _ =>
+        s.tpe match {
+          case Wildcard =>
+            symbolToType.get(s.toString) match {
+              case Some(Function(a, r)) =>
+                (r, fixedArity(a, argsT))
+              case Some(other) =>
+                (other, fixedArity(Nil, argsT))
+              case None =>
+                val r = Type.freshTypeVar
+                symbolToType += (s.toString -> Function(argsT,r))
+                (r, TrivialCstr)
+            }
+          case Function(a, r) =>
+            (r, fixedArity(a, argsT))
+          case other =>
+            (other, fixedArity(Nil, argsT))
+        }
     }
     
     def fixedArity(tpe: List[Type], args: List[Type]) = {
-      ConjCstr((tpe zip args).map({ case (a,b) => SingleCstr(a,b) }))
+      ConjCstr((tpe zip args).map({ case (a,b) => SingleCstr(a,b) })).normalize
     }
 
     def variableArity(tpe: Type, args: List[Type]) = {
-      ConjCstr(args.map(t => SingleCstr(tpe, t)))
-    }
-
-    def tpleProj(a2: Application, cstrs: List[TypeConstraints], returnT: Type, tplType: List[Type], idx: Int) = tplType match {
-      case List(Product(lst)) =>
-        Logger("Typer", level1, "tuple projection " + a2 + ", lst: " + lst + ", idx: " + idx + ", tplType: " + tplType + ", returnT: " + returnT)
-        (TypingSuccess(a2), ConjCstr(SingleCstr(returnT,lst(idx)) :: cstrs))
-      case List(single) =>
-        Logger("Typer", level1, "tuple projection " + a2 + " under constrained")
-        (TypingSuccess(a2), ConjCstr(cstrs)) //TODO this is under constrained
-      case _ =>
-        (TypingError("wrong arity: " + a2), TrivialCstr)
+      ConjCstr(args.map(t => SingleCstr(tpe, t))).normalize
     }
 
     def process(e: Formula): (TypingResult[Formula], TypeConstraints) = e match {
@@ -199,36 +210,9 @@ object Typer {
           case None =>
             val unwrappedArgs = args2.map(_.get)
             val argsTypes = unwrappedArgs.map(_.tpe)
-            val returnT = fct match {
-              case Tuple => Product(argsTypes)
-              case other => Type.freshTypeVar //TODO see if we already know the type
-            }
+            val (returnT, cstr) = processSym(fct, argsTypes)
             val a2 = Application(fct, unwrappedArgs) setType returnT
-
-            val (argsType, returnType) = processSym(fct, args.length)
-
-            fct match {
-              case And | Or => //allows variable arity
-                val cstr = ConjCstr(SingleCstr(returnT, Bool) :: variableArity(Bool, argsTypes) :: argsCstr)
-                (TypingSuccess(a2), cstr)
-              case Plus | Times => //allows variable arity
-                val cstr = ConjCstr(SingleCstr(returnT, Int) :: variableArity(Int, argsTypes) :: argsCstr)
-                (TypingSuccess(a2), cstr)
-
-              case Tuple => (TypingSuccess(a2), ConjCstr(argsCstr))
-              case Fst   => tpleProj(a2, argsCstr, returnT, argsTypes, 0)
-              case Snd   => tpleProj(a2, argsCstr, returnT, argsTypes, 1)
-              case Trd   => tpleProj(a2, argsCstr, returnT, argsTypes, 2)
-
-              case other =>
-                if (argsType.length != argsTypes.length) {
-                  (TypingError("wrong arity("+argsType.length+","+argsTypes.length+"): " + a), TrivialCstr)
-                } else {
-                  val cstr = ConjCstr(SingleCstr(returnT, returnType) :: fixedArity(argsType, argsTypes) :: argsCstr)
-                  Logger("Typer", level1, "application: " + a + ", res:" + cstr)
-                  (TypingSuccess(a2), cstr)
-                }
-            }
+            (TypingSuccess(a2), ConjCstr(cstr :: argsCstr).normalize)
         }
       
       case Binding(b, vars, expr) =>
@@ -251,7 +235,7 @@ object Typer {
             }
             val inCstr = SingleCstr(tpe.get.tpe, Bool)
             val tp = TypingSuccess(Binding(b, vars3, tpe.get) setType bTpe)
-            val cstr = ConjCstr(inCstr :: exprCstr :: varsCstr)
+            val cstr = ConjCstr(inCstr :: exprCstr :: varsCstr).normalize
             Logger("Typer", level1, "binding: " + b + ", res:" + cstr)
             (tp, cstr)
         }
