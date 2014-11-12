@@ -23,17 +23,18 @@ class OTR3 extends Algorithm[ConsensusIO] {
       val goodRound = f( S.exists( s => P.forall( p => HO(p) == s && s.size > 2*n/3 )))
       val livnessPredicate = List( goodRound, goodRound )
       val invariants = List(
-        f(  P.forall( i => !decided(i) )
-         || V.exists( v => {
-           val A = P.filter( i => x(i) == v);
-           A.size > 2*n/3 && P.forall( i => decided(i) ==> (decision(i) == v))
-        })),
+        f((  P.forall( i => !decided(i) )
+          || V.exists( v => {
+            val A = P.filter( i => x(i) == v);
+            A.size > 2*n/3 && P.forall( i => decided(i) ==> (decision(i) == v))
+        })) && P.forall( i => P.exists( j => x(i) == init(x)(j) ))
+         ),
         f(V.exists( v => {
            val A = P.filter( i => x(i) == v);
            A.size == (n: Int) && P.forall( i => decided(i) ==> (decision(i) == v))
-        })),
-        f(V.exists( v => P.forall( i => decided(i) && decision(i) == v) ))
-      ) //how to relate the invariants and the magic rounds
+        }) && P.forall( i => P.exists( j => x(i) == init(x)(j) )) ),
+        f(P.exists( j => P.forall( i => decided(i) && decision(i) == init(x)(j)) ))
+      )
 
       val properties = List(
         ("Termination",    f(P.forall( i => decided(i)) )),

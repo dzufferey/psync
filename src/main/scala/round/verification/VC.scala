@@ -37,28 +37,30 @@ class SingleVC(description: String, hypothesis: Formula, transition: Formula, co
   protected var reduced: Formula = False()
 
   def solve {
-    var solver: Solver = null
-    try {
-      Logger("VC", Notice, "solving: " + description)
-      Logger("vC", Debug, "hypothesis:\n  " + FormulaUtils.getConjuncts(hypothesis).mkString("\n  "))
-      Logger("vC", Debug, "transition:\n  " + FormulaUtils.getConjuncts(transition).mkString("\n  "))
-      Logger("VC", Debug, "conclusion:\n  " + FormulaUtils.getConjuncts(conclusion).mkString("\n  "))
-      Logger("VC", Debug, "additionalAxioms:\n  " + additionalAxioms.mkString("\n  "))
-      reduced = CL.entailment(And(hypothesis, transition), conclusion)
-      reduced = Application(And, FormulaUtils.getConjuncts(reduced) ::: additionalAxioms).setType(Bool)
-      reduced = Simplify.simplify(reduced)
-      solver = if (round.utils.Options.dumpVcs) Solver(UFLIA, fName)
-               else Solver(UFLIA)
-      status = solver.testWithModel(reduced)
-      solved = true
-    } catch { case e: Exception =>
-      status = Failure("Exception: " + e.getMessage + "\n  " + e.getStackTrace.mkString("\n  "))
-      solved = true
-    } finally {
-    //if (solver != null)
-    //  solver.exit
+    if (!solved) { 
+      var solver: Solver = null
+      try {
+        Logger("VC", Notice, "solving: " + description)
+        Logger("vC", Debug, "hypothesis:\n  " + FormulaUtils.getConjuncts(hypothesis).mkString("\n  "))
+        Logger("vC", Debug, "transition:\n  " + FormulaUtils.getConjuncts(transition).mkString("\n  "))
+        Logger("VC", Debug, "conclusion:\n  " + FormulaUtils.getConjuncts(conclusion).mkString("\n  "))
+        Logger("VC", Debug, "additionalAxioms:\n  " + additionalAxioms.mkString("\n  "))
+        reduced = CL.entailment(And(hypothesis, transition), conclusion)
+        reduced = Application(And, FormulaUtils.getConjuncts(reduced) ::: additionalAxioms).setType(Bool)
+        reduced = Simplify.simplify(reduced)
+        solver = if (round.utils.Options.dumpVcs) Solver(UFLIA, fName)
+                 else Solver(UFLIA)
+        status = solver.testWithModel(reduced)
+        solved = true
+      } catch { case e: Exception =>
+        status = Failure("Exception: " + e.getMessage + "\n  " + e.getStackTrace.mkString("\n  "))
+        solved = true
+      } finally {
+      //if (solver != null)
+      //  solver.exit
+      }
+      Logger("VC", Notice, "solved: " + description + " → " + status)
     }
-    Logger("VC", Notice, "solved: " + description + " → " + status)
   }
 
   def report = {
@@ -82,14 +84,17 @@ class SingleVC(description: String, hypothesis: Formula, transition: Formula, co
 class CompositeVC(description: String, all: Boolean, vcs: Seq[VC]) extends VC {
 
   def solve {
-    Logger("VC", Notice, "solving: " + description)
-    //vcs.par.foreach(_.solve)
-    vcs.foreach(_.solve)
-    if ((all && vcs.forall(_.isValid)) ||
-        vcs.exists(_.isValid)) {
-      status = UnSat
-    } else {
-      status = Sat()
+    if (!solved) {
+      Logger("VC", Notice, "solving: " + description)
+      //vcs.par.foreach(_.solve)
+      vcs.foreach(_.solve)
+      if ((all && vcs.forall(_.isValid)) ||
+          vcs.exists(_.isValid)) {
+        status = UnSat
+      } else {
+        status = Sat()
+      }
+      solved = true
     }
   }
 

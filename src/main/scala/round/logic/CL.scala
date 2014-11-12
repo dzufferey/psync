@@ -147,16 +147,18 @@ object CL {
   protected def mkPairILP( set1: (Set[Variable], Formula, Option[Formula]),
                            set2: (Set[Variable], Formula, Option[Formula])
                          ): List[Formula] = {
-    val clashing = set1._1 intersect set1._1
+    val clashing = set1._1 intersect set2._1
     def rename(set: (Set[Variable], Formula, Option[Formula])) = {
-      val fresh = clashing.map(v => v -> Variable(Namer(v.name)).setType(v.tpe)).toMap
+      val fresh = set._1.flatMap(v =>
+        if (clashing(v)) Some(v -> Variable(Namer(v.name)).setType(v.tpe))
+        else None ).toMap
       ( set._1.map(FormulaUtils.alphaAll(fresh, _).asInstanceOf[Variable]),
         FormulaUtils.alphaAll(fresh, set._2),
         set._3.map(FormulaUtils.alphaAll(fresh, _)))
     }
     val (bound1, id1, def1) = rename(set1)
     val (bound2, id2, def2) = rename(set2)
-    assert(id1.tpe == procType && id2.tpe == procType)
+    assert(id1.tpe == FSet(procType) && id2.tpe == FSet(procType))
     val params = bound1 ++ bound2
     val tt = Quantifiers.skolemify(Variable(Namer("venn_tt")).setType(Int), params)
     val tf = Quantifiers.skolemify(Variable(Namer("venn_tf")).setType(Int), params)
@@ -196,7 +198,12 @@ object CL {
       case (None, None) => 
         Nil
     }
-    FormulaUtils.getConjuncts(ForAll(params.toList, Application(And, conjuncts ::: triggers)))
+    val res = FormulaUtils.getConjuncts(ForAll(params.toList, Application(And, conjuncts ::: triggers)))
+  //Logger("CL", Warning, "params("+id1+"):  " + bound1.map(_.toStringFull).mkString(", "))
+  //Logger("CL", Warning, "params("+id2+"):  " + bound2.map(_.toStringFull).mkString(", "))
+  //Logger("CL", Warning, "mkPairILP:\n  " + res.map(_.toStringFull).mkString("\n  "))
+    assert(Typer(Application(And,res)).success)
+    res
   }
 
   /** from A={i. P(i)} to ∀ i. P(i) ⇔ i∈A 
@@ -226,11 +233,12 @@ object CL {
     val (woComp, c1) = collectComprehensionDefinitions(conjuncts)
     val c2 = c1.map{ case (a,b,c) => (a,b,Some(c): Option[Formula]) } //def as an option, HO is not a comprehension
     val v = Variable("v").setType(procType)
-    val c3 = if (woComp exists hasHO) c2 + ((Set(v), Application(HO, List(v)), None)) else c2
+    val ho = (Set(v), Application(HO, List(v)), None)
+    val c3 = if (woComp exists hasHO) c2 + ho else c2
     Logger("CL", Debug, "reduceComprehension, comprehensions:\n  " + c1.mkString("\n  "))
     val ilp = for (s1 <- c3; s2 <- c3 if s1 != s2 &&
-                                         s1._2.tpe == procType &&
-                                         s2._2.tpe == procType)
+                                         s1._2.tpe == FSet(procType) &&
+                                         s2._2.tpe == FSet(procType))
               yield mkPairILP(s1, s2)
     val membership = c1.toList flatMap membershipAxioms
     woComp ::: procIdCardinalityAxioms ::: membership ::: ilp.toList.flatten
@@ -247,9 +255,17 @@ object CL {
     }
    
     val tps = FormulaUtils.collectTypes(f).collect{ case f: FSet => f }.toList
-    conjuncts ::: tps.map( t => {
+    conjuncts ::: tps.flatMap( t => {
       val s = Variable("s").setType(t)
-      ForAll(List(s), Leq(Literal(0), Cardinality(s)))
+      val pos = ForAll(List(s), Leq(Literal(0), Cardinality(s)))
+      if (t == FSet(procType)) {
+        List(
+          pos,
+          ForAll(List(s), Leq(Cardinality(s), n))
+        )
+      } else {
+        List(pos)
+      }
     })
   }
 

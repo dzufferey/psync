@@ -41,11 +41,13 @@ class LastVoting3 extends Algorithm[ConsensusIO] {
         }) )
       )
 
-      val safetyInv = round.formula.Or(noDecision, majority)
+      val keepInit = f ( P.forall( i => P.exists( j => x(i) == init(x)(j) )) )
+
+      val safetyInv = round.formula.And(keepInit, round.formula.Or(noDecision, majority))
 
       val invariants = List(
         safetyInv,
-        f(V.exists( v => P.forall( i => decided(i) && (decision(i) == v) )))
+        f(P.exists( j => P.forall( i => decided(i) && decision(i) == init(x)(j)) ))
       )
       
       override val roundInvariants = List(
