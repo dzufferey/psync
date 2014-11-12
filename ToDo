@@ -18,15 +18,14 @@
 
 - ghost variables: make sure they are only read in the verification part and removed at compile time
 - test with more processes (scalability)
-- predicate: buffer message while one thread delivers
+- predicate:
+    * buffer message while one thread delivers rather than blocking
+    * preallocate n buffers for sending messages
 - change the (de)serialization:
     * our own stuff for primitive types, pickling for the rest
 - accessing members of outer class inside an inner class
     * check if fixed in 2.11.4 (with the right untypcheck) or report macro bug about it
 - allow `print(ln)` in the TR
-- clean the typer:
-    * less fresh type vars
-    * better diagnostic
 
 # verification
 
@@ -39,10 +38,11 @@
 
 # example
 
-- a version of last voting that terminates
-- with recovery
-- find an application of LatticeAgreement
-- specialize the OTR to avoid the "1st message → initial value"
+- more:
+  * LatticeAgreement
+  * k-set
+  * delta consensus
+  * ...
 
 
 # network emulation: packet loss, delay, ...

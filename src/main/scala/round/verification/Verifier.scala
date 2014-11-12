@@ -95,24 +95,76 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
 
   val additionalAxioms = alg.axiomList.map(_.formula)
 
+  def roundInvariant(invIdx: Int, roundIdx: Int) = {
+    val idx2 = roundIdx - 1
+    if (spec.roundInvariants.length > idx2 &&
+        spec.roundInvariants(idx2).length > invIdx) {
+      spec.roundInvariants(idx2)(invIdx)
+    } else {
+      True()
+    }
+  }
+
+  def getInvariantforProgress(invIdx: Int, roundIdx: Int) = {
+    val phaseInv = spec.invariants(invIdx)
+    if (roundIdx == 0) {
+      phaseInv //start of phase: normal invariant
+    } else if (roundIdx == roundsTR.length) {
+      spec.invariants(invIdx + 1) //end of phase: new invariant
+    } else {
+      assert(roundIdx > 0 && roundIdx < roundsTR.length)
+      //progress: grab the roundInvariant of invIdx + 1
+      And(phaseInv, roundInvariant(invIdx + 1, roundIdx))
+    }
+  }
+
+  def getInvariant(invIdx: Int, roundIdx: Int) = {
+    val phaseInv = spec.invariants(invIdx)
+    if (roundIdx == 0 || roundIdx == roundsTR.length) {
+      phaseInv
+    } else {
+      assert(roundIdx > 0 && roundIdx < roundsTR.length)
+      And(phaseInv, roundInvariant(0, roundIdx))
+    }
+  }
+
   def checkProgress(
-        descr: String,
-        invariant1: Formula,
-        invariant2: Formula,
-        round: (RoundTransitionRelation,Map[String,AuxiliaryMethod])
+        invIdx: Int, //from invIdx to invIdx+1
+        roundIdx: Int
       ): VC = {
-    val withPost = round._1.makeFullTr(procLocalVars ++ procGhostVars, round._2)
-    new SingleVC("progress of " + descr, invariant1, withPost, round._1.primeFormula(invariant2), additionalAxioms)
+    val env = spec.livnessPredicate(invIdx)
+    val round = roundsTR(roundIdx)
+    val invariant1 = getInvariantforProgress(invIdx, roundIdx)
+    val invariant2 = getInvariantforProgress(invIdx, roundIdx + 1)
+    val preInv = FormulaUtils.alpha(Map(r -> rp), invariant1)
+    val withPost = mkTR(round._1, round._2, Some(env))
+    val postInv = round._1.primeFormula(invariant2)
+    val descr = "progress from " + invIdx + " to " + (invIdx+1) + " at round " + roundIdx
+    new SingleVC(descr, preInv, withPost, postInv, additionalAxioms)
+  }
+
+  def mkTR(tr: RoundTransitionRelation, aux: Map[String, AuxiliaryMethod], env: Option[Formula]) = {
+    val normal =
+      And( And( Eq(r, Plus(Literal(1),rp)),
+                spec.safetyPredicate ),
+           tr.makeFullTr(procLocalVars ++ procGhostVars, aux) )
+    env match {
+      case Some(f) => And(f, normal)
+      case None => normal
+    }
   }
 
   def checkInductiveness(
-        descr: String,
-        invariant: Formula,
-        round: (RoundTransitionRelation,Map[String,AuxiliaryMethod])
+        invIdx: Int,
+        roundIdx: Int
       ): VC = {
+    val round = roundsTR(roundIdx)
     val tr = round._1
-    val withPost = tr.makeFullTr(procLocalVars ++ procGhostVars, round._2)
-    new SingleVC("inductiveness of " + descr, invariant, withPost, tr.primeFormula(invariant), additionalAxioms)
+    val preInv = FormulaUtils.alpha(Map(r -> rp), getInvariant(invIdx, roundIdx))
+    val postInv = tr.primeFormula(getInvariant(invIdx, roundIdx+1))
+    val withPost = mkTR(tr, round._2, None)
+    val descr = "inductiveness of invariant " + invIdx + " at round " + roundIdx
+    new SingleVC(descr, preInv, withPost, postInv, additionalAxioms)
   }
 
   def checkProperty(
@@ -142,7 +194,7 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
         new SingleVC(
           "global property hold initially",
           ForAll(List(procI), localize(procLocalVars ++ procGhostVars, procI, procInitState)),
-          True(),
+          Eq(r, Literal(0)),
           removeInitPrefix(property),
           additionalAxioms
         ) +:
@@ -172,32 +224,23 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
     val initVC = new SingleVC(
       "Initial state implies invariant 0",
       ForAll(List(procI), localize(procLocalVars ++ procGhostVars, procI, procInitState)),
-      True(),
+      Eq(r, Literal(0)),
       removeInitPrefix(removeOldPrefix(spec.invariants(0))),
       additionalAxioms
     )
 
     //invariants are inductive
     val inductVCs: scala.List[VC] =
-      for ( (inv, idx) <- spec.invariants.zipWithIndex;
+      for ( idx <- (0 until spec.invariants.length).toList;
             r <- roundsTR.indices)
-       yield checkInductiveness("invariant " + idx + " at round " + r, inv, roundsTR(r))
-    val roundInc: scala.List[VC] =
-      for ( (inv, idx) <- spec.invariants.zipWithIndex)
-        yield new SingleVC("inductiveness of invariant " + idx + " at round increment ",
-                            inv,
-                            Eq(rp, Plus(Literal(1),r)),
-                            FormulaUtils.alpha(Map(r -> rp), inv))
+       yield checkInductiveness(idx, r)
 
     //-magic round => from one invariant to the next one
-    val pairedInvs = spec.invariants.sliding(2).filter(_.length >= 2).toList
     val progressVCs: scala.List[VC] =
-      for ( (invs, idx) <- pairedInvs.zipWithIndex ) yield {
-        new CompositeVC("progress from " + idx + " to " + (idx+1), false,
-          for (r <- roundsTR.indices) yield checkProgress("progress from " + idx + " to " + (idx+1) + " at round " + r,
-                                                          invs(0),
-                                                          invs(1),
-                                                          roundsTR(r))
+      for ( idx <- (0 until spec.invariants.length - 1).toList) yield {
+        new CompositeVC("progress from " + idx + " to " + (idx+1), true,
+          for (r <- roundsTR.indices)
+            yield checkProgress(idx, r)
         )
       }
 
@@ -216,7 +259,7 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
     Logger("Verifier", Warning, "TODO: preconditions of auxiliary methods")
 
     //pack everything
-    initVC :: inductVCs ::: roundInc ::: progressVCs ::: propertiesVCs
+    initVC :: inductVCs ::: progressVCs ::: propertiesVCs
   }
 
 
@@ -288,8 +331,8 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
     //solve the queries
     //vcs.par.foreach(_.par.foreach(_.solve))
     vcs.foreach(_.solve)
+
     //generate a report:
-    
     val status = if (vcs.forall(_.isValid)) " (success)" else " (failed)"
     val report = new Report("Verification of " + alg.getClass.toString + status)
 
@@ -303,6 +346,9 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
       rVcs.add(vc.report)
     }
     report.add(rVcs)
+
+    //TODO better way to do that
+    round.utils.smtlib.Solver.executor.shutdown
 
     report
   }

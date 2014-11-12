@@ -6,6 +6,7 @@ import dzufferey.utils.LogLevel._
 import scala.sys.process._
 import java.io._
 import scala.collection.mutable.{HashSet, Stack}
+import java.util.concurrent.TimeUnit
 
 abstract class Result
 case class Sat(model: Option[Model] = None) extends Result
@@ -107,22 +108,54 @@ class Solver( th: Theory,
     }
   }
 
-  protected def fromSolver: String = {
-    val acc = new StringBuilder()
+  protected def fromSolver(timeout: Long = 10000): String = {
+
+    def reader(stream: BufferedReader) =
+      new java.util.concurrent.Callable[String] {
+        def call = {
+          val acc = new StringBuilder()
+          do {
+            acc.append(stream.readLine)
+            acc.append("\n")
+          } while(stream.ready)
+          acc.toString.trim
+        }
+      }
+
     if (solverError.ready) {
+      val acc = new StringBuilder()
       while(solverError.ready) {
         acc.append(solverError.readLine)
         acc.append("\n")
       }
       Logger.logAndThrow("smtlib", Error, "solver returned:\n" + acc)
     } else {
-      do {
-        acc.append(solverOutput.readLine)
-        acc.append("\n")
-      } while(solverOutput.ready)
-      val res = acc.toString.trim
-      Logger("smtlib", Debug, "< " + res)
-      res
+      val future = Solver.executor.submit(reader(solverOutput))
+      try {
+        val res = future.get(timeout, TimeUnit.MILLISECONDS)
+        Logger("smtlib", Debug, "< " + res)
+        res
+      } catch {
+        case e: java.util.concurrent.TimeoutException =>
+          Logger("smtlib", Warning, "solver timeout.")
+          forceExit
+          "TIMEOUT"
+      }
+    }
+  }
+
+  def forceExit {
+    try {
+      solver.destroy 
+      solverInput.close
+      solverOutput.close
+      solverError.close
+      for (f <- fileDump) f.close
+    } finally {
+      if (!released) {
+        SysCmd.release
+        released = true
+      }
     }
   }
 
@@ -236,7 +269,7 @@ class Solver( th: Theory,
   
   def checkSat: Result = {
     toSolver(CheckSat)
-    fromSolver match {
+    fromSolver() match {
       case "sat" => Sat()
       case "unsat" => UnSat
       case "unknown" => Unknown
@@ -248,8 +281,8 @@ class Solver( th: Theory,
   
   def getModel: Option[Model] = {
     toSolver(GetModel)
-    Thread.sleep(10) //sleep a bit to let z3 make the model. TODO better!
-    Parser.parseModel(fromSolver).map( cmds => {
+    Thread.sleep(100) //sleep a bit to let z3 make the model. TODO better!
+    Parser.parseModel(fromSolver()).map( cmds => {
       Model(cmds, declaredS)
     })
   }
@@ -300,6 +333,9 @@ class Solver( th: Theory,
 }
 
 object Solver {
+  
+  //for asyn IO
+  val executor = java.util.concurrent.Executors.newCachedThreadPool()
 
   def setCmd(cmd: Array[String]) = {
     solver = cmd.head
@@ -318,3 +354,4 @@ object Solver {
   }
 
 }
+

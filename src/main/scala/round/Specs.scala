@@ -8,7 +8,10 @@ trait Specs[IO] {
   abstract class Spec {
     val safetyPredicate: Formula
     val livnessPredicate: List[Formula]
+    /** phase invariant */
     val invariants: List[Formula]
+    /** invariants for rounds */
+    val roundInvariants: List[List[Formula]] = Nil
     val properties: List[(String, Formula)]
   }
 

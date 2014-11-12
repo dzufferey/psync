@@ -37,6 +37,7 @@ class SingleVC(description: String, hypothesis: Formula, transition: Formula, co
   protected var reduced: Formula = False()
 
   def solve {
+    var solver: Solver = null
     try {
       Logger("VC", Notice, "solving: " + description)
       Logger("vC", Debug, "hypothesis:\n  " + FormulaUtils.getConjuncts(hypothesis).mkString("\n  "))
@@ -46,13 +47,16 @@ class SingleVC(description: String, hypothesis: Formula, transition: Formula, co
       reduced = CL.entailment(And(hypothesis, transition), conclusion)
       reduced = Application(And, FormulaUtils.getConjuncts(reduced) ::: additionalAxioms).setType(Bool)
       reduced = Simplify.simplify(reduced)
-      val solver = if (round.utils.Options.dumpVcs) Solver(UFLIA, fName)
-                   else Solver(UFLIA)
+      solver = if (round.utils.Options.dumpVcs) Solver(UFLIA, fName)
+               else Solver(UFLIA)
       status = solver.testWithModel(reduced)
       solved = true
     } catch { case e: Exception =>
       status = Failure("Exception: " + e.getMessage + "\n  " + e.getStackTrace.mkString("\n  "))
       solved = true
+    } finally {
+    //if (solver != null)
+    //  solver.exit
     }
     Logger("VC", Notice, "solved: " + description + " → " + status)
   }

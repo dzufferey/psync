@@ -9,7 +9,7 @@ object Utils {
   val procI = Variable("i").setType(procType)
   val procJ = Variable("j").setType(procType)
   val r = Variable("r").setType(Int)
-  val rp = Variable("r1").setType(Int)
+  val rp = Variable("rpre").setType(Int)
 
   //x → x(i)
   def skolemify(x: Variable): UnInterpretedFct = {
