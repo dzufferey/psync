@@ -182,7 +182,7 @@ class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
           val f = And(invariant, property)
           new SingleVC(
             "relational property preserved at round " + r,
-            f,
+            f,//TODO this might still contains old terms, they are harmless
             tr.makeFullTr(procLocalVars ++ procGhostVars, aux),
             tr.primeFormula(f),
             additionalAxioms

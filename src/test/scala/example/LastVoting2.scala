@@ -34,6 +34,7 @@ class LastVoting2(afterDecision: Int = 1) extends Algorithm[ConsensusIO] {
             val A = P.filter( i => ts(i) >= t )
             A.size > n/2 &&
             t <= r/4 &&
+            P.forall( i => A.contains(i) ==> (x(i) == v) ) &&
             P.forall( i => decision(i).isDefined ==> (decision(i).get == v) ) &&
             P.forall( i => commit(i) ==> (vote(i) == v) ) &&
             P.forall( i => ready(i) ==> (vote(i) == v) ) &&

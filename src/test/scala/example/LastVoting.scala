@@ -3,7 +3,7 @@ package example
 import round._
 import round.macros.Macros._
 
-class LastVoting extends Algorithm[ConsensusIO] {
+class LastVoting(afterDecision: Int = 1) extends Algorithm[ConsensusIO] {
 
   import VarHelper._
   import SpecHelper._
@@ -16,7 +16,9 @@ class LastVoting extends Algorithm[ConsensusIO] {
   val ready = new LocalVariable[Boolean](false)
   val commit = new LocalVariable[Boolean](false)
   val vote = new LocalVariable[Int](0)
-  val decision = new LocalVariable[Option[Int]](None) //TODO as ghost
+  val decision = new LocalVariable[Int](-1) //TODO as ghost
+  val decided = new LocalVariable[Boolean](false)
+  val after = new LocalVariable[Int](afterDecision)
 
   //FIXME once the macro issue is sorted out ...
   //rotating coordinator
@@ -26,36 +28,51 @@ class LastVoting extends Algorithm[ConsensusIO] {
       val safetyPredicate = f(true)
       val livnessPredicate = List( f(P.exists( p => P.forall( q => p == coord(q, r/4) && HO(p).size > n/2 ) )) )
 
-      val noDecision = f( P.forall( i => decision(i).isEmpty && !ready(i)) )
+      val noDecision = f( P.forall( i => !decided(i) && !ready(i)) )
 
       val majority = f(
         V.exists( v => V.exists( t => {
             val A = P.filter( i => ts(i) >= t )
             A.size > n/2 &&
             t <= r/4 &&
-            P.forall( i => decision(i).isDefined ==> (decision(i).get == v) ) &&
-            P.forall( i => commit(i) ==> (vote(i) == v) ) &&
-            P.forall( i => ready(i) ==> (vote(i) == v) ) &&
-            P.forall( i => (ts(i) == r/4) ==> commit(coord(i, r/4)) )
+            P.forall( i => (A.contains(i) ==> (x(i) == v) ) &&
+                           (decided(i) ==> (decision(i) == v) ) &&
+                           (commit(i) ==> (vote(i) == v) ) &&
+                           (ready(i) ==> (vote(i) == v) ) &&
+                           ((ts(i) == r/4) ==> commit(coord(i, r/4)) ))
         }) )
       )
 
-      val safetyInv = round.formula.Or(noDecision, majority)
+      val keepInit = f ( P.forall( i => P.exists( j1 => x(i) == init(x)(j1) )) )
+
+      val safetyInv = round.formula.And(keepInit, round.formula.Or(noDecision, majority))
 
       val invariants = List(
         safetyInv,
-        round.formula.And(safetyInv, f(P.exists( i => commit(i) ))),
-        round.formula.And(safetyInv, f(P.exists( i => commit(i) && P.forall( j => ts(j) == r/4 && x(j) == vote(i) )))),
-        round.formula.And(safetyInv, f(P.exists( i => commit(i) && ready(i) && P.forall( j => ts(j) == r/4 && x(j) == vote(i) )))),
-        round.formula.And(safetyInv, f(V.exists( v => P.forall( i => decision(i) == Some(v) ))))
+        f(P.exists( j => P.forall( i => decided(i) && decision(i) == init(x)(j)) ))
+      )
+      
+      override val roundInvariants = List(
+        List(
+          round.formula.True(),
+          f(P.exists( i => commit(i) ))
+        ),
+        List(
+          round.formula.True(),
+          f(P.exists( i => commit(i) && P.forall( j => ts(j) == r/4 && x(j) == vote(i) )))
+        ),
+        List(
+          round.formula.True(),
+          f(P.exists( i => commit(i) && ready(i) && P.forall( j => ts(j) == r/4 && x(j) == vote(i) )))
+        )
       )
 
       val properties = List(
-        ("Termination",    f(P.forall( i => decision(i).isDefined) )),
-        ("Agreement",      f(P.forall( i => P.forall( j => decision(i).isDefined && decision(j).isDefined ==> (decision(i).get == decision(j).get) )))),
-        ("Validity",       f(P.forall( i => decision(i).isDefined ==> P.exists( j => init(x)(j) == decision(i).get )))),
-        ("Integrity",      f(P.exists( j => P.forall( i => decision(i).isDefined ==> (decision(i).get == init(x)(j)) )))),
-        ("Irrevocability", f(P.forall( i => old(decision)(i).isDefined ==> (old(decision)(i) == decision(i)) )))
+        ("Termination",    f(P.forall( i => decided(i)) )),
+        ("Agreement",      f(P.forall( i => P.forall( j => (decided(i) && decided(j)) ==> (decision(i) == decision(j)) )))),
+        ("Validity",       f(P.forall( i => decided(i) ==> P.exists( j => init(x)(j) == decision(i) )))),
+        ("Integrity",      f(P.exists( j => P.forall( i => decided(i) ==> (decision(i) == init(x)(j)) )))),
+        ("Irrevocability", f(P.forall( i => old(decided)(i) ==> (decided(i) && old(decision)(i) == decision(i)) )))
       )
   }
   
@@ -63,7 +80,7 @@ class LastVoting extends Algorithm[ConsensusIO] {
       
     x <~ io.initialValue
     ts <~ -1
-    decision <~ None
+    decided <~ false 
     ready <~ false
     commit <~ false
 
@@ -170,13 +187,20 @@ class LastVoting extends Algorithm[ConsensusIO] {
           val mb2 = mailbox.filter( _._2 == coord(id, r/4) )
           if (mb2.size > 0) {
             val v = mb2.head._1
-            if (decision.isEmpty) {
+            if (!decided) {
               io.decide(v)
-              decision <~ Some(v)
+              decision <~ v
+              decided <~ true
             }
           }
           ready <~ false
           commit <~ false
+          if ((decided: Boolean)) {
+            after <~ after - 1
+            if(after <= 0) {
+              terminate()
+            }
+          }
         }
 
       })

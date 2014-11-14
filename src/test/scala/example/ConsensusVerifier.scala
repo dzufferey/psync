@@ -8,7 +8,7 @@ import dzufferey.arg._
 
 object ConsensusVerifier extends round.utils.DefaultOptions {
   
-  var v = 3
+  var v = 1
   newOption("-n", Int( i => v = i), "1/2/3")
   
   var lv = false

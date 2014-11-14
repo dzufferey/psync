@@ -27,12 +27,12 @@ class OTR3 extends Algorithm[ConsensusIO] {
           || V.exists( v => {
             val A = P.filter( i => x(i) == v);
             A.size > 2*n/3 && P.forall( i => decided(i) ==> (decision(i) == v))
-        })) && P.forall( i => P.exists( j => x(i) == init(x)(j) ))
+        })) && P.forall( i => P.exists( j1 => x(i) == init(x)(j1) ))
          ),
         f(V.exists( v => {
            val A = P.filter( i => x(i) == v);
            A.size == (n: Int) && P.forall( i => decided(i) ==> (decision(i) == v))
-        }) && P.forall( i => P.exists( j => x(i) == init(x)(j) )) ),
+        }) && P.forall( i => P.exists( j1 => x(i) == init(x)(j1) )) ),
         f(P.exists( j => P.forall( i => decided(i) && decision(i) == init(x)(j)) ))
       )
 

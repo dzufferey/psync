@@ -22,10 +22,12 @@
     * buffer message while one thread delivers rather than blocking
     * preallocate n buffers for sending messages
 - change the (de)serialization:
-    * our own stuff for primitive types, pickling for the rest
+    * pickling only, once it is more stable
 - accessing members of outer class inside an inner class
     * check if fixed in 2.11.4 (with the right untypcheck) or report macro bug about it
 - allow `print(ln)` in the TR
+- preallocate buffers within instances and pool them between instances
+- thread pool with cpu*x
 
 # verification
 
@@ -35,6 +37,9 @@
 - decision procedure
 - rewrite the TR so we get directly set of processes for mailbox (easier to handle cardinality cstr later)
 - extract the spec of aux fct from the type annotation
+- parsing model:
+  * support more things
+  * use the smtlib eval command as alternative (once we know the domain)
 
 # example
 

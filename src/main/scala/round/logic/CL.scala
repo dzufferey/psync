@@ -85,7 +85,13 @@ object CL {
     val gt = FormulaUtils.collectGroundTerms(h2)
     //what can be used to instantiate the unsupported quantifiers: ext ∪ gt
 
-    val cs1 = FormulaUtils.getConjuncts(c1)
+    val c2 = {
+      val (c, e) = Quantifiers.getExistentialPrefix(c1)
+      //TODO this assumes unique bound var, we should alpha
+      c
+    }
+    val cs1 = FormulaUtils.getConjuncts(c2)
+    Logger("CL", Debug, "negated conclusion:\n " + cs1.mkString("\n "))
     val cs2 = cs1.flatMap( c => {
       val (qf, vs) = getUnsupportedQuantifierPrefix(c)
       matchQuantifiers(qf, vs, ext, gt)

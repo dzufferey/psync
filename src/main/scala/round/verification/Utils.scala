@@ -6,8 +6,8 @@ object Utils {
 
   def procType = round.logic.CL.procType
 
-  val procI = Variable("i").setType(procType)
-  val procJ = Variable("j").setType(procType)
+  val procI = Variable("i_").setType(procType)
+  val procJ = Variable("j_").setType(procType)
   val r = Variable("r").setType(Int)
   val rp = Variable("rpre").setType(Int)
 

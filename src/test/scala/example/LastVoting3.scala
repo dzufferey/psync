@@ -34,6 +34,7 @@ class LastVoting3 extends Algorithm[ConsensusIO] {
             val A = P.filter( i => ts(i) >= t )
             A.size > n/2 &&
             t <= r/4 &&
+            P.forall( i => A.contains(i) ==> (x(i) == v) ) &&
             P.forall( i => decided(i) ==> (decision(i) == v) ) &&
             P.forall( i => commit(i) ==> (vote(i) == v) ) &&
             P.forall( i => ready(i) ==> (vote(i) == v) ) &&
@@ -41,7 +42,7 @@ class LastVoting3 extends Algorithm[ConsensusIO] {
         }) )
       )
 
-      val keepInit = f ( P.forall( i => P.exists( j => x(i) == init(x)(j) )) )
+      val keepInit = f ( P.forall( i => P.exists( j1 => x(i) == init(x)(j1) )) )
 
       val safetyInv = round.formula.And(keepInit, round.formula.Or(noDecision, majority))
 

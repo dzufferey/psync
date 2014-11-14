@@ -3,12 +3,9 @@ package example
 import round._
 import round.macros.Macros._
 
-abstract class ConsensusIO {
-  val initialValue: Int
-  def decide(value: Int): Unit
-}
+//like OTR but uses a boolean flag instead of an option for the decision
+class OTR(afterDecision: Int = 2) extends Algorithm[ConsensusIO] {
 
-class OTR extends Algorithm[ConsensusIO] {
 
   import VarHelper._
   import SpecHelper._
@@ -17,31 +14,35 @@ class OTR extends Algorithm[ConsensusIO] {
 
   //variables
   val x = new LocalVariable[Int](0)
-  val decision = new LocalVariable[Option[Int]](None) //TODO as ghost
+  val decision = new LocalVariable[Int](-1) //TODO as ghost
+  val decided = new LocalVariable[Boolean](false)
+  val after = new LocalVariable[Int](afterDecision)
 
 
   val spec = new Spec {
       val safetyPredicate = f(true)
-      val livnessPredicate = List( f( S.exists( s => P.forall( p => HO(p) == s && s.size > 2*n/3 ))))
+      val goodRound = f( S.exists( s => P.forall( p => HO(p) == s && s.size > 2*n/3 )))
+      val livnessPredicate = List( goodRound, goodRound )
       val invariants = List(
-        f(  P.forall( i => !decision(i).isEmpty )
-         || V.exists( v => {
-           val A = P.filter( i => x(i) == v);
-           A.size > 2*n/3 && P.forall( i => decision(i).isDefined ==> (decision(i).get == v))
-        })),
+        f((  P.forall( i => !decided(i) )
+          || V.exists( v => {
+            val A = P.filter( i => x(i) == v);
+            A.size > 2*n/3 && P.forall( i => decided(i) ==> (decision(i) == v))
+        })) && P.forall( i => P.exists( j1 => x(i) == init(x)(j1) ))
+         ),
         f(V.exists( v => {
            val A = P.filter( i => x(i) == v);
-           A.size == n && P.forall( i => decision(i).isDefined ==> (decision(i).get == v))
-        })),
-        f(V.exists( v => P.forall( i => decision(i) == Some(v) )))
-      ) //how to relate the invariants and the magic rounds
+           A.size == (n: Int) && P.forall( i => decided(i) ==> (decision(i) == v))
+        }) && P.forall( i => P.exists( j1 => x(i) == init(x)(j1) )) ),
+        f(P.exists( j => P.forall( i => decided(i) && decision(i) == init(x)(j)) ))
+      )
 
       val properties = List(
-        ("Termination",    f(P.forall( i => decision(i).isDefined) )),
-        ("Agreement",      f(P.forall( i => P.forall( j => decision(i).isDefined && decision(j).isDefined ==> (decision(i).get == decision(j).get) )))),
-        ("Validity",       f(P.forall( i => decision(i).isDefined ==> P.exists( j => init(x)(j) == decision(i).get )))),
-        ("Integrity",      f(P.exists( j => P.forall( i => decision(i).isDefined ==> (decision(i).get == init(x)(j)) )))),
-        ("Irrevocability", f(P.forall( i => old(decision)(i).isDefined ==> (old(decision)(i) == decision(i)) )))
+        ("Termination",    f(P.forall( i => decided(i)) )),
+        ("Agreement",      f(P.forall( i => P.forall( j => (decided(i) && decided(j)) ==> (decision(i) == decision(j)) )))),
+        ("Validity",       f(P.forall( i => decided(i) ==> P.exists( j => init(x)(j) == decision(i) )))),
+        ("Integrity",      f(P.exists( j => P.forall( i => decided(i) ==> (decision(i) == init(x)(j)) )))),
+        ("Irrevocability", f(P.forall( i => old(decided)(i) ==> (decided(i) && old(decision)(i) == decision(i)) )))
       )
   }
   
@@ -49,21 +50,20 @@ class OTR extends Algorithm[ConsensusIO] {
   def process(id: ProcessID, io: ConsensusIO) = p(new Process(id) {
       
     x <~ io.initialValue
+    decided <~ false
+    after <~ afterDecision
 
     val rounds = Array[Round](
       rnd(new Round{
 
         type A = Int
 
-        //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros ??)
+        //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //min most often received
         def mmor(mailbox: Set[(Int, ProcessID)]): Int = {
-          //TODO requires that mailbox is not empty
           val byValue = mailbox.groupBy(_._1)
-          val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong << 32) + v }
-          //a cleaner way of selectin the element is:
-          //  import scala.math.Ordered._
-          //  val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong, v) }
+          import scala.math.Ordered._
+          val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong, v) }
           m._1
         } ensuring { v1 =>
           mailbox.map(_._1).forall( v2 =>
@@ -80,10 +80,17 @@ class OTR extends Algorithm[ConsensusIO] {
             val v = mmor(mailbox)
             x <~ v
             if (mailbox.filter(msg => msg._1 == v).size > 2*n/3) {
-              if (decision.isEmpty) {
+              if (!decided) {
                 io.decide(v)
               }
-              decision <~ Some(v);
+              decided <~ true
+              decision <~ v
+            }
+          }
+          if ((decided: Boolean)) {
+            after <~ after - 1
+            if(after <= 0) {
+              terminate()
             }
           }
         }
