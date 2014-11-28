@@ -6,7 +6,7 @@ trait Specs[IO] {
   self: Algorithm[IO] =>
 
   abstract class Spec {
-    val safetyPredicate: Formula
+    val safetyPredicate: Formula = True()
     val livnessPredicate: List[Formula]
     /** phase invariant */
     val invariants: List[Formula]
@@ -25,6 +25,12 @@ trait Specs[IO] {
 
   case class Axiom(name: String, formula: Formula) {
     axiomList = this :: axiomList
+  }
+
+  object TrivialSpec extends Spec {
+    val livnessPredicate: List[Formula] = Nil
+    val invariants: List[Formula] = Nil
+    val properties: List[(String, Formula)] = Nil
   }
 
 }

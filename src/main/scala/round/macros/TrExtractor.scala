@@ -31,52 +31,137 @@ trait TrExtractor {
   }
 
 
-  private def assigned(t: Tree): List[Tree] = t match {
-    case If(cond, thenp, elsep) =>
-      val thena = assigned(thenp)
-      val elsea = assigned(elsep)
-      //multiset least upper bound:
-      (thena intersect elsea) union ((thena diff elsea) union (elsea diff thena))
-    case Block(stats, expr) => (stats ::: List(expr)) flatMap assigned
-    case Typed(e, _) => assigned(e)
-    case Apply(Select(lhs, TermName("$less$tilde")), List(rhs)) => List(lhs)
-    case Assign(lhs, rhs) => List(lhs)
-    //case ValDef(mods, name, tpe, rhs) => List(Ident(name))
-    case other => Nil
+  class SsaMap(map: Map[Symbol, (Tree, Int)]) {
+
+    def this() = this(Map.empty)
+
+    def keySet = map.keySet
+
+    def keys = map.keys
+
+    def foldLeft[A](acc: A)(fct: (A, (Symbol,(Tree,Int))) => A) = map.foldLeft(acc)(fct)
+
+    def +(kv: (Symbol, (Tree,Int))) = new SsaMap(map + kv)
+
+    def increment(t: Tree): SsaMap = {
+      val sym = t.symbol
+      assert(sym != null)
+      if (map.contains(sym)) {
+        val (t,i) = map(sym)
+        new SsaMap(map + (sym -> (t,i+1)))
+      } else {
+        val i = SsaMap.version(t)
+        new SsaMap(map + (sym -> (t,i+1)))
+      }
+    }
+    
+    def getFirstVersion(sym: Symbol): Int = {
+      SsaMap.version(getTree(sym))
+    }
+    
+    def getMostRecentVersion(sym: Symbol): Option[Int] = {
+      map.get(sym).map(_._2)
+    }
+
+    def getMostRecentVersion(t: Tree): Int = {
+      assert(t.symbol != null)
+      getMostRecentVersion(t.symbol).getOrElse(SsaMap.version(t))
+    }
+
+    def getMostRecentTree(t: Tree) = {
+      val i = getMostRecentVersion(t)
+      SsaMap.name(t, i)
+    }
+    
+    def getMostRecentTree(s: Symbol) = {
+      val i = getMostRecentVersion(s).getOrElse(0)
+      SsaMap.name(getTree(s), i)
+    }
+
+    def contains(t: Tree): Boolean = {
+      t.symbol != null && map.contains(t.symbol)
+    }
+
+    def getTree(s: Symbol) = {
+      map.apply(s)._1
+    }
+
+  }
+
+  object SsaMap {
+
+    def name(t: Tree, i: Int) = {
+      def newName(n: TermName) = {
+        val (prefix, _) = Namer.getPrefixAndVersion(n.toString)
+        if (i == 0) TermName(prefix)
+        else TermName(prefix + "$" + i)
+      }
+      val res = t match {
+        case Ident(name @ TermName(_)) =>
+          treeCopy.Ident(t, newName(name))
+        case Select(scope, name @ TermName(_)) => 
+          treeCopy.Select(t, scope, newName(name))
+        case other =>
+          c.abort(t.pos, "expected identifer or field, found: " + showRaw(other))
+      }
+      //println(showRaw(res))
+      res
+    }
+
+    def version(t: Tree): Int = {
+      val name = t match {
+        case Ident(name @ TermName(_)) => name.toString
+        case Select(scope, name @ TermName(_)) => name.toString
+        case other =>
+          c.abort(t.pos, "SsaMap.version: expected identifer or field, found: " + showRaw(other))
+      }
+      val (prefix, version) = Namer.getPrefixAndVersion(name)
+      version
+    }
+
+
   }
 
   private def joinSsaSubst(
-      s1: Map[Tree, List[Tree]],
-      s2: Map[Tree, List[Tree]]
-    ): (Map[Tree, List[Tree]], List[List[Tree]], List[List[Tree]]) =
+      s1: SsaMap,
+      s2: SsaMap 
+    ): (SsaMap, List[(Tree,Int,Int)], List[(Tree,Int,Int)]) =
   {
     val ks = s1.keySet union s2.keySet
-    val init: (Map[Tree, List[Tree]], List[List[Tree]], List[List[Tree]]) = (Map.empty, Nil, Nil)
+    val init: (SsaMap, List[(Tree,Int,Int)], List[(Tree,Int,Int)]) = (new SsaMap, Nil, Nil)
     ks.foldLeft(init)( (acc, k) => {
-      val v1 = s1.getOrElse(k, Nil)
-      val v2 = s2.getOrElse(k, Nil)
-      val only1 = v1 drop v2.length
-      val only2 = v2 drop v1.length
-      val common = k :: (v1 take (math.min(v1.length, v2.length)))
-      val joined = if (v1.length > v2.length) v1 else v2
-      //
-      val acc1 = acc._1 + (k -> joined)
-      val acc2 = common.last :: only2
-      val acc3 = common.last :: only1
-      (acc1, acc2 :: acc._2, acc3 :: acc._3)
+      val v1 = s1.getMostRecentVersion(k)
+      val v2 = s2.getMostRecentVersion(k)
+      (v1, v2) match {
+        case (Some(v1), None) =>
+          val first = s1.getFirstVersion(k)
+          val t = s1.getTree(k)
+          val acc1 = acc._1 + (k -> (t, v1))
+          val acc3 = (t, v1, first) :: acc._3
+          (acc1, acc._2, acc3)
+        case (None, Some(v2)) =>
+          val first = s2.getFirstVersion(k)
+          val t = s2.getTree(k)
+          val acc1 = acc._1 + (k -> (t, v2))
+          val acc2 = (s2.getTree(k), v2, first) :: acc._2
+          (acc1, acc2, acc._3)
+        case (Some(v1), Some(v2)) =>
+          val last = math.max(v1, v2)
+          val acc1 = acc._1 + (k -> (s1.getTree(k), last))
+          val acc2 = if (v1 < last) (s2.getTree(k), last, v1) :: acc._2 else acc._2
+          val acc3 = if (v2 < last) (s1.getTree(k), last, v2) :: acc._3 else acc._3
+          (acc1, acc2, acc3)
+        case (None, None) => sys.error("???")
+      }
     })
   }
 
 
-  private def addSsaMatchingCode(t: Tree, eqs: List[List[Tree]]): Tree = {
-    def mkEqs(vars: List[Tree]) = {
-      if (vars.length > 1) {
-        vars.sliding(2).map( vs => Assign(vs(1), vs(0)) ).toList
-      } else {
-        Nil
-      }
+  private def addSsaMatchingCode(t: Tree, eqs: List[(Tree,Int,Int)]): Tree = {
+    val matchingCode: List[Tree] = eqs.map{
+      case (v, last, prev) =>
+        Assign(SsaMap.name(v, last), SsaMap.name(v, prev))
     }
-    val matchingCode: List[Tree] = eqs flatMap mkEqs
     //blockify
     t match {
       case Block(stmts, ret) =>
@@ -98,31 +183,27 @@ trait TrExtractor {
     }
   }
   
-  class SsaSubst(map: Map[Tree, List[Tree]]) extends Transformer {
+  class SsaSubst(map: SsaMap) extends Transformer {
     override def transform(tree: Tree): Tree = {
       val sup = super.transform(tree)
-      map.getOrElse(sup, List(sup)).last
+      if (map contains sup) {
+        map.getMostRecentTree(sup)
+      } else {
+        sup
+      }
     }
   }
 
-  private def applySsaSubst(t: Tree, subst: Map[Tree, List[Tree]]): Tree = {
+  private def applySsaSubst(t: Tree, subst: SsaMap): Tree = {
     val sub = new SsaSubst(subst)
     sub.transform(t)
   }
 
-  private def increment(t: Tree, subst: Map[Tree, List[Tree]]): (Tree, Map[Tree, List[Tree]]) = {
-    val prev = subst.getOrElse(t, Nil)
-    val last = if (prev.isEmpty) t else prev.last
-    def newName(oldName: TermName) = TermName(Namer(oldName.toString))
-    val next = last match {
-      case Ident(name @ TermName(_)) =>
-        treeCopy.Ident(last, newName(name))
-      case Select(scope, name @ TermName(_)) => 
-        treeCopy.Select(last, scope, newName(name))
-      case other =>
-        c.abort(t.pos, "expected identifer or field, found: " + showRaw(other))
-    }
-    (next, subst + (t -> (prev :+ next)))
+  private def increment(t: Tree, subst: SsaMap): (Tree, SsaMap) = {
+    val subst2 = subst.increment(t)
+    val t2 = subst2.getMostRecentTree(t)
+    //println("increment: " + t + " -> " + t2 + " with " + subst2.getMostRecentVersion(t) + ", " + subst2.getMostRecentVersion(t2) )
+    (t2, subst2)
   }
 
 
@@ -131,8 +212,8 @@ trait TrExtractor {
   //returns the body in SSA and a map of tree to the different version
   private def ssa(
       body: Tree,
-      substMap: Map[Tree, List[Tree]] = Map.empty[Tree, List[Tree]]
-    ): (Tree, Map[Tree, List[Tree]]) = body match {
+      substMap: SsaMap = new SsaMap
+    ): (Tree, SsaMap) = body match {
     
     case If(cond, thenp, elsep) =>
       val cond2 = applySsaSubst(cond, substMap)
@@ -243,12 +324,16 @@ trait TrExtractor {
     }
 
     val keys = subst2.keys.toList
-    val oldV = keys.map(getVar)
-    val newV = keys.map( k => getVar(subst2(k).last))
+    val oldV = keys.map( k => getVar(subst2.getTree(k)))
+    val newV = keys.map( k => getVar(subst2.getMostRecentTree(k)) )
     //println("typed update cstr: " + cstr2)
 
     val allVars = subst2.foldLeft(Nil: List[Variable])( (acc, kv) => {
-      (kv._1 :: kv._2).map(getVar) ::: acc
+      val tree = kv._2._1
+      val first = SsaMap.version(tree)
+      val last = kv._2._2
+      val vs = for(i <- first to last) yield getVar(SsaMap.name(tree, i))
+      acc ++ vs
     }) 
     val local1 = allVars.filter( x => !(oldV.contains(x) || newV.contains(x)))
     val local2 = tree2Formula(mailboxIdent).asInstanceOf[Variable].setType(mailbox.tpe)

@@ -393,6 +393,7 @@ trait FormulaExtractor {
     body match {
      
       case If(cond, thenp, elsep) =>
+        //TODO inline cond or not in the result (less readable, might work better?)
         val id = c.freshName("cond")
         val cnd = Ident(TermName(id))
         val cvar = Variable(id).setType(Bool)
