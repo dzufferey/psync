@@ -58,8 +58,12 @@ class OTR extends Algorithm[IO] {
 
 ## Status
 
-Round is still in early development.
-Currently it runs, but we do not have yet implemented the verification part.
+Round is in development.
+
+Currently the runtime is fairly stable.
+However, we are still woking to improve the performance,
+
+The verfication part is in an early stages and currently only works on a small set of examples.
 
 
 ## Compiling
@@ -83,6 +87,8 @@ $ sbt
 > package
 > test:package
 ```
+Packaging is needed to use the scripts in the `test_scripts` folders.
+
 
 ## Running the LockManager example
 

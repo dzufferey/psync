@@ -16,18 +16,29 @@
 
 # implementation
 
-- ghost variables: make sure they are only read in the verification part and removed at compile time
-- test with more processes (scalability)
-- predicate:
-    * buffer message while one thread delivers rather than blocking
-    * preallocate n buffers for sending messages
+- ghost variables: make sure they are only read in the verification part and remove at compile time
 - change the (de)serialization:
     * pickling only, once it is more stable
 - accessing members of outer class inside an inner class
     * check if fixed in 2.11.4 (with the right untypcheck) or report macro bug about it
-- allow `print(ln)` in the TR
-- preallocate buffers within instances and pool them between instances
-- thread pool with cpu*x
+- allow `print(ln)` in the update method.
+- faster runtime (currently IO bound)
+    * bytebuffer allocator within the runtime (in the packet server)
+        - default size of the buffer configured using options
+        - at start allocate the memory
+        - recycle buffers
+        - grows by chunks when needed
+    * predicate:
+        - acquire n buffers for sending messages
+        - returns the "send" buffers on termination/finalization
+        - `send` of the algorithm takes those buffer as args and returns a subset
+        - when delivering, returns the buffer to the packet server
+    * packet server:
+        - one thread receiving packets and pushing them to a queue
+        - one pool of thread (x * nbrCpus, configurable) that receives from the queue and process the messages
+        - allocation of message for send: already write the tag bytes
+- logging as macro that can be removed at compile time.
+
 
 # verification
 
@@ -40,6 +51,7 @@
 - parsing model:
   * support more things
   * use the smtlib eval command as alternative (once we know the domain)
+
 
 # example
 
@@ -72,6 +84,8 @@ In this example, 25% of packets (with a correlation of 50%) will get sent immedi
 
 # bugs
 
+
+graceful shutdown
 ```
 Aug 01, 2014 2:03:30 PM io.netty.util.HashedWheelTimer$HashedWheelTimeout expire
 WARNING: An exception was thrown by TimerTask.
