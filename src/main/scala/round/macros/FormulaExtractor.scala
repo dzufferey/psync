@@ -289,6 +289,22 @@ trait FormulaExtractor {
         mkMinMaxBy(c.freshName("maxBy"), set, v, expr, Geq)
       case q"$set.minBy[$tpt]( $v => $expr )($ordering)" =>
         mkMinMaxBy(c.freshName("minBy"), set, v, expr, Leq)
+      case q"$set.max($ordering)" =>
+        val s = tree2Formula(set)
+        val f = UnInterpretedFct(c.freshName("max"), Some(FSet(Int) ~> Int), Nil)
+        val res = Application(f, List(s)).setType(Int)
+        val v = Variable(c.freshName("v")).setType(Int)
+        addCstr( In(res, s) )
+        addCstr( ForAll(List(v), Implies(In(v, s), Leq(v, res)) ) )
+        res
+      case q"$set.min($ordering)" =>
+        val s = tree2Formula(set)
+        val f = UnInterpretedFct(c.freshName("min"), Some(FSet(Int) ~> Int), Nil)
+        val res = Application(f, List(s)).setType(Int)
+        val v = Variable(c.freshName("v")).setType(Int)
+        addCstr( In(res, s) )
+        addCstr( ForAll(List(v), Implies(In(v, s), Leq(res, v)) ) )
+        res
       case q"$set.head" =>
         val s = tree2Formula(set)
         val t = extractType(e.tpe)

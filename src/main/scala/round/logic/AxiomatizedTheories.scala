@@ -44,13 +44,13 @@ object TupleAxioms {
     val app = Application(Tuple, args).setType(Product(ts))
     var acc: List[Formula] = Nil
     if (ts.size >= 1) {
-      acc = ForAll(tpl::args, And(Eq(tpl, app), Eq(Fst(tpl).setType(ts(0)), args(0)))) :: acc
+      acc = ForAll(tpl::args, Implies(Eq(tpl, app), Eq(Fst(tpl).setType(ts(0)), args(0)))) :: acc
     }
     if (ts.size >= 2) {
-      acc = ForAll(tpl::args, And(Eq(tpl, app), Eq(Snd(tpl).setType(ts(1)), args(1)))) :: acc
+      acc = ForAll(tpl::args, Implies(Eq(tpl, app), Eq(Snd(tpl).setType(ts(1)), args(1)))) :: acc
     }
     if (ts.size >= 3) {
-      acc = ForAll(tpl::args, And(Eq(tpl, app), Eq(Trd(tpl).setType(ts(2)), args(2)))) :: acc
+      acc = ForAll(tpl::args, Implies(Eq(tpl, app), Eq(Trd(tpl).setType(ts(2)), args(2)))) :: acc
     }
     acc//.map(Typer(_).get)
   }

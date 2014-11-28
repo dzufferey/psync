@@ -150,6 +150,12 @@ class SolverSuite extends FunSuite {
 )
 """
     val cmds = Parser.parseModel(model).get
+    val vars: List[Variable] = List(
+      Variable("A").setType(FSet(round.verification.Utils.procType)),
+      Variable("i").setType(round.verification.Utils.procType),
+      Variable("v").setType(Int),
+      Variable("n").setType(Int)
+    )
     val decls: List[(round.formula.Symbol, List[round.formula.Type])] = List(
       //(declare-fun cardProcessID (Set_ProcessID_) Int)
       (Cardinality, List(round.verification.Utils.procType)),
@@ -170,8 +176,9 @@ class SolverSuite extends FunSuite {
       //(declare-fun inProcessID (ProcessID Set_ProcessID_) Bool)
       (In, List(round.verification.Utils.procType))
     )
-//  val parsed = Model(cmds, decls) 
-//  ()
+    val parsed = Model(cmds, vars, decls) 
+    //Console.println(parsed.toString)
+    ()
   }
 
 }

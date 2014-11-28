@@ -53,12 +53,13 @@ object Def {
 
 
 class Model(domains: Map[Type, Set[ValExt]],
-            interpretation: Map[Symbol, Def])
+            constants: Map[Variable, ValDef],
+            functions: Map[Symbol, Def])
 {
 
   def get(s: Symbol, args: ValDef*): Option[ValDef] = {
     val aLst = args.toList
-    interpretation.get(s).map( _ match {
+    functions.get(s).map( _ match {
       case v: ValDef => v
       case f: FunDef => Def.eval(f, aLst)
     })
@@ -66,6 +67,7 @@ class Model(domains: Map[Type, Set[ValExt]],
 
   def apply(s: Symbol, args: ValDef*): ValDef = get(s, args:_*).get
   
+  def apply(v: Variable): ValDef = constants(v)
 
   override def toString = {
     val buffer = new StringBuilder
@@ -75,8 +77,12 @@ class Model(domains: Map[Type, Set[ValExt]],
       buffer.append("    " + t + ": " + vals.mkString(", "))
       buffer.append("\n")
     }
-    buffer.append("  interpretation:\n")
-    for ( (f, df) <- interpretation) {
+    buffer.append("  constants:\n")
+    for ( (c, dc) <- constants) {
+      buffer.append("    " + c + " = " + dc + "\n")
+    }
+    buffer.append("  functions:\n")
+    for ( (f, df) <- functions) {
       df match {
         case v: ValDef =>
           buffer.append("    " + f + " = " + v + "\n")
@@ -95,7 +101,7 @@ class Model(domains: Map[Type, Set[ValExt]],
 object Model {
 
 
-  def apply(cmds: List[Command], declared: Iterable[(Symbol, List[Type])]) = {
+  def apply(cmds: List[Command], variables: Iterable[Variable], declared: Iterable[(Symbol, List[Type])]) = {
 
     val values: Map[String, ValExt] = (cmds.collect{
       case DeclareFun(id, Function(Nil, tpe)) =>
@@ -142,43 +148,51 @@ object Model {
       }
     }
 
+    var rest = cmds collect { case d: DefineFun => d }
+    var defs = Map.empty[Symbol,Def]
 
-    //first pass
-    val fstPass: List[Either[(Symbol, Def), DefineFun]] = cmds collect {
-      case d: DefineFun =>
-        tryParseFun(d) match {
-          case Some(s) => Left(s)
-          case None => Right(d)
-        }
-    }
-
-    val (_defs, _rest) = fstPass partition {
-      case Left(_) => true
-      case Right(_) => false
-    }
-    var defs = _defs.map{ case Left(l) => l; case _ => sys.error("??") }.toMap
-    var rest = _rest map { case Right(l) => l; case _ => sys.error("??") }
-    
-    def tryFillDef(d: DefineFun): Option[(Symbol, Def)] = {
-      def inline(symbol: Symbol, args: List[Option[Symbol]]): Def = {
-        defs(symbol) match {
-          case v: ValDef => v
-          case FunDef(cases, default) =>
-            def invert(vals: List[ValDef]): List[List[ValDef]] = {
-              val vals2 = args.zip(vals).map{
-                case (Some(s), v) => Def.uneval(domains, defs(s), v).flatten //assume single arg
-                case (None, v) => List(v)
-              }
-              val cart = Misc.cartesianProduct(vals2)
-              cart.toList.map(_.toList)
-            }
-            val cases2 = cases.flatMap( c => {
-              val lst = invert(c._1)
-              lst.map(_ -> c._2)
-            })
-            FunDef(cases2, default)
+    def loop(fct: DefineFun => Option[(Symbol, Def)]) {
+      var progress = !rest.isEmpty
+      while(progress) {
+        progress = false
+        val r = rest
+        rest = Nil
+        for (d <- r) {
+          fct(d) match {
+            case Some(d) =>
+              defs = defs + d
+              progress = true
+            case None =>
+             rest = d :: rest
+          }
         }
       }
+    }
+
+    //first pass
+    loop(tryParseFun)
+      
+    def inline(symbol: Symbol, args: List[Option[Symbol]]): Def = {
+      defs(symbol) match {
+        case v: ValDef => v
+        case FunDef(cases, default) =>
+          def invert(vals: List[ValDef]): List[List[ValDef]] = {
+            val vals2 = args.zip(vals).map{
+              case (Some(s), v) => Def.uneval(domains, defs(s), v).flatten //assume single arg
+              case (None, v) => List(v)
+            }
+            val cart = Misc.cartesianProduct(vals2)
+            cart.toList.map(_.toList)
+          }
+          val cases2 = cases.flatMap( c => {
+            val lst = invert(c._1)
+            lst.map(_ -> c._2)
+          })
+          FunDef(cases2, default)
+      }
+    }
+
+    def tryFillDef(d: DefineFun): Option[(Symbol, Def)] = {
       try {
         d.body match {
           case Application(UnInterpretedFct(s, _, _), args) =>
@@ -188,38 +202,102 @@ object Model {
               case _ => sys.error("??")
             }
             Some(getSym(d.id) -> inline(getSym(s), args2))
-          case _ => sys.error("??")
+          case _ => sys.error(d.id + " body is " + d.body)
         }
       } catch {
-        case e: Exception => None
+        case e: Exception =>
+          None
       }
     }
-
 
     //second pass for functions defined with other funs ...
-    while(!rest.isEmpty) {
-      var progress = false
-      val r = rest
-      rest = Nil
-      for (d <- r) {
-        tryFillDef(d) match {
-          case Some(d) =>
-            defs = defs + d
-            progress = true
-          case None =>
-           rest = d :: rest
-        }
-      }
-      if (!progress) {
-        sys.error("cannot reconstruct model: " + rest)
+    loop(tryFillDef)
+    
+    def symEval(symbol: Symbol, args: List[ValDef]): ValDef = {
+      defs(symbol) match {
+        case v: ValDef => v
+        case f: FunDef => Def.eval(f, args)
       }
     }
+
+    def fEval(f: Formula, params: Map[String,ValDef]): ValDef = f match {
+      case Literal(b: Boolean) => ValB(b)
+      case Literal(l: Long) => ValI(l)
+      case Variable(id) => params(id)
+      case Application(Eq,  List(e1, e2)) =>
+        val v1 = fEval(e1, params)
+        val v2 = fEval(e2, params)
+        ValB(v1 == v2)
+      case Application(s @ (Leq | Geq | Lt | Gt), List(e1, e2)) =>
+        val v1 = fEval(e1, params)
+        val v2 = fEval(e2, params)
+        (v1, v2) match {
+          case (ValI(i1), ValI(i2)) =>
+            s match {
+              case Leq => ValB(i1 <= i2)
+              case Geq => ValB(i1 >= i2)
+              case Lt =>  ValB(i1 < i2)
+              case Gt =>  ValB(i1 > i2)
+              case _ => sys.error("?!") //removing this line make the scala compiler go crazy
+            }
+          case _ => sys.error("expected two ValI: " + v1 + ", " + v2)
+        }
+      case Application(UnInterpretedFct("ite",_,_), List(cnd, tr, fa)) =>
+        val eCnd = fEval(cnd, params)
+        val eTr = fEval(tr, params)
+        val eFa = fEval(fa, params)
+        eCnd match {
+          case ValB(b) =>
+            if (b) eTr else eFa
+          case _ => sys.error("expected ValB: " + eCnd)
+        }
+      case Application(UnInterpretedFct(s,_,_), args) =>
+        val eArgs = args.map(fEval(_, params))
+        symEval(getSym(s), eArgs)
+      case _ => sys.error("did not expect: " + f)
+    }
+
+    def generateArgs(args: List[Variable]): List[Map[String,ValDef]] = args match {
+      case x :: xs =>
+        val ys = generateArgs(xs)
+        val d = domains(x.tpe)
+        ys.flatMap( m => d.map( v => m + (x.name -> v) ) )
+      case Nil => List(Map.empty[String,ValDef])
+    }
+
+    def tryEvalDef(d: DefineFun): Option[(Symbol, Def)] = {
+      try {
+        val paramss = generateArgs(d.args)
+        val sym = getSym(d.id)
+        val cases = for ( params <- paramss) yield {
+          val args = d.args.map( v => params(v.name) )
+          val res = fEval(d.body, params)
+          (args, res)
+        }
+        val default = cases.head._2
+        Some(sym -> FunDef(cases, default))
+      } catch {
+        case e: Exception =>
+          None
+      }
+    }
+    
+    //third pass: brute force on the parameter space
+    loop(tryEvalDef)
+
+    if (!rest.isEmpty) {
+      sys.error("cannot reconstruct model: " + rest)
+    }
+    
  
     //remove the fct introduced by the solver
     val defined = toSym.values.toSet
     val there = defs filter { case (s, _) => defined(s) }
 
-    new Model(domains, there)
+    var vs = variables.map( v => v.name -> v).toMap
+    val vars = defs collect { case (UnInterpretedFct(v,_,_), d: ValDef) if vs contains v => vs(v) -> d }
+
+    new Model(domains, vars, there)
   }
 
   private def collectCases(f: Formula): (List[(Formula, Formula)], Formula) = f match {

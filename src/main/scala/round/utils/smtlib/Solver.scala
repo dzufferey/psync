@@ -283,7 +283,7 @@ class Solver( th: Theory,
     toSolver(GetModel)
     Thread.sleep(100) //sleep a bit to let z3 make the model. TODO better!
     Parser.parseModel(fromSolver()).map( cmds => {
-      Model(cmds, declaredS)
+      Model(cmds, declaredV, declaredS)
     })
   }
 

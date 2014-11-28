@@ -29,6 +29,7 @@ object CL {
     //TODO some CNF conversion ?
     //TODO purification before or after instantiation ?
     val f1 = Simplify.normalize(f)
+    //println(f1)
     val f2 = Simplify.nnf(f1)
     val f3 = Simplify.boundVarUnique(f2)
     f3
