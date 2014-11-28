@@ -34,22 +34,7 @@ class LatticeAgreement extends Algorithm[LatticeIO] {
   val proposed = new LocalVariable[Lattice.T](Lattice.bottom)
   val decision = new LocalVariable[Option[Lattice.T]](None) //TODO as ghost
 
-  val spec = new Spec {
-    val safetyPredicate = f(true)
-    val livnessPredicate = List( //TODO
-      //f( )
-    )
-    val invariants = List( //TODO
-      //f( ),
-      //f( )
-    )
-    val properties = List(
-      ("Termination",    f( P.forall( i => decision(i).isDefined) )),
-      ("Consistency",    f( true )), //TODO
-      ("Integrity",      f( true )), //TODO
-      ("Irrevocability", f(P.forall( i => old(decision)(i).isDefined ==> (old(decision)(i) == decision(i)) )))
-    )
-  }
+  val spec = TrivialSpec //TODO
 
   //here we should provide some axioms that the prover will need ...
   Axiom("join-idempotent", f( AD.forall( x => Lattice.join(x, x) == x) ))

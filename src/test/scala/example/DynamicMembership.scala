@@ -48,13 +48,7 @@ class BasicConsensus extends Algorithm[MembershipIO] {
   val decision = new LocalVariable[Option[MembershipOp]](None) //TODO as ghost
   val after = new LocalVariable[Int](1)
   
-  //TODO
-  val spec = new Spec {
-    val safetyPredicate = f(true)
-    val livnessPredicate = List( )
-    val invariants = List( )
-    val properties = List( )
-  }
+  val spec = TrivialSpec //TODO
   
   def process(id: ProcessID, io: MembershipIO) = p(new Process(id) {
     
