@@ -22,10 +22,10 @@ class LastVoting(afterDecision: Int = 1) extends Algorithm[ConsensusIO] {
 
   //FIXME once the macro issue is sorted out ...
   //rotating coordinator
-  def coord(p: ProcessID, phi: Int): ProcessID = new ProcessID((phi % n).toShort)
+  def coord(phi: Int): ProcessID = new ProcessID((phi % n).toShort)
 
   val spec = new Spec {
-      val livnessPredicate = List( f(P.exists( p => P.forall( q => p == coord(q, r/4) && HO(p).size > n/2 ) )) )
+      val livnessPredicate = List( f(P.exists( p => P.forall( q => p == coord(r/4) && HO(p).size > n/2 ) )) )
 
       val noDecision = f( P.forall( i => !decided(i) && !ready(i)) )
 
@@ -38,7 +38,7 @@ class LastVoting(afterDecision: Int = 1) extends Algorithm[ConsensusIO] {
                            (decided(i) ==> (decision(i) == v) ) &&
                            (commit(i) ==> (vote(i) == v) ) &&
                            (ready(i) ==> (vote(i) == v) ) &&
-                           ((ts(i) == r/4) ==> commit(coord(i, r/4)) ))
+                           ((ts(i) == r/4) ==> commit(coord(r/4)) ))
         }) )
       )
 
@@ -88,18 +88,14 @@ class LastVoting(afterDecision: Int = 1) extends Algorithm[ConsensusIO] {
 
         type A = (Int, Int)
 
-        //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
-        //rotating coordinator
-        def coord(p: ProcessID, phi: Int): ProcessID = new ProcessID((phi % n).toShort)
-
         def send(): Set[((Int, Int), ProcessID)] = {
-          Set((x: Int, ts: Int) -> coord(id, r / 4))
+          Set((x: Int, ts: Int) -> coord(r / 4))
         }
 
-        override def expectedNbrMessages = if (id == coord(id, r/4)) n/2 + 1 else 0
+        override def expectedNbrMessages = if (id == coord(r/4)) n/2 + 1 else 0
 
         def update(mailbox: Set[((Int, Int), ProcessID)]) {
-          if (id == coord(id, r/4) && mailbox.size > n/2) {
+          if (id == coord(r/4) && mailbox.size > n/2) {
             // let θ be one of the largest θ from 〈ν, θ〉received
             // vote(p) := one ν such that 〈ν, θ〉 is received
             vote <~ mailbox.maxBy(_._1._2)._1._1
@@ -113,12 +109,8 @@ class LastVoting(afterDecision: Int = 1) extends Algorithm[ConsensusIO] {
 
         type A = Int
 
-        //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
-        //rotating coordinator
-        def coord(p: ProcessID, phi: Int): ProcessID = new ProcessID((phi % n).toShort)
-
         def send(): Set[(Int, ProcessID)] = {
-          if (id == coord(id, r/4) && commit) {
+          if (id == coord(r/4) && commit) {
             broadcast(vote)
           } else {
             Set.empty
@@ -128,7 +120,7 @@ class LastVoting(afterDecision: Int = 1) extends Algorithm[ConsensusIO] {
         override def expectedNbrMessages = 1
 
         def update(mailbox: Set[(Int, ProcessID)]) {
-          val mb2 = mailbox.filter( _._2 == coord(id, r/4) )
+          val mb2 = mailbox.filter( _._2 == coord(r/4) )
           if (mb2.size > 0) {
             x <~ mb2.head._1
             ts <~ r/4
@@ -142,22 +134,18 @@ class LastVoting(afterDecision: Int = 1) extends Algorithm[ConsensusIO] {
         //place holder for ACK
         type A = Int
 
-        //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
-        //rotating coordinator
-        def coord(p: ProcessID, phi: Int): ProcessID = new ProcessID((phi % n).toShort)
-
         def send(): Set[(Int, ProcessID)] = {
           if ( ts == (r/4) ) {
-            Set( (x: Int) -> coord(id, r/4) )
+            Set( (x: Int) -> coord(r/4) )
           } else {
             Set.empty
           }
         }
 
-        override def expectedNbrMessages = if (id == coord(id, r/4)) n/2 + 1 else 0
+        override def expectedNbrMessages = if (id == coord(r/4)) n/2 + 1 else 0
 
         def update(mailbox: Set[(Int, ProcessID)]) {
-          if (id == coord(id, r/4) && mailbox.size > n/2) {
+          if (id == coord(r/4) && mailbox.size > n/2) {
             ready <~ true
           }
         }
@@ -168,12 +156,8 @@ class LastVoting(afterDecision: Int = 1) extends Algorithm[ConsensusIO] {
 
         type A = Int
 
-        //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
-        //rotating coordinator
-        def coord(p: ProcessID, phi: Int): ProcessID = new ProcessID((phi % n).toShort)
-
         def send(): Set[(Int, ProcessID)] = {
-          if (id == coord(id, r/4) && ready) {
+          if (id == coord(r/4) && ready) {
             broadcast(vote)
           } else {
             Set.empty
@@ -183,7 +167,7 @@ class LastVoting(afterDecision: Int = 1) extends Algorithm[ConsensusIO] {
         override def expectedNbrMessages = 1 
 
         def update(mailbox: Set[(Int, ProcessID)]) {
-          val mb2 = mailbox.filter( _._2 == coord(id, r/4) )
+          val mb2 = mailbox.filter( _._2 == coord(r/4) )
           if (mb2.size > 0) {
             val v = mb2.head._1
             if (!decided) {

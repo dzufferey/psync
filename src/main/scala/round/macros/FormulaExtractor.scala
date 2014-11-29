@@ -97,7 +97,9 @@ trait FormulaExtractor {
     case Ident(TypeName("ProcessID")) => round.verification.Utils.procType
     case Select(Ident(pkg), TypeName(tn)) => UnInterpreted(pkg.toString + "." + tn)
     case Ident(TypeName(tn)) => UnInterpreted(tn)
-    case _ => sys.error("TODO extractType from Tree: " + showRaw(t))
+    case _ =>
+      c.warning(t.pos, "TODO extractType from tree: " + showRaw(t) + " currently Wildcard")
+      Wildcard
   }
   
   def extractTypeVar(t: Tree): round.formula.TypeVariable = extractType(t) match{
@@ -316,6 +318,10 @@ trait FormulaExtractor {
         val res = Application(h, List(s)).setType(t)
         addCstr( In(res, s) )
         res
+      case q"$set.find( $v => $expr )" =>
+        val t = extractType(e.tpe)
+        c.warning(e.pos, "TODO formula for $set.find")
+        FNone.application(Nil).setType(t)
 
       // tuples
       case q"scala.Tuple2.apply[..$tpt](..$args)" =>

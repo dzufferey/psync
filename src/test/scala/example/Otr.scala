@@ -57,7 +57,6 @@ class OTR(afterDecision: Int = 2) extends Algorithm[ConsensusIO] {
 
         type A = Int
 
-        //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //min most often received
         def mmor(mailbox: Set[(Int, ProcessID)]): Int = {
           val byValue = mailbox.groupBy(_._1)

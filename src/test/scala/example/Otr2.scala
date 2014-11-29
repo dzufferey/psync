@@ -33,7 +33,7 @@ class OTR2(afterDecision: Int = 2) extends Algorithm[ConsensusIO] {
       ) //how to relate the invariants and the magic rounds
 
       val properties = List(
-        ("Termination",    f(P.forall( i => decision(i).isDefined) )), //TODO weaken termination and/or strengthen liveness predicate
+        ("Termination",    f(P.forall( i => decision(i).isDefined) )),
         ("Agreement",      f(P.forall( i => P.forall( j => decision(i).isDefined && decision(j).isDefined ==> (decision(i).get == decision(j).get) )))),
         ("Validity",       f(P.forall( i => decision(i).isDefined ==> P.exists( j => init(x)(j) == decision(i).get )))),
         ("Integrity",      f(P.exists( j => P.forall( i => decision(i).isDefined ==> (decision(i).get == init(x)(j)) )))),
@@ -52,7 +52,6 @@ class OTR2(afterDecision: Int = 2) extends Algorithm[ConsensusIO] {
 
         type A = Int
 
-        //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //min most often received
         def mmor(mailbox: Set[(Int, ProcessID)]): Int = {
           val byValue = mailbox.groupBy(_._1)

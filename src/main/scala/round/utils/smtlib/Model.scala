@@ -238,7 +238,7 @@ object Model {
               case Geq => ValB(i1 >= i2)
               case Lt =>  ValB(i1 < i2)
               case Gt =>  ValB(i1 > i2)
-              case _ => sys.error("?!") //removing this line make the scala compiler go crazy
+              case _ => sys.error("?!") //removing this line make the scala compiler run out of memory
             }
           case _ => sys.error("expected two ValI: " + v1 + ", " + v2)
         }

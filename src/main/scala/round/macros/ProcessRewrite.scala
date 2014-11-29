@@ -88,11 +88,21 @@ trait ProcessRewrite {
   }
 
   //TODO also the initial value of the variables in case they are not initialized
-  def collectInit(ts: List[Tree]): Formula = {
+  def collectInit(vs: List[MyVarDef], ts: List[Tree]): Formula = {
     ts.foldLeft(True(): Formula)( (acc, t) => t match {
       case a @ Apply(Select(_, TermName("$less$tilde")), List(_)) =>
-        And(acc, makeConstraints(a))
-      case _ => acc
+        try {
+          And(acc, makeConstraints(a))
+        } catch {
+          case e: Exception =>
+            c.warning(t.pos, "error while extracting the initial state ("+a+"), leaving it unconstrained.\n" + e)
+            acc
+        }
+      case Assign(_, _) | Apply(_, _) =>
+        c.echo(t.pos, "not generating formula for " + t)
+        acc
+      case _ =>
+        acc
     })
   }
 
@@ -131,7 +141,7 @@ trait ProcessRewrite {
       })
       val transformer = new InsideProcess(idMap)
       //
-      val _f = collectInit(body)
+      val _f = collectInit(vars, body)
       val f = Typer(_f) match {
         case Typer.TypingSuccess(f) =>
           f

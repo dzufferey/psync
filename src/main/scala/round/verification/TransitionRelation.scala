@@ -69,6 +69,7 @@ class RoundTransitionRelation(val send: Formula,
 
   //link mailboxes with HO:
   //  ∀ i j v. (i, v) ∈ mailboxUpdt(j) ⇔ (i ∈ HO(j) ∧ (j, v) ∈ mailboxSend(i))
+  //  ∀ j. |mailboxUpdt(j)| ≤ |HO(j)|
   lazy val mailboxLink = {
     val i = procI
     val j = procJ
@@ -81,8 +82,11 @@ class RoundTransitionRelation(val send: Formula,
     val jv = Application(Tuple, List(v, j))
     val mi = skolemify(mailboxSend, i)
     val mj = skolemify(mailboxUpdt, j)
-    val ho = In(i, skolemify(Variable("HO").setType(FSet(procType)), j))
-    ForAll(List(i, j, v), Eq(In(iv, mj), And(ho, In(jv, mi))))
+    val ho = skolemify(Variable("HO").setType(FSet(procType)), j)
+    And(
+      ForAll(List(i, j, v), Eq(In(iv, mj), And(In(i, ho), In(jv, mi)))),
+      ForAll(List(j), Leq(Cardinality(mj), Cardinality(ho)))
+    )
   }
   
   class InlinePost(aux: Map[String, AuxiliaryMethod], vars: Set[Variable], i: Variable) extends Transformer {

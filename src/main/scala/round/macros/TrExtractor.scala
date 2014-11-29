@@ -285,7 +285,7 @@ trait TrExtractor {
     if (d.vparamss.length > 1) {
       c.abort(c.enclosingPosition, "auxiliaryFunction, currying not yet supported: " + d.name)
     }
-    c.echo(d.pos, "currently we do not verify auxiliary functions (" +d.name.toString +") and assume they are side-effect free")
+    c.echo(d.pos, "currently we do not verify auxiliary functions (" +d.name.toString +") and assume they are pure")
     val name = d.name.toString
     val params = d.vparamss.headOption.getOrElse(Nil).map(extractVarFromValDef)
     val tpe = round.formula.Function(params.map(_.tpe), extractType(d.tpt.tpe))
@@ -309,10 +309,25 @@ trait TrExtractor {
     val mailbox = extractVarFromValDef(mailboxValDef)
     val mailboxIdent = Ident(TermName(mailboxValDef.name + "Snd"))
     val (ssaSend, subst) = ssa(send.rhs)
-    val _cstr1 = makeConstraints(ssaSend, Some(mailboxIdent), Some(mailboxIdent))
+
+    val _cstr1 =
+      try {
+        makeConstraints(ssaSend, Some(mailboxIdent), Some(mailboxIdent))
+      } catch {
+        case e: Exception =>
+          c.warning(send.pos, "error while extracting the TR, leaving it unconstrained.\n" + e)
+          True()
+      }
 
     val (ssaUpdt, subst2) = ssa(update.rhs, subst)
-    val _cstr2 = makeConstraints(ssaUpdt, None, None)
+    val _cstr2 =
+      try {
+        makeConstraints(ssaUpdt, None, None)
+      } catch {
+        case e: Exception =>
+          c.warning(update.pos, "error while extracting the TR, leaving it unconstrained.\n" + e)
+          True()
+      }
 
     val cstr1 = tryType(_cstr1, send, "unable to type formula corresponding to send method")
     val cstr2 = tryType(_cstr2, update, "unable to type formula corresponding to update method")

@@ -78,7 +78,7 @@ object CL {
   /** preprocess and reduce (hypothesis ∧ ¬conclusion),
    *  returned formula can be checked for satisfiability. */
   def entailment(hypothesis: Formula, conclusion: Formula): Formula = {
-    assert(Typer(And(hypothesis, Not(conclusion))).success)
+    assert(Typer(And(hypothesis, Not(conclusion))).success, "CL.entailment, not well typed")
     val h1 = normalize(hypothesis)
     val c1 = normalize(Not(conclusion))
     
