@@ -2,7 +2,7 @@ package round.formula
 
 object Common {
 
-  val pid = UnInterpreted("ProcessID")
+  val pid = round.logic.CL.procType
 
   val a = Variable("a").setType(Bool)
   val b = Variable("b").setType(Bool)
