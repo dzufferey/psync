@@ -4,8 +4,11 @@
 <configuration>
   <parameters>
     <param> <name>transport layer</name> <value>UDP</value> </param>
+    <!-- in millisecond (used to know when to move to the next round if messages are lost)-->
     <param> <name>timeout</name> <value>100</value> </param>
     <param> <name>group</name> <value>nio</value> </param>
+    <!-- 1 → 1 thread, 1x → 1 * number of CPU, ommitted → cached thread pool -->
+    <param> <name>workers</name> <value>1x</value> </param>
   </parameters>
   <peers>
     <replica> <id>0</id> <address>127.0.0.1</address> <port>4444</port> </replica>

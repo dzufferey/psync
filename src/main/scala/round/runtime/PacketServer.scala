@@ -38,8 +38,29 @@ class PacketServer(
      Logger("PacketServer", Warning, "transport layer: only UDP supported for the moment")
   }
 
-  private val executor = java.util.concurrent.Executors.newCachedThreadPool()
-  //private val executor = java.util.concurrent.Executors.newFixedThreadPool(8)
+  private val executor = {
+    options.get("workers") match {
+      case Some(n) =>
+        val cores = java.lang.Runtime.getRuntime().availableProcessors()
+        val w = try {
+          if (n endsWith "x") {
+            val coeff = n.substring(0, n.length -1).toInt
+            coeff * cores
+          } else {
+            n.toInt
+          }
+        } catch {
+          case e: Exception =>
+            Logger("PacketServer", Warning, "size of pool of workers has wrong format, using " + cores)
+            cores
+        }
+        Logger("PacketServer", Debug, "using fixed thread pool of size " + w)
+        java.util.concurrent.Executors.newFixedThreadPool(w)
+      case None =>
+        Logger("PacketServer", Debug, "using cached thread pool")
+        java.util.concurrent.Executors.newCachedThreadPool()
+    }
+  }
 
   private val group: EventLoopGroup =
     if (epoll) new EpollEventLoopGroup()

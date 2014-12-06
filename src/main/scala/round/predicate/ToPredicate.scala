@@ -17,25 +17,28 @@ import java.util.concurrent.locks.ReentrantLock
 
 /* A predicate using timeout to deliver (when not all msg are received) */
 class ToPredicate(
-      grp: Group,
-      instance: Short,
       channel: Channel,
       dispatcher: InstanceDispatcher,
-      proc: Process,
       options: Map[String, String] = Map.empty
-    ) extends Predicate(grp, instance, channel, dispatcher, proc, options)
+    ) extends Predicate(channel, dispatcher, options)
 {
 
   //safety condition guaranteed by the predicate
   val ensures = round.formula.True() 
 
-  protected var expected = n
+  protected var expected = 0
 
-  private val from = Array.fill(n)(false)
+  private var from: Array[Boolean] = null
   private var _received = 0
   def received = _received
   def resetReceived { _received = 0 }
-  //var spill = new java.util.concurrent.ConcurrentLinkedQueue[DatagramPacket]()
+
+  override def checkResources {
+    super.checkResources
+    if (from == null || from.size != n) {
+      from = Array.fill(n)(false)
+    }
+  }
 
   //dealing with the timeout ?
   protected var defaultTO = {
@@ -58,24 +61,27 @@ class ToPredicate(
     }
   }
 
-  //some flag about being active
-  @volatile
-  protected var active = true
-
   //each modification should set this to true, the timer will reset it
   @volatile
   protected var changed = false
 
-  protected var didTimeOut = 0
+  @volatile
+  protected var ttInst: Short = 0
 
   protected val tt = new TimerTask {
+    protected var didTimeOut = 0
+    @inline final protected def canRun = active && instance == ttInst
     def run(to: Timeout) {
-      if (active) {
+      if (canRun) {
         if (changed) {
           changed = false
           didTimeOut -= 1
         } else {
           lock.lock()
+          if (!canRun) {
+            lock.unlock()
+            return
+          }
           try {
             if (!changed) {
               //Logger("ToPredicate", Debug, "delivering because of timeout: " + instance)
@@ -97,27 +103,35 @@ class ToPredicate(
             defaultTO -= 10
           }
         }
-        if (active) {
-          timeout = Timer.newTimeout(this, defaultTO)
-        }
+        timeout = Timer.newTimeout(this, defaultTO)
       }
     }
   }
-  protected var timeout: Timeout = Timer.newTimeout(tt, defaultTO)
+  protected var timeout: Timeout = null
 
-  override def start {
+  override def start(g: Group, inst: Short, p: Process, m: Set[Message]) {
     lock.lock()
     try {
-      super.start
+      changed = false
+      super.start(g, inst, p, m)
+      expected = n
+      ttInst = instance
+      timeout = Timer.newTimeout(tt, defaultTO)
     } finally {
       lock.unlock()
     }
   }
 
-  override def stop {
-    active = false
-    timeout.cancel
-    super.stop
+  override def stop(inst: Short) {
+    lock.lock()
+    try {
+      if (active && instance == inst && timeout != null) {
+        timeout.cancel
+      }
+      super.stop(inst)
+    } finally {
+      lock.unlock()
+    }
   }
 
   override protected def clear {
@@ -161,16 +175,22 @@ class ToPredicate(
     val round = tag.roundNbr
     lock.lock()
     try {
-      //TODO take round overflow into account
-      if(round == currentRound) {
+      if (!active || instance != tag.instanceNbr) {
+        pkt.release
+      } else if (round == currentRound) { //TODO take round overflow into account
         normalReceive(pkt)
       } else if (round > currentRound) {
         //we are late, need to catch up
-        while(currentRound < round) {
+        while(currentRound < round && active) {
           deliver //TODO skip the sending ?
         }
-        //then back to normal
-        normalReceive(pkt)
+        //deliver might stop the instance
+        if (active) {
+          //then back to normal
+          normalReceive(pkt)
+        } else {
+          pkt.release
+        }
       } else {
         //late message, drop it
         pkt.release

@@ -14,7 +14,7 @@ class RunTime[IO](val alg: Algorithm[IO]) {
 
   private var options = Map.empty[String, String]
 
-  private var defltHandler: Message => Unit = null
+  private var predicatePool: PredicatePool = null
 
   /** Start an instance of the algorithm. */
   def startInstance(
@@ -30,17 +30,17 @@ class RunTime[IO](val alg: Algorithm[IO]) {
         val process = alg.process(grp.self, io)
         process.setGroup(grp)
         process.postInit
-        val predicate = new ToPredicate(grp, instanceId, s.channel, s.dispatcher, process, options)
-        //register the instance and send the first round of messages
-        predicate.start
-        //msg that are already received
-        for(m <- messages) {
+        val predicate = predicatePool.get
+        val messages2 = messages.filter( m => {
           if (!Flags.userDefinable(m.flag) && m.flag != Flags.dummy) {
-            predicate.receive(m.packet)
+            true
           } else {
             m.release
+            false
           }
-        }
+        })
+        //register the instance and send the first round of messages
+        predicate.start(grp, instanceId, process, messages2)
       case None =>
         sys.error("service not running")
     }
@@ -51,7 +51,7 @@ class RunTime[IO](val alg: Algorithm[IO]) {
     Logger("RunTime", Info, "stopping instance " + instanceId)
     srv match {
       case Some(s) =>
-        s.dispatcher.findInstance(instanceId).map(_.stop)
+        s.dispatcher.findInstance(instanceId).map(_.stop(instanceId))
       case None =>
         sys.error("service not running")
     }
@@ -80,6 +80,8 @@ class RunTime[IO](val alg: Algorithm[IO]) {
     val pktSrv = new PacketServer(port, grp, defaultHandler, options)
     srv = Some(pktSrv)
     pktSrv.start
+    
+    predicatePool = new PredicatePool(pktSrv.channel, pktSrv.dispatcher, options)
   }
 
   def startService(

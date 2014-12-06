@@ -14,21 +14,45 @@ import io.netty.channel.socket._
 import java.util.concurrent.locks.ReentrantLock
 
 abstract class Predicate(
-      val grp: Group,
-      val instance: Short,
       channel: Channel,
       dispatcher: InstanceDispatcher,
-      proc: Process,
       options: Map[String, String] = Map.empty
     )
 {
+  
+  protected val lock = new ReentrantLock
+  @volatile
+  protected var active = false
+  
+
+  protected var pool: PredicatePool = null
+  def setPool(p: PredicatePool) { pool = p }
+
+  protected var grp: Group = null
+  protected var instance: Short = 0
+  protected var proc: Process = null
+
+  protected var n = 0
+  protected var currentRound = 0
+  
+  protected var messages: Array[DatagramPacket] = null
+
+  def reset {
+    grp = null
+    proc = null
+    clear
+  }
+
+  protected def checkResources {
+    if (messages == null || messages.size != n) {
+      messages = Array.ofDim[DatagramPacket](n)
+    }
+  }
 
   //TODO the expected # of msg
 
   //what does it guarantee
   val ensures: Formula
-  
-  protected val lock = new ReentrantLock
   
   //TODO interface between predicate and the algorithm: ...
 
@@ -55,17 +79,55 @@ abstract class Predicate(
   protected def normalReceive(pkt: DatagramPacket)
 
 
-  val n = grp.size
-  var currentRound = 0
-  
-  val messages = Array.ofDim[DatagramPacket](n)
   def received: Int
   def resetReceived: Unit
 
   //register in the channel and send the first set of messages
-  def start {
-    dispatcher.add(instance, this)
-    send
+  def start(g: Group, inst: Short, p: Process, msgs: Set[Message]) {
+    lock.lock
+    try {
+      grp = g
+      instance = inst
+      proc = p
+      n = g.size
+      currentRound = 0
+      resetReceived
+      checkResources
+      ////
+      active = true
+      dispatcher.add(instance, this)
+      send
+      msgs.foreach( p => receive(p.packet) )
+    } finally {
+      lock.unlock
+    }
+  }
+  
+  //deregister
+  def stop(inst: Short) {
+    lock.lock
+    if (!active || instance != inst) {
+     lock.unlock
+    } else {
+      try {
+        active = false
+        Logger("Predicate", Info, "stopping instance " + instance)
+        dispatcher.remove(instance)
+        var idx = 0
+        while (idx < n) {
+          if (messages(idx) != null) {
+            messages(idx).release
+            messages(idx) = null
+          }
+          idx += 1
+        }
+        if (pool != null) {
+          pool.recycle(this)
+        }
+      } finally {
+        lock.unlock
+      }
+    }
   }
 
   //things to do when changing round (overridden in sub classes)
@@ -74,53 +136,30 @@ abstract class Predicate(
   protected def afterUpdate { }
   
   protected def deliver {
-    lock.lock
+    assert(lock.isHeldByCurrentThread, "lock.isHeldByCurrentThread")
+    //Logger("Predicate", Debug, "delivering for round " + currentRound + " (received = " + received + ")")
+    val toDeliver = messages.slice(0, received)
+    val msgs = fromPkts(toDeliver)
+    currentRound += 1
+    clear
+    //push to the layer above
     try {
-      //Logger("Predicate", Debug, "delivering for round " + currentRound + " (received = " + received + ")")
-      val toDeliver = messages.slice(0, received)
-      val msgs = fromPkts(toDeliver)
-      currentRound += 1
-      clear
-      //push to the layer above
-      try {
-        //actual delivery
-        val mset = msgs.toSet
-        proc.update(mset)
-        afterUpdate
-        //start the next round (if has not exited)
-        send
-      } catch {
-        case e: TerminateInstance =>
-          stop
-        case e: Throwable =>
-          Logger("Predicate", Error, "got an error " + e + " terminating instance: " + instance)
-          stop
-          throw e
-      }
-    } finally {
-      lock.unlock
-    } 
-  }
-  
-  //deregister
-  def stop {
-    lock.lock
-    try {
-      Logger("Predicate", Info, "stopping instance " + instance)
-      dispatcher.remove(instance)
-      var idx = 0
-      while (idx < n) {
-        if (messages(idx) != null) {
-          messages(idx).release
-          messages(idx) = null
-        }
-        idx += 1
-      }
-    } finally {
-      lock.unlock
+      //actual delivery
+      val mset = msgs.toSet
+      proc.update(mset)
+      afterUpdate
+      //start the next round (if has not exited)
+      send
+    } catch {
+      case e: TerminateInstance =>
+        stop(instance)
+      case e: Throwable =>
+        Logger("Predicate", Error, "got an error " + e + " terminating instance: " + instance)
+        stop(instance)
+        throw e
     }
   }
-
+  
   protected def clear {
     val r = received
     resetReceived
@@ -151,8 +190,10 @@ abstract class Predicate(
 
   def messageReceived(pkt: DatagramPacket) = {
     val tag = Message.getTag(pkt.content)
-    assert(instance == tag.instanceNbr)
-    if (tag.flag == Flags.normal) {
+    if (instance != tag.instanceNbr) {
+      pkt.release
+      true
+    } else if (tag.flag == Flags.normal) {
       receive(pkt)
       true
     } else if (tag.flag == Flags.dummy) {

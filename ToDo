@@ -24,21 +24,15 @@
 - accessing members of outer class inside an inner class
     * check if fixed in 2.11.4 (with the right untypcheck) or report macro bug about it
 - allow `print(ln)` in the update method.
-- faster runtime (currently IO bound)
-    * bytebuffer allocator within the runtime (in the packet server)
-        - default size of the buffer configured using options
-        - at start allocate the memory
-        - recycle buffers
-        - grows by chunks when needed
-    * predicate:
-        - acquire n buffers for sending messages
-        - returns the "send" buffers on termination/finalization
-        - `send` of the algorithm takes those buffer as args and returns a subset
-        - when delivering, returns the buffer to the packet server
-    * packet server:
-        - one thread receiving packets and pushing them to a queue
-        - one pool of thread (x * nbrCpus, configurable) that receives from the queue and process the messages
-        - allocation of message for send: already write the tag bytes
+- faster runtime 
+    * improve the timeout 
+      - try without the hased wheel timer (we won't get that many timeout anyway ...)
+    * system is IO bound
+      - can we batch/multiplex packets
+      - improve memory reuse/locality
+    * reduce memory footprint
+      - recycle Processes: have an reset/init functions
+      - (re)-use mutable structures in the guts
 - logging as macro that can be removed at compile time.
 
 
