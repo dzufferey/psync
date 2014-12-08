@@ -34,9 +34,6 @@ object PerfTest extends round.utils.DefaultOptions with DecisionLog[scala.Int] {
   var to = 50
   newOption("-to", Int( i => to = i), "timeout")
   
-  var after = 2
-  newOption("-after", Int( i => after = i), "#round after decision")
-
   val usage = "..."
   
   var begin = 0l
@@ -115,8 +112,8 @@ object PerfTest extends round.utils.DefaultOptions with DecisionLog[scala.Int] {
       val fw = new java.io.FileWriter(logFile + "_" + id + ".log")
       log = new java.io.BufferedWriter(fw)
     } 
-    val alg = if (lv) new LastVoting2(after)
-              else new OTR2(after)
+    val alg = if (lv) new LastVoting2()
+              else new OTR2()
     rt = new RunTime(alg)
     rt.startService(defaultHandler(_), confFile, Map("id" -> id.toString, "timeout" -> to.toString))
     Thread.sleep(1000)

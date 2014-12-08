@@ -47,12 +47,17 @@ class BasicConsensus extends Algorithm[MembershipIO] {
   val x = new LocalVariable[MembershipOp](null)
   val decision = new LocalVariable[Option[MembershipOp]](None) //TODO as ghost
   val after = new LocalVariable[Int](1)
+  //
+  val callback = new LocalVariable[MembershipIO](null)
   
   val spec = TrivialSpec //TODO
   
-  def process(id: ProcessID, io: MembershipIO) = p(new Process(id) {
-    
-    x <~ io.initialValue
+  def process = p(new Process[MembershipIO] {
+
+    def init(io: MembershipIO) {
+      callback <~ io
+      x <~ io.initialValue
+    }
 
     val rounds = Array[Round](
       rnd(new Round{
@@ -81,7 +86,7 @@ class BasicConsensus extends Algorithm[MembershipIO] {
             x <~ v
             if (mailbox.filter(msg => msg._1 == v).size > 2*n/3) {
               if (decision.isEmpty) {
-                io.decide(v)
+                callback.decide(v)
               }
               decision <~ Some(v);
             }

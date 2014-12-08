@@ -18,6 +18,8 @@ class TwoPhaseCommit extends Algorithm[TpcIO] {
   val coord = new LocalVariable[Short](-1) //cannot have ProcessID:  Result type in structural refinement may not refer to a user-defined value class
   val vote = new LocalVariable[Boolean](false)
   val decision = new LocalVariable[Option[Boolean]](None) //TODO as ghost
+  //
+  val callback = new LocalVariable[TpcIO](null)
 
   def c(pid: Short) = new ProcessID(pid)
 
@@ -42,11 +44,14 @@ class TwoPhaseCommit extends Algorithm[TpcIO] {
     )
   }
 
-  def process(id: ProcessID, io: TpcIO) = p(new Process(id) {
+  def process = p(new Process[TpcIO]{
 
-    coord <~ io.coord.id
-    vote <~ io.canCommit
-    decision <~ None
+    def init(io: TpcIO) {
+      callback <~ io
+      coord <~ io.coord.id
+      vote <~ io.canCommit
+      decision <~ None
+    }
 
     val rounds = Array[Round](
       rnd(new Round{
@@ -93,7 +98,7 @@ class TwoPhaseCommit extends Algorithm[TpcIO] {
           if (mailbox.size > 0) {
             decision <~ Some(mailbox.head._1)
           }
-          io.decide(decision)
+          callback.decide(decision)
           terminate
         }
       })

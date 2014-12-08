@@ -33,6 +33,8 @@ class LatticeAgreement extends Algorithm[LatticeIO] {
   val active = new LocalVariable[Boolean](true)
   val proposed = new LocalVariable[Lattice.T](Lattice.bottom)
   val decision = new LocalVariable[Option[Lattice.T]](None) //TODO as ghost
+  //
+  val callback = new LocalVariable[LatticeIO](null)
 
   val spec = TrivialSpec //TODO
 
@@ -46,10 +48,13 @@ class LatticeAgreement extends Algorithm[LatticeIO] {
   Axiom("join-singleton", f( AD.forall( x => Lattice.join(x) == x) ))
   //TODO can we have a local axiomatization of join ? after all there is some idempotence property.
   
-  def process(id: ProcessID, io: LatticeIO) = p(new Process(id) {
+  def process = p(new Process[LatticeIO] {
 
-    active <~ true
-    proposed <~ io.initialValue
+    def init(io: LatticeIO) {
+      callback <~ io
+      active <~ true
+      proposed <~ io.initialValue
+    }
     
     val rounds = Array[Round](
       rnd(new Round {
@@ -63,7 +68,7 @@ class LatticeAgreement extends Algorithm[LatticeIO] {
         def update(mailbox: Set[(Lattice.T, ProcessID)]) {
           if (active) {
             if (mailbox.filter(_._1 == (proposed: Lattice.T)).size > n/2) {
-              io.decide(proposed)
+              callback.decide(proposed)
               decision <~ Some(proposed)
               active <~ false
               terminate()

@@ -9,6 +9,7 @@ import scala.reflect.macros.whitebox.Context
 
 class Impl(val c: Context) extends Lifting
                            with FormulaExtractor
+                           with SSA
                            with TrExtractor
                            with ProcessRewrite 
                            with RoundRewrite
@@ -26,7 +27,7 @@ class Impl(val c: Context) extends Lifting
   }
 
   //def process(e: c.Expr[Process]): c.Expr[Process] = {
-  def process[T <: Process](e: c.Expr[T]): c.Expr[T] = {
+  def process[T <: Process[_]](e: c.Expr[T]): c.Expr[T] = {
     try {
       val res = processRewrite(e.tree)
       val res2 = c.Expr[T](q"$res")
@@ -59,7 +60,7 @@ object Macros {
   def f(e: Boolean): Formula = macro Impl.formula
 
   //def p(e: Process): Process = macro Impl.process
-  def p[T <: Process](e: T): T = macro Impl.process[T]
+  def p[T <: Process[_]](e: T): T = macro Impl.process[T]
   
   def rnd[T <: Round](e: T): T = macro Impl.postprocessRound[T]
 

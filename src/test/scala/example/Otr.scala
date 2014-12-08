@@ -17,6 +17,8 @@ class OTR(afterDecision: Int = 2) extends Algorithm[ConsensusIO] {
   val decision = new LocalVariable[Int](-1) //TODO as ghost
   val decided = new LocalVariable[Boolean](false)
   val after = new LocalVariable[Int](afterDecision)
+  //
+  val callback = new LocalVariable[ConsensusIO](null)
 
 
   val spec = new Spec {
@@ -46,11 +48,14 @@ class OTR(afterDecision: Int = 2) extends Algorithm[ConsensusIO] {
   }
   
   
-  def process(id: ProcessID, io: ConsensusIO) = p(new Process(id) {
+  def process = p(new Process[ConsensusIO]{
       
-    x <~ io.initialValue
-    decided <~ false
-    after <~ afterDecision
+    def init(io: ConsensusIO) {
+      callback <~ io
+      x <~ io.initialValue
+      decided <~ false
+      after <~ afterDecision
+    }
 
     val rounds = Array[Round](
       rnd(new Round{
@@ -79,7 +84,7 @@ class OTR(afterDecision: Int = 2) extends Algorithm[ConsensusIO] {
             x <~ v
             if (mailbox.filter(msg => msg._1 == v).size > 2*n/3) {
               if (!decided) {
-                io.decide(v)
+                callback.decide(v)
               }
               decided <~ true
               decision <~ v

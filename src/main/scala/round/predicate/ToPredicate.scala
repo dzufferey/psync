@@ -109,7 +109,7 @@ class ToPredicate(
   }
   protected var timeout: Timeout = null
 
-  override def start(g: Group, inst: Short, p: Process, m: Set[Message]) {
+  override def start(g: Group, inst: Short, p: RtProcess, m: Set[Message]) {
     lock.lock()
     try {
       changed = false

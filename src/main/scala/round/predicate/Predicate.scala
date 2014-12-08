@@ -30,7 +30,7 @@ abstract class Predicate(
 
   protected var grp: Group = null
   protected var instance: Short = 0
-  protected var proc: Process = null
+  protected var proc: RtProcess = null
 
   protected var n = 0
   protected var currentRound = 0
@@ -83,7 +83,7 @@ abstract class Predicate(
   def resetReceived: Unit
 
   //register in the channel and send the first set of messages
-  def start(g: Group, inst: Short, p: Process, msgs: Set[Message]) {
+  def start(g: Group, inst: Short, p: RtProcess, msgs: Set[Message]) {
     lock.lock
     try {
       grp = g

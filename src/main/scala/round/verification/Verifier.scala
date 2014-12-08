@@ -11,11 +11,11 @@ import dzufferey.utils.LogLevel._
 
 import dzufferey.report._
 
-class Verifier[IO](val alg: Algorithm[IO], dummyIO: IO) {
+class Verifier[IO](val alg: Algorithm[IO]) {
 
   val spec = alg.spec 
 
-  val process = alg.process(new ProcessID(0), dummyIO)
+  val process = alg.process
   val procLocalVars: Set[Variable] = process.localVariables.toSet
   val procGhostVars: Set[Variable] = process.ghostVariables.toSet
   val procAllVars = procLocalVars ++ procGhostVars ++ process.globalVariables

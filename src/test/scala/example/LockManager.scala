@@ -37,7 +37,7 @@ class LockManager(self: Short,
 
   private val consensus = {
     if (Main.lv)
-      new RunTime(new LastVoting)
+      new RunTime(new LastVoting2)
     else
       new RunTime(new OTR2)
   }

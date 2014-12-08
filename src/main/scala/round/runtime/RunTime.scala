@@ -27,9 +27,9 @@ class RunTime[IO](val alg: Algorithm[IO]) {
       case Some(s) =>
         //an instance is actually encapsulated by one process
         val grp = s.directory.group
-        val process = alg.process(grp.self, io)
+        val process = alg.process
         process.setGroup(grp)
-        process.postInit
+        process.init(io)
         val predicate = predicatePool.get
         val messages2 = messages.filter( m => {
           if (!Flags.userDefinable(m.flag) && m.flag != Flags.dummy) {

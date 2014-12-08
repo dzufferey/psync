@@ -18,6 +18,8 @@ class LastVoting3 extends Algorithm[ConsensusIO] {
   val vote = new LocalVariable[Int](0)
   val decision = new LocalVariable[Int](-1) //TODO as ghost
   val decided = new LocalVariable[Boolean](false)
+  //
+  val callback = new LocalVariable[ConsensusIO](null)
 
   //FIXME once the macro issue is sorted out ...
   //rotating coordinator
@@ -74,13 +76,16 @@ class LastVoting3 extends Algorithm[ConsensusIO] {
       )
   }
   
-  def process(id: ProcessID, io: ConsensusIO) = p(new Process(id) {
+  def process = p(new Process[ConsensusIO]{
       
-    x <~ io.initialValue
-    ts <~ -1
-    decided <~ false 
-    ready <~ false
-    commit <~ false
+    def init(io: ConsensusIO) {
+      callback <~ io
+      x <~ io.initialValue
+      ts <~ -1
+      decided <~ false 
+      ready <~ false
+      commit <~ false
+    }
 
     val rounds = Array[Round](
       rnd(new Round{
@@ -186,7 +191,7 @@ class LastVoting3 extends Algorithm[ConsensusIO] {
           if (mb2.size > 0) {
             val v = mb2.head._1
             if (!decided) {
-              io.decide(v)
+              callback.decide(v)
               decision <~ v
               decided <~ true
             }

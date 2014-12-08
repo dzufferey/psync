@@ -75,9 +75,11 @@ trait FormulaExtractor {
           val str = t.toString
           if (str == "round.ProcessID") round.verification.Utils.procType
           else UnInterpreted(str)
+        case SingleType(_, _) =>
+          Wildcard
         case other =>
           //TODO
-          //println("extractType:\n  " + other + "\n  " + showRaw(other))
+          println("TODO extractType:\n  " + other + "\n  " + showRaw(other))
           Wildcard
       }
     }
@@ -86,21 +88,26 @@ trait FormulaExtractor {
   // what about type alias ?
   
   //TODO
-  def extractType(t: Tree): round.formula.Type = t match {
-    case TypeTree() => extractType(t.tpe)
-    case Ident(TypeName("Int"))
-       | Ident(TypeName("Long"))
-       | Ident(TypeName("Short")) => Int
-    case Ident(TypeName("Boolean")) => Bool
-    case AppliedTypeTree(Ident(TypeName("Option")), List(tpe)) => FOption(extractType(tpe))
-    case AppliedTypeTree(Ident(TypeName("Set")), List(tpe)) => FSet(extractType(tpe))
-    case Ident(TypeName("ProcessID")) => round.verification.Utils.procType
-    case Select(Ident(pkg), TypeName(tn)) => UnInterpreted(pkg.toString + "." + tn)
-    case Ident(TypeName(tn)) => UnInterpreted(tn)
-    case _ =>
-      c.warning(t.pos, "TODO extractType from tree: " + showRaw(t) + " currently Wildcard")
-      Wildcard
-  }
+  def extractType(t: Tree): round.formula.Type =
+    extractType(t.tpe) match {
+      case Wildcard =>
+        t match {
+          case TypeTree() => extractType(t.tpe)
+          case Ident(TypeName("Int"))
+             | Ident(TypeName("Long"))
+             | Ident(TypeName("Short")) => Int
+          case Ident(TypeName("Boolean")) => Bool
+          case AppliedTypeTree(Ident(TypeName("Option")), List(tpe)) => FOption(extractType(tpe))
+          case AppliedTypeTree(Ident(TypeName("Set")), List(tpe)) => FSet(extractType(tpe))
+          case Ident(TypeName("ProcessID")) => round.verification.Utils.procType
+          case Select(Ident(pkg), TypeName(tn)) => UnInterpreted(pkg.toString + "." + tn)
+          case Ident(TypeName(tn)) => UnInterpreted(tn)
+          case _ =>
+            c.warning(t.pos, "TODO extractType from tree: " + showRaw(t) + " currently Wildcard")
+            Wildcard
+        }
+      case other => other
+    }
   
   def extractTypeVar(t: Tree): round.formula.TypeVariable = extractType(t) match{
     case tv @ TypeVariable(_) => tv

@@ -26,7 +26,7 @@ abstract class Algorithm[IO] extends Variables[IO]
   //specification of the consensus
   val spec: Spec
 
-  def process(id: ProcessID, io: IO): Process
+  def process: Process[IO]
 
 
   //////////////////

@@ -45,7 +45,7 @@ trait ProcessRewrite {
   private val defaultMethods = List(
     q"protected def incrementRound: Unit = { r = (r + 1); _r = r % rounds.length }",
     q"protected def currentRound: Round = { rounds(_r) }",
-    q"def setGroup(g: round.runtime.Group): Unit = { rounds.foreach(_.setGroup(g)); n = g.size }"
+    q"def setGroup(g: round.runtime.Group): Unit = { id = g.self; rounds.foreach(_.setGroup(g)); n = g.size }"
   )
 
 
@@ -87,23 +87,21 @@ trait ProcessRewrite {
     }
   }
 
-  //TODO also the initial value of the variables in case they are not initialized
-  def collectInit(vs: List[MyVarDef], ts: List[Tree]): Formula = {
-    ts.foldLeft(True(): Formula)( (acc, t) => t match {
-      case a @ Apply(Select(_, TermName("$less$tilde")), List(_)) =>
+  def getInitState(ts: List[Tree]): Formula = {
+    findMethod(ts, "init") match {
+      case Some(ddef) =>
         try {
-          And(acc, makeConstraints(a))
+          //TODO capturing args
+          makeConstraints(ddef.rhs)
         } catch {
           case e: Exception =>
-            c.warning(t.pos, "error while extracting the initial state ("+a+"), leaving it unconstrained.\n" + e)
-            acc
+            c.warning(ddef.pos, "error while extracting the initial state, leaving it unconstrained.\n" + e)
+            True()
         }
-      case Assign(_, _) | Apply(_, _) =>
-        c.echo(t.pos, "not generating formula for " + t)
-        acc
-      case _ =>
-        acc
-    })
+      case None =>
+        c.warning(ts.head.pos, "did not find 'init' method, leav the initial state unconstrained.")
+        True()
+    }
   }
 
   def globalList(decls: List[MyVarDef]) = {
@@ -141,7 +139,7 @@ trait ProcessRewrite {
       })
       val transformer = new InsideProcess(idMap)
       //
-      val _f = collectInit(vars, body)
+      val _f = getInitState(body)
       val f = Typer(_f) match {
         case Typer.TypingSuccess(f) =>
           f

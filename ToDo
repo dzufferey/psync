@@ -28,6 +28,7 @@
     * improve the timeout 
       - try without the hased wheel timer (we won't get that many timeout anyway ...)
     * system is IO bound
+      - more than one socket ?
       - can we batch/multiplex packets
       - improve memory reuse/locality
     * reduce memory footprint

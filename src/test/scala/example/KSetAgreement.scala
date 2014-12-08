@@ -12,6 +12,8 @@ class KSetAgreement(k: Int) extends Algorithm[ConsensusIO] {
   val t = new LocalVariable[Map[ProcessID,Int]](Map.empty[ProcessID,Int])
   val decision = new LocalVariable[Int](-1) //TODO as ghost
   val decider = new LocalVariable[Boolean](false)
+  //
+  val callback = new LocalVariable[ConsensusIO](null)
 
   val spec = TrivialSpec
   //k-agreement: the set Y of decision values is such that Y ⊆ V₀ ∧ |Y| ≤ k
@@ -22,10 +24,14 @@ class KSetAgreement(k: Int) extends Algorithm[ConsensusIO] {
   // crash-fault, f < k
   // completely async (no termination requirement)
 
-  def process(_id: ProcessID, io: ConsensusIO) = p(new Process(_id) {
+  def process = p(new Process[ConsensusIO]{
 
-    decider <~ false
-    t <~ Map(_id -> io.initialValue) //TODO id makes the compiler crash! (value <none> not element of example.KSetAgreement)
+    def init(io: ConsensusIO) {
+      callback <~ io
+      decider <~ false
+      //FIXME: crash in explicit outer in the scala compiler!!
+      //t <~ Map(id -> io.initialValue)
+    }
 
     val rounds = Array[Round](
       rnd(new Round{
@@ -45,7 +51,7 @@ class KSetAgreement(k: Int) extends Algorithm[ConsensusIO] {
         def update(mailbox: Set[((Boolean, Map[ProcessID,Int]), ProcessID)]) {
           val content = mailbox.map(_._1)
           if (decider) {
-            io.decide(pick(t))
+            callback.decide(pick(t))
             terminate()
           } else if (content.exists(_._1)) {
             decider <~ true
