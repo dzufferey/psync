@@ -296,7 +296,7 @@ case object FSome extends InterpretedFct("Some") {
 case object FNone extends InterpretedFct("None") {
   private val fv = Type.freshTypeVar
   override val typeParams = List(fv)
-  val typeWithParams = FOption(fv)
+  val typeWithParams = Function(Nil, FOption(fv))
   override val fix = Fix.Prefix
   override val priority = 20
 }

@@ -211,8 +211,10 @@ object Typer {
             val unwrappedArgs = args2.map(_.get)
             val argsTypes = unwrappedArgs.map(_.tpe)
             val (returnT, cstr) = processSym(fct, argsTypes)
+            val cstrs = if (a.tpe == Wildcard) cstr :: argsCstr
+                        else SingleCstr(returnT, a.tpe) :: cstr :: argsCstr
             val a2 = Application(fct, unwrappedArgs) setType returnT
-            (TypingSuccess(a2), ConjCstr(cstr :: argsCstr).normalize)
+            (TypingSuccess(a2), ConjCstr(cstrs).normalize)
         }
       
       case Binding(b, vars, expr) =>

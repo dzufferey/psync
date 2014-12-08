@@ -38,13 +38,17 @@ object Printer {
     case Literal(l) => writer.write(l.toString)
     case app @ Application(fct, args) => 
       val params = FormulaUtils.typeParams(app)
-      writer.write("(")
-      writer.write(printable(overloadedSymbol(fct, params)))
-      for (a <- args) {
-        writer.write(" ")
-        printFormula(a)
+      if (!args.isEmpty) {
+        writer.write("(")
+        writer.write(printable(overloadedSymbol(fct, params)))
+        for (a <- args) {
+          writer.write(" ")
+          printFormula(a)
+        }
+        writer.write(")")
+      } else {
+        writer.write(printable(overloadedSymbol(fct, params)))
       }
-      writer.write(")")
   }
 
   def apply(implicit writer: BufferedWriter, f: Formula) {

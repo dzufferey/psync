@@ -8,6 +8,7 @@ import dzufferey.utils.LogLevel._
 object OptionAxioms {
 
   private def mkAxioms(t: Type): List[Formula] = {
+    //println("mkAxioms with " + t)
     val x = Variable("x").setType(t)
     val y = Variable("y").setType(FOption(t))
     val none = FNone.application(Nil).setType(FOption(t))

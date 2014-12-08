@@ -31,6 +31,13 @@ class CLSuite extends FunSuite {
     assert(!solver.testB(f1), "unsat formula")
   }
 
+  def assertSat(conjuncts: List[Formula]) {
+    val f0 = conjuncts.reduce( And(_, _) )
+    val f1 = CL.reduce(f0)
+    val solver = Solver(UFLIA)
+    assert( solver.testB(f1), "sat formula")
+  }
+
   test("universe cardinality ⇒ ∀") {
     val fs = List(
       Eq(a, Comprehension(List(i), Eq(data(i), Literal(1)))),
@@ -53,6 +60,13 @@ class CLSuite extends FunSuite {
   test("n = 0") {
     val fs = List(
       Eq(n, Literal(0))
+    )
+    assertUnsat(fs)
+  }
+
+  test("options") {
+    val fs = List(
+      IsDefined(FNone.application(Nil).setType(FOption(Int)))
     )
     assertUnsat(fs)
   }
