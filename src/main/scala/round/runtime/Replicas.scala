@@ -6,10 +6,12 @@ import dzufferey.utils.LogLevel._
 
 import java.net.InetSocketAddress
 
-case class Replica(id: ProcessID, address: String, port: Int) {
+case class Replica(id: ProcessID, address: String, ports: Set[Int]) {
+  assert(!ports.isEmpty, "replica cannot have an empty list of ports")
 
-  lazy val netAddress = new InetSocketAddress(address, port)
-  def getNetAddress = netAddress
+  lazy val netAddresses = ports.toArray.map( p => new InetSocketAddress(address, p) )
+  def netAddress: InetSocketAddress = netAddresses(0)
+  def netAddress(i: Int): InetSocketAddress = netAddresses(i.abs % netAddresses.size)
 
 }
 
@@ -22,27 +24,34 @@ class Group(val self: ProcessID, val replicas: Array[Replica]) {
     i >= 0 && i < replicas.length && replicas(i) != null
   }
 
-  def getSafe(address: InetSocketAddress): Option[Replica] = {
-    try Some(get(address))
-    catch { case _: Exception => None }
+  def get(address: InetSocketAddress): Replica = {
+    try getSafe(address).get
+    catch {
+      case e: Exception =>
+        Logger("Replica", Warning, "could not find replica " + address.getAddress.getHostAddress + ":" + address.getPort)
+        throw e
+    }
   }
   
   def get(pid: ProcessID): Replica = replicas(pid.id)
 
-  def get(address: InetSocketAddress): Replica = {
+  //TODO a map ?
+  def getSafe(address: InetSocketAddress): Option[Replica] = {
     val ip = address.getAddress.getHostAddress
     val port = address.getPort
-    try {
-      replicas.find( r => r.address == ip && r.port == port).get
-    } catch {
-      case e: Exception =>
-        Logger("Replica", Warning, "could not find replica " + ip + ":" + port)
-        throw e
-    }
+    replicas.find( r => r != null && r.address == ip && r.ports(port) )
   }
 
-  def idToInet(pid: ProcessID): InetSocketAddress = {
-    replicas(pid.id).getNetAddress
+  def idToInet(pid: ProcessID) = {
+    replicas(pid.id).netAddress
+  }
+  
+  def idToInet(pid: ProcessID, i: Int) = {
+    replicas(pid.id).netAddress(i)
+  }
+
+  def idToInets(pid: ProcessID) = {
+    replicas(pid.id).netAddresses
   }
 
   def inetToId(address: InetSocketAddress): ProcessID = get(address).id
@@ -58,7 +67,7 @@ class Group(val self: ProcessID, val replicas: Array[Replica]) {
 
   def add(r: Replica) = {
     assert( r.id != self &&
-            replicas.forall( r2 => r2.id != r.id && (r2.address != r.address || r2.port != r.port))
+            replicas.forall( r2 => r2.id != r.id && (r2.address != r.address || r2.ports != r.ports))
           )
     val maxIdx = math.max(r.id.id, replicas.filter(_ != null).map(_.id.id).max)
     val a2 = Array.ofDim[Replica](maxIdx+1)
@@ -103,7 +112,7 @@ object Group {
     val sorted = lst.sortWith( (a, b) => a.id.id < b.id.id ).zipWithIndex
     val idMap = sorted.foldLeft(Map.empty[ProcessID,ProcessID])( (acc, p) => acc + (p._1.id -> new ProcessID(p._2.toShort)))
     val renamed = sorted.map{ case (r, id) =>
-        if (r.id.id != id.toShort) Replica(idMap(r.id), r.address, r.port) else r }
+        if (r.id.id != id.toShort) Replica(idMap(r.id), r.address, r.ports) else r }
     (renamed, idMap)
   }
 
@@ -128,43 +137,39 @@ class Directory(private var g: Group) {
     }
   }
 
-  def self = sync( g.self )
+  def self = g.self
   
-  def others = sync( g.others )
+  def others = g.others
 
   def group = g
 
-  def group_=(grp: Group) = sync{
-    g = grp
-  }
+  def group_=(grp: Group) = sync{ g = grp }
   
-  def contains(pid: ProcessID) = sync(g.contains(pid))
+  def contains(pid: ProcessID) = g.contains(pid)
 
-  def getSafe(address: InetSocketAddress) = sync(g.getSafe(address))
+  def getSafe(address: InetSocketAddress) = g.getSafe(address)
 
-  def get(id: ProcessID) = sync(g.get(id))
+  def get(id: ProcessID) = g.get(id)
 
-  def get(address: InetSocketAddress) = sync(g.get(address))
+  def get(address: InetSocketAddress) = g.get(address)
 
-  def idToInet(processId: ProcessID) = sync(g.idToInet(processId))
-
-  def inetToId(address: InetSocketAddress) = sync(g.inetToId(address))
-
-  def addReplica(r: Replica) = sync{
-    g = g.add(r)
-  }
-
-  def removeReplica(id: ProcessID) = sync{
-    g = g.remove(id)
-  }
-
-  def compact = sync{
-    g = g.compact
-  }
+  def idToInet(processId: ProcessID) = g.idToInet(processId)
   
-  def firstAvailID = sync( g.firstAvailID )
+  def idToInet(processId: ProcessID, i: Int) = g.idToInet(processId, i)
+
+  def idToInets(processId: ProcessID) = g.idToInets(processId)
+
+  def inetToId(address: InetSocketAddress) = g.inetToId(address)
+
+  def addReplica(r: Replica) = sync{ g = g.add(r) }
+
+  def removeReplica(id: ProcessID) = sync{ g = g.remove(id) }
+
+  def compact = sync{ g = g.compact }
   
-  def asList = sync( g.asList )
+  def firstAvailID = g.firstAvailID
+  
+  def asList = g.asList
 
   override def toString = g.toString
 

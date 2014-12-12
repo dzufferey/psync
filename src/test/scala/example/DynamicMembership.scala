@@ -187,7 +187,7 @@ object DynamicMembership extends round.utils.DefaultOptions with DecisionLog[Mem
             //the new replica gets a new ID
             val newId = view.firstAvailID //this is a deterministic operation
             lastHearOf(newId.id) = java.lang.System.currentTimeMillis()
-            view.addReplica(Replica(newId, address, port))
+            view.addReplica(Replica(newId, address, Set(port)))
             viewNbr += 1
             sendRecoveryInfo(newId)
             Logger("DynamicMembership", Info, "current view (#"+viewNbr+"):" + view)
@@ -397,12 +397,12 @@ object DynamicMembership extends round.utils.DefaultOptions with DecisionLog[Mem
     val isMaster = masterPort.isEmpty && masterAddress.isEmpty
     assert(isMaster || (masterPort.isDefined && masterAddress.isDefined))
     val id = if (isMaster) new ProcessID(0) else new ProcessID(-1)
-    val self = Replica(id, address, port)
+    val self = Replica(id, address, Set(port))
     val peers =
       if (isMaster) {
         List(self)
       } else {
-        List(Replica(new ProcessID(0), masterAddress.get, masterPort.get))
+        List(Replica(new ProcessID(0), masterAddress.get, Set(masterPort.get)))
       }
     rt.startService(defaultHandler(_), peers, Map("id" -> id.id.toString, "port" -> port.toString))
     view = rt.directory

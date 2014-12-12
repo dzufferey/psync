@@ -11,9 +11,9 @@
     <param> <name>workers</name> <value>1x</value> </param>
   </parameters>
   <peers>
-    <replica> <id>0</id> <address>127.0.0.1</address> <port>4444</port> </replica>
-    <replica> <id>1</id> <address>127.0.0.1</address> <port>4445</port> </replica>
-    <replica> <id>2</id> <address>127.0.0.1</address> <port>4446</port> </replica>
-    <replica> <id>3</id> <address>127.0.0.1</address> <port>4447</port> </replica>
+    <replica> <id>0</id> <address>127.0.0.1</address> <port>4444</port> <!--port>4448</port--> </replica>
+    <replica> <id>1</id> <address>127.0.0.1</address> <port>4445</port> <!--port>4449</port--> </replica>
+    <replica> <id>2</id> <address>127.0.0.1</address> <port>4446</port> <!--port>4450</port--> </replica>
+    <replica> <id>3</id> <address>127.0.0.1</address> <port>4447</port> <!--port>4451</port--> </replica>
   </peers>
 </configuration>

@@ -213,7 +213,7 @@ abstract class Predicate(
     val src = grp.idToInet(grp.self)
     val tag = Tag(instance, currentRound)
     val pkts = msgs.map{ case (dst,buf) =>
-      val dst2 = grp.idToInet(dst)
+      val dst2 = grp.idToInet(dst, instance)
       buf.setLong(0, tag.underlying)
       new DatagramPacket(buf, dst2, src)
     }

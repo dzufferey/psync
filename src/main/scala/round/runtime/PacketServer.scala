@@ -10,11 +10,12 @@ import io.netty.channel.socket._
 import io.netty.channel.nio._
 import io.netty.channel.socket.nio._
 import io.netty.channel.epoll._
+import io.netty.channel.ChannelHandler.Sharable
 import io.netty.bootstrap.Bootstrap
 import java.net.InetSocketAddress
 
 class PacketServer(
-    port: Int,
+    ports: Iterable[Int],
     initGroup: Group,
     defaultHandler: Message => Unit, //defaultHandler is responsible for releasing the ByteBuf payload
     options: Map[String, String] = Map.empty)
@@ -70,8 +71,8 @@ class PacketServer(
     executor.submit(task)
   }
 
-  private var chan: Channel = null
-  def channel: Channel = chan
+  private var chans: Array[Channel] = null
+  def channels: Array[Channel] = chans
 
   val dispatcher = new InstanceDispatcher(executor, defaultHandler, directory)
 
@@ -81,30 +82,29 @@ class PacketServer(
       group.shutdownGracefully
       executor.shutdownNow
     } finally {
-      if (chan != null) {
-        chan.close
-        chan = null
+      for ( i <- chans.indices) {
+        if (chans(i) != null) {
+          chans(i).close
+          chans(i) = null
+        }
       }
     }
   }
 
   def start {
-    try {
-      val b = new Bootstrap();
-      b.group(group)
-        .channel(if (epoll) classOf[EpollDatagramChannel]
-                 else classOf[NioDatagramChannel])
-        .handler(new PackerServerHandler(dispatcher))
+    val b = new Bootstrap()
+    b.group(group)
+      .channel(if (epoll) classOf[EpollDatagramChannel]
+               else classOf[NioDatagramChannel])
+      .handler(new PackerServerHandler(dispatcher))
 
-      chan = b.bind(port).sync().channel()
-      //chan.closeFuture().await() //closeFuture is a notification when the channel is closed
-    } finally {
-      //close
-    }
+    val ps = ports.toArray
+    chans = ps.map( p => b.bind(p).sync().channel() )
   }
 
 }
 
+@Sharable
 class PackerServerHandler(
     dispatcher: InstanceDispatcher
   ) extends SimpleChannelInboundHandler[DatagramPacket](false) {

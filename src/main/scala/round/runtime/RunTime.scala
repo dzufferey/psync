@@ -73,15 +73,15 @@ class RunTime[IO](val alg: Algorithm[IO]) {
     val grp = Group(me, peers)
 
     //start the server
-    val port = 
-      if (grp contains me) grp.get(me).port
-      else options("port").toInt
-    Logger("RunTime", Info, "starting service on port " + port)
-    val pktSrv = new PacketServer(port, grp, defaultHandler, options)
+    val ports = 
+      if (grp contains me) grp.get(me).ports
+      else Set(options("port").toInt)
+    Logger("RunTime", Info, "starting service on ports: " + ports.mkString(", "))
+    val pktSrv = new PacketServer(ports, grp, defaultHandler, options)
     srv = Some(pktSrv)
     pktSrv.start
     
-    predicatePool = new PredicatePool(pktSrv.channel, pktSrv.dispatcher, options)
+    predicatePool = new PredicatePool(pktSrv.channels, pktSrv.dispatcher, options)
   }
 
   def startService(
@@ -119,7 +119,7 @@ class RunTime[IO](val alg: Algorithm[IO]) {
     assert(Flags.userDefinable(tag.flag) || tag.flag == Flags.dummy) //TODO in the long term, we might want to remove the dummy
     assert(srv.isDefined)
     val grp = srv.get.directory
-    val dst = grp.idToInet(dest)
+    val dst = grp.idToInet(dest, tag.instanceNbr)
     payload.setLong(0, tag.underlying)
     val pkt =
       if (grp.contains(grp.self)) {
@@ -128,7 +128,7 @@ class RunTime[IO](val alg: Algorithm[IO]) {
       } else {
         new DatagramPacket(payload, dst)
       }
-    val channel = srv.get.channel
+    val channel = srv.get.channels(0)
     channel.write(pkt, channel.voidPromise())
     channel.flush
   }
