@@ -10,6 +10,8 @@ import io.netty.channel.socket._
 import io.netty.channel.nio._
 import io.netty.channel.socket.nio._
 import io.netty.channel.epoll._
+import io.netty.channel.oio._
+import io.netty.channel.socket.oio._
 import io.netty.channel.ChannelHandler.Sharable
 import io.netty.bootstrap.Bootstrap
 import java.net.InetSocketAddress
@@ -23,17 +25,10 @@ class PacketServer(
 
   val directory = new Directory(initGroup)
 
-  val epoll = {
-    val g = options.getOrElse("group", "nio").toLowerCase
-    if (g == "epoll") {
-      true
-    } else if (g == "nio") {
-      false
-    } else {
-      Logger("PacketServer", Warning, "event group is unknown, using nio instead")
-      false
-    }
-  }
+  private val groupKind = options.getOrElse("group", "nio").toLowerCase
+  private def epoll = groupKind == "epoll"
+  private def nio = groupKind == "nio"
+  private def oio = groupKind == "oio"
     
   if (options.getOrElse("transport layer", "udp").toLowerCase != "udp") {
      Logger("PacketServer", Warning, "transport layer: only UDP supported for the moment")
@@ -63,9 +58,15 @@ class PacketServer(
     }
   }
 
-  private val group: EventLoopGroup =
+  private val group: EventLoopGroup = {
     if (epoll) new EpollEventLoopGroup()
-    else new NioEventLoopGroup()
+    else if (nio) new NioEventLoopGroup()
+    else if (oio) new OioEventLoopGroup()
+    else {
+      Logger("PacketServer", Warning, "event group is unknown, using nio instead")
+      new NioEventLoopGroup()
+    }
+  }
 
   def submitTask[T](task: java.util.concurrent.Callable[T]) = {
     executor.submit(task)
@@ -94,9 +95,10 @@ class PacketServer(
   def start {
     val b = new Bootstrap()
     b.group(group)
-      .channel(if (epoll) classOf[EpollDatagramChannel]
-               else classOf[NioDatagramChannel])
-      .handler(new PackerServerHandler(dispatcher))
+    if (epoll) b.channel(classOf[EpollDatagramChannel])
+    else if (oio) b.channel(classOf[OioDatagramChannel])
+    else b.channel(classOf[NioDatagramChannel])
+    b.handler(new PackerServerHandler(dispatcher))
 
     val ps = ports.toArray
     chans = ps.map( p => b.bind(p).sync().channel() )
