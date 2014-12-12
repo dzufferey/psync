@@ -39,7 +39,10 @@ abstract class Predicate(
 
   def reset {
     grp = null
-    proc = null
+    if (proc != null) {
+      proc.reset
+      proc = null
+    }
     clear
   }
 

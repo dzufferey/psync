@@ -21,7 +21,7 @@ class PredicatePool(channels: Array[Channel],
     try {
       options.getOrElse("predicatePool", defaultSize.toString).toInt
     } catch { case e: Exception =>
-      Logger("PredicatePool", Warning, "maxSize: wrong format, using " + defaultSize)
+      Logger("PredicatePool", Warning, "predicatePool: wrong format, using " + defaultSize)
       defaultSize
     }
   }

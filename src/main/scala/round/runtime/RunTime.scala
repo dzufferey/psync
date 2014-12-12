@@ -6,6 +6,7 @@ import io.netty.buffer.ByteBuf
 import io.netty.channel.socket._
 import dzufferey.utils.LogLevel._
 import dzufferey.utils.Logger
+import java.util.concurrent.ArrayBlockingQueue
 
 
 class RunTime[IO](val alg: Algorithm[IO]) {
@@ -15,6 +16,32 @@ class RunTime[IO](val alg: Algorithm[IO]) {
   private var options = Map.empty[String, String]
 
   private var predicatePool: PredicatePool = null
+
+  final val defaultSize = 32
+  private val maxSize = {
+    try {
+      options.getOrElse("processPool", defaultSize.toString).toInt
+    } catch { case e: Exception =>
+      Logger("RunTime", Warning, "processPool: wrong format, using " + defaultSize)
+      defaultSize
+    }
+  }
+  private val processPool = new ArrayBlockingQueue[Process[IO]](maxSize)
+
+  private def getProcess: Process[IO] = {
+    val proc = processPool.poll
+    if (proc == null) {
+      val p = alg.process
+      p.setRT(this)
+      p
+    } else {
+      proc
+    }
+  }
+
+  def recycle(p: Process[IO]) {
+    processPool.offer(p)
+  }
 
   /** Start an instance of the algorithm. */
   def startInstance(
@@ -27,7 +54,7 @@ class RunTime[IO](val alg: Algorithm[IO]) {
       case Some(s) =>
         //an instance is actually encapsulated by one process
         val grp = s.directory.group
-        val process = alg.process
+        val process = getProcess
         process.setGroup(grp)
         process.init(io)
         val predicate = predicatePool.get
