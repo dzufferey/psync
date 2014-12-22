@@ -1,12 +1,11 @@
 package example
 
 import round._
-import round.verification._
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 import dzufferey.arg._
 
-object ConsensusVerifier extends round.utils.DefaultOptions {
+object Verifier extends round.utils.DefaultOptions {
   
   var v = 1
   newOption("-n", Int( i => v = i), "1/2/3")
@@ -19,20 +18,17 @@ object ConsensusVerifier extends round.utils.DefaultOptions {
 
   newOption("-dumpVcs", Unit( () => round.utils.Options.dumpVcs = true), "dump the SMT queries into files")
 
-  val usage = "..."
+  val usage = "Give the name of the class to verify as argument"
 
   def main(args: Array[java.lang.String]) {
     Logger.moreVerbose
     apply(args)
 
-    val alg = v match {
-        case 1 => if (lv) new LastVoting() else new OTR()
-        case 2 => if (lv) new LastVoting2() else new OTR2()
-        case 3 => if (lv) new LastVoting3() else new OTR3()
-        case _ => sys.error("unknown version")
-      }
-
-    val verifer = new Verifier(alg)
+    val alg = input match {
+      case x :: _ => x
+      case Nil => "example." + (if (lv) "LastVoting" else "OTR") + (if (v == 1) "" else v)
+    }
+    val verifer = round.verification.Verifier(alg)
 
     Logger("ConsensusVerifier", Notice, "verifying ...")
     val report = verifer.check

@@ -17,7 +17,7 @@ scalacOptions in Compile ++= Seq(
 
 libraryDependencies ++=  Seq(
     "org.scala-lang" % "scala-reflect" % scalaVersion.value,
-    //"org.scala-lang" % "scala-actors" % scalaVersion.value
+    "org.scala-lang" % "scala-compiler" % scalaVersion.value,
     "org.scala-lang.modules" %% "scala-xml" % "1.0.2",
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.2",
     "org.scalatest" %% "scalatest" % "2.2.1" % "test",
@@ -27,8 +27,7 @@ libraryDependencies ++=  Seq(
     "io.netty" % "netty-all" % "4.0.24.Final",
     "io.github.dzufferey" %% "scala-arg" % "0.1-SNAPSHOT",
     "io.github.dzufferey" %% "report" % "0.1-SNAPSHOT",
-    "io.github.dzufferey" %% "misc-scala-utils" % "0.1-SNAPSHOT"//,
-//    "commons-io" % "commons-io" % "2.4"
+    "io.github.dzufferey" %% "misc-scala-utils" % "0.1-SNAPSHOT"
 )
 
 resolvers += Resolver.sonatypeRepo("snapshots")

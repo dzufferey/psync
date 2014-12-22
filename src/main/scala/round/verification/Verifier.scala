@@ -354,3 +354,17 @@ class Verifier[IO](val alg: Algorithm[IO]) {
   }
 
 }
+
+object Verifier {
+
+  def apply(className: String): Verifier[_] = {
+    val str = "new round.verification.Verifier(new " + className + ")"
+    import scala.reflect.runtime.universe._
+    import scala.tools.reflect.ToolBox
+    val tb = runtimeMirror(scala.reflect.runtime.universe.getClass.getClassLoader).mkToolBox()
+    val tree = tb.parse(str)
+    Logger("Verifier", Info, "executing: " + tree)
+    tb.compile(tree)().asInstanceOf[Verifier[_]]
+  }
+
+}
