@@ -35,7 +35,9 @@ class OTR extends Algorithm[IO] {
 
   def process(id: ProcessID, io: IO) = p(new Process(id) {
             
-    x <~ io.initialValue
+    def init(io: IO) {
+      x <~ io.initialValue
+    }
 
     val rounds = Array[Round](rnd(new Round{
 
@@ -54,6 +56,7 @@ class OTR extends Algorithm[IO] {
 
 )})})}
 ```
+Working examples are located in `src/test/scala/example`.
 
 
 ## Status
