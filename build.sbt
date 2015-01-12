@@ -19,7 +19,7 @@ libraryDependencies ++=  Seq(
     "org.scala-lang" % "scala-reflect" % scalaVersion.value,
     "org.scala-lang" % "scala-compiler" % scalaVersion.value,
     "org.scala-lang.modules" %% "scala-xml" % "1.0.2",
-    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.2",
+    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.3",
     "org.scalatest" %% "scalatest" % "2.2.1" % "test",
     "org.scalacheck" %% "scalacheck" % "1.11.6" % "test",
     //"org.scala-lang" %% "scala-pickling" % "0.10.0-SNAPSHOT",

@@ -117,6 +117,7 @@ object Model {
     def tryParseVal(f: Formula): Option[ValDef] = f match {
       case Literal(b: Boolean) => Some(ValB(b))
       case Literal(l: Long) => Some(ValI(l))
+      case Application(Minus, List(Literal(l: Long))) => Some(ValI(-l))
       case Variable(id) => values get id
       case _ => None
     }

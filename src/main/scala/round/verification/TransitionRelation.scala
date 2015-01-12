@@ -109,21 +109,25 @@ class RoundTransitionRelation(val send: Formula,
     }
   }
 
+  protected def captureId(currentScope: Variable, f: Formula) = {
+    val id = Variable("id").setType(procType)
+    FormulaUtils.alpha(Map(id -> currentScope), f)
+  }
+
   def makeFullTr(vars: Set[Variable], aux: Map[String, AuxiliaryMethod]): Formula = {
     assert(old forall ((vars + mailboxSend + mailboxUpdt) contains _))
     val localVars = vars ++ local ++ old ++ primed + mailboxSend + mailboxUpdt
     Logger("TransitionRelation", Debug, "makeFullTr, localize with" + localVars.mkString(", "))
     val i = procI
     //check it is not captured/ing
-    assert(!(send.freeVariables contains i), "capture is send")
-    assert(!(update.freeVariables contains i), "capture is update")
+    assert(!(send.freeVariables contains i), "capture in send")
+    assert(!(update.freeVariables contains i), "capture in update")
     val inliner = new InlinePost(aux, localVars, i)
     val sendLocal = inliner.transform(localize(localVars, i, send))
     val updateLocal = inliner.transform(localize(localVars, i, update))
-    val allParts = And(sendLocal, updateLocal)
-    And(ForAll(List(i), sendLocal),
-        And(mailboxLink,
-            ForAll(List(i), updateLocal) ))
+    val sendFinal = ForAll(List(i), captureId(i, sendLocal))
+    val updateFinal = ForAll(List(i), captureId(i, updateLocal))
+    And(sendFinal, And(mailboxLink, updateFinal))
   }
   
   lazy val primedSubst: Map[UnInterpretedFct, UnInterpretedFct] = {

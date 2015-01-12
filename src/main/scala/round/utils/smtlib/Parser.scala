@@ -72,7 +72,7 @@ object Parser extends StandardTokenParsers {
       "="  ^^^ Eq
     | "<"  ^^^ Lt
     | ">"  ^^^ Gt
-    | ">=" ^^^ Get
+    | ">=" ^^^ Geq
     | "<=" ^^^ Leq
     | "=>" ^^^ Implies
     | "+"  ^^^ Plus

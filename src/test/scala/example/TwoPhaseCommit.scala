@@ -23,18 +23,21 @@ class TwoPhaseCommit extends Algorithm[TpcIO] {
 
   def c(pid: Short) = new ProcessID(pid)
 
-  //TODO
+  Axiom("well-coordinated", f( P.exists( p => P.forall( q => (p: ProcessID) == c(coord(q))) )))
+
   val spec = new Spec {
     val livnessPredicate = List(
-      f(P.exists( p => P.forall( q => p == c(coord(q)) && HO(p).size == n && (HO(q) contains p) ) ))
+      f(P.exists( p => P.forall( q => (p: ProcessID) == c(coord(q)) && HO(p).size == n && (HO(q) contains p) ) ))
     )
     val invariants = List(
-      f( P.forall( p => P.forall( q => c(coord(p)) == c(coord(q)) )) )
+      f( P.forall( p => decision(p) == Some(true) ==> P.forall( q => vote(q) )) && 
+         P.forall( p => P.forall( q => (decision(p).isDefined && decision(q).isDefined) ==> (decision(p) == decision(q)) ))
+      )
     )
-    override val roundInvariants = List(
-      List(f(true)),
-      List(f( P.forall( p => p == c(coord(p)) && decision(p) == Some(true) ==> P.forall( q => vote(q) )) ))
-    )
+//  override val roundInvariants = List(
+//    List(f(true)),
+//    List(f(true))
+//  )
     val properties = List(
       "Uniform Agreement" -> f( P.forall( p => P.forall( q => (decision(p).isDefined && decision(q).isDefined) ==> (decision(p) == decision(q)) ))),
       //"Irrevocable" -> A site cannot reverse its decision after it has reached one. TODO need better handling of termination
@@ -74,13 +77,14 @@ class TwoPhaseCommit extends Algorithm[TpcIO] {
         }
 
         def update(mailbox: Set[(Boolean, ProcessID)]) {
-          if (id == c(coord) &&
-              mailbox.size == (n: Int) &&
-              mailbox.forall( _._1 ))
-          {
-            decision <~ Some(true)
-          } else {
-            decision <~ Some(false)
+          if (id == c(coord)) {
+            if( mailbox.size == (n: Int) &&
+                mailbox.forall( _._1 ))
+            {
+              decision <~ Some(true)
+            } else {
+              decision <~ Some(false)
+            }
           }
         }
       }),

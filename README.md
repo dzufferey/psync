@@ -67,6 +67,7 @@ Currently the runtime is fairly stable.
 However, we are still woking to improve the performance,
 
 The verfication part is in an early stages and currently only works on a small set of examples.
+Currently broken (while we move toward a more robust encoding of the mailbox w.r.t the cardinality constraints).
 
 
 ## Compiling
