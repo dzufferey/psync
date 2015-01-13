@@ -81,10 +81,10 @@ Then, in a console, execute:
 $ sbt
 > compile
 > test:compile
-> package
-> test:package
 ```
-Packaging is needed to use the scripts in the `test_scripts` folders.
+After the first compilation you should execute `test_scripts/generateClassPath.sh`.
+If the dependencies changes you may need to re-generate the class path.
+Now you are ready to use te scripts in the `test_scripts` folders.
 
 
 ## Running the LockManager example

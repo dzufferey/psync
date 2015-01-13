@@ -1,2 +1,4 @@
 target/
+test_scripts/deps
 *.html
+*.smt2
