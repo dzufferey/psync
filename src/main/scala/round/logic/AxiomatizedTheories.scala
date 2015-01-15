@@ -20,7 +20,7 @@ object OptionAxioms {
       //IsDefined
       ForAll(List(x,y), Implies(Eq(FSome(x).setType(FOption(t)),y), IsDefined(y))),
       //IsEmpty
-      IsEmpty(none)
+      Not(IsDefined(none))  //IsEmpty(none)
       //def xor defined, implied as IsEmpty is replaced by ¬IsDefined
       //ForAll(List(y), Or(And(IsDefined(y), Not(IsEmpty(y))), And(Not(IsDefined(y)), IsEmpty(y))))
     )

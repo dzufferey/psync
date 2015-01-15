@@ -25,14 +25,16 @@ class CLSuite extends FunSuite {
   val ho = CL.HO
 
   def assertUnsat(conjuncts: List[Formula]) {
-    val f0 = conjuncts.reduce( And(_, _) )
+    val c0 = conjuncts.map(Simplify.simplify)
+    val f0 = c0.reduce( And(_, _) )
     val f1 = CL.reduce(f0)
     val solver = Solver(UFLIA)
     assert(!solver.testB(f1), "unsat formula")
   }
 
   def assertSat(conjuncts: List[Formula]) {
-    val f0 = conjuncts.reduce( And(_, _) )
+    val c0 = conjuncts.map(Simplify.simplify)
+    val f0 = c0.reduce( And(_, _) )
     val f1 = CL.reduce(f0)
     val solver = Solver(UFLIA)
     assert( solver.testB(f1), "sat formula")
