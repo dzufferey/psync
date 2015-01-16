@@ -41,10 +41,10 @@ class PerfTest2(id: Int,
     if (additionalOptions contains "after") {
       val after = additionalOptions("after").toInt
       if (lv) new LastVoting2(after)
-      else new OTR2(after)
+      else new OTR(after)
     } else {
       if (lv) new LastVoting2()
-      else new OTR2()
+      else new OTR()
     }
   }
   val rt = new RunTime(alg)
@@ -265,7 +265,7 @@ class PerfTest2(id: Int,
         val initialValue = v
         //TODO we should reduce the amount of work done here: pass it to another thread and let the algorithm thread continue.
         def decide(value: Int) {
-          //Logger("PerfTest", Info, instanceNbr + " normal decision")
+          //Logger("PerfTest", Notice, "(" + id + ") normal decision: instanceNbr " +  instanceNbr + ", value: " + value)
           val first = processDecision(instanceNbr, value)
           if (first) {
             rt.submitTask( () => checkPending(idx) )
@@ -275,9 +275,9 @@ class PerfTest2(id: Int,
       if (self) {
         selfStarted add instanceNbr
       }
-      //Logger("PerfTest", Info, "(" + id + ") starting instance " + instanceNbr + " with " + idx + ", " + value + ", self " + self)
+      //Logger("PerfTest", Notice, "(" + id + ") starting instance " + instanceNbr + " with " + idx + ", " + value + ", " + v + ", self " + self)
       rt.startInstance(instanceNbr, io, msg)
-      wakeupOthers(instanceNbr, v)
+      if (self) wakeupOthers(instanceNbr, v)
 
     } else {
       //Logger("PerfTest", Debug, "backing off " + idx)

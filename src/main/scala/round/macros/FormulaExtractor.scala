@@ -373,6 +373,7 @@ trait FormulaExtractor {
         Variable(n).setType(extractType(fld.tpe))
 
       case q"$expr.$member" =>
+        //println("e = " + showRaw(e))
         val fct: round.formula.Symbol = UnInterpretedFct(member.toString) //TODO type
         val args = List(tree2Formula(expr))
         Application(fct, args)
@@ -450,10 +451,14 @@ trait FormulaExtractor {
       case ValDef(mods, name, tpe, rhs) =>
         makeConstraints1(rhs, Some(Ident(name)), globalRet)
      
+      case Literal(Constant(())) | EmptyTree =>
+        True()
+      
       case term: TermTree => 
         if (currRet.isDefined) {
           makeConstraints1(Assign(currRet.get, term))
         } else {
+          c.echo(term.pos, "makeConstraints ignoring (make sure it is not important for the verification)")
           //Eq(tree2Formula(term), UnitLit())
           //tree2Formula(term)
           True()
@@ -463,6 +468,7 @@ trait FormulaExtractor {
         if (currRet.isDefined) {
           makeConstraints1(Assign(currRet.get, term))
         } else {
+          c.echo(term.pos, "makeConstraints ignoring (make sure it is not important for the verification)")
           //Eq(tree2Formula(term), UnitLit())
           //tree2Formula(term)
           True()

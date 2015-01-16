@@ -1,7 +1,7 @@
 #!/bin/bash
 source `dirname $0`/deps
 
-t=60
+t=20
 
 echo running 4 replicas for $t seconds
  java -cp ${cp} example.PerfTest2 -id 0 $* &

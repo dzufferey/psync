@@ -17,8 +17,6 @@ class Tag(val underlying: Long) extends AnyVal {
   // | flag | code | instance | round |
   //   1B      1B    2B         4B
 
-  def size = 8
-
   def instanceNbr: Short = {
     ((underlying >> 32) & 0xffffl).toShort
   }
@@ -64,6 +62,8 @@ class Tag(val underlying: Long) extends AnyVal {
 }
 
 object Tag {
+
+  final val size = 8
 
   def apply(instance: Short, round: Int) = {
     new Tag(0).setInstanceNbr(instance).setRoundNbr(round)

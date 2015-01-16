@@ -7,7 +7,7 @@
 - split the sources into multiple parts/sub-projects
   * cleaner separation between the runtime and the declarations
   * so we can use macros for the testing and debugging in the main project
-- find a way to get a generic consensus algorithm:
+- find a way to get generic algorithms:
   currently we have problem with anonym class (new Process ...)
   "Parameter type in structural refinement may not refer to an abstract type defined outside that refinement"
   need to either find a way of processing Process differently or encapsulate instance variables differently
@@ -22,8 +22,7 @@
 - change the (de)serialization:
     * pickling only, once it is more stable
 - accessing members of outer class inside an inner class
-    * check if fixed in 2.11.4 (with the right untypcheck) or report macro bug about it
-- allow `print(ln)` in the update method.
+    * check if fixed in 2.11.5 (with the right untypcheck) or report macro bug about it
 - faster runtime 
     * improve the timeout 
       - try without the hased wheel timer (we won't get that many timeout anyway ...)

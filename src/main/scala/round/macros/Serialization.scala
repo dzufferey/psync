@@ -13,18 +13,18 @@ trait Serialization {
   
   
   def picklingIO(tpt: Tree) = List(
-      q"""protected def serialize(payload: $tpt, out: _root_.io.netty.buffer.ByteBuf, offset: Int = 8) {
+      q"""protected def serialize(payload: $tpt, out: _root_.io.netty.buffer.ByteBuf) {
         import scala.pickling._
         import binary._
-        if (offset > 0) out.writerIndex(out.writerIndex() + offset)
+        out.writerIndex(out.writerIndex() + _root_.round.runtime.Tag.size)
         val bytes0 = payload.pickle.value
         val length = bytes0.length
         out.writeBytes(bytes0)
       }""",
-      q"""protected def deserialize(in: _root_.io.netty.buffer.ByteBuf, offset: Int = 8): $tpt = {
+      q"""protected def deserialize(in: _root_.io.netty.buffer.ByteBuf): $tpt = {
         import scala.pickling._
         import binary._
-        if (offset > 0) in.readerIndex(in.readerIndex() + offset)
+        in.readerIndex(in.readerIndex() + _root_.round.runtime.Tag.size)
         val length = in.readableBytes()
         val bytes = Array.ofDim[Byte](length)
         in.readBytes(bytes)
@@ -32,16 +32,25 @@ trait Serialization {
       }"""
     )
 
-  def primitiveIO(tpt: Tree, write: List[Tree], read: List[Tree]) = List(
-      q"""protected def serialize(payload: $tpt, out: _root_.io.netty.buffer.ByteBuf, offset: Int = 8) = {
-        if (offset > 0) out.writerIndex(out.writerIndex() + offset)
+  def primitiveIO(tpt: Tree, write: List[Tree], read: List[Tree]) = {
+    val errMessage = "error while deserializing " + tpt
+    List(
+      q"""protected def serialize(payload: $tpt, out: _root_.io.netty.buffer.ByteBuf) = {
+        out.writerIndex(out.writerIndex() + _root_.round.runtime.Tag.size)
         ..$write
       }""",
-      q"""protected def deserialize(in: _root_.io.netty.buffer.ByteBuf, offset: Int = 8): $tpt = {
-        if (offset > 0) in.readerIndex(in.readerIndex() + offset)
-        ..$read
+      q"""protected def deserialize(in: _root_.io.netty.buffer.ByteBuf): $tpt = {
+        try {
+          in.readerIndex(in.readerIndex() + _root_.round.runtime.Tag.size)
+          ..$read
+        } catch {
+          case e: Throwable =>
+            Console.err.println($errMessage)
+            throw e
+        }
       }"""
-  )
+    )
+  }
 
   def primitiveType(t: Type) = {
     import definitions._

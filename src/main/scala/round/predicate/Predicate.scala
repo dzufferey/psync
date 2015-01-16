@@ -35,7 +35,12 @@ abstract class Predicate(
   protected var n = 0
   protected var currentRound = 0
   
+
+  protected var expected = 0
+
   protected var messages: Array[DatagramPacket] = null
+  protected var from: Array[Boolean] = null
+  protected var received = 0
 
   def reset {
     grp = null
@@ -52,38 +57,12 @@ abstract class Predicate(
     }
   }
 
-  //TODO the expected # of msg
-
-  //what does it guarantee
-  val ensures: Formula
-  
   //TODO interface between predicate and the algorithm: ...
 
-  //what do predicates implement ?
 
-  //general receive (not sure if it is the correct round).
-  //vanilla implementation looks like:
-  //  val round = Message.getTag(pkt.content).roundNbr
-  //  if (round >= currentRound) {
-  //    //we are late, need to catch up
-  //    while(currentRound < round) { deliver }
-  //    normalReceive(pkt)
-  //  } // else: this is a late message, drop it
+  //general receive (not sure if it is the correct round, instance, etc.).
   def receive(pkt: DatagramPacket): Unit
 
-  //for messages that we know already belong to the current round.
-  //vanilla implementation looks like:
-  //  val id = grp.inetToId(pkt.sender)
-  //  messages(received) = pkt
-  //  received += 1
-  //  if (received >= expectedNbrMessage) {
-  //    deliver
-  //  }
-  protected def normalReceive(pkt: DatagramPacket)
-
-
-  def received: Int
-  def resetReceived: Unit
 
   //register in the channel and send the first set of messages
   def start(g: Group, inst: Short, p: RtProcess, msgs: Set[Message]) {
@@ -94,7 +73,8 @@ abstract class Predicate(
       proc = p
       n = g.size
       currentRound = 0
-      resetReceived
+      received = 0
+      expected = n
       checkResources
       ////
       active = true
@@ -133,14 +113,22 @@ abstract class Predicate(
     }
   }
 
-  //things to do when changing round (overridden in sub classes)
-  protected def atRoundChange { }
-  protected def afterSend { }
-  protected def afterUpdate { }
+  protected def storePacket(pkt: DatagramPacket) {
+    assert(lock.isHeldByCurrentThread, "lock.isHeldByCurrentThread")
+    val id = grp.inetToId(pkt.sender).id
+    if (!from(id)) {
+      from(id) = true
+      messages(received) = pkt
+      received += 1
+      assert(Message.getTag(pkt.content).roundNbr == currentRound, Message.getTag(pkt.content).roundNbr + " vs " + currentRound)
+    } else {
+      pkt.release
+    }
+  }
   
   protected def deliver {
     assert(lock.isHeldByCurrentThread, "lock.isHeldByCurrentThread")
-    //Logger("Predicate", Debug, "delivering for round " + currentRound + " (received = " + received + ")")
+    Logger("Predicate", Debug, grp.self.id + ", " + instance + " delivering for round " + currentRound + " (received = " + received + ")")
     val toDeliver = messages.slice(0, received)
     val msgs = fromPkts(toDeliver)
     currentRound += 1
@@ -150,7 +138,6 @@ abstract class Predicate(
       //actual delivery
       val mset = msgs.toSet
       proc.update(mset)
-      afterUpdate
       //start the next round (if has not exited)
       send
     } catch {
@@ -165,9 +152,12 @@ abstract class Predicate(
   
   protected def clear {
     val r = received
-    resetReceived
+    received = 0
     for (i <- 0 until r) {
       messages(i) = null
+    }
+    for (i <- 0 until n) {
+      from(i) = false
     }
   }
 
@@ -179,16 +169,19 @@ abstract class Predicate(
     //Logger("Predicate", Debug, "sending for round " + currentRound)
     val myAddress = grp.idToInet(grp.self)
     val pkts = toPkts(proc.send.toSeq)
-    atRoundChange
+    expected = proc.expectedNbrMessages
+    //println(grp.self.id + ", " + instance + " round: " + currentRound + ", expected " + expected)
     for (pkt <- pkts) {
       if (pkt.recipient() == myAddress) {
-        normalReceive(pkt)
+        storePacket(pkt)
       } else {
         channel.write(pkt, channel.voidPromise())
       }
     }
     channel.flush
-    afterSend
+    if (received >= expected) {
+      deliver
+    }
   }
 
   def messageReceived(pkt: DatagramPacket) = {
@@ -200,7 +193,7 @@ abstract class Predicate(
       receive(pkt)
       true
     } else if (tag.flag == Flags.dummy) {
-      Logger("Predicate", Debug, "messageReceived: dummy flag (ignoring)")
+      Logger("Predicate", Debug, grp.self.id + ", " + instance + " messageReceived: dummy flag (ignoring)")
       pkt.release
       true
     } else if (tag.flag == Flags.error) {

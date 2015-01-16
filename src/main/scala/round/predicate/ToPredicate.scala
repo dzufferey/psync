@@ -23,16 +23,6 @@ class ToPredicate(
     ) extends Predicate(channel, dispatcher, options)
 {
 
-  //safety condition guaranteed by the predicate
-  val ensures = round.formula.True() 
-
-  protected var expected = 0
-
-  private var from: Array[Boolean] = null
-  private var _received = 0
-  def received = _received
-  def resetReceived { _received = 0 }
-
   override def checkResources {
     super.checkResources
     if (from == null || from.size != n) {
@@ -84,7 +74,7 @@ class ToPredicate(
           }
           try {
             if (!changed) {
-              //Logger("ToPredicate", Debug, "delivering because of timeout: " + instance)
+              Logger("ToPredicate", Debug, "delivering because of timeout: instance " + instance + ", round " + currentRound)
               didTimeOut += 1
               deliver
             } else {
@@ -114,7 +104,6 @@ class ToPredicate(
     try {
       changed = false
       super.start(g, inst, p, m)
-      expected = n
       ttInst = instance
       timeout = Timer.newTimeout(tt, defaultTO)
     } finally {
@@ -134,40 +123,10 @@ class ToPredicate(
     }
   }
 
-  override protected def clear {
-    super.clear
-    for (i <- 0 until n) {
-      from(i) = false
-    }
-  }
-
-  override protected def atRoundChange {
-    expected = proc.expectedNbrMessages
-    //Logger("ToPredicate", Debug, "expected # msg: " + expected)
-  }
-
-  override protected def afterSend {
-    if (received >= expected) {
-      deliver
-    }
-  }
-
-  
-  protected def normalReceive(pkt: DatagramPacket) {
-    assert(lock.isHeldByCurrentThread, "lock.isHeldByCurrentThread")
-    val id = grp.inetToId(pkt.sender).id
-    //protect from duplicate packet
-    if (!from(id) && active) {
-      from(id) = true
-      messages(received) = pkt
-      _received += 1
-      if (received >= expected) {
-        deliver
-      }
-      changed = true
-    } else {
-      pkt.release
-    }
+  override protected def storePacket(pkt: DatagramPacket) {
+    assert(active, "active")
+    super.storePacket(pkt)
+    changed = true
   }
 
   def receive(pkt: DatagramPacket) {
@@ -175,25 +134,24 @@ class ToPredicate(
     val round = tag.roundNbr
     lock.lock()
     try {
-      if (!active || instance != tag.instanceNbr) {
+      if (instance != tag.instanceNbr) {
         pkt.release
-      } else if (round == currentRound) { //TODO take round overflow into account
-        normalReceive(pkt)
-      } else if (round > currentRound) {
-        //we are late, need to catch up
-        while(currentRound < round && active) {
-          deliver //TODO skip the sending ?
-        }
-        //deliver might stop the instance
-        if (active) {
-          //then back to normal
-          normalReceive(pkt)
-        } else {
-          pkt.release
-        }
       } else {
-        //late message, drop it
-        pkt.release
+        while(round - currentRound > 0 && active) {
+          //println(grp.self.id + ", " + tag.instanceNbr + " catching up: " + currentRound + " -> " + round)
+          deliver
+        }
+        if (round == currentRound && active) {
+          //println(grp.self.id + ", " + tag.instanceNbr + " delivering: " + currentRound)
+          //normal case
+          storePacket(pkt)
+          if (received >= expected) {
+            deliver
+          }
+        } else {
+          //if (active) println(grp.self.id + ", " + tag.instanceNbr + " late: " + round + " -> " + currentRound)
+          pkt.release //packet late or we are inactive
+        }
       }
     } finally {
       lock.unlock()

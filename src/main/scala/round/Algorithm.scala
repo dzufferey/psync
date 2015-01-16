@@ -10,7 +10,7 @@ abstract class Algorithm[IO] extends Variables[IO]
 {
 
   //round number
-  val r = new GlobalVariable[Int](0)
+  val r = new GlobalVariable[Int](-1)
   
   //the univers of processes
   val P = new Domain[ProcessID]
