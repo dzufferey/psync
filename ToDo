@@ -31,8 +31,6 @@
       - can we batch/multiplex packets
       - improve memory reuse/locality
     * reduce memory footprint
-      - recycle Processes: have an reset/init functions
-      - (re)-use mutable structures in the guts
 - logging as macro that can be removed at compile time.
 
 
@@ -44,6 +42,7 @@
 - decision procedure
 - rewrite the TR so we get directly set of processes for mailbox (easier to handle cardinality cstr later)
 - extract the spec of aux fct from the type annotation
+- use https://github.com/dzufferey/scala-smtlib-interface for the smtlib interface 
 - parsing model:
   * support more things
   * use the smtlib eval command as alternative (once we know the domain)

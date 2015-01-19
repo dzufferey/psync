@@ -7,15 +7,15 @@ import dzufferey.utils.LogLevel._
 import dzufferey.utils.Namer
 
 object CL {
-  
+
+  //TODO generalize
+  //-more than procType: to generate the constraints we need to know the size of the universe
+  //-more than pairwise constraints
+  //-Map[A,b] as a Set[A] of keys and a content(key: A): B function
+
   val procType = UnInterpreted("ProcessID")
   val HO = UnInterpretedFct("HO",Some(procType ~> FSet(procType)))
   val n = Variable("n").setType(Int)
-
-  val vtt = Variable("v_tt").setType(procType)
-  val vtf = Variable("v_tf").setType(procType)
-  val vft = Variable("v_ft").setType(procType)
-  val vff = Variable("v_ff").setType(procType)
 
   def hasHO(f: Formula): Boolean = {
     def check(acc: Boolean, f: Formula) = f match {
@@ -103,17 +103,26 @@ object CL {
     reduce(query)
   }
 
+  //the definition of a comprehension
+  case class SetDef(scope: Set[Variable], id: Formula, body: Option[Formula]) {
+    def tpe = id.tpe
+    def contentTpe = tpe match {
+      case FSet(t) => t
+      case _ => Logger.logAndThrow("CL", Error, "SetDef had not FSet type")
+    }
+  }
+
   //TODO assumes positive occurance!!
-  protected def namedComprehensions(conjuncts: List[Formula]): (List[Formula], Set[(Set[Variable], Formula, Formula)]) = {
-    var acc = Set[(Set[Variable], Formula, Formula)]()
+  protected def namedComprehensions(conjuncts: List[Formula]): (List[Formula], Set[SetDef]) = {
+    var acc = Set[SetDef]()
     def process(bound: Set[Variable], f: Formula) = f match {
       case Eq(List(id, c @ Comprehension(vs, body))) => 
         val scope = bound intersect (body.freeVariables -- vs)
-        acc += ((scope, id, c))
+        acc += SetDef(scope, id, Some(c))
         True()
       case Eq(List(c @ Comprehension(vs, body), id)) => 
         val scope = bound intersect (body.freeVariables -- vs)
-        acc += ((scope, id, c))
+        acc += SetDef(scope, id, Some(c))
         True()
       case other =>
         other
@@ -122,13 +131,13 @@ object CL {
     (FormulaUtils.getConjuncts(f2), acc)
   }
   
-  protected def anonymComprehensions(conjuncts: List[Formula]): (List[Formula], Set[(Set[Variable], Formula, Formula)]) = {
-    var acc = Set[(Set[Variable], Formula, Formula)]()
+  protected def anonymComprehensions(conjuncts: List[Formula]): (List[Formula], Set[SetDef]) = {
+    var acc = Set[SetDef]()
     def process(bound: Set[Variable], f: Formula) = f match {
       case c @ Comprehension(vs, body) => 
         val scope = bound intersect (body.freeVariables -- vs)
         val id = Quantifiers.skolemify(Variable(Namer("_comp")).setType(c.tpe), scope)
-        acc += ((scope, id, c))
+        acc += SetDef(scope, id, Some(c))
         id
       case other =>
         other
@@ -137,12 +146,13 @@ object CL {
     (FormulaUtils.getConjuncts(f2), acc)
   }
 
-  protected def collectComprehensionDefinitions(conjuncts: List[Formula]): (List[Formula], Set[(Set[Variable], Formula, Formula)]) = {
+  protected def collectComprehensionDefinitions(conjuncts: List[Formula]): (List[Formula], Set[SetDef]) = {
     val (f1, defs1) = namedComprehensions(conjuncts)
     val (f2, defs2) = anonymComprehensions(f1)
     (f2, defs1 ++ defs2)
   }
 
+  //TODO generalize to the size of the universe for other types
   protected val procIdCardinalityAxioms = {
     val s = Variable("s").setType(FSet(procType))
     List(
@@ -151,56 +161,71 @@ object CL {
     )
   }
 
-  protected def mkPairILP( set1: (Set[Variable], Formula, Option[Formula]),
-                           set2: (Set[Variable], Formula, Option[Formula])
-                         ): List[Formula] = {
-    val clashing = set1._1 intersect set2._1
-    def rename(set: (Set[Variable], Formula, Option[Formula])) = {
-      val fresh = set._1.flatMap(v =>
+  //TODO generalize to more than two
+  protected def mkPairILP( set1: SetDef, set2: SetDef): List[Formula] = {
+    val clashing = set1.scope intersect set2.scope
+    def rename(set: SetDef) = {
+      val fresh = set.scope.flatMap(v =>
         if (clashing(v)) Some(v -> Variable(Namer(v.name)).setType(v.tpe))
         else None ).toMap
-      ( set._1.map(FormulaUtils.alphaAll(fresh, _).asInstanceOf[Variable]),
-        FormulaUtils.alphaAll(fresh, set._2),
-        set._3.map(FormulaUtils.alphaAll(fresh, _)))
+      SetDef( set.scope.map(FormulaUtils.alphaAll(fresh, _).asInstanceOf[Variable]),
+              FormulaUtils.alphaAll(fresh, set.id),
+              set.body.map(FormulaUtils.alphaAll(fresh, _)) )
     }
-    val (bound1, id1, def1) = rename(set1)
-    val (bound2, id2, def2) = rename(set2)
-    assert(id1.tpe == FSet(procType) && id2.tpe == FSet(procType))
-    val params = bound1 ++ bound2
-    val tt = Quantifiers.skolemify(Variable(Namer("venn_tt")).setType(Int), params)
-    val tf = Quantifiers.skolemify(Variable(Namer("venn_tf")).setType(Int), params)
-    val ft = Quantifiers.skolemify(Variable(Namer("venn_ft")).setType(Int), params)
-    val ff = Quantifiers.skolemify(Variable(Namer("venn_ff")).setType(Int), params)
-    val conjuncts = List(
+    val rset1 = rename(set1)
+    val rset2 = rename(set2)
+    val tpe = rset1.tpe
+    val ctpe = rset1.contentTpe
+    assert(rset2.tpe == tpe, "set of different type")
+    val params = rset1.scope ++ rset2.scope
+    def mkSkolem(name: String, tpe: Type) = {
+      Quantifiers.skolemify(Variable(Namer(name)).setType(tpe), params)
+    }
+    val tt = mkSkolem("venn_tt", Int)
+    val tf = mkSkolem("venn_tf", Int)
+    val ft = mkSkolem("venn_ft", Int)
+    val ff = mkSkolem("venn_ff", Int)
+    val vtt = mkSkolem("sk_venn_tt", ctpe)
+    val vtf = mkSkolem("sk_venn_tf", ctpe)
+    val vft = mkSkolem("sk_venn_ft", ctpe)
+    val vff = mkSkolem("sk_venn_ff", ctpe)
+    val posCard = List(
       Leq(Literal(0), tt),
       Leq(Literal(0), tf),
       Leq(Literal(0), ft),
-      Leq(Literal(0), ff),
-      Eq(n, Plus(Plus(tt,tf),Plus(ft,ff))),
-      Eq(Cardinality(id1), Plus(tt,tf)),
-      Eq(Cardinality(id2), Plus(tt,ft))
+      Leq(Literal(0), ff)
     )
-    def unify(v: Variable, com: Formula) = com match {
+    val universe =
+      if(ctpe == procType) List( Eq(n, Plus(Plus(tt,tf),Plus(ft,ff))))
+      else {
+        Logger("CL", Warning, "do not know the size of the universe of " + ctpe)
+        Nil
+      }
+    val argSets = List(
+      Eq(Cardinality(rset1.id), Plus(tt,tf)),
+      Eq(Cardinality(rset2.id), Plus(tt,ft))
+    )
+    val conjuncts = posCard ::: universe ::: argSets
+    def unify(v: Formula, com: Formula) = com match {
       case Comprehension(List(i), f) =>
-        assert(!(f.freeVariables contains v), "capture")
-        FormulaUtils.alpha(Map(i -> v), f)
+        FormulaUtils.replace(i, v, f)
       case other =>
         sys.error("expected comprehension, found: " + other)
     }
-    val triggers = (def1,def2) match {
+    val triggers = (rset1.body, rset2.body) match {
       case (Some(d1), Some(d2)) =>
         List(
-          Implies(Lt(Literal(0), tt), Exists(List(vtt), And(unify(vtt,d1),unify(vtt,d2)))),
-          Implies(Lt(Literal(0), tf), Exists(List(vtf), And(unify(vtt,d1),Not(unify(vtt,d2))))),
-          Implies(Lt(Literal(0), ft), Exists(List(vft), And(Not(unify(vtt,d1)),unify(vtt,d2))))
+          Implies(Lt(Literal(0), tt), And(unify(vtt,d1),unify(vtt,d2))),
+          Implies(Lt(Literal(0), tf), And(unify(vtf,d1),Not(unify(vtf,d2)))),
+          Implies(Lt(Literal(0), ft), And(Not(unify(vft,d1)),unify(vft,d2)))
         )
       case (Some(d1), None) =>
         List(
-          Implies(Lt(Literal(0), Plus(tt,tf)), Exists(List(vtf), unify(vtf, d1)))
+          Implies(Lt(Literal(0), Plus(tt,tf)), unify(vtf, d1))
         )
       case (None, Some(d2)) =>
         List(
-          Implies(Lt(Literal(0), Plus(tt,ft)), Exists(List(vft), unify(vtf, d2)))
+          Implies(Lt(Literal(0), Plus(tt,ft)), unify(vft, d2))
         )
       case (None, None) => 
         Nil
@@ -214,55 +239,113 @@ object CL {
   }
 
   /** from A={i. P(i)} to ∀ i. P(i) ⇔ i∈A 
-   *  if it is a set of processID also add |A|=n ⇒ (∀i. P(i))
+   *  if it is a set of processID also add
+   *    |A|=n ⇒ (∀i. P(i))
+   *    |A|=0 ⇒ (∀i. ¬P(i))
+   *  TODO generalize to other types and size of the universe
    */
-  protected def membershipAxioms(compDef: (Set[Variable], Formula, Formula)): List[Formula] = {
-    compDef._3 match {
-      case c @ Comprehension(List(i), f) =>
-        val bound = compDef._1
+  protected def membershipAxioms(compDef: SetDef): List[Formula] = {
+    compDef.body match {
+      case Some(c @ Comprehension(List(i), f)) =>
+        val bound = compDef.scope
         assert(!bound(i))
-        val name = compDef._2
+        val name = compDef.id
         val member = ForAll(i :: bound.toList, Eq(f, In(i, name)))
         if (i.tpe == procType) {
           List(
             ForAll(bound.toList, Implies(Eq(Cardinality(name), n), ForAll(List(i), f))),
+            ForAll(bound.toList, Implies(Eq(Cardinality(name), Literal(0)), ForAll(List(i), Not(f)))),
             member
           )
         } else {
           List(member)
         }
       case _ =>
-        sys.error("expected comprehension, found " + compDef._3)
+        sys.error("expected comprehension, found " + compDef.body)
     }
   }
 
   protected def reduceComprehension(conjuncts: List[Formula]): List[Formula] = {
     val (woComp, c1) = collectComprehensionDefinitions(conjuncts)
-    val c2 = c1.map{ case (a,b,c) => (a,b,Some(c): Option[Formula]) } //def as an option, HO is not a comprehension
     val v = Variable("v").setType(procType)
-    val ho = (Set(v), Application(HO, List(v)), None)
-    val c3 = if (woComp exists hasHO) c2 + ho else c2
+    val ho = SetDef(Set(v), Application(HO, List(v)), None)
+    val c2 = if (woComp exists hasHO) c1 + ho else c1
     Logger("CL", Debug, "reduceComprehension, comprehensions:\n  " + c1.mkString("\n  "))
-    val ilp = for (s1 <- c3; s2 <- c3 if s1 != s2 &&
-                                         s1._2.tpe == FSet(procType) &&
-                                         s2._2.tpe == FSet(procType))
+    val ilp = for (s1 <- c2; s2 <- c2 if s1 != s2 &&
+                                         s1.tpe == FSet(procType) &&
+                                         s2.tpe == FSet(procType))
               yield mkPairILP(s1, s2)
     val membership = c1.toList flatMap membershipAxioms
     woComp ::: procIdCardinalityAxioms ::: membership ::: ilp.toList.flatten
+  }
+
+  //∀ e,S. e∈S ⇒ |S|>0
+  protected def inAxiom(tpe: Type) = {
+    val e = Variable("e").setType(tpe)
+    val s = Variable("S").setType(FSet(tpe))
+    ForAll(List(e,s), Implies(In(e,s), Gt(Cardinality(s), Literal(0))))
+  }
+
+  //∀ S,T,U. U = S∪T ⇒ |U| ≥ |S| ∧ |U| ≥ |T| 
+  protected def unionAxiom(tpe: Type) = {
+    val s = Variable("S1").setType(FSet(tpe))
+    val t = Variable("S2").setType(FSet(tpe))
+    val u = Variable("S3").setType(FSet(tpe))
+    ForAll(List(s,t,u),
+        Implies(Eq(u, Union(s,t)),
+                And(Geq(Cardinality(u),Cardinality(s)),
+                    Geq(Cardinality(u),Cardinality(t)))))
+  }
+  
+  //∀ S,T,U. U = S∩T ⇒ |U| ≤ |S| ∧ |U| ≤ |T| 
+  protected def intersectionAxiom(tpe: Type) = {
+    val s = Variable("S1").setType(FSet(tpe))
+    val t = Variable("S2").setType(FSet(tpe))
+    val u = Variable("S3").setType(FSet(tpe))
+    ForAll(List(s,t,u),
+        Implies(Eq(u, Intersection(s,t)),
+                And(Leq(Cardinality(u),Cardinality(s)),
+                    Leq(Cardinality(u),Cardinality(t)))))
+  }
+
+  //∀ S,T. S⊆T ⇒ |S| ≤ |T|
+  protected def subsetAxiom(tpe: Type) = {
+    val s = Variable("S1").setType(FSet(tpe))
+    val t = Variable("S2").setType(FSet(tpe))
+    ForAll(List(s,t),
+        Implies(SubsetEq(s, t),
+                Leq(Cardinality(s),Cardinality(t))))
   }
 
   /* add axioms for set operations */ 
   protected def addSetAxioms(conjuncts: List[Formula]): List[Formula] = {
     val f = Application(And, conjuncts)
     val setOps = FormulaUtils.collectSymbolsWithParams(f).collect{
-        case p @ (Union | Intersection | SubsetEq | SupersetEq, _) => p
+        case p @ (Union | Intersection | SubsetEq | SupersetEq | In | Contains, _) => p
       }
-    for (p <- setOps) {
-      Logger("CL", Warning, "TODO addSetAxioms for" + p)
+    val setAxioms = setOps.toList.flatMap{ case (sym, params) =>
+      sym match {
+        case Union => 
+          assert(params.size == 1)
+          List(unionAxiom(params.head))
+        case Intersection => 
+          assert(params.size == 1)
+          List(intersectionAxiom(params.head))
+        case SubsetEq =>
+          assert(params.size == 1)
+          List(subsetAxiom(params.head))
+        case In =>
+          assert(params.size == 1)
+          List(inAxiom(params.head))
+        case _ =>
+          Logger("CL", Warning, "TODO addSetAxioms for " + (sym,params));
+          Nil
+      }
     }
-   
+
+    //TODO this is ILP with single elements
     val tps = FormulaUtils.collectTypes(f).collect{ case f: FSet => f }.toList
-    conjuncts ::: tps.flatMap( t => {
+    conjuncts ::: setAxioms ::: tps.flatMap( t => {
       val s = Variable("s").setType(t)
       val pos = ForAll(List(s), Leq(Literal(0), Cardinality(s)))
       if (t == FSet(procType)) {
