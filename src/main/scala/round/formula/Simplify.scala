@@ -8,14 +8,14 @@ object Simplify {
   def normalize(f: Formula) = normalizer.transform(f)
   private val normalizer = new Mapper(normalizef)
   private def normalizef(f: Formula): Formula = f match {
-    case Implies(List(a,b)) => Copier.Application(f, Or, List(Copier.Application(a, Not, List(a)),b))
-    case Neq(List(a,b)) => Copier.Application(f, Not, List(Copier.Application(f, Eq, List(a,b))))
-    case Geq(List(a,b)) => Copier.Application(f, Not, List(Copier.Application(f, Lt, List(b,a))))
-    case Leq(List(a,b)) => Copier.Application(f, Not, List(Copier.Application(f, Lt, List(b,a))))
-    case Gt(List(a,b)) =>  Copier.Application(f, Lt, List(b,a))
-    case SupersetEq(List(a,b)) => Copier.Application(f, SubsetEq, List(b,a))
-    case Contains(List(a,b)) => Copier.Application(f, In, List(b,a))
-    case IsEmpty(List(a)) => Copier.Application(f, Not, List(Copier.Application(f, IsDefined, List(a))))
+    case Implies(a,b) => Copier.Application(f, Or, List(Copier.Application(a, Not, List(a)),b))
+    case Neq(a,b) => Copier.Application(f, Not, List(Copier.Application(f, Eq, List(a,b))))
+    case Geq(a,b) => Copier.Application(f, Not, List(Copier.Application(f, Lt, List(b,a))))
+    case Leq(a,b) => Copier.Application(f, Not, List(Copier.Application(f, Lt, List(b,a))))
+    case Gt(a,b) =>  Copier.Application(f, Lt, List(b,a))
+    case SupersetEq(a,b) => Copier.Application(f, SubsetEq, List(b,a))
+    case Contains(a,b) => Copier.Application(f, In, List(b,a))
+    case IsEmpty(a) => Copier.Application(f, Not, List(Copier.Application(f, IsDefined, List(a))))
     case other => other
   }
 
@@ -189,24 +189,24 @@ object Simplify {
   def simplifyInt(f: Formula): Formula = {
     //division: from 'x > 2n/3' to '3x > 2n'
     def getDenom(f: Formula): scala.Int = f match {
-      case Plus(lst) => lst.foldLeft(1)( (acc, f) => lcm(acc, getDenom(f)) )
-      case Minus(lst) => lst.foldLeft(1)( (acc, f) => lcm(acc, getDenom(f)) )
-      case Times(lst) => lst.foldLeft(1)( (acc, f) => acc * getDenom(f) )
-      case Divides(List(a, IntLit(i))) => i * getDenom(a)
+      case Plus(lst @ _*) => lst.foldLeft(1)( (acc, f) => lcm(acc, getDenom(f)) )
+      case Minus(lst @ _*) => lst.foldLeft(1)( (acc, f) => lcm(acc, getDenom(f)) )
+      case Times(lst @ _*) => lst.foldLeft(1)( (acc, f) => acc * getDenom(f) )
+      case Divides(a, IntLit(i)) => i * getDenom(a)
       case other => 1
     }
     def rmDenom(f: Formula, i: scala.Int): Formula = f match {
-      case Plus(lst) => Application(Plus, lst.map(rmDenom(_, i))).setType(Int)
-      case Minus(lst) => Application(Minus, lst.map(rmDenom(_, i))).setType(Int)
-      case Times(lst) => 
+      case Plus(lst @ _*) => Application(Plus, lst.map(rmDenom(_, i)).toList).setType(Int)
+      case Minus(lst @ _*) => Application(Minus, lst.map(rmDenom(_, i)).toList).setType(Int)
+      case Times(lst @ _*) => 
         val init = (Nil: List[Formula], i)
         val (lst2, csts) = lst.foldLeft(init)( (acc, f) => rmDenom(f, acc._2) match {
-          case Times(IntLit(i) :: xs) => (xs::: acc._1, i)
+          case Times(IntLit(i), xs @ _*) => (xs.toList ::: acc._1, i)
           case other => (other :: acc._1, 1)
         })
         if (csts == 1) Application(Times, lst2.reverse).setType(Int)
         else Application(Times, IntLit(csts) :: lst2.reverse).setType(Int)
-      case Divides(List(a, IntLit(i2))) =>
+      case Divides(a, IntLit(i2)) =>
         assert(i % i2 == 0, "simplifyInt: not divisible by denominator")
         val m = i / i2
         if (m == 1) a else Times(IntLit(m), a)
@@ -223,12 +223,12 @@ object Simplify {
       }
     }
     def fct(f: Formula): Formula = f match {
-      case Minus(List(x, IntLit(i))) =>
+      case Minus(x, IntLit(i)) =>
         fct(Plus(x , IntLit(-i)))
-      case Plus(lst) =>
+      case Plus(lst @ _*) =>
         val init = (Nil: List[Formula], 0)
         val (lst2, csts) = lst.foldLeft( init )( (acc, f) => f match {
-          case Plus(l2) => (l2 ::: acc._1, acc._2)
+          case Plus(l2 @ _*) => (l2.toList ::: acc._1, acc._2)
           case IntLit(i) => (acc._1, acc._2 + i)
           case other => (other::acc._1, acc._2)
         })
@@ -239,10 +239,10 @@ object Simplify {
         } else {
           Application(Plus, (IntLit(csts) :: lst2).reverse).setType(Int)
         }
-      case Times(lst) =>
+      case Times(lst @ _*) =>
         val init = (Nil: List[Formula], 1)
         val (lst2, csts) = lst.foldLeft( init )( (acc, f) => f match {
-          case Times(l2) => (l2 ::: acc._1, acc._2)
+          case Times(l2 @ _*) => (l2.toList ::: acc._1, acc._2)
           case IntLit(i) => (acc._1, acc._2 * i)
           case other => (other::acc._1, acc._2)
         })
@@ -255,10 +255,10 @@ object Simplify {
         } else {
           Application(Times, (IntLit(csts) :: lst2).reverse).setType(Int)
         }
-      case Divides(List(IntLit(i1), IntLit(i2))) if i1 % i2 == 0 => IntLit(i1/i2)
-      case Divides(List(a, IntLit(1))) => a
-      case Divides(List(a, b)) if a == b => IntLit(1)
-      case Eq(List(a, b)) if a.tpe == Int =>
+      case Divides(IntLit(i1), IntLit(i2)) if i1 % i2 == 0 => IntLit(i1/i2)
+      case Divides(a, IntLit(1)) => a
+      case Divides(a, b) if a == b => IntLit(1)
+      case Eq(a, b) if a.tpe == Int =>
         removeDiv(a, b) match {
           case (IntLit(i1), IntLit(i2)) =>
             if (i1 == i2) True()
@@ -267,7 +267,7 @@ object Simplify {
             if (a2 == b2) True()
             else Eq(a2, b2)
         }
-      case Lt(List(a, b)) =>
+      case Lt(a, b) =>
         removeDiv(a, b) match {
           case (IntLit(i1), IntLit(i2)) =>
             if (i1 < i2) True()
@@ -284,17 +284,17 @@ object Simplify {
   
   def simplifyBool(f: Formula): Formula = {
     def fct(f: Formula) = f match {
-      case Or(lst) =>
+      case Or(lst @ _*) =>
         val lst2 = lst.filterNot(_ == False())
         if (lst2.exists(_ == True())) True()
         else if (lst2.isEmpty) False()
-        else Application(Or, lst2).setType(Bool)
-      case And(lst) =>
+        else Application(Or, lst2.toList).setType(Bool)
+      case And(lst @ _*) =>
         val lst2 = lst.filterNot(_ == True())
         if (lst2.exists(_ == False())) False()
         else if (lst2.isEmpty) True()
-        else Application(And, lst2).setType(Bool)
-      case Not(List(Literal(b: Boolean))) =>
+        else Application(And, lst2.toList).setType(Bool)
+      case Not(Literal(b: Boolean)) =>
         Literal(!b)
       case other =>
         other

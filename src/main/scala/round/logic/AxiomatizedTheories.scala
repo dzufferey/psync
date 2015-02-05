@@ -11,7 +11,7 @@ object OptionAxioms {
     //println("mkAxioms with " + t)
     val x = Variable("x").setType(t)
     val y = Variable("y").setType(FOption(t))
-    val none = FNone.application(Nil).setType(FOption(t))
+    val none = FNone().setType(FOption(t))
     val axms = List(
       //get is the inverse of some
       ForAll(List(x,y), Implies(Eq(FSome(x).setType(FOption(t)),y), Eq(Get(y).setType(t), x))),

@@ -16,7 +16,7 @@ class CLSuite extends FunSuite {
   val nOver2 = Divides(n, Literal(2))
 
   val a = Variable("A").setType(FSet(pid))
-  val b = Variable("b").setType(FSet(pid))
+  val b = Variable("B").setType(FSet(pid))
 
   val _data = UnInterpretedFct("data",Some(pid ~> Int))
   def data(i: Formula) = Application(_data, List(i)).setType(Int)
@@ -68,7 +68,7 @@ class CLSuite extends FunSuite {
 
   test("options") {
     val fs = List(
-      IsDefined(FNone.application(Nil).setType(FOption(Int)))
+      IsDefined(FNone().setType(FOption(Int)))
     )
     assertUnsat(fs)
   }

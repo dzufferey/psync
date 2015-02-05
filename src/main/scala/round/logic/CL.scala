@@ -116,18 +116,18 @@ object CL {
   protected def namedComprehensions(conjuncts: List[Formula]): (List[Formula], Set[SetDef]) = {
     var acc = Set[SetDef]()
     def process(bound: Set[Variable], f: Formula) = f match {
-      case Eq(List(id, c @ Comprehension(vs, body))) => 
+      case Eq(id, c @ Comprehension(vs, body)) => 
         val scope = bound intersect (body.freeVariables -- vs)
         acc += SetDef(scope, id, Some(c))
         True()
-      case Eq(List(c @ Comprehension(vs, body), id)) => 
+      case Eq(c @ Comprehension(vs, body), id) => 
         val scope = bound intersect (body.freeVariables -- vs)
         acc += SetDef(scope, id, Some(c))
         True()
       case other =>
         other
     }
-    val f2 = FormulaUtils.mapWithScope(process, Application(And, conjuncts))
+    val f2 = FormulaUtils.mapWithScope(process, And(conjuncts:_*))
     (FormulaUtils.getConjuncts(f2), acc)
   }
   
@@ -142,7 +142,7 @@ object CL {
       case other =>
         other
     }
-    val f2 = FormulaUtils.mapWithScope(process, Application(And, conjuncts))
+    val f2 = FormulaUtils.mapWithScope(process, And(conjuncts:_*))
     (FormulaUtils.getConjuncts(f2), acc)
   }
 
@@ -230,11 +230,11 @@ object CL {
       case (None, None) => 
         Nil
     }
-    val res = FormulaUtils.getConjuncts(ForAll(params.toList, Application(And, conjuncts ::: triggers)))
+    val res = FormulaUtils.getConjuncts(ForAll(params.toList, And((conjuncts ::: triggers): _*)))
   //Logger("CL", Warning, "params("+id1+"):  " + bound1.map(_.toStringFull).mkString(", "))
   //Logger("CL", Warning, "params("+id2+"):  " + bound2.map(_.toStringFull).mkString(", "))
   //Logger("CL", Warning, "mkPairILP:\n  " + res.map(_.toStringFull).mkString("\n  "))
-    assert(Typer(Application(And,res)).success)
+    assert(Typer(And(res:_*)).success)
     res
   }
 
@@ -319,7 +319,7 @@ object CL {
 
   /* add axioms for set operations */ 
   protected def addSetAxioms(conjuncts: List[Formula]): List[Formula] = {
-    val f = Application(And, conjuncts)
+    val f = And(conjuncts:_*)
     val setOps = FormulaUtils.collectSymbolsWithParams(f).collect{
         case p @ (Union | Intersection | SubsetEq | SupersetEq | In | Contains, _) => p
       }
@@ -376,7 +376,7 @@ object CL {
     //val withTpl = TupleAxioms.addAxioms(withOpt)
     Logger("CL", Debug, "with axiomatized theories:\n  " + withTpl.mkString("\n  "))
     val last = withTpl
-    Typer(Application(And, last)) match {
+    Typer(And(last:_*)) match {
       case Typer.TypingSuccess(f) =>
         Logger("CL", Info, "reduced formula:\n  " + FormulaUtils.getConjuncts(f).mkString("\n  "))
         f

@@ -24,7 +24,7 @@ object Instance {
   /** catch-up: it is often the case that the # in the program get truncated to be used as a instance #.
    *  Here we try to recover the long # from the current # and an instance # */
   def catchUp(curr: Long, to: Short) = {
-    curr + (to - curr.toShort)
+    curr + (to - curr.toShort).toShort
   }
 
 }

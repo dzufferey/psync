@@ -46,18 +46,14 @@ object UnitLit {
   def apply(): Literal[Unit] = Literal(()).setType(UnitT())
 }
 object True {
-  def unapply(f: Formula): Option[Unit] = f match {
-    case Literal(true) => Some(())
-    case _ => None
-  }
-  def apply(): Literal[Boolean] = Literal(true).setType(Bool)
+  private val lit = Literal(true).setType(Bool)
+  def unapply(f: Formula): Boolean = f == lit
+  def apply(): Literal[Boolean] = lit
 }
 object False {
-  def unapply(f: Formula): Option[Unit] = f match {
-    case Literal(false) => Some(())
-    case _ => None
-  }
-  def apply(): Literal[Boolean] = Literal(false).setType(Bool)
+  private val lit = Literal(false).setType(Bool)
+  def unapply(f: Formula): Boolean = f == lit
+  def apply(): Literal[Boolean] = lit
 }
 object IntLit {
   def unapply(f: Formula): Option[scala.Int] = f match {
@@ -140,33 +136,42 @@ sealed abstract class InterpretedFct(val symbol: String, aliases: String*) exten
 
   def arity = tpe.arity
 
-  def application(args: List[Formula]): Formula = {
-    assert(args.lengthCompare(arity) == 0, "arity of " + symbol + " is " + arity + ", given args: " + args.mkString(", "))
-    val app = Application(this, args)
-    val t = tpe
+  //TODO move to Symbol
+  def apply(args: Formula*): Formula = {
+    val t = tpe //(args.length) TODO variadic stuff
+    //if (args.lengthCompare(t.arity) != 0) {
+    //  Logger("Formula", Debug, "arity of " + this + " is " + t.arity + ", given args: " + args.mkString(", "))
+    //}
+    val app = Application(this, args.toList)
     val ret = Type.freshTypeVar
     //fill the type as much as possible
-    Typer.unify(t, Function(args.map(_.tpe), ret)) match {
+    Typer.unify(t, Function(args.map(_.tpe).toList, ret)) match {
       case Some(subst) if subst contains ret =>
         //println(symbol + args.mkString("(",",",")") + ": " + subst(ret))
         app.setType(subst(ret))
       case _ =>
-        app
+        t match {
+          case Function(_, TypeVariable(_)) => app
+          case Function(_, ret) => app.setType(ret)
+          case _ => app
+        }
     }
   }
 
-  def apply(arg: Formula, args: Formula*): Formula = {
-    val allArgs = (arg +: args).toList
-    application(allArgs)
-  }
-
-  def unapply(f: Formula): Option[List[Formula]] = {
+  def unapplySeq(f: Formula): Option[List[Formula]] = {
     val t = this
     f match {
       case Application(`t`, args) => Some(args)
       case _ => None
     }
   }
+//def unapply(f: Formula): Option[List[Formula]] = {
+//  val t = this
+//  f match {
+//    case Application(`t`, args) => Some(args)
+//    case _ => None
+//  }
+//}
   override val fix = Fix.Infix
 }
 

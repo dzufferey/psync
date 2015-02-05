@@ -92,7 +92,7 @@ class RoundTransitionRelation(val send: Formula,
   class InlinePost(aux: Map[String, AuxiliaryMethod], vars: Set[Variable], i: Variable) extends Transformer {
     override def transform(f: Formula): Formula = {
       f match {
-        case Eq(List(retVal, Application(UnInterpretedFct(fct, _, tParams), args))) if aux contains fct =>
+        case Eq(retVal, Application(UnInterpretedFct(fct, _, tParams), args)) if aux contains fct =>
           Logger("TransitionRelation", Debug, "inline post in " + f)
           val auxDef = aux(fct).applyType(tParams)
           auxDef.makePostAssume(args, retVal) match {
@@ -170,7 +170,7 @@ class TransitionRelation(_tr: Formula,
   class InlinePost(aux: Map[String, AuxiliaryMethod]) extends Transformer {
     override def transform(f: Formula): Formula = {
       f match {
-        case Eq(List(retVal, Application(UnInterpretedFct(fct, _, tParams), args))) if aux contains fct =>
+        case Eq(retVal, Application(UnInterpretedFct(fct, _, tParams), args)) if aux contains fct =>
           val auxDef = aux(fct).applyType(tParams)
           super.transform(auxDef.makePostAssume(args, retVal).getOrElse(f))
         case other => other

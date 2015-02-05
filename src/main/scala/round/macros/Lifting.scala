@@ -84,6 +84,10 @@ trait Lifting {
     case FSet(arg) =>
       val arg2 = _liftT(arg)
       q"round.formula.FSet($arg2)"
+    case FMap(k, v) =>
+      val k2 = _liftT(k)
+      val v2 = _liftT(v)
+      q"round.formula.FMap($k2, $v2)"
     case FOption(arg) =>
       val arg2 = _liftT(arg)
       q"round.formula.FOption($arg2)"

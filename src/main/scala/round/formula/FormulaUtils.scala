@@ -75,12 +75,12 @@ object FormulaUtils {
   }
 
   def getConjuncts(f: Formula): List[Formula] = f match {
-    case And(lst) => lst.flatMap(getConjuncts)
+    case And(lst @ _*) => lst.flatMap(getConjuncts).toList
     case other => List(other)
   }
   
   def getDisjuncts(f: Formula): List[Formula] = f match {
-    case Or(lst) => lst.flatMap(getDisjuncts)
+    case Or(lst @ _*) => lst.flatMap(getDisjuncts).toList
     case other => List(other)
   }
 

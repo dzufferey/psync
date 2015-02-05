@@ -36,20 +36,20 @@ object Quantifiers {
       Logger("CL", Debug, "fix uniquely defined universal disj:\n " + disj.mkString("\n "))
       def interesting(v: Variable, f: Formula): Boolean = (swappable contains v)
       val (_defs, restf) = disj.partition( f => f match {
-        case Not(List(Eq(List(v @ Variable(_), c @ Comprehension(_,_))))) if interesting(v, c) => true
-        case Not(List(Eq(List(c @ Comprehension(_,_), v @ Variable(_))))) if interesting(v, c) => true
+        case Not(Eq(v @ Variable(_), c @ Comprehension(_,_))) if interesting(v, c) => true
+        case Not(Eq(c @ Comprehension(_,_), v @ Variable(_))) if interesting(v, c) => true
         case _ => false
       })
-      val eqs = _defs.collect{ case Not(List(eq)) => eq }
+      val eqs = _defs.collect{ case Not(eq) => eq }
       assert(eqs.size == _defs.size)
       def checkDependencies(v: Variable, c: Formula): Formula = {
         val deps = (f.freeVariables intersect avoid) - v
         skolemify(v, deps)
       }
       val defs = eqs.map{
-        case Eq(List(v @ Variable(_), c @ Comprehension(_,_))) =>
+        case Eq(v @ Variable(_), c @ Comprehension(_,_)) =>
           v -> (checkDependencies(v,c), c)
-        case Eq(List(c @ Comprehension(_,_), v @ Variable(_))) =>
+        case Eq(c @ Comprehension(_,_), v @ Variable(_)) =>
           v -> (checkDependencies(v,c), c)
         case _ => ???
       }.toMap

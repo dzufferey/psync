@@ -201,8 +201,8 @@ trait FormulaExtractor {
       val i = InterpretedFct(s).get
       val args2 = args map tree2Formula
       //TODO in case of static fct, remove the first arg as it is a package/object, e.g., None
-      val res = if (i.arity == args2.size - 1) i.application(args2.tail)
-                else i.application(args2)
+      val res = if (i.arity == args2.size - 1) i(args2.tail:_*)
+                else i(args2:_*)
       //println("mkKnown: " + res + " arity: " + i.arity)
       res
     } else if (AxiomatizedFct.knows(s)) {
@@ -328,7 +328,7 @@ trait FormulaExtractor {
       case q"$set.find( $v => $expr )" =>
         val t = extractType(e.tpe)
         c.warning(e.pos, "TODO formula for $set.find")
-        FNone.application(Nil).setType(t)
+        FNone().setType(t)
 
       // tuples
       case q"scala.Tuple2.apply[..$tpt](..$args)" =>

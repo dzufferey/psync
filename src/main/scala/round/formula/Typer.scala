@@ -10,8 +10,7 @@ import dzufferey.utils.LogLevel._
 object Typer {
 
   val level1 = Debug
-  //val level1 = Warning
-  val level2 = Warning
+  val level2 = Info
 
   sealed abstract class TypingResult[+T <: Formula]{
     def get: T
@@ -298,6 +297,8 @@ object Typer {
       unify(s1, s2)
     case (FSet(s1), FSet(s2)) =>
       unify(s1, s2)
+    case (FMap(k1,v1), FMap(k2,v2)) =>
+      solveConstraints(ConjCstr(List(SingleCstr(k1,k2), SingleCstr(v1,v2)))).headOption
     case (Function(arg1, r1), Function(arg2, r2)) =>
       //Console.println("unifying: " + (FunctionT(arg1, r1), FunctionT(arg2, r2)))
       if (arg1.size == arg2.size)

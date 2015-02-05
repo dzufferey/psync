@@ -117,19 +117,19 @@ object Model {
     def tryParseVal(f: Formula): Option[ValDef] = f match {
       case Literal(b: Boolean) => Some(ValB(b))
       case Literal(l: Long) => Some(ValI(l))
-      case Application(Minus, List(Literal(l: Long))) => Some(ValI(-l))
+      case Minus(Literal(l: Long)) => Some(ValI(-l))
       case Variable(id) => values get id
       case _ => None
     }
  
     def parseCase(args: Formula, ret: Formula): (List[ValDef], ValDef) = {
       val args2 = args match {
-        case And(cs) => cs
+        case And(cs @ _*) => cs.toList
         case other => List(other)
       }
       val args3 = args2.map( _ match {
-          case Eq(List(_, v)) => tryParseVal(v).get
-          case other => sys.error("expected Eq, found: " + other)
+        case Eq(_, v) => tryParseVal(v).get
+        case other => sys.error("expected Eq, found: " + other)
       })
       (args3, tryParseVal(ret).get)
     }
@@ -225,7 +225,7 @@ object Model {
       case Literal(b: Boolean) => ValB(b)
       case Literal(l: Long) => ValI(l)
       case Variable(id) => params(id)
-      case Application(Eq,  List(e1, e2)) =>
+      case Eq(e1, e2) =>
         val v1 = fEval(e1, params)
         val v2 = fEval(e2, params)
         ValB(v1 == v2)

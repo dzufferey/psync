@@ -47,6 +47,12 @@ case class FSet(arg: Type) extends Type {
   def alpha(subst: Map[TypeVariable, Type]) = FSet(arg.alpha(subst))
 }
 
+case class FMap(key: Type, value: Type) extends Type {
+  override def toString = "Map("+key+","+value+")"
+  def freeParameters = key.freeParameters ++ value.freeParameters
+  def alpha(subst: Map[TypeVariable, Type]) = FMap(key.alpha(subst), value.alpha(subst))
+}
+
 case class FOption(arg: Type) extends Type {
   override def toString = "Option("+arg+")"
   def freeParameters = arg.freeParameters
