@@ -6,26 +6,37 @@ import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 import dzufferey.utils.Namer
 
+/** A class to link the cardinality constraints over sets to the elements in the sets.
+ * @param tpe the type of the elements in the sets, e.g., ProcessID
+ * @param universeSize the size of the universe (if the universe is finite), e.g., 'n' for ProcessID
+ * @param sets the sets as pair (id, definition), where the definition is an optional Comprehension.
+ */
 class VennRegions(tpe: Type, universeSize: Option[Formula], sets: Iterable[(Formula, Option[Binding])]) {
 
+  /** Removes funny characters from string to make them smt-lib compliant. */
   protected def sanitize(str: String) = {
     str.replace('(','_').replace(')','_').replaceAll("\\*","").replaceAll("->","-")
   }
 
+  /** the prefix for the name of the integer variables representing the size of the Venn regions. */
   protected val prefix = Namer("venn_" + sanitize(tpe.toString)) + "_"
   
   protected val elt = Variable(Namer("elt")).setType(tpe)
 
   protected var counter = 0
 
+  /** Set name to index */
   protected var idToPos = Map[Formula, Int]()
 
+  /** Index to set name */
   protected var posToId = Map[Int, Formula]()
 
+  /** set name to definition */
   protected var idToDef = Map[Formula, Binding]()
 
   protected var nbrVennRegions = 1
 
+  // Initialization
   sets.foreach{ case (id, definition) =>
     assert(id.tpe == FSet(tpe), "set has the wrong type: " + id.tpe + " instead of " + FSet(tpe))
     definition match {
@@ -46,21 +57,47 @@ class VennRegions(tpe: Type, universeSize: Option[Formula], sets: Iterable[(Form
     }
   }
   assert(counter < 32, "will run into indexing problems ...")
-    
+  
+  /** Generate all the constraints:
+   * a: |p| + |~p| = |universe|
+   * b: ∀ i. i ∈ p ⇒ |p| ≥ 1
+   * c: |p| ≥ 1 ⇒ ∃ i. i ∈ p
+   * d: |p| ≥ 0
+   * e: ∀ i. i ∈ p ⇔ p(i)
+   * f: |p| = Σ ...
+   */
+  def constraints: Formula = {
+    val a = sumToUniverse 
+    val b = nonEmptyNonZeroCard
+    val c = nonZeroCardNonEmpty
+    val d = positiveVariables
+    val e = membershipAxioms
+    val f = topLevelLink
+    val cstrs = And(((a +: b) ++ c ++ d ++ e ++ f):_*)
+    val o1: Set[Variable] = universeSize.map(_.freeVariables).getOrElse(Set())
+    val o2 = sets.flatMap{ case (f, b) => f.freeVariables ++ b.map(_.freeVariables).getOrElse(Set()) }
+    val outside: Set[Variable] = o1 ++ o2
+    val scope = cstrs.freeVariables -- outside
+    Exists(scope.toList, cstrs)
+  }
 
-  // `get(v)` and `get(Not(v))` for the complement where v is one of the id previsously added
+  /** `get(id)` and `get(Not(id))` for the complement
+   * @param id the name of a set
+   */
   protected def idx(id: Formula): Int = id match {
     case Not(Not(id2)) => idx(id2)
     case Not(id2) => idx(id2)
     case _ => idToPos(id)
   }
 
+  /** Test whether the given formula is negated or not*/
   protected def polarity(id: Formula): Boolean = id match {
     case Not(Not(id2)) => polarity(id2)
     case Not(id2) => false
     case _ => true
   }
 
+  /** Returns the variable associated with the given set names */
   def getVennRegion(ids: Iterable[Formula]): Variable = {
     val map = ids.map( id => idx(id) -> (if (polarity(id)) "t" else "f") ).toMap
     val suffix = for (i <- 0 until counter) yield map.getOrElse(i, "_")

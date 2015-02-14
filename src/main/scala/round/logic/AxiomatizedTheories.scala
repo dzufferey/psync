@@ -65,3 +65,65 @@ object TupleAxioms {
   }
 
 }
+
+object SetOperationsAxioms {
+
+  //TODO should we have reflexivity, symmetry, etc.
+
+  //∀ x,S,T. x ∈ S∪T ⇔ x ∈ S ∨ x ∈ T 
+  def unionAxiom(tpe: Type) = {
+    val x = Variable("x").setType(tpe)
+    val s = Variable("S1").setType(FSet(tpe))
+    val t = Variable("S2").setType(FSet(tpe))
+    ForAll(List(x,s,t),
+      Eq(In(x, Union(s,t)), Or(In(x, s), In(x, t))))
+  }
+
+  //∀ S,T,U. U = S∪T ⇒ |S∪T| ≥ |S| ∧ |S∪T| ≥ |T|
+  def unionCardAxiom(tpe: Type) = {
+    val s = Variable("S1").setType(FSet(tpe))
+    val t = Variable("S2").setType(FSet(tpe))
+    ForAll(List(s,t),
+      And(Geq(Cardinality(Union(s,t)),Cardinality(s)),
+          Geq(Cardinality(Union(s,t)),Cardinality(t))))
+  }
+
+  //∀ x,S,T. x ∈ S∩T ⇔ x ∈ S ∧ x ∈ T 
+  def intersectionAxiom(tpe: Type) = {
+    val x = Variable("x").setType(tpe)
+    val s = Variable("S1").setType(FSet(tpe))
+    val t = Variable("S2").setType(FSet(tpe))
+    ForAll(List(x,s,t),
+      Eq(In(x, Intersection(s,t)), And(In(x, s), In(x, t))))
+  }
+
+  //∀ S,T,U. U = S∩T ⇒ |U| ≤ |S| ∧ |U| ≤ |T| 
+  def intersectionCardAxiom(tpe: Type) = {
+    val s = Variable("S1").setType(FSet(tpe))
+    val t = Variable("S2").setType(FSet(tpe))
+    ForAll(List(s,t),
+      And(Leq(Cardinality(Intersection(s,t)),Cardinality(s)),
+          Leq(Cardinality(Intersection(s,t)),Cardinality(t))))
+  }
+
+  //∀ x,S,T. x∈S ∧ S⊆T ⇒ x∈T
+  def subsetAxiom(tpe: Type) = {
+    val x = Variable("x").setType(tpe)
+    val s = Variable("S1").setType(FSet(tpe))
+    val t = Variable("S2").setType(FSet(tpe))
+    ForAll(List(x,s,t),
+      Implies(And(In(x,s), SubsetEq(s, t)),
+              Leq(Cardinality(s),Cardinality(t))))
+  }
+
+  //∀ S,T. S⊆T ⇒ |S| ≤ |T|
+  def subsetCardAxiom(tpe: Type) = {
+    val s = Variable("S1").setType(FSet(tpe))
+    val t = Variable("S2").setType(FSet(tpe))
+    ForAll(List(s,t),
+      Implies(SubsetEq(s, t),
+              Leq(Cardinality(s),Cardinality(t))))
+  }
+  
+
+}
