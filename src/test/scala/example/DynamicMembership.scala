@@ -16,6 +16,7 @@ import java.util.concurrent.locks.ReentrantLock
 import java.util.concurrent.{Semaphore, ConcurrentLinkedQueue}
     
 import scala.pickling._
+import scala.pickling.Defaults._
 import binary._
           
 import scala.math.Ordered._

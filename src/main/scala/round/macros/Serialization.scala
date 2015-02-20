@@ -15,6 +15,7 @@ trait Serialization {
   def picklingIO(tpt: Tree) = List(
       q"""protected def serialize(payload: $tpt, out: _root_.io.netty.buffer.ByteBuf) {
         import scala.pickling._
+        import scala.pickling.Defaults._
         import binary._
         out.writerIndex(out.writerIndex() + _root_.round.runtime.Tag.size)
         val bytes0 = payload.pickle.value
@@ -23,6 +24,7 @@ trait Serialization {
       }""",
       q"""protected def deserialize(in: _root_.io.netty.buffer.ByteBuf): $tpt = {
         import scala.pickling._
+        import scala.pickling.Defaults._
         import binary._
         in.readerIndex(in.readerIndex() + _root_.round.runtime.Tag.size)
         val length = in.readableBytes()

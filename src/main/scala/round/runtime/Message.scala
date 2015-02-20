@@ -8,6 +8,7 @@ import java.nio.ByteBuffer
 import io.netty.buffer.ByteBuf
 
 import scala.pickling._
+import scala.pickling.Defaults._
 import binary._
 
 class Message(val packet: DatagramPacket, dir: Group){
@@ -22,7 +23,7 @@ class Message(val packet: DatagramPacket, dir: Group){
   def instance = tag.instanceNbr
   def round = tag.roundNbr
   
-  def getContent[A: SPickler: Unpickler: FastTypeTag]: A = {
+  def getContent[A: Pickler: Unpickler: FastTypeTag]: A = {
     val bytes = getPayLoad
     val converted = BinaryPickle(bytes).unpickle[A]
     converted

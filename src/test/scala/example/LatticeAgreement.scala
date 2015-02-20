@@ -4,8 +4,6 @@ import round._
 import round.runtime.Group
 import round.macros.Macros._
 import io.netty.buffer.ByteBuf
-import scala.pickling._
-import binary._
 
 /* A simple example of lattice.
  * Due to the way the serializatino code is generated, we need a concrete type
