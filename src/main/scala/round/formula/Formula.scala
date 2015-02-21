@@ -108,6 +108,28 @@ sealed abstract class Symbol {
 
   val fix = Fix.Prefix
   val priority = 10
+
+  def apply(args: Formula*): Formula = {
+    val t = tpe //(args.length) TODO variadic stuff
+    //if (args.lengthCompare(t.arity) != 0) {
+    //  Logger("Formula", Debug, "arity of " + this + " is " + t.arity + ", given args: " + args.mkString(", "))
+    //}
+    val app = Application(this, args.toList)
+    val ret = Type.freshTypeVar
+    //fill the type as much as possible
+    Typer.unify(t, Function(args.map(_.tpe).toList, ret)) match {
+      case Some(subst) if subst contains ret =>
+        //println(symbol + args.mkString("(",",",")") + ": " + subst(ret))
+        app.setType(subst(ret))
+      case _ =>
+        t match {
+          case Function(_, TypeVariable(_)) => app
+          case Function(_, ret) => app.setType(ret)
+          case _ => app
+        }
+    }
+  }
+
 }
 
 case class UnInterpretedFct(symbol: String,
@@ -135,28 +157,6 @@ sealed abstract class InterpretedFct(val symbol: String, aliases: String*) exten
   def allSymbols = symbol +: aliases
 
   def arity = tpe.arity
-
-  //TODO move to Symbol
-  def apply(args: Formula*): Formula = {
-    val t = tpe //(args.length) TODO variadic stuff
-    //if (args.lengthCompare(t.arity) != 0) {
-    //  Logger("Formula", Debug, "arity of " + this + " is " + t.arity + ", given args: " + args.mkString(", "))
-    //}
-    val app = Application(this, args.toList)
-    val ret = Type.freshTypeVar
-    //fill the type as much as possible
-    Typer.unify(t, Function(args.map(_.tpe).toList, ret)) match {
-      case Some(subst) if subst contains ret =>
-        //println(symbol + args.mkString("(",",",")") + ": " + subst(ret))
-        app.setType(subst(ret))
-      case _ =>
-        t match {
-          case Function(_, TypeVariable(_)) => app
-          case Function(_, ret) => app.setType(ret)
-          case _ => app
-        }
-    }
-  }
 
   def unapplySeq(f: Formula): Option[List[Formula]] = {
     val t = this

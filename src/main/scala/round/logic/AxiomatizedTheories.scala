@@ -125,5 +125,39 @@ object SetOperationsAxioms {
               Leq(Cardinality(s),Cardinality(t))))
   }
   
+  def addAxioms(conjuncts: List[Formula]): List[Formula] = {
+    val f = And(conjuncts:_*)
+    val setOps = FormulaUtils.collectSymbolsWithParams(f).collect{
+        case p @ (Union | Intersection | SubsetEq | SupersetEq, _) => p
+      }
+    val setAxioms = setOps.toList.flatMap{ case (sym, params) =>
+      sym match {
+        case Union => 
+          assert(params.size == 1)
+          List(
+            SetOperationsAxioms.unionCardAxiom(params.head),
+            SetOperationsAxioms.unionAxiom(params.head)
+          )
+        case Intersection => 
+          assert(params.size == 1)
+          List(
+            SetOperationsAxioms.intersectionCardAxiom(params.head),
+            SetOperationsAxioms.intersectionAxiom(params.head)
+          )
+        case SubsetEq =>
+          assert(params.size == 1)
+          List(
+            SetOperationsAxioms.subsetCardAxiom(params.head),
+            SetOperationsAxioms.subsetAxiom(params.head)
+          )
+        case _ =>
+          Logger("CL", Warning, "TODO addSetAxioms for " + (sym,params))
+          Nil
+      }
+    }
+
+    conjuncts ::: setAxioms
+  }
+
 
 }

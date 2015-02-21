@@ -71,11 +71,28 @@ object Quantifiers {
   }
 
   def isEPR(axiom: Formula): Boolean = {
-    ???
+    def check(acc: Boolean, vs: Set[Variable], f: Formula) = f match {
+      case Application(_, args) =>
+        val hasV = args.exists{
+          case v @ Variable(_) => vs contains v
+          case _ => false
+        }
+        acc && !(hasV && f.tpe != Bool)
+      case _ =>
+        acc
+    }
+    FormulaUtils.collectWithScope(true, check, axiom)
   }
 
   def isStratified(axiom: Formula, lt: (Type, Type) => Boolean): Boolean = {
-    ???
+    def isGround(vs: Set[Variable], f: Formula) = f.freeVariables.intersect(vs).isEmpty
+    def check(acc: Boolean, vs: Set[Variable], f: Formula) = f match {
+      case Application(_, args) =>
+        acc && (f.tpe == Bool || args.forall( a => isGround(vs, a) || lt(f.tpe, a.tpe) ) )
+      case _ =>
+        acc
+    }
+    FormulaUtils.collectWithScope(true, check, axiom)
   }
 
   protected def getQuantPrefix(f: Formula, exists: Boolean): (Formula, List[Variable]) = {

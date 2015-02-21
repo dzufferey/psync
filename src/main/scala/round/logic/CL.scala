@@ -185,47 +185,6 @@ object CL {
     Lt(Literal(0), n) :: woComp ::: ilps.toList
   }
 
-  /* add axioms for set operations */ 
-  protected def addSetAxioms(conjuncts: List[Formula]): List[Formula] = {
-    val f = And(conjuncts:_*)
-    val setOps = FormulaUtils.collectSymbolsWithParams(f).collect{
-        case p @ (Union | Intersection | SubsetEq | SupersetEq, _) => p
-      }
-    val setAxioms = setOps.toList.flatMap{ case (sym, params) =>
-      sym match {
-        case Union => 
-          assert(params.size == 1)
-          List(SetOperationsAxioms.unionCardAxiom(params.head))
-        case Intersection => 
-          assert(params.size == 1)
-          List(SetOperationsAxioms.intersectionCardAxiom(params.head))
-        case SubsetEq =>
-          assert(params.size == 1)
-          List(SetOperationsAxioms.subsetCardAxiom(params.head))
-        case _ =>
-          Logger("CL", Warning, "TODO addSetAxioms for " + (sym,params));
-          Nil
-      }
-    }
-
-    //TODO this is ILP with single elements
-    val tps = FormulaUtils.collectTypes(f).collect{ case f: FSet => f }.toList
-    conjuncts ::: setAxioms ::: tps.flatMap( t => {
-      val s = Variable("s").setType(t)
-      val pos = ForAll(List(s), Leq(Literal(0), Cardinality(s)))
-      if (t == FSet(procType)) {
-        List(
-          pos,
-          ForAll(List(s), Leq(Cardinality(s), n))
-        )
-      } else {
-        List(pos)
-      }
-    })
-  }
-
-  //TODO add axioms for inclusion and card, ....
-  
   def reduce(formula: Formula): Formula = {
     val typed = Typer(formula).get 
     val n1 = normalize(typed)
@@ -235,10 +194,9 @@ object CL {
     Logger("CL", Info, "reducing:\n  " + conjuncts.mkString("\n  "))
     val withILP = reduceComprehension(conjuncts)
     Logger("CL", Debug, "with ILP:\n  " + withILP.mkString("\n  "))
-    val withSetAx = addSetAxioms(withILP)
+    val withSetAx = SetOperationsAxioms.addAxioms(withILP)
     val withOpt = OptionAxioms.addAxioms(withSetAx)
     val withTpl = TupleAxioms.addAxioms(withOpt)
-    //val withTpl = TupleAxioms.addAxioms(withOpt)
     Logger("CL", Debug, "with axiomatized theories:\n  " + withTpl.mkString("\n  "))
     val last = withTpl
     Typer(And(last:_*)) match {
