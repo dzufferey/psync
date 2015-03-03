@@ -6,34 +6,22 @@ object Copier {
 
   def Literal[T <: AnyVal](from: Formula, value: T) = from match {
     case f @ Literal(v0) if v0 == value => f
-    case _ =>
-      val l2 = round.formula.Literal(value)
-      l2.tpe = from.tpe
-      l2
+    case _ => round.formula.Literal(value).setType(from.tpe)
   }
 
   def Variable(from: Formula, name: String) = from match {
     case v @ Variable(name0) if name0 == name => v
-    case _ =>
-      val v2 = round.formula.Variable(name)
-      v2.tpe = from.tpe
-      v2
+    case _ => round.formula.Variable(name).setType(from.tpe)
   }
 
   def Application(from: Formula, fct: Symbol, args: List[Formula]) = from match {
     case a @ Application(fct0, args0) if fct == fct0 && args == args0 => a
-    case _ =>
-      val a2 = round.formula.Application(fct, args)
-      a2.tpe = from.tpe
-      a2
+    case _ => round.formula.Application(fct, args).setType(from.tpe)
   }
 
   def Binding(from: Formula, bt: BindingType, vs: List[Variable], f: Formula) = from match {
     case b @ Binding(bt0, vs0, f0) if bt0 == bt && vs0 == vs && f0 == f => b
-    case _ =>
-      val b2 = round.formula.Binding(bt, vs, f)
-      b2.tpe = from.tpe
-      b2
+    case _ => round.formula.Binding(bt, vs, f).setType(from.tpe)
   }
 
 }

@@ -25,11 +25,10 @@ object CL {
     FormulaUtils.collect(false, check, f)
   }
 
-  protected def normalize(f: Formula) = {
-    //TODO some CNF conversion ?
+  def normalize(f: Formula) = {
+    //TODO some (lazy) CNF conversion ?
     //TODO purification before or after instantiation ?
     val f1 = Simplify.normalize(f)
-    //println(f1)
     val f2 = Simplify.nnf(f1)
     val f3 = Simplify.boundVarUnique(f2)
     f3
@@ -70,7 +69,7 @@ object CL {
         acc.map( f => ForAll(List(v), f) )
       } else {
         Logger("CL", Info, "instantiating " + v + ": " + v.tpe + " with " + candidates.mkString(", "))
-        acc.flatMap( f => Quantifiers.instantiateWithTerms(v, f, candidates.toSet) )
+        acc.flatMap( f => InstGen.instantiateWithTerms(v, f, candidates.toSet) )
       }
     })
   }
@@ -163,7 +162,7 @@ object CL {
   }
 
   //TODO non-empty scope means we should introduce more terms
-  protected def reduceComprehension(conjuncts: List[Formula]): List[Formula] = {
+  def reduceComprehension(conjuncts: List[Formula]): List[Formula] = {
     val (woComp, c1) = collectComprehensionDefinitions(conjuncts)
     val v = Variable(Namer("v")).setType(procType)
     val ho = SetDef(Set(v), Application(HO, List(v)), None)

@@ -8,17 +8,6 @@ import dzufferey.utils.{Namer, Misc}
 
 object Quantifiers {
 
-  //normal instantiation is just substitution
-  //TODO groundTerms should be up to equalities / equivalence classes
-  def instantiateWithTerms(v: Variable, axiom: Formula, groundTerms: Set[Formula], local: Boolean = false): List[Formula] = {
-    if (local) {
-      ??? //TODO local instantiation needs fetching the fct up to boolean level and implementing E-matching
-    } else {
-      val candidates = groundTerms.filter(_.tpe == v.tpe).toList
-      candidates.toList.map( gt => FormulaUtils.map(x => if (x == v) gt else x, axiom) )
-    }
-  }
-
   /*  Sometime we introduce constant as shorthand for set.
    *  Negation makes them universal.
    *  This method fix this and put the ∃ back.
