@@ -285,14 +285,16 @@ object Simplify {
   def simplifyBool(f: Formula): Formula = {
     def fct(f: Formula) = f match {
       case Or(lst @ _*) =>
-        val lst2 = lst.filterNot(_ == False())
+        val lst2 = lst.toSet.filterNot(_ == False())
         if (lst2.exists(_ == True())) True()
         else if (lst2.isEmpty) False()
+        else if (lst2.size == 1) lst2.head
         else Application(Or, lst2.toList).setType(Bool)
       case And(lst @ _*) =>
-        val lst2 = lst.filterNot(_ == True())
+        val lst2 = lst.toSet.filterNot(_ == True())
         if (lst2.exists(_ == False())) False()
         else if (lst2.isEmpty) True()
+        else if (lst2.size == 1) lst2.head
         else Application(And, lst2.toList).setType(Bool)
       case Not(Literal(b: Boolean)) =>
         Literal(!b)
@@ -311,5 +313,6 @@ object Simplify {
     f5
   }
 
+  //TODO while simplifying rename the variables (de Bruijn indices)
 
 }

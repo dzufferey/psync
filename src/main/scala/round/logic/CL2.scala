@@ -42,7 +42,7 @@ object CL2 {
     else gts0 + Variable(Namer("p")).setType(CL.procType)
   }
   
-  def reduce(formula: Formula): Formula = {
+  def reduce(formula: Formula, bound: Option[Int] = None): Formula = {
     val query = CL.normalize(formula)
     assert(Typer(query).success, "CL.entailment, not well typed")
     val (query1, _) = Quantifiers.getExistentialPrefix(query)
@@ -50,7 +50,7 @@ object CL2 {
     val (epr, rest) = clauses.partition(keepAsIt)
     val gts0 = getGrounTerms(epr)
     val inst0 = FormulaUtils.getConjuncts(InstGen.saturate(And(rest:_*), gts0, Some(0), false))
-    val withILP = epr ::: CL.reduceComprehension(inst0) //TODO bound on the venn region
+    val withILP = epr ::: CL.reduceComprehension(inst0, bound)
     val withSetAx = SetOperationsAxioms.addAxioms(withILP)
     val withOpt = OptionAxioms.addAxioms(withSetAx)
     val withTpl = TupleAxioms.addAxioms(withOpt)

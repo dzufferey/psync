@@ -162,7 +162,7 @@ object CL {
   }
 
   //TODO non-empty scope means we should introduce more terms
-  def reduceComprehension(conjuncts: List[Formula]): List[Formula] = {
+  def reduceComprehension(conjuncts: List[Formula], bound: Option[Int]): List[Formula] = {
     val (woComp, c1) = collectComprehensionDefinitions(conjuncts)
     val v = Variable(Namer("v")).setType(procType)
     val ho = SetDef(Set(v), Application(HO, List(v)), None)
@@ -176,8 +176,10 @@ object CL {
       for ( (tpe, sDefs) <- byType ) yield {
         val fs = sDefs.map(_.fresh)
         val sets = fs.map( sd => (sd.id, sd.body)) 
-        val vr = new VennRegions(tpe, sizeOfUniverse(tpe), sets)
-        val cstrs = vr.constraints
+        val cstrs = bound match {
+          case Some(b) => new VennRegionsWithBound(b, tpe, sizeOfUniverse(tpe), sets).constraints
+          case None => new VennRegions(tpe, sizeOfUniverse(tpe), sets).constraints
+        }
         val scope = fs.map(_.scope).flatten.toList
         ForAll(scope, cstrs) //TODO this needs skolemization
       }
@@ -191,7 +193,7 @@ object CL {
     val rawConjuncts = FormulaUtils.getConjuncts(n2)
     val conjuncts = rawConjuncts.map(f => Quantifiers.skolemize(Simplify.simplify(Simplify.pnf(f))))
     Logger("CL", Info, "reducing:\n  " + conjuncts.mkString("\n  "))
-    val withILP = reduceComprehension(conjuncts)
+    val withILP = reduceComprehension(conjuncts, None)
     Logger("CL", Debug, "with ILP:\n  " + withILP.mkString("\n  "))
     val withSetAx = SetOperationsAxioms.addAxioms(withILP)
     val withOpt = OptionAxioms.addAxioms(withSetAx)

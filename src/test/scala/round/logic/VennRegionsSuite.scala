@@ -74,4 +74,23 @@ class VennRegionsSuite extends FunSuite {
     }
   }
 
+  test("bound") {
+    val c1 = List(a -> None)
+    val c2 = List(a -> None, b -> None)
+    val c3 = List(a -> None, b -> None, c -> None)
+    def mk(b: Int, lst: List[(Formula, Option[Binding])]): List[Formula] = {
+      val vr = new VennRegionsWithBound(b, pid, Some(n), lst)
+      FormulaUtils.getConjuncts(vr.constraints)
+    }
+    assert(mk(1, c1).size == 1)
+    assert(mk(1, c2).size == 2)
+    assert(mk(1, c3).size == 3)
+    assert(mk(2, c1).size == 1)
+    assert(mk(2, c2).size == 1)
+    assert(mk(2, c3).size == 3)
+    assert(mk(3, c1).size == 1)
+    assert(mk(3, c2).size == 1)
+    assert(mk(3, c3).size == 1)
+  }
+
 }

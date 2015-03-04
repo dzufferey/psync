@@ -209,3 +209,27 @@ class VennRegions(tpe: Type, universeSize: Option[Formula], sets: Iterable[(Form
   }
 
 }
+
+
+class VennRegionsWithBound(bound: Int, tpe: Type, universeSize: Option[Formula], _sets: Iterable[(Formula, Option[Binding])]) {
+
+  protected def sets = _sets.toArray
+
+  protected def mkSeq(idx: Int, pos: Int): Seq[List[(Formula, Option[Binding])]] = {
+    if (idx >= bound) {
+      Seq(Nil)
+    } else {
+      for (i <- pos to sets.size - bound + idx;
+           lst <- mkSeq(idx + 1, i+1)) yield sets(i) :: lst
+
+    }
+  }
+
+  def constraints = {
+    val seq = if (bound >= sets.size) Seq(_sets)
+              else mkSeq(0,0)
+    val cstrs = seq.map( s => new VennRegions(tpe, universeSize, s).constraints )
+    And(cstrs:_*)
+  }
+
+}
