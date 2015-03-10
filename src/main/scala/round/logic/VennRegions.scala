@@ -56,7 +56,7 @@ class VennRegions(tpe: Type, universeSize: Option[Formula], sets: Iterable[(Form
       }
     }
   }
-  assert(counter < 32, "will run into indexing problems ...")
+  assert(counter < 32, "will run into indexing problems counter = "+counter+" (tpe = "+tpe+")\n" ++ sets.mkString("\n"))
   
   /** Generate all the constraints:
    * a: |p| + |~p| = |universe|

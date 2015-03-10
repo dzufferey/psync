@@ -4,6 +4,69 @@ import dzufferey.utils.Namer
 
 object FormulaUtils {
 
+  implicit object BindingTypeOrdering extends Ordering[BindingType] {
+    def compare(a: BindingType, b: BindingType) = {
+      if (a == b) 0
+      else (a,b) match {
+        case (Exists, _) => -1
+        case (ForAll, Exists) => 1
+        case (ForAll, _) => -1
+        case (Comprehension, _) => 1
+      }
+    }
+  }
+
+  implicit object SymbolOrdering extends Ordering[Symbol] {
+    def compare(a: Symbol, b: Symbol) = (a,b) match {
+      case (a: InterpretedFct, b: InterpretedFct) => a.symbol compare b.symbol
+      case (a: InterpretedFct, _) => -1
+      case (a: UnInterpretedFct, b: InterpretedFct) => 1
+      case (UnInterpretedFct(n1, t1, p1), UnInterpretedFct(n2, t2, p2)) =>
+        val n = n1 compare n2
+        assert(n != 0 || (t1 == t2 && p1 == p2), "overloading not currently supported")
+        n
+    }
+  }
+
+  implicit object FormulaOrdering extends Ordering[Formula] {
+    val lstOrdering = Ordering.Iterable(this)
+
+    def compareLiteralContent(a: Any, b: Any): Int = (a, b) match {
+      case (l1: Long, l2: Long) => l1 compare l2
+      case (d1: Double, d2: Double) => d1 compare d2
+      case (other1, other2) =>
+        if (other1 == other2) 0
+        else {
+          val h1 = other1.hashCode
+          val h2 = other2.hashCode
+          assert(h1 != h2, "don't know how to compare " + other1 + " and " + other2)
+          h1 compare h2
+        }
+    }
+
+    def compare(a: Formula, b: Formula) = (a,b) match {
+      case (Literal(l1), Literal(l2)) => compareLiteralContent(l1, l2)
+      case (Literal(al), _) => -1
+      case (Variable(_), Literal(_)) => 1
+      case (Variable(v1), Variable(v2)) => v1 compare v2
+      case (Variable(_), _) => -1
+      case (Application(_, _), Literal(_) | Variable(_)) => 1
+      case (Application(f1, arg1), Application(f2, arg2)) =>
+        val f = SymbolOrdering.compare(f1, f2)
+        if (f == 0) lstOrdering.compare(arg1, arg2)
+        else f
+      case (Application(_, _), _) => -1
+      case (Binding(b1, v1, f1), Binding(b2, v2, f2)) =>
+        val b = BindingTypeOrdering.compare(b1, b2)
+        if (b == 0) {
+          val v = lstOrdering.compare(v1, v2)
+          if (v == 0) compare(f1, f2)
+          else v
+        } else b
+      case (Binding(_,_,_), _) => 1
+    }
+  }
+
   def alpha(map: Map[Variable, Variable], f: Formula): Formula = {
     val a = new Alpha(map)
     a.transform(f)

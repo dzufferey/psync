@@ -51,10 +51,47 @@ object Simplify {
   def dnf(f: Formula): Formula = {
     ???
   }
+
+  def deBruijnIndex(f: Formula): Formula = {
+    def mkVar(tpe: Type, idx: Int) = {
+      val prefix = round.utils.smtlib.Names.tpe(tpe)
+      Variable(prefix + "_" + idx).setType(tpe)
+    }
+
+    //generic renaming of variables _XXX
+    val allVars = f.freeVariables ++ f.boundVariables
+    val dummyNames = allVars.foldLeft(Map[Variable,Variable]())( (acc, v) => acc + (v -> Variable(Namer("_")).setType(v.tpe)) )
+    val cleanNames = FormulaUtils.alphaAll(dummyNames, f)
+
+    def merge(m1: Map[Type, Int], m2: Map[Type, Int]): Map[Type, Int] = {
+      m2.foldLeft(m1)( (acc, k) => acc + (k._1 -> math.max(k._2, acc.getOrElse(k._1, 0))) )
+    }
+
+    //renaming
+    def assignNames(f: Formula): (Map[Type, Int], Formula) = f match {
+      case Literal(_) | Variable(_) => (Map(), f)
+      case Application(fct, args) =>
+        val (maps, args2) = args.map(assignNames).unzip
+        val map = maps.foldLeft(Map[Type,Int]())(merge(_, _))
+        (map, Application(fct, args2).setType(f.tpe))
+      case Binding(bt, vs, f2) =>
+        val (map, f3) = assignNames(f2)
+        val (vs2, map2) = dzufferey.utils.Misc.mapFold(vs, map, (v: Variable, acc: Map[Type, Int]) => {
+          val idx = 1 + acc.getOrElse(v.tpe, 0)
+          val acc2 = acc + (v.tpe -> idx)
+          (mkVar(v.tpe, idx), acc2)
+        })
+        val subst = vs.zip(vs2).toMap
+        val f4 = FormulaUtils.alpha(subst, f3)
+        (map2, Binding(bt, vs2, f4).setType(f.tpe))
+    }
+
+    assignNames(cleanNames)._2
+  }
   
 
   //prenex normal form
-  //TODO also recurse in Comprehension
+  //TODO also recurse in Comprehension ?
   def pnf(f: Formula) = {
     val f2 = boundVarUnique(nnf(f))
     def merge(lst: List[List[(BindingType, List[Variable])]], exists: Boolean): List[(BindingType, List[Variable])] = {
@@ -186,6 +223,7 @@ object Simplify {
     FormulaUtils.map(fct, f)
   }
   
+  //TODO better
   def simplifyInt(f: Formula): Formula = {
     //division: from 'x > 2n/3' to '3x > 2n'
     def getDenom(f: Formula): scala.Int = f match {
@@ -283,19 +321,20 @@ object Simplify {
   }
   
   def simplifyBool(f: Formula): Formula = {
+    import FormulaUtils._
     def fct(f: Formula) = f match {
       case Or(lst @ _*) =>
         val lst2 = lst.toSet.filterNot(_ == False())
         if (lst2.exists(_ == True())) True()
         else if (lst2.isEmpty) False()
         else if (lst2.size == 1) lst2.head
-        else Application(Or, lst2.toList).setType(Bool)
+        else Application(Or, lst2.toList.sorted).setType(Bool)
       case And(lst @ _*) =>
         val lst2 = lst.toSet.filterNot(_ == True())
         if (lst2.exists(_ == False())) False()
         else if (lst2.isEmpty) True()
         else if (lst2.size == 1) lst2.head
-        else Application(And, lst2.toList).setType(Bool)
+        else Application(And, lst2.toList.sorted).setType(Bool)
       case Not(Literal(b: Boolean)) =>
         Literal(!b)
       case other =>

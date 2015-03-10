@@ -60,8 +60,8 @@ object CL2 {
   }
 
   
-  def entailment(hypothesis: Formula, conclusion: Formula): Formula = {
-    reduce(And(hypothesis, Not(conclusion)))
+  def entailment(hypothesis: Formula, conclusion: Formula, bound: Option[Int] = None): Formula = {
+    reduce(And(hypothesis, Not(conclusion)), bound)
   }
 
 }

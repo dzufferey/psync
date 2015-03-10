@@ -8,7 +8,7 @@ import dzufferey.arg._
 object Verifier extends round.utils.DefaultOptions {
   
   var v = 1
-  newOption("-n", Int( i => v = i), "1/2/3")
+  newOption("-n", Int( i => v = i), "1/2")
   
   var lv = false
   newOption("-lv", Unit( () => lv = true), "LastVoting (default OTR)")
