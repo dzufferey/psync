@@ -43,6 +43,10 @@ object CL2 {
   }
   
   def reduce(formula: Formula, bound: Option[Int] = None): Formula = {
+    //TODO normalization:
+    //-fixUniquelyDefinedUniversal
+    //-de Bruijn then bound var unique (TODO make sure there is no clash about this)
+    //-filter fot the VennRegions
     val query = CL.normalize(formula)
     assert(Typer(query).success, "CL.entailment, not well typed")
     val (query1, _) = Quantifiers.getExistentialPrefix(query)

@@ -22,8 +22,9 @@ object PerfTest extends round.utils.DefaultOptions with DecisionLog[scala.Int] {
   var logFile = ""
   newOption("--log", String(str => logFile = str ), "log file prefix")
 
-  var lv = false
-  newOption("-lv", Unit( () => lv = true), "use the last voting instead of the OTR")
+  var algorithm = ""
+  newOption("-lv", dzufferey.arg.Unit( () => algorithm = "lv"), "use the last voting algorithm")
+  newOption("-a", dzufferey.arg.String( a => algorithm = a), "use the given algorithm (otr, lv, slv)")
   
   var rate = new Semaphore(10)
   newOption("-rt", Int( i => rate = new Semaphore(i)), "fix the rate (how many instance in parallel)")
@@ -112,8 +113,7 @@ object PerfTest extends round.utils.DefaultOptions with DecisionLog[scala.Int] {
       val fw = new java.io.FileWriter(logFile + "_" + id + ".log")
       log = new java.io.BufferedWriter(fw)
     } 
-    val alg = if (lv) new LastVoting2()
-              else new OTR2()
+    val alg = ConsensusSelector(algorithm, Map())
     rt = new RunTime(alg)
     rt.startService(defaultHandler(_), confFile, Map("id" -> id.toString, "timeout" -> to.toString))
     Thread.sleep(1000)

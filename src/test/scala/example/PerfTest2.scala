@@ -16,7 +16,7 @@ class PerfTest2(id: Int,
                 confFile: String,
                 nbrValues: Short,
                 _rate: Short,
-                lv: Boolean,
+                algorithm: String,
                 logFile: Option[String],
                 additionalOptions: Map[String,String]
                ) extends DecisionLog[Int]
@@ -37,16 +37,7 @@ class PerfTest2(id: Int,
     log.newLine()
   }
 
-  val alg = {
-    if (additionalOptions contains "after") {
-      val after = additionalOptions("after").toInt
-      if (lv) new LastVoting2(after)
-      else new OTR(after)
-    } else {
-      if (lv) new LastVoting2()
-      else new OTR()
-    }
-  }
+  val alg = ConsensusSelector(algorithm, additionalOptions)
   val rt = new RunTime(alg)
   rt.startService(defaultHandler(_), confFile, additionalOptions + ("id" -> id.toString))
 
@@ -292,7 +283,8 @@ class PerfTest2(id: Int,
   }
   
   def wakeupOthers(inst: Short, initValue: Int) {
-    if (lv) {
+    //TODO better way
+    if (algorithm == "lv" || algorithm == "slv") {
       val dir = rt.directory
       for (o <- dir.others) {
         val payload = PooledByteBufAllocator.DEFAULT.buffer()
@@ -347,8 +339,9 @@ object PerfTest2 extends round.utils.DefaultOptions {
   var to = 50
   newOption("-to", dzufferey.arg.Int( i => to = i), "timeout")
   
-  var lv = false
-  newOption("-lv", dzufferey.arg.Unit( () => lv = true), "use the last voting instead of the OTR")
+  var algorithm = ""
+  newOption("-lv", dzufferey.arg.Unit( () => algorithm = "lv"), "use the last voting algorithm")
+  newOption("-a", dzufferey.arg.String( a => algorithm = a), "use the given algorithm (otr, lv, slv)")
   
   var after = -1
   newOption("-after", dzufferey.arg.Int( i => after = i), "#round after decision")
@@ -367,7 +360,7 @@ object PerfTest2 extends round.utils.DefaultOptions {
     val opts =
       if (after >= 0) Map("timeout" -> to.toString, "after" -> after.toString)
       else Map("timeout" -> to.toString)
-    system = new PerfTest2(id, confFile, n.toShort, rate.toShort, lv, logFile, opts)
+    system = new PerfTest2(id, confFile, n.toShort, rate.toShort, algorithm, logFile, opts)
 
     //let the system setup before starting
     Thread.sleep(delay)
