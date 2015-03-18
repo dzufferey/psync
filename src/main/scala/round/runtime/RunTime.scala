@@ -7,6 +7,7 @@ import io.netty.channel.socket._
 import dzufferey.utils.LogLevel._
 import dzufferey.utils.Logger
 import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.atomic.AtomicInteger
 
 
 class RunTime[IO](val alg: Algorithm[IO]) {
@@ -15,9 +16,7 @@ class RunTime[IO](val alg: Algorithm[IO]) {
 
   private var options = Map.empty[String, String]
 
-  private var predicatePool: PredicatePool = null
-
-  final val defaultSize = 32
+  private val defaultSize = 64
   private val maxSize = {
     try {
       options.getOrElse("processPool", defaultSize.toString).toInt
@@ -26,20 +25,31 @@ class RunTime[IO](val alg: Algorithm[IO]) {
       defaultSize
     }
   }
-  private val processPool = new ArrayBlockingQueue[Process[IO]](maxSize)
+  private val processPool = new ArrayBlockingQueue[InstanceHandler[IO]](maxSize)
 
-  private def getProcess: Process[IO] = {
+  private var channelIdx = new AtomicInteger
+  private def createProcess: InstanceHandler[IO] = {
+    assert(srv.isDefined)
+    val p = alg.process
+    val channels = srv.get.channels
+    val idx = channelIdx.getAndIncrement.abs % channels.size
+    val channel = channels(idx)
+    val dispatcher = srv.get.dispatcher
+    val defaultHandler = srv.get.defaultHandler(_)
+    new InstanceHandler(p, this, channel, dispatcher, defaultHandler, options)
+  }
+
+  private def getProcess: InstanceHandler[IO] = {
     val proc = processPool.poll
     if (proc == null) {
-      val p = alg.process
-      p.setRT(this)
-      p
+      Logger("RunTime", Warning, "processPool is running low")
+      createProcess
     } else {
       proc
     }
   }
 
-  def recycle(p: Process[IO]) {
+  def recycle(p: InstanceHandler[IO]) {
     processPool.offer(p)
   }
 
@@ -55,9 +65,6 @@ class RunTime[IO](val alg: Algorithm[IO]) {
         //an instance is actually encapsulated by one process
         val grp = s.directory.group
         val process = getProcess
-        process.setGroup(grp)
-        process.init(io)
-        val predicate = predicatePool.get
         val messages2 = messages.filter( m => {
           if (!Flags.userDefinable(m.flag) && m.flag != Flags.dummy) {
             true
@@ -66,8 +73,8 @@ class RunTime[IO](val alg: Algorithm[IO]) {
             false
           }
         })
-        //register the instance and send the first round of messages
-        predicate.start(grp, instanceId, process, messages2)
+        process.prepare(io, grp, instanceId, messages2)
+        submitTask(process)
       case None =>
         sys.error("service not running")
     }
@@ -78,7 +85,7 @@ class RunTime[IO](val alg: Algorithm[IO]) {
     Logger("RunTime", Info, "stopping instance " + instanceId)
     srv match {
       case Some(s) =>
-        s.dispatcher.findInstance(instanceId).map(_.stop(instanceId))
+        s.dispatcher.findInstance(instanceId).map(_.interrupt(instanceId))
       case None =>
         sys.error("service not running")
     }
@@ -107,8 +114,7 @@ class RunTime[IO](val alg: Algorithm[IO]) {
     val pktSrv = new PacketServer(ports, grp, defaultHandler, options)
     srv = Some(pktSrv)
     pktSrv.start
-    
-    predicatePool = new PredicatePool(pktSrv.channels, pktSrv.dispatcher, options)
+    for (i <- 0 until maxSize) processPool.offer(createProcess)
   }
 
   def startService(
@@ -133,6 +139,12 @@ class RunTime[IO](val alg: Algorithm[IO]) {
     }
     srv = None
   }
+  
+  def submitTask[T](fct: java.util.concurrent.Callable[T]) = {
+    assert(srv.isDefined)
+    srv.get.submitTask(fct)
+  }
+
 
   def submitTask[T](fct: () => T) = {
     assert(srv.isDefined)

@@ -336,8 +336,8 @@ object PerfTest2 extends round.utils.DefaultOptions {
   var rd = new Random()
   newOption("-r", dzufferey.arg.Int( i => rd = new Random(i)), "random number generator seed")
   
-  var to = 50
-  newOption("-to", dzufferey.arg.Int( i => to = i), "timeout")
+  var to = -1
+  newOption("-to", dzufferey.arg.Int( i => to = i), "timeout (default in config file)")
   
   var algorithm = ""
   newOption("-lv", dzufferey.arg.Unit( () => algorithm = "lv"), "use the last voting algorithm")
@@ -358,8 +358,10 @@ object PerfTest2 extends round.utils.DefaultOptions {
   def main(args: Array[java.lang.String]) {
     apply(args)
     val opts =
-      if (after >= 0) Map("timeout" -> to.toString, "after" -> after.toString)
-      else Map("timeout" -> to.toString)
+      if (after >= 0 && to > 0) Map("timeout" -> to.toString, "after" -> after.toString)
+      else if (to > 0) Map("timeout" -> to.toString)
+      else if (after >= 0) Map("after" -> after.toString)
+      else Map[String, String]()
     system = new PerfTest2(id, confFile, n.toShort, rate.toShort, algorithm, logFile, opts)
 
     //let the system setup before starting

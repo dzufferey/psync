@@ -1,17 +1,14 @@
 package round.runtime
 
-import round.predicate.Predicate
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
-
 import io.netty.channel.socket._
 import java.util.concurrent.locks.ReentrantLock
 
 /** a dispatcher that scales better than putting all the instance in the pipeline */
 class InstanceDispatcher(
     executor: java.util.concurrent.Executor,
-    defaultHandler: Message => Unit,
-    dir: Directory,
+    defaultHandler: DatagramPacket => Unit,
     options: Map[String, String] = Map.empty)
 {
 
@@ -19,7 +16,7 @@ class InstanceDispatcher(
     try {
       options.getOrElse("dispatcher", "7").toInt
     } catch { case e: Exception =>
-      Logger("Predicate", Warning, "dispatcher unspecified or wrong format, using 7")
+      Logger("InstanceDispatcher", Warning, "dispatcher unspecified or wrong format, using 7")
       7
     }
   }
@@ -38,7 +35,7 @@ class InstanceDispatcher(
   }
 
   private val locks = Array.ofDim[ReentrantLock](n)
-  private val instances = Array.ofDim[List[(Int, Predicate)]](n)
+  private val instances = Array.ofDim[List[(Int, InstHandler)]](n)
 
   for ( i <- 0 until n ) {
     locks(i) = new ReentrantLock
@@ -47,7 +44,7 @@ class InstanceDispatcher(
 
   private def index(inst: Int): Int = inst & mask
 
-  def add(inst: Int, handler: Predicate ) {
+  def add(inst: Int, handler: InstHandler) {
     val i = index(inst)
     val l = locks(i)
     l.lock()
@@ -66,7 +63,7 @@ class InstanceDispatcher(
   def remove(inst: Int) {
     val i = index(inst)
     val l = locks(i)
-    var oldLst: List[(Int,Predicate)] = Nil
+    var oldLst: List[(Int,InstHandler)] = Nil
     l.lock()
     try {
       oldLst = instances(i)
@@ -80,7 +77,7 @@ class InstanceDispatcher(
     }
   }
 
-  def findInstance(inst: Int): Option[Predicate] = {
+  def findInstance(inst: Int): Option[InstHandler] = {
     val i = index(inst)
     instances(i).find( p => p._1 == inst).map(_._2)
   }
@@ -94,43 +91,17 @@ class InstanceDispatcher(
 
   /** call the default handler */
   private def default(pkt: DatagramPacket) {
-    val msg = new Message(pkt, dir.group)
-    defaultHandler(msg)
+    executor.execute(new Runnable {
+      def run { defaultHandler(pkt) }
+    })
   }
-
-  private val messageQueue = new java.util.concurrent.ArrayBlockingQueue[DatagramPacket](1024)
-
-  private val localDispatch = new Runnable {
-    def run {
-      while(true) {
-        val pkt = messageQueue.take
-        executor.execute(new Runnable {
-          def run {
-            try {
-              val tag = Message.getTag(pkt.content)
-              findInstance(tag.instanceNbr) match {
-                case Some(inst) =>
-                  if (!inst.messageReceived(pkt))
-                    default(pkt)
-                case None => 
-                  default(pkt)
-              }
-            } catch {
-              case e: Exception =>
-                Logger("InstanceDispatcher", Warning, "got " + e + "\n  " + e.getStackTrace.mkString("\n  "))
-            }
-          }
-        })
-      }
-    }
-  }
-
-  private val t1 = new Thread(localDispatch)
-  t1.setDaemon(true)
-  t1.start()
 
   def dispatch(pkt: DatagramPacket) {
-    messageQueue.put(pkt)
+    val tag = Message.getTag(pkt.content)
+    findInstance(tag.instanceNbr) match {
+      case Some(inst) => inst.newPacket(pkt)
+      case None => default(pkt)
+    }
   }
 
 }

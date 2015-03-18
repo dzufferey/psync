@@ -6,11 +6,6 @@ abstract class Process[IO] extends RtProcess {
 
   val rounds: Array[Round]
 
-
-  var rt: round.runtime.RunTime[IO] = null
-  def setRT(r: round.runtime.RunTime[IO]) { rt = r }
-  def reset { if (rt != null) rt.recycle(this) }
-
   //////////////////////
   // for verification //
   //////////////////////
@@ -29,8 +24,6 @@ abstract class Process[IO] extends RtProcess {
 abstract class RtProcess {
 
   var id: ProcessID = new ProcessID(-1)
-
-  def reset: Unit
 
   def setGroup(g: round.runtime.Group): Unit //defined by macros
   

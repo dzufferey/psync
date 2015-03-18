@@ -19,11 +19,16 @@ import java.net.InetSocketAddress
 class PacketServer(
     ports: Iterable[Int],
     initGroup: Group,
-    defaultHandler: Message => Unit, //defaultHandler is responsible for releasing the ByteBuf payload
+    _defaultHandler: Message => Unit, //defaultHandler is responsible for releasing the ByteBuf payload
     options: Map[String, String] = Map.empty)
 {
 
   val directory = new Directory(initGroup)
+
+  def defaultHandler(pkt: DatagramPacket) {
+    val msg = new Message(pkt, directory.group)
+    _defaultHandler(msg)
+  }
 
   private val groupKind = options.getOrElse("group", "nio").toLowerCase
   private def epoll = groupKind == "epoll"
@@ -31,7 +36,7 @@ class PacketServer(
   private def oio = groupKind == "oio"
     
   if (options.getOrElse("transport layer", "udp").toLowerCase != "udp") {
-     Logger("PacketServer", Warning, "transport layer: only UDP supported for the moment")
+    Logger("PacketServer", Warning, "transport layer: only UDP supported for the moment")
   }
 
   private val executor = {
@@ -75,7 +80,7 @@ class PacketServer(
   private var chans: Array[Channel] = null
   def channels: Array[Channel] = chans
 
-  val dispatcher = new InstanceDispatcher(executor, defaultHandler, directory)
+  val dispatcher = new InstanceDispatcher(executor, defaultHandler, options)
 
   def close {
     dispatcher.clear
