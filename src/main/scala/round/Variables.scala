@@ -11,29 +11,29 @@ trait Variables[IO] {
   }
 
   abstract class Variable[A] {
-    def get: A
+    def value: A
   }
 
   class GlobalVariable[A](val init: A) extends Variable[A] {
-    def get = init
+    def value = init
   }
 
 
   class LocalVariable[A](val default: A) extends Variable[A] {
   //private var value = default
   //def <~(v: A) { value = v }
-  //def get: A = value
+  //def value: A = value
   //override def equals(any: Any) = value == any
-  //def apply(p: ProcessID): A = get //TODO
+  //def apply(p: ProcessID): A = value //TODO
     def <~(v: A) { sys.error("only for compilation purpose, removed by macros") }
-    def get: A = sys.error("only for compilation purpose, removed by macros")
+    def value: A = sys.error("only for compilation purpose, removed by macros")
     override def equals(any: Any) = sys.error("only for compilation purpose, removed by macros")
     def apply(p: ProcessID): A = sys.error("only for compilation purpose, removed by macros")
   }
 
   class GhostVariable[A] extends Variable[A] {
     def <~(v: A) { sys.error("only for verification purpose, removed by macros") }
-    def get: A = sys.error("only for verification purpose, removed by macros")
+    def value: A = sys.error("only for verification purpose, removed by macros")
     override def equals(any: Any) = sys.error("only for verification purpose, removed by macros")
     def apply(p: ProcessID): A = sys.error("only for verification purpose, removed by macros")
   }
@@ -41,7 +41,7 @@ trait Variables[IO] {
 
   object VarHelper {
 
-    implicit def getter[A](v: Variable[A]): A = v.get
+    implicit def getter[A](v: Variable[A]): A = v.value
     def init[T <: Variable[_]](v: T): T = sys.error("only for verification purpose, removed by macros")
     def old[T <: Variable[_]](v: T): T = sys.error("only for verification purpose, removed by macros")
 

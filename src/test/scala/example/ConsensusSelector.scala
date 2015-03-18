@@ -12,16 +12,8 @@ object ConsensusSelector {
         val after = additionalOptions("after").toInt
         new OTR(after)
       } else new OTR()
-    case "lv" =>
-      if (additionalOptions contains "after") {
-        val after = additionalOptions("after").toInt
-        new LastVoting2(after)
-      } else new LastVoting2()
-    case "slv" =>
-      if (additionalOptions contains "after") {
-        val after = additionalOptions("after").toInt
-        new ShortLastVoting(after)
-      } else new ShortLastVoting()
+    case "lv" => new LastVoting2()
+    case "slv" => new ShortLastVoting()
     case other =>
       Logger.logAndThrow("ConsensusSelector", Error, "unknown algorithm: " + other)
   }

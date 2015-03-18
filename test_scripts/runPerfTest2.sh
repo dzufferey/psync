@@ -22,5 +22,5 @@ echo running 4 replicas for $t seconds
 #java '-Dio.netty.leakDetectionLevel=advanced' -cp ${cp} example.PerfTest2 -id 3 $* &
 sleep $((t + 2))
 echo stopping ...
-pkill --parent $$
+pkill -P $$
 sleep 1

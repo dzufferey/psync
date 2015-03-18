@@ -45,7 +45,7 @@ abstract class RtProcess {
     currentRound.packSend(allocator)
   }
 
-  final def update(msgs: Set[(ProcessID, io.netty.buffer.ByteBuf)]) {
+  final def update(msgs: Set[(ProcessID, io.netty.buffer.ByteBuf)]): Boolean = {
     currentRound.unpackUpdate(msgs)
   }
 

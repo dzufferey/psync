@@ -93,7 +93,8 @@ class OTR(afterDecision: Int = 2) extends Algorithm[ConsensusIO] {
           if ((decided: Boolean)) {
             after <~ after - 1
             if(after <= 0) {
-              terminate()
+              //terminate()
+              exitAtEndOfRound
             }
           }
         }

@@ -18,5 +18,5 @@ java -cp ${cp} example.PerfTest -id 3 $* &
 #java -cp ${cp} example.PerfTest -id 3 $* > log.3.txt &
 sleep $((t + 2))
 echo stopping ...
-pkill --parent $$
+pkill -P $$
 sleep 1

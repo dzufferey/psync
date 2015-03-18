@@ -137,9 +137,12 @@ abstract class Predicate(
     try {
       //actual delivery
       val mset = msgs.toSet
-      proc.update(mset)
-      //start the next round (if has not exited)
-      send
+      if (proc.update(mset)) {
+        //start the next round (if has not exited)
+        send
+      } else {
+        stop(instance)
+      }
     } catch {
       case e: TerminateInstance =>
         stop(instance)

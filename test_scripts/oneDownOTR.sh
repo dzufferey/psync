@@ -10,5 +10,5 @@ echo running 3 out of 4 OTR replicas for $t seconds
 # java -cp ${cp} example.PerfTest2 -id 3 -to 10 $* &
 sleep $((t + 2))
 echo stopping ...
-pkill --parent $$
+pkill -P $$
 sleep 1

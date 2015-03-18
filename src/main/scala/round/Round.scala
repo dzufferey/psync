@@ -23,11 +23,18 @@ abstract class Round {
   }
   
   //to finish the instance
+  //TODO throwing so many exception might be expensive for normal control flow...
   protected final def terminate(): Nothing = {
     throw new TerminateInstance
   }
 
-  //TODO
+  
+  private var _continue = true
+  protected final def exitAtEndOfRound(): Unit = {
+    _continue = false
+  }
+
+  //TODO can we inter that from the send code ?
   def expectedNbrMessages: Int = group.size
 
   //////////////////
@@ -60,7 +67,7 @@ abstract class Round {
     }
   }
 
-  final def unpackUpdate(msg: Set[(ProcessID, ByteBuf)]) = {
+  final def unpackUpdate(msg: Set[(ProcessID, ByteBuf)]): Boolean = {
     def decode(p: (ProcessID, ByteBuf)): (A, ProcessID) = {
       val p1 = p._2
       val a = deserialize(p1)
@@ -69,7 +76,9 @@ abstract class Round {
     }
     val decoded = msg.map(decode)
     //println("received: " + decoded.mkString(", "))
+    _continue = true
     update(decoded)
+    _continue
   }
 
 

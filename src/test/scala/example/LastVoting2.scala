@@ -3,7 +3,7 @@ package example
 import round._
 import round.macros.Macros._
 
-class LastVoting2(afterDecision: Int = 1) extends Algorithm[ConsensusIO] {
+class LastVoting2 extends Algorithm[ConsensusIO] {
 
   import VarHelper._
   import SpecHelper._
@@ -18,7 +18,6 @@ class LastVoting2(afterDecision: Int = 1) extends Algorithm[ConsensusIO] {
   val vote = new LocalVariable[Int](0)
   val decision = new LocalVariable[Int](-1) //TODO as ghost
   val decided = new LocalVariable[Boolean](false)
-  val after = new LocalVariable[Int](afterDecision)
   //
   val callback = new LocalVariable[ConsensusIO](null)
 
@@ -196,20 +195,13 @@ class LastVoting2(afterDecision: Int = 1) extends Algorithm[ConsensusIO] {
             val v = mb2.head._1
             assert(mb2.size == 1)
             assert(v != 0)
-            if (!decided) {
-              callback.decide(v)
-              decision <~ v
-              decided <~ true
-            }
+            callback.decide(v)
+            decision <~ v
+            decided <~ true
+            exitAtEndOfRound()
           }
           ready <~ false
           commit <~ false
-          if ((decided: Boolean)) {
-            after <~ after - 1
-            if(after <= 0) {
-              terminate()
-            }
-          }
         }
 
       })
