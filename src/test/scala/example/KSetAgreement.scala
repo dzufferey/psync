@@ -11,7 +11,6 @@ class KSetAgreement(i: ProcessID, k: Int) extends Algorithm[ConsensusIO] {
 
   
   val t = new LocalVariable[Map[ProcessID,Int]](Map.empty[ProcessID,Int])
-  val decision = new LocalVariable[Int](-1) //TODO as ghost
   val decider = new LocalVariable[Boolean](false)
   //
   val callback = new LocalVariable[ConsensusIO](null)

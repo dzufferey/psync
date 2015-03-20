@@ -3,7 +3,7 @@ source `dirname $0`/deps
 
 t=5
 
-echo running 3 FloodMin replicas for $t seconds
+echo running 3 FloodMin replica
  java -cp ${cp} example.FloodMinRunner -id 0 --conf src/test/resources/3replicas-conf.xml $* &
  java -cp ${cp} example.FloodMinRunner -id 1 --conf src/test/resources/3replicas-conf.xml $* &
  java -cp ${cp} example.FloodMinRunner -id 2 --conf src/test/resources/3replicas-conf.xml $* &
