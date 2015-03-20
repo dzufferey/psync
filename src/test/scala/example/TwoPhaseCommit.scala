@@ -1,11 +1,12 @@
 package example
 
 import round._
+import round.runtime._
 import round.macros.Macros._
 
 
 abstract class TpcIO {
-  val coord: ProcessID
+  val coord: Short
   val canCommit: Boolean
   def decide(value: Option[Boolean]): Unit //deciding None means that we suspect the coordinator of crash!
 }
@@ -15,7 +16,9 @@ class TwoPhaseCommit extends Algorithm[TpcIO] {
   import VarHelper._
   import SpecHelper._
 
-  val coord = new LocalVariable[Short](-1) //cannot have ProcessID:  Result type in structural refinement may not refer to a user-defined value class
+  //cannot have ProcessID:  Result type in structural refinement may not refer to a user-defined value class
+  //TODO look into this, probably abug in the compiler
+  val coord = new LocalVariable[Short](0)
   val vote = new LocalVariable[Boolean](false)
   val decision = new LocalVariable[Option[Boolean]](None) //TODO as ghost
   //
@@ -51,7 +54,7 @@ class TwoPhaseCommit extends Algorithm[TpcIO] {
 
     def init(io: TpcIO) {
       callback <~ io
-      coord <~ io.coord.id
+      coord <~ io.coord
       vote <~ io.canCommit
       decision <~ None
     }
@@ -109,4 +112,51 @@ class TwoPhaseCommit extends Algorithm[TpcIO] {
     )
   })
 
+}
+
+
+object TpcRunner extends round.utils.DefaultOptions {
+  
+  var id = -1
+  newOption("-id", dzufferey.arg.Int( i => id = i), "the replica ID")
+
+  var confFile = "src/test/resources/sample-conf.xml"
+  newOption("--conf", dzufferey.arg.String(str => confFile = str ), "config file")
+  
+  val usage = "..."
+  
+  var rt: RunTime[TpcIO] = null
+
+  def defaultHandler(msg: Message) {
+    msg.release
+  }
+  
+  def main(args: Array[String]) {
+    apply(args)
+    val alg = new TwoPhaseCommit()
+    rt = new RunTime(alg)
+    rt.startService(defaultHandler(_), confFile, Map("id" -> id.toString))
+
+    import scala.util.Random
+    val init = Random.nextBoolean
+    val io = new TpcIO {
+      val coord: Short = 0
+      val canCommit = init
+      val initialValue = init
+      def decide(value: Option[Boolean]) {
+        Console.println("replica " + id + " decided " + value)
+      }
+    }
+    Thread.sleep(100)
+    Console.println("replica " + id + " starting with " + init)
+    rt.startInstance(0, io)
+  }
+  
+  Runtime.getRuntime().addShutdownHook(
+    new Thread() {
+      override def run() {
+        rt.shutdown
+      }
+    }
+  )
 }

@@ -27,6 +27,30 @@ class RunTime[IO](val alg: Algorithm[IO]) {
   }
   private val processPool = new ArrayBlockingQueue[InstanceHandler[IO]](maxSize)
 
+  private val executor = {
+    options.get("workers") match {
+      case Some(n) =>
+        val cores = java.lang.Runtime.getRuntime().availableProcessors()
+        val w = try {
+          if (n endsWith "x") {
+            val coeff = n.substring(0, n.length -1).toInt
+            coeff * cores
+          } else {
+            n.toInt
+          }
+        } catch {
+          case e: Exception =>
+            Logger("Runtime", Warning, "size of pool of workers has wrong format, using " + cores)
+            cores
+        }
+        Logger("Runtime", Debug, "using fixed thread pool of size " + w)
+        java.util.concurrent.Executors.newFixedThreadPool(w)
+      case None =>
+        Logger("Runtime", Debug, "using cached thread pool")
+        java.util.concurrent.Executors.newCachedThreadPool()
+    }
+  }
+
   private var channelIdx = new AtomicInteger
   private def createProcess: InstanceHandler[IO] = {
     assert(srv.isDefined)
@@ -111,7 +135,7 @@ class RunTime[IO](val alg: Algorithm[IO]) {
       if (grp contains me) grp.get(me).ports
       else Set(options("port").toInt)
     Logger("RunTime", Info, "starting service on ports: " + ports.mkString(", "))
-    val pktSrv = new PacketServer(ports, grp, defaultHandler, options)
+    val pktSrv = new PacketServer(executor, ports, grp, defaultHandler, options)
     srv = Some(pktSrv)
     pktSrv.start
     for (i <- 0 until maxSize) processPool.offer(createProcess)
@@ -135,21 +159,20 @@ class RunTime[IO](val alg: Algorithm[IO]) {
       case Some(s) =>
         Logger("RunTime", Info, "stopping service")
         s.close
+        executor.shutdownNow
       case None =>
     }
     srv = None
   }
   
-  def submitTask[T](fct: java.util.concurrent.Callable[T]) = {
-    assert(srv.isDefined)
-    srv.get.submitTask(fct)
+  def submitTask(fct: Runnable) = {
+    executor.execute(fct)
   }
 
 
-  def submitTask[T](fct: () => T) = {
-    assert(srv.isDefined)
-    srv.get.submitTask(new java.util.concurrent.Callable[T]{
-      def call: T = fct()
+  def submitTask(fct: () => Unit) = {
+    executor.execute(new Runnable{
+      def run = fct()
     })
   }
 

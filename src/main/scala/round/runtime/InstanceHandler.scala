@@ -8,7 +8,6 @@ import io.netty.channel.Channel
 import io.netty.buffer.ByteBuf
 import io.netty.channel.socket._
 import java.util.concurrent.ArrayBlockingQueue
-import java.util.concurrent.Callable
 import java.util.concurrent.TimeUnit
 
 //TODO extends a version without type param
@@ -23,7 +22,7 @@ class InstanceHandler[IO](proc: Process[IO],
                           channel: Channel,
                           dispatcher: InstanceDispatcher,
                           defaultHandler: DatagramPacket => Unit,
-                          options: Map[String, String] = Map.empty) extends Callable[Unit] with InstHandler {
+                          options: Map[String, String] = Map.empty) extends Runnable with InstHandler {
 
   protected var instance = 0
 
@@ -64,7 +63,7 @@ class InstanceHandler[IO](proc: Process[IO],
   }
   
   protected def default(pkt: DatagramPacket) {
-    rt.submitTask(new java.util.concurrent.Callable[Unit] { def call = defaultHandler(pkt) })
+    rt.submitTask(new Runnable { def run = defaultHandler(pkt) })
   }
 
   //call this just before giving it to the executor
@@ -98,7 +97,7 @@ class InstanceHandler[IO](proc: Process[IO],
       again = false
   }
 
-  def call {
+  def run {
     try {
       Logger("InstanceHandler", Info, "starting instance " + instance)
       again = true
@@ -111,6 +110,7 @@ class InstanceHandler[IO](proc: Process[IO],
           if(!pred.messageReceived(msg))
             default(msg)
         } else {
+          //Logger("InstanceHandler", Warning, instance + " timeout")
           didTimeOut += 1
           pred.deliver
         }

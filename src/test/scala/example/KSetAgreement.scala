@@ -1,9 +1,10 @@
 package example
 
 import round._
+import round.runtime._
 import round.macros.Macros._
 
-class KSetAgreement(k: Int) extends Algorithm[ConsensusIO] {
+class KSetAgreement(i: ProcessID, k: Int) extends Algorithm[ConsensusIO] {
   
   import VarHelper._
   import SpecHelper._
@@ -29,8 +30,9 @@ class KSetAgreement(k: Int) extends Algorithm[ConsensusIO] {
     def init(io: ConsensusIO) {
       callback <~ io
       decider <~ false
-      //FIXME: crash in explicit outer in the scala compiler!!
+      //FIXME: crash in the scala compiler (because of id)
       //t <~ Map(id -> io.initialValue)
+      t <~ Map(i -> io.initialValue)
     }
 
     val rounds = Array[Round](
@@ -70,4 +72,51 @@ class KSetAgreement(k: Int) extends Algorithm[ConsensusIO] {
       })
     )
   })
+}
+
+object KSetRunner extends round.utils.DefaultOptions {
+  
+  var id = -1
+  newOption("-id", dzufferey.arg.Int( i => id = i), "the replica ID")
+
+  var k = 2
+  newOption("-k", dzufferey.arg.Int( i => k = i), "k (default = 2)")
+
+  var confFile = "src/test/resources/sample-conf.xml"
+  newOption("--conf", dzufferey.arg.String(str => confFile = str ), "config file")
+  
+  val usage = "..."
+  
+  var rt: RunTime[ConsensusIO] = null
+
+  def defaultHandler(msg: Message) {
+    msg.release
+  }
+  
+  def main(args: Array[java.lang.String]) {
+    apply(args)
+    val alg = new KSetAgreement(new ProcessID(id.toShort), k)
+    rt = new RunTime(alg)
+    rt.startService(defaultHandler(_), confFile, Map("id" -> id.toString))
+
+    import scala.util.Random
+    val init = Random.nextInt
+    val io = new ConsensusIO {
+      val initialValue = init
+      def decide(value: Int) {
+        Console.println("replica " + id + " decided " + value)
+      }
+    }
+    Thread.sleep(100)
+    Console.println("replica " + id + " starting with " + init)
+    rt.startInstance(0, io)
+  }
+  
+  Runtime.getRuntime().addShutdownHook(
+    new Thread() {
+      override def run() {
+        rt.shutdown
+      }
+    }
+  )
 }

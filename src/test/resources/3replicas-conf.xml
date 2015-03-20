@@ -4,7 +4,7 @@
 <configuration>
   <parameters>
     <param> <name>transport layer</name> <value>UDP</value> </param>
-    <param> <name>timeout</name> <value>5</value> </param>
+    <param> <name>timeout</name> <value>10</value> </param>
     <param> <name>group</name> <value>nio</value> </param>
     <param> <name>bufferSize</name> <value>8</value> </param>
     <!--param> <name>workers</name> <value>1x</value> </param-->

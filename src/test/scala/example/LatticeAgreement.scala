@@ -1,9 +1,8 @@
 package example
 
 import round._
-import round.runtime.Group
+import round.runtime._
 import round.macros.Macros._
-import io.netty.buffer.ByteBuf
 
 /* A simple example of lattice.
  * Due to the way the serializatino code is generated, we need a concrete type
@@ -81,4 +80,49 @@ class LatticeAgreement extends Algorithm[LatticeIO] {
 
   })
 
+}
+
+object LatticeRunner extends round.utils.DefaultOptions {
+  
+  var id = -1
+  newOption("-id", dzufferey.arg.Int( i => id = i), "the replica ID")
+
+  var confFile = "src/test/resources/sample-conf.xml"
+  newOption("--conf", dzufferey.arg.String(str => confFile = str ), "config file")
+  
+  val usage = "..."
+  
+  var rt: RunTime[LatticeIO] = null
+
+  def defaultHandler(msg: Message) {
+    msg.release
+  }
+  
+  def main(args: Array[java.lang.String]) {
+    apply(args)
+    val alg = new LatticeAgreement()
+    rt = new RunTime(alg)
+    rt.startService(defaultHandler(_), confFile, Map("id" -> id.toString))
+
+    import scala.util.Random
+    val n = Random.nextInt(5) + 1
+    val init = (0 until n).map(_ => Random.nextInt).toSet
+    val io = new LatticeIO {
+      val initialValue = init
+      def decide(value: Lattice.T) {
+        Console.println("replica " + id + " decided " + value)
+      }
+    }
+    Thread.sleep(100)
+    Console.println("replica " + id + " starting with " + init)
+    rt.startInstance(0, io)
+  }
+  
+  Runtime.getRuntime().addShutdownHook(
+    new Thread() {
+      override def run() {
+        rt.shutdown
+      }
+    }
+  )
 }

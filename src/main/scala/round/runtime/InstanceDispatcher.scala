@@ -6,10 +6,7 @@ import io.netty.channel.socket._
 import java.util.concurrent.locks.ReentrantLock
 
 /** a dispatcher that scales better than putting all the instance in the pipeline */
-class InstanceDispatcher(
-    executor: java.util.concurrent.Executor,
-    defaultHandler: DatagramPacket => Unit,
-    options: Map[String, String] = Map.empty)
+class InstanceDispatcher(options: Map[String, String] = Map.empty)
 {
 
   private val exp = {
@@ -89,18 +86,14 @@ class InstanceDispatcher(
     }
   }
 
-  /** call the default handler */
-  private def default(pkt: DatagramPacket) {
-    executor.execute(new Runnable {
-      def run { defaultHandler(pkt) }
-    })
-  }
-
-  def dispatch(pkt: DatagramPacket) {
+  def dispatch(pkt: DatagramPacket) = {
     val tag = Message.getTag(pkt.content)
     findInstance(tag.instanceNbr) match {
-      case Some(inst) => inst.newPacket(pkt)
-      case None => default(pkt)
+      case Some(inst) =>
+        inst.newPacket(pkt)
+        true
+      case None =>
+        false
     }
   }
 

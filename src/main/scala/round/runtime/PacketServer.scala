@@ -17,6 +17,7 @@ import io.netty.bootstrap.Bootstrap
 import java.net.InetSocketAddress
 
 class PacketServer(
+    executor: java.util.concurrent.Executor,
     ports: Iterable[Int],
     initGroup: Group,
     _defaultHandler: Message => Unit, //defaultHandler is responsible for releasing the ByteBuf payload
@@ -39,30 +40,6 @@ class PacketServer(
     Logger("PacketServer", Warning, "transport layer: only UDP supported for the moment")
   }
 
-  private val executor = {
-    options.get("workers") match {
-      case Some(n) =>
-        val cores = java.lang.Runtime.getRuntime().availableProcessors()
-        val w = try {
-          if (n endsWith "x") {
-            val coeff = n.substring(0, n.length -1).toInt
-            coeff * cores
-          } else {
-            n.toInt
-          }
-        } catch {
-          case e: Exception =>
-            Logger("PacketServer", Warning, "size of pool of workers has wrong format, using " + cores)
-            cores
-        }
-        Logger("PacketServer", Debug, "using fixed thread pool of size " + w)
-        java.util.concurrent.Executors.newFixedThreadPool(w)
-      case None =>
-        Logger("PacketServer", Debug, "using cached thread pool")
-        java.util.concurrent.Executors.newCachedThreadPool()
-    }
-  }
-
   private val group: EventLoopGroup = {
     if (epoll) new EpollEventLoopGroup()
     else if (nio) new NioEventLoopGroup()
@@ -73,20 +50,15 @@ class PacketServer(
     }
   }
 
-  def submitTask[T](task: java.util.concurrent.Callable[T]) = {
-    executor.submit(task)
-  }
-
   private var chans: Array[Channel] = null
   def channels: Array[Channel] = chans
 
-  val dispatcher = new InstanceDispatcher(executor, defaultHandler, options)
+  val dispatcher = new InstanceDispatcher(options)
 
   def close {
     dispatcher.clear
     try {
       group.shutdownGracefully
-      executor.shutdownNow
     } finally {
       for ( i <- chans.indices) {
         if (chans(i) != null) {
@@ -103,7 +75,7 @@ class PacketServer(
     if (epoll) b.channel(classOf[EpollDatagramChannel])
     else if (oio) b.channel(classOf[OioDatagramChannel])
     else b.channel(classOf[NioDatagramChannel])
-    b.handler(new PackerServerHandler(dispatcher))
+    b.handler(new PackerServerHandler(defaultHandler, dispatcher))
 
     val ps = ports.toArray
     chans = ps.map( p => b.bind(p).sync().channel() )
@@ -113,12 +85,19 @@ class PacketServer(
 
 @Sharable
 class PackerServerHandler(
+    defaultHandler: DatagramPacket => Unit,
     dispatcher: InstanceDispatcher
   ) extends SimpleChannelInboundHandler[DatagramPacket](false) {
 
   //in Netty version 5.0 will be called: channelRead0 will be messageReceived
   override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
-    dispatcher.dispatch(pkt)
+    try {
+    if (!dispatcher.dispatch(pkt))
+      defaultHandler(pkt) 
+    } catch {
+      case t: Throwable =>
+        Logger("PacketServerHandler", Warning, "got " + t)
+    }
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
