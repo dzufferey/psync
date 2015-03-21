@@ -87,7 +87,7 @@ object LatticeRunner extends round.utils.DefaultOptions {
   var id = -1
   newOption("-id", dzufferey.arg.Int( i => id = i), "the replica ID")
 
-  var confFile = "src/test/resources/sample-conf.xml"
+  var confFile = "src/test/resources/3replicas-conf.xml"
   newOption("--conf", dzufferey.arg.String(str => confFile = str ), "config file")
   
   val usage = "..."

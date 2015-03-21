@@ -68,9 +68,11 @@ trait TrExtractor {
       case Typer.TypingSuccess(f) =>
         f
       case Typer.TypingFailure(r) =>
-        c.abort(t.pos, err +": " + r + "\n" + f)
+        c.warning(t.pos, err +", leaving it unconstrained:\n" + r + "\n" + f)
+        True()
       case Typer.TypingError(r) =>
-        c.abort(t.pos, err +": " + r + "\n" + f)
+        c.warning(t.pos, err +", leaving it unconstrained:\n" + r + "\n" + f)
+        True()
     }
   }
 

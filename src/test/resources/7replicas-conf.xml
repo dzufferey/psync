@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<!-- DOCTYPE ... -->
+
+<configuration>
+  <parameters>
+    <param> <name>transport layer</name> <value>UDP</value> </param>
+    <param> <name>timeout</name> <value>50</value> </param>
+    <param> <name>group</name> <value>nio</value> </param>
+    <param> <name>bufferSize</name> <value>128</value> </param>
+  </parameters>
+  <peers>
+    <replica> <id>0</id> <address>127.0.0.1</address> <port>4444</port> </replica>
+    <replica> <id>1</id> <address>127.0.0.1</address> <port>4445</port> </replica>
+    <replica> <id>2</id> <address>127.0.0.1</address> <port>4446</port> </replica>
+    <replica> <id>3</id> <address>127.0.0.1</address> <port>4447</port> </replica>
+    <replica> <id>4</id> <address>127.0.0.1</address> <port>4448</port> </replica>
+    <replica> <id>5</id> <address>127.0.0.1</address> <port>4449</port> </replica>
+    <replica> <id>6</id> <address>127.0.0.1</address> <port>4450</port> </replica>
+  </peers>
+</configuration>

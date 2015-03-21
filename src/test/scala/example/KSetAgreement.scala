@@ -81,7 +81,7 @@ object KSetRunner extends round.utils.DefaultOptions {
   var k = 2
   newOption("-k", dzufferey.arg.Int( i => k = i), "k (default = 2)")
 
-  var confFile = "src/test/resources/sample-conf.xml"
+  var confFile = "src/test/resources/3replicas-conf.xml"
   newOption("--conf", dzufferey.arg.String(str => confFile = str ), "config file")
   
   val usage = "..."
