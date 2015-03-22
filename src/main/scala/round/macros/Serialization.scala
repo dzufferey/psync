@@ -4,6 +4,39 @@ import round.formula._
 import round.logic._
 import dzufferey.utils.Namer
 
+class ByteBufInput(buffer: io.netty.buffer.ByteBuf) extends scala.pickling.binary.BinaryInput {
+  import io.netty.buffer.ByteBuf
+  assert(buffer.order == java.nio.ByteOrder.BIG_ENDIAN)
+  def getByte() = buffer.readByte
+  def getChar() = buffer.readInt.toChar
+  def getShort() = buffer.readShort
+  def getInt() = buffer.readInt
+  def getLong() = buffer.readLong
+  def getFloat() = buffer.readFloat
+  def getDouble() = buffer.readDouble
+  def getBytes(target: Array[Byte], len: Int): Unit = {
+    buffer.readBytes(target, 0, len)
+  }
+}
+
+class ByteBufOutput(buffer: io.netty.buffer.ByteBuf) extends scala.pickling.binary.BinaryOutput {
+  import io.netty.buffer.ByteBuf
+  assert(buffer.order == java.nio.ByteOrder.BIG_ENDIAN)
+  def result: Array[Byte] = null
+  def ensureCapacity(capacity: Int) {
+    if (buffer.writableBytes < capacity)
+      throw new java.nio.BufferOverflowException()
+  }
+  def putByte(value: Byte) = buffer.writeByte(value)
+  def putChar(value: Char) = buffer.writeInt(value.toInt)
+  def putShort(value: Short) = buffer.writeShort(value)
+  def putInt(value: Int) = buffer.writeInt(value)
+  def putLong(value: Long) = buffer.writeLong(value)
+  def putFloat(value: Float) = buffer.writeFloat(value)
+  def putDouble(value: Double) = buffer.writeDouble(value)
+  def putBytes(value: Array[Byte], len: Int) = buffer.writeBytes(value, 0, len)
+}
+
 trait Serialization {
   self: Impl =>
   import c.universe._
@@ -18,19 +51,15 @@ trait Serialization {
         import scala.pickling.Defaults._
         import binary._
         out.writerIndex(out.writerIndex() + _root_.round.runtime.Tag.size)
-        val bytes0 = payload.pickle.value
-        val length = bytes0.length
-        out.writeBytes(bytes0)
+        payload.pickleTo(new _root_.round.macros.ByteBufOutput(out))
       }""",
       q"""protected def deserialize(in: _root_.io.netty.buffer.ByteBuf): $tpt = {
         import scala.pickling._
         import scala.pickling.Defaults._
         import binary._
         in.readerIndex(in.readerIndex() + _root_.round.runtime.Tag.size)
-        val length = in.readableBytes()
-        val bytes = Array.ofDim[Byte](length)
-        in.readBytes(bytes)
-        BinaryPickle(bytes).unpickle[$tpt]
+        val pickle = BinaryPickle(new _root_.round.macros.ByteBufInput(in))
+        pickle.unpickle[$tpt]
       }"""
     )
 

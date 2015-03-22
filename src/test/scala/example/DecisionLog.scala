@@ -1,6 +1,7 @@
 package example
 
 import java.util.concurrent.locks.ReentrantLock
+import round.runtime.Instance
 
 /** some utils to easily store and access previous decision */
 trait DecisionLog[T] {
@@ -15,14 +16,20 @@ trait DecisionLog[T] {
     if (idx < 0) idx + nDecisions else idx
   }
 
-  protected def pushDecision(inst: Short, dec: T) {
+  protected def pushDecision(inst: Short, dec: T) = {
+    val prev = decisions(decIdx(inst))
     decisions(decIdx(inst)) = (inst -> dec)
+    prev == null || Instance.lt(prev._1, inst)
   }
 
   protected def getDec(i: Short): Option[T] = {
     val candidate = decisions(decIdx(i))
     if (candidate == null || candidate._1 != i) None
     else Some(candidate._2)
+  }
+  
+  protected def getLock(i: Int) = {
+    decisionLocks(decIdx(i))
   }
 
 }
