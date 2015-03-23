@@ -4,6 +4,7 @@ import round._
 import round.macros.Macros._
 
 abstract class BConsensusIO {
+  val phase: Int
   val initialValue: Array[Byte]
   def decide(value: Array[Byte]): Unit
 }
@@ -14,12 +15,12 @@ class LastVoting2B extends Algorithm[BConsensusIO] {
   import SpecHelper._
 
   //variables
+  val phase = new LocalVariable[Int](0)
   val x = new LocalVariable[Array[Byte]](Array())
   val ts = new LocalVariable[Int](-1)
   val ready = new LocalVariable[Boolean](false)
   val commit = new LocalVariable[Boolean](false)
   val vote = new LocalVariable[Array[Byte]](null)
-  //
   val callback = new LocalVariable[BConsensusIO](null)
 
   val spec = TrivialSpec
@@ -28,6 +29,7 @@ class LastVoting2B extends Algorithm[BConsensusIO] {
       
     def init(io: BConsensusIO) {
       callback <~ io
+      phase <~ io.phase.abs
       x <~ io.initialValue
       ts <~ -1
       ready <~ false
@@ -40,7 +42,7 @@ class LastVoting2B extends Algorithm[BConsensusIO] {
         type A = (Array[Byte], Int)
 
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
-        def coord(phi: Int): ProcessID = new ProcessID((phi % n).toShort)
+        def coord(phi: Int): ProcessID = new ProcessID(((phi + phase) % n).toShort)
 
         def send(): Set[((Array[Byte], Int), ProcessID)] = {
           Set((x: Array[Byte], ts: Int) -> coord(r / 4))
@@ -69,7 +71,7 @@ class LastVoting2B extends Algorithm[BConsensusIO] {
         type A = Array[Byte]
 
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
-        def coord(phi: Int): ProcessID = new ProcessID((phi % n).toShort)
+        def coord(phi: Int): ProcessID = new ProcessID(((phi + phase) % n).toShort)
 
         def send(): Set[(Array[Byte], ProcessID)] = {
           if (id == coord(r/4) && commit) {
@@ -97,7 +99,7 @@ class LastVoting2B extends Algorithm[BConsensusIO] {
         type A = Int
 
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
-        def coord(phi: Int): ProcessID = new ProcessID((phi % n).toShort)
+        def coord(phi: Int): ProcessID = new ProcessID(((phi + phase) % n).toShort)
 
         def send(): Set[(Int, ProcessID)] = {
           if ( ts == (r/4) ) {
@@ -122,7 +124,7 @@ class LastVoting2B extends Algorithm[BConsensusIO] {
         type A = Array[Byte]
 
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
-        def coord(phi: Int): ProcessID = new ProcessID((phi % n).toShort)
+        def coord(phi: Int): ProcessID = new ProcessID(((phi + phase) % n).toShort)
 
         def send(): Set[(Array[Byte], ProcessID)] = {
           if (id == coord(r/4) && ready) {

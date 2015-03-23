@@ -9,11 +9,14 @@ import java.util.concurrent.locks.ReentrantLock
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.ConcurrentSkipListSet
+import java.util.concurrent.TimeUnit
 import scala.util.Random
 import io.netty.buffer.PooledByteBufAllocator
 
 class PerfTest3(id: Int,
                 confFile: String,
+                nbrValues: Int,
+                batchSize: Int,
                 _rate: Short,
                 logFile: Option[String],
                 additionalOptions: Map[String,String]
@@ -24,6 +27,7 @@ class PerfTest3(id: Int,
   final val Late = 5
 
   val rate = new Semaphore(_rate)
+  var selfStarted = scala.collection.mutable.Set[Short]()
 
   val log: java.io.BufferedWriter =
     if (logFile.isDefined) new java.io.BufferedWriter(new java.io.FileWriter(logFile.get + "_" + id + ".log"))
@@ -40,21 +44,72 @@ class PerfTest3(id: Int,
   rt.startService(defaultHandler(_), confFile, additionalOptions + ("id" -> id.toString))
 
   val lck = new ReentrantLock 
-  //val nbr = new AtomicLong(0l)
   var nbr = 0l
   var started: Short = 0
+
+  val values   = Array.ofDim[Int](nbrValues)
+  val acceptedRequests = new ConcurrentLinkedQueue[Array[Byte]]()
+
+  def bytesToInt(b: Array[Byte], base: Int) = {
+     b(base + 3) & 0xFF |
+    (b(base + 2) & 0xFF) << 8 |
+    (b(base + 1) & 0xFF) << 16 |
+    (b(base    ) & 0xFF) << 24;
+  }
+
+  def intToBytes(a: Int, b: Array[Byte], base: Int) = {
+    b(base + 3) = (a & 0xFF).toByte
+    b(base + 2) = ((a >>  8) & 0xFF).toByte
+    b(base + 1) = ((a >> 16) & 0xFF).toByte
+    b(base    ) = ((a >> 24) & 0xFF).toByte
+  }
+
+  def processRequest(b: Array[Byte], base: Int) {
+    val c = bytesToInt(b, base) 
+    val k = bytesToInt(b, base + 4) 
+    val v = bytesToInt(b, base + 8)
+    values(k) = v
+    //TODO notify client
+  }
+
+  def processBatch(a: Array[Byte]) {
+    assert(a.size % 12 == 0)
+    var b = 0
+    while (b < a.size) {
+      processRequest(a, b)
+      b += 12
+      nbr += 1
+    }
+  }
+
+  val reqProcessor = new Thread(new Runnable(){
+    def run = {
+      try{
+        while(!Thread.interrupted) {
+          val batch = acceptedRequests.poll
+          if (batch != null) {
+            processBatch(batch)
+          } else {
+            Thread.sleep(5)
+          }
+        }
+      } catch {
+        case _: java.lang.InterruptedException => ()
+      }
+    }
+  })
+  reqProcessor.start
 
   val emp = Array[Byte]()
 
   def start(inst: Short, data: Array[Byte], msgs: Set[Message]) = {
     val io = new BConsensusIO {
-      val i = inst
-      val initialValue = emp
+      val phase: Int = inst
+      val initialValue = data
       def decide(value: Array[Byte]) {
-        proposeDecision(i, value)
+        proposeDecision(phase.toShort, value)
       }
     }
-    nbr = nbr + 1
     started = inst
     rt.startInstance(inst, io, msgs)
   }
@@ -64,11 +119,17 @@ class PerfTest3(id: Int,
     l.lock
     try {
       if (pushDecision(inst, data)) {
-        if (id == 0) {
+        if (selfStarted contains inst) {
+          selfStarted -= inst
           rate.release
         }
-        if (log != null && data != null) {
-          //TODO log
+        if (data != null) { //null/empty means the proposer crashed before setting a value
+          if (!data.isEmpty) {
+            acceptedRequests.add(data)
+          }
+          if (log != null) {
+            //TODO log
+          }
         }
       }
     } finally {
@@ -138,24 +199,36 @@ class PerfTest3(id: Int,
     }
   }
 
-  val prng = new util.Random(1111)
+  val rs = batchSize * 12
+  var request = Array.ofDim[Byte](rs)
+  var idx = 0
 
-  def propose(batchSize: Int, reqSize: Int) = {
-    val request = Array.ofDim[Byte](batchSize * reqSize)
-    prng.nextBytes(request)
-    rate.acquire
-    lck.lock
-    try {
-      val i = (started + 1).toShort
-      start(i, request, Set.empty)
-      wakeupOthers(i)
-    } finally {
-      lck.unlock
+  def propose(c: Int, k: Int, v: Int) {
+    if (idx < rs) {
+      intToBytes(c, request, idx)
+      intToBytes(k, request, idx + 4)
+      intToBytes(v, request, idx + 8)
+      idx += 12
+    }
+    if (idx >= rs) {
+      rate.acquire
+      lck.lock
+      try {
+        val inst = (started + 1).toShort
+        selfStarted += inst
+        start(inst, request, Set.empty)
+        wakeupOthers(inst)
+        idx = 0
+        request = Array.ofDim[Byte](rs)
+      } finally {
+        lck.unlock
+      }
     }
   }
-  
+
   def shutdown: Long = {
     rt.shutdown
+    reqProcessor.interrupt
     if (log != null) {
       log.close
     }
@@ -175,8 +248,11 @@ object PerfTest3 extends round.utils.DefaultOptions {
   var logFile: Option[String] = None
   newOption("--log", dzufferey.arg.String(str => logFile = Some(str) ), "log file prefix")
 
-  var rate = 5
+  var rate = 1
   newOption("-rt", dzufferey.arg.Int( i => rate = i), "fix the rate (#queries in parallel)")
+
+  var n = 50
+  newOption("-n", dzufferey.arg.Int( i => n = i), "number of different values that we can modify")
 
   var to = -1
   newOption("-to", dzufferey.arg.Int( i => to = i), "timeout (default in config file)")
@@ -184,11 +260,11 @@ object PerfTest3 extends round.utils.DefaultOptions {
   var delay = 1000
   newOption("-delay", dzufferey.arg.Int( i => delay = i), "delay in ms before making queries (allow the replicas to setup)")
 
-  var batch = 10
+  var batch = 100
   newOption("-b", dzufferey.arg.Int( i => batch = i), "batch size")
 
-  var req = 16
-  newOption("-r", dzufferey.arg.Int( i => req = i), "request size")
+  var req = 8
+  //newOption("-r", dzufferey.arg.Int( i => req = i), "request size")
 
   val usage = "..."
   
@@ -201,18 +277,21 @@ object PerfTest3 extends round.utils.DefaultOptions {
     val opts =
       if (to > 0) Map("timeout" -> to.toString)
       else Map[String, String]()
-    system = new PerfTest3(id, confFile, rate.toShort, logFile, opts)
+    system = new PerfTest3(id, confFile, n, batch, rate.toShort, logFile, opts)
 
     //let the system setup before starting
     Thread.sleep(delay)
     begin = java.lang.System.currentTimeMillis()
 
-    //makes queries ...
+    val prng = new util.Random()
+
+    Thread.sleep(prng.nextInt(10))
+    //TODO more than one proposer
     while (true) {
-      if (id == 0) {
-        system.propose(batch, req)
+      if(id == 0) {
+        system.propose(id, prng.nextInt(n), prng.nextInt())
       } else {
-        Thread.sleep(1000)
+        Thread.sleep(100)
       }
     }
 

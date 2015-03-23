@@ -24,8 +24,12 @@ class ByteBufOutput(buffer: io.netty.buffer.ByteBuf) extends scala.pickling.bina
   assert(buffer.order == java.nio.ByteOrder.BIG_ENDIAN)
   def result: Array[Byte] = null
   def ensureCapacity(capacity: Int) {
-    if (buffer.writableBytes < capacity)
-      throw new java.nio.BufferOverflowException()
+    if (capacity > 0) {
+      buffer.ensureWritable(capacity)
+      if (buffer.writableBytes < capacity) {
+        throw new java.nio.BufferOverflowException()
+      }
+    }
   }
   def putByte(value: Byte) = buffer.writeByte(value)
   def putChar(value: Char) = buffer.writeInt(value.toInt)
