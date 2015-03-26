@@ -55,6 +55,7 @@ class RunTime[IO](val alg: Algorithm[IO]) {
   private def createProcess: InstanceHandler[IO] = {
     assert(srv.isDefined)
     val p = alg.process
+    p.setOptions(options)
     val channels = srv.get.channels
     val idx = channelIdx.getAndIncrement.abs % channels.size
     val channel = channels(idx)

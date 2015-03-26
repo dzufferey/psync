@@ -6,6 +6,11 @@ abstract class Process[IO] extends RtProcess {
 
   val rounds: Array[Round]
 
+  // for the runtime
+  def setOptions(options: Map[String, String]) {
+    rounds.foreach(_.setOptions(options))
+  }
+
   //////////////////////
   // for verification //
   //////////////////////
@@ -26,6 +31,8 @@ abstract class RtProcess {
   var id: ProcessID = new ProcessID(-1)
 
   def setGroup(g: round.runtime.Group): Unit //defined by macros
+
+  protected def setOptions(options: Map[String, String]): Unit
   
   protected def incrementRound: Unit //defined by macros
 

@@ -70,11 +70,19 @@ class PacketServer(
   }
 
   def start {
+    val packetSize = try options.getOrElse("packetSize", "-1").toInt 
+                     catch { case _: Throwable => -1 }
     val b = new Bootstrap()
     b.group(group)
     if (epoll) b.channel(classOf[EpollDatagramChannel])
     else if (oio) b.channel(classOf[OioDatagramChannel])
     else b.channel(classOf[NioDatagramChannel])
+
+    if (packetSize >= 8) {//make sure we have at least space for the tag
+      b.option[Integer](ChannelOption.SO_RCVBUF, packetSize)
+      b.option(ChannelOption.RCVBUF_ALLOCATOR, new FixedRecvByteBufAllocator(packetSize))
+    }
+
     b.handler(new PackerServerHandler(defaultHandler, dispatcher))
 
     val ps = ports.toArray
