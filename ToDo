@@ -19,18 +19,15 @@
 # implementation
 
 - ghost variables: make sure they are only read in the verification part and remove at compile time
-- change the (de)serialization:
-    * pickling only, once it is more stable
 - accessing members of outer class inside an inner class
     * check if fixed in 2.11.5 (with the right untypcheck) or report macro bug about it
-- faster runtime 
-    * improve the timeout 
-      - try without the hased wheel timer (we won't get that many timeout anyway ...)
-    * system is IO bound
-      - more than one socket ?
-      - can we batch/multiplex packets
-      - improve memory reuse/locality
+- runtime 
+    * add wake-up all option in the start option
+    * reduce number of threads, improve pooling 
     * reduce memory footprint
+    * a TCP version
+    * more predictable performances when overloaded
+    * add a strict timeout option (be carefull about try to catch up too quickly)
 - logging as macro that can be removed at compile time.
 
 
@@ -50,11 +47,7 @@
 
 # example
 
-- more:
-  * LatticeAgreement
-  * k-set
-  * delta consensus
-  * ...
+- not just algorithms but "complete" systems
 
 
 # network emulation: packet loss, delay, ...
