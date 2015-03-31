@@ -7,7 +7,7 @@ trait Specs[IO] {
 
   abstract class Spec {
     val safetyPredicate: Formula = True()
-    val livnessPredicate: List[Formula]
+    val livenessPredicate: List[Formula]
     /** phase invariant */
     val invariants: List[Formula]
     /** invariants for rounds */
@@ -28,7 +28,7 @@ trait Specs[IO] {
   }
 
   object TrivialSpec extends Spec {
-    val livnessPredicate: List[Formula] = Nil
+    val livenessPredicate: List[Formula] = Nil
     val invariants: List[Formula] = Nil
     val properties: List[(String, Formula)] = Nil
   }

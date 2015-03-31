@@ -21,8 +21,36 @@ class BenOr extends Algorithm[BinaryConsensusIO] {
   //http://www.cs.toronto.edu/~samvas/teaching/2221/handouts/benor-paper.pdf
   val canDecide = new LocalVariable[Boolean](false)
   val vote = new LocalVariable[Option[Boolean]](None)
+  
+  val decision = new LocalVariable[Boolean](false) //TODO as ghost
+  val decided = new LocalVariable[Boolean](false) //TODO as ghost
 
-  val spec = TrivialSpec
+  val V = new Domain[Boolean]
+  val spec = new Spec {
+    override val safetyPredicate = f( P.forall( p => HO(p).size > n/2 ) ) //TODO might need something stronger like crash-fault
+    val livenessPredicate = List( )
+    val invariants = List(f(
+        P.forall( i => !decided(i) && !canDecide(i) )
+      ||
+        V.exists( v => {
+          val A = P.filter( i => x(i) == v )
+          A.size > n/2 &&
+          P.forall( i => (decided(i) ==> (decision(i) == v) ) &&
+                         (vote(i).isDefined ==> (vote(i) == Some(v))) )
+        })
+    )) //todo about canDecide ...
+    override val roundInvariants = List(
+      List(
+        f( P.forall( p => vote(p).isDefined ==> P.filter( i => x(i) == vote(p).get ).size > n/2 ) )
+      )
+    )
+    val properties = List(
+      ("Agreement",      f(P.forall( i => P.forall( j => (decided(i) && decided(j)) ==> (decision(i) == decision(j)) )))),
+      ("Irrevocability", f(P.forall( i => old(decided)(i) ==> (decided(i) && old(decision)(i) == decision(i)) )))
+      //TODO how to do non-triviality with random choice
+      //no termination since we deal don't deal with probabilities
+    )
+  }
 
   def process = p(new Process[BinaryConsensusIO]{
       
@@ -44,6 +72,8 @@ class BenOr extends Algorithm[BinaryConsensusIO] {
         def update(mailbox: Set[((Boolean, Boolean), ProcessID)]) {
           if (canDecide) {
             callback.decide(x)
+            decided <~ true
+            decision <~ x
             terminate
           } else if (mailbox.filter(_._1._1).size > n/2 || mailbox.exists(m => m._1._1 && m._1._2)) {
             vote <~ Some(true)

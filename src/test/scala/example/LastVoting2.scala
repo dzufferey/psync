@@ -25,7 +25,7 @@ class LastVoting2 extends Algorithm[ConsensusIO] {
   def coord(phi: Int): ProcessID = new ProcessID((phi % n).toShort)
 
   val spec = new Spec {
-      val livnessPredicate = List( f(P.exists( p => P.forall( q => p == coord(r/4) && HO(p).size > n/2 ) )) )
+      val livenessPredicate = List( f(P.exists( p => P.forall( q => p == coord(r/4) && HO(p).size > n/2 ) )) )
 
       val noDecision = f( P.forall( i => !decided(i) && !ready(i)) )
 

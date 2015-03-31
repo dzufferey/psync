@@ -32,7 +32,7 @@ class Verifier[IO](val alg: Algorithm[IO]) {
 
     for( v <- procAllVars) wv(v)
     w(spec.safetyPredicate)
-    spec.livnessPredicate.foreach(w)
+    spec.livenessPredicate.foreach(w)
     spec.invariants.foreach(w)
     spec.properties.map(_._2).foreach(w)
     w(process.initState)
@@ -132,7 +132,7 @@ class Verifier[IO](val alg: Algorithm[IO]) {
         invIdx: Int, //from invIdx to invIdx+1
         roundIdx: Int
       ): VC = {
-    val env = spec.livnessPredicate(invIdx)
+    val env = spec.livenessPredicate(invIdx)
     val round = roundsTR(roundIdx)
     val invariant1 = getInvariantforProgress(invIdx, roundIdx)
     val invariant2 = getInvariantforProgress(invIdx, roundIdx + 1)
@@ -269,7 +269,7 @@ class Verifier[IO](val alg: Algorithm[IO]) {
     lst.add(itemForFormula("Safety Predicate", spec.safetyPredicate))
 
     val liveness = new List("Liveness Predicates")
-    for( (f,i) <- spec.livnessPredicate.zipWithIndex )
+    for( (f,i) <- spec.livenessPredicate.zipWithIndex )
       liveness.add(itemForFormula(i.toString, f))
     lst.add(liveness)
 

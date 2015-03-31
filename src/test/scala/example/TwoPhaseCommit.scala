@@ -29,7 +29,7 @@ class TwoPhaseCommit extends Algorithm[TpcIO] {
   Axiom("well-coordinated", f( P.exists( p => P.forall( q => (p: ProcessID) == c(coord(q))) )))
 
   val spec = new Spec {
-    val livnessPredicate = List(
+    val livenessPredicate = List(
       f(P.exists( p => P.forall( q => (p: ProcessID) == c(coord(q)) && HO(p).size == n && (HO(q) contains p) ) ))
     )
     val invariants = List(

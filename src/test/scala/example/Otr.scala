@@ -23,7 +23,7 @@ class OTR(afterDecision: Int = 2) extends Algorithm[ConsensusIO] {
 
   val spec = new Spec {
       val goodRound = f( S.exists( s => P.forall( p => HO(p) == s && s.size > 2*n/3 )))
-      val livnessPredicate = List( goodRound, goodRound )
+      val livenessPredicate = List( goodRound, goodRound )
       val invariants = List(
         f((  P.forall( i => !decided(i) )
           || V.exists( v => {
