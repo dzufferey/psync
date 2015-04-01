@@ -31,9 +31,10 @@ object Quantifiers {
       })
       val eqs = _defs.collect{ case Not(eq) => eq }
       assert(eqs.size == _defs.size)
-      def checkDependencies(v: Variable, c: Formula): Formula = {
+      def checkDependencies(v: Variable, c: Formula): Iterable[Variable] = {
         val deps = (f.freeVariables intersect avoid) - v
-        skolemify(v, deps)
+        //skolemify(v, deps)
+        deps
       }
       val defs = eqs.map{
         case Eq(v @ Variable(_), c @ Comprehension(_,_)) =>
@@ -43,19 +44,19 @@ object Quantifiers {
         case _ => ???
       }.toMap
       Logger("CL", Debug, "fix uniquely defined universal defs: " + defs.mkString(", "))
-      def subst(f: Formula) = f match {
-        case v @ Variable(_) if defs contains v => defs(v)._1
-        case other => other
-      }
-      val eqs2 = defs.values.map{ case (a,b) => Eq(a, b) }
+      val eqs2 = defs.map{ case (a,(_,b)) => Eq(a, b) }
       val swapped = defs.keySet
       val restf2 = restf.foldLeft(False(): Formula)(Or(_, _))
-      val restf3 = FormulaUtils.map(subst, restf2)
-      val withDefs = eqs2.foldLeft(restf3)(And(_, _))
+      val withDefs = eqs2.foldLeft(restf2)(And(_, _))
       val withPrefix = FormulaUtils.restoreQuantifierPrefix(prefix, withDefs)
-      val remaining = swappable.filterNot(swapped contains _) ::: rest
+
       Logger("CL", Info, "fix uniquely defined universal for: " + swapped.mkString(", "))
-      ForAll(remaining, withPrefix)
+      val remaining = swappable.filterNot(swapped contains _) ::: rest
+      val above = defs.flatMap{ case (v, (deps,_)) => if ( deps.isEmpty) Some(v) else None }.toList
+      val below = defs.flatMap{ case (v, (deps,_)) => if (!deps.isEmpty) Some(v) else None }.toList
+      val temp = Exists(above, ForAll(remaining, Exists(below, withPrefix)))
+      Simplify.simplifyQuantifiers(temp)
+
     case other => other
   }
 

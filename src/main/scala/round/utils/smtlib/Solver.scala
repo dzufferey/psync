@@ -330,6 +330,11 @@ class Solver( th: Theory,
     res
   }
 
+  def getValue(fs: Formula*): Option[List[(Formula,Formula)]] = {
+    toSolver(GetValue(fs.toList))
+    Parser.parseGetValueReply(fromSolver())
+  }
+
 }
 
 object Solver {

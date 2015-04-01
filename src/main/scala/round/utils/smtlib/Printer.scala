@@ -89,6 +89,18 @@ object Printer {
     case GetModel => writer.write("(get-model)")
     case Push => writer.write("(push 1)")
     case Pop => writer.write("(pop 1)")
+
+    case GetValue(ts) =>
+      writer.write("(get-value (")
+      for (t <- ts) {
+        printFormula(t)
+        writer.write(" ")
+      }
+      writer.write("))")
+
+    case SetOption(opt, value) =>
+      //TODO sanitizing value
+      writer.write("(set-option :" + opt + " " + value + ")")
   }
 
 }

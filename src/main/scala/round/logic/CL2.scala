@@ -32,7 +32,7 @@ object CL2 {
       case _ => ()
     }
     FormulaUtils.traverse(check, f)
-    Quantifiers.isEPR(f) && hasComp
+    Quantifiers.isEPR(f) && !hasComp
   }
 
   //make sure we have a least one process
@@ -46,12 +46,19 @@ object CL2 {
     //TODO normalization:
     //-fixUniquelyDefinedUniversal
     //-de Bruijn then bound var unique (TODO make sure there is no clash about this)
-    //-filter fot the VennRegions
+    //-filter type of the VennRegions
+    //-congruence closure to reduve the instanciation
     val query = CL.normalize(formula)
     assert(Typer(query).success, "CL.entailment, not well typed")
     val (query1, _) = Quantifiers.getExistentialPrefix(query)
-    val clauses = FormulaUtils.getConjuncts(query1)
+    val clauses0 = FormulaUtils.getConjuncts(query1)
+    val clauses = clauses0.map( f => {
+      val f2 = Simplify.pnf(f)
+      Quantifiers.fixUniquelyDefinedUniversal(f2)
+    })
     val (epr, rest) = clauses.partition(keepAsIt)
+    Logger("CL", Debug, "epr clauses:\n  " + epr.mkString("\n  "))
+    Logger("CL", Debug, "clauses to process:\n  " + rest.mkString("\n  "))
     val gts0 = getGrounTerms(epr)
     val inst0 = FormulaUtils.getConjuncts(InstGen.saturate(And(rest:_*), gts0, Some(0), false))
     val withILP = epr ::: CL.reduceComprehension(inst0, bound)

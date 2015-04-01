@@ -102,20 +102,6 @@ object CL {
     reduce(query)
   }
 
-  //the definition of a comprehension
-  //TODO trim the scope when the body is defined
-  case class SetDef(scope: Set[Variable], id: Formula, body: Option[Binding]) {
-    def tpe = id.tpe
-    def contentTpe = tpe match {
-      case FSet(t) => t
-      case _ => Logger.logAndThrow("CL", Error, "SetDef had not FSet type")
-    }
-    def fresh: SetDef = {
-      val newScope = scope.map(v => v -> Variable(Namer(v.name)).setType(v.tpe)).toMap
-      SetDef(newScope.values.toSet, id.alpha(newScope), body.map(_.alpha(newScope)))
-    }
-  }
-
   //TODO assumes positive occurance!!
   protected def namedComprehensions(conjuncts: List[Formula]): (List[Formula], Set[SetDef]) = {
     var acc = Set[SetDef]()
@@ -153,11 +139,13 @@ object CL {
   protected def collectComprehensionDefinitions(conjuncts: List[Formula]): (List[Formula], Set[SetDef]) = {
     val (f1, defs1) = namedComprehensions(conjuncts)
     val (f2, defs2) = anonymComprehensions(f1)
-    (f2, defs1 ++ defs2)
+    val allDefs = (defs1 ++ defs2).map(_.normalize)
+    (f2, allDefs)
   }
 
-  protected def sizeOfUniverse(tpe: Type) = {
+  protected def sizeOfUniverse(tpe: Type): Option[Formula] = {
     if (tpe == procType) Some(n)
+    else if (tpe == Bool) Some(Literal(2))
     else None
   }
 
@@ -168,7 +156,7 @@ object CL {
     val ho = SetDef(Set(v), Application(HO, List(v)), None)
     val c2 = if (woComp exists hasHO) c1 + ho else c1
     val byType = c2.groupBy(_.contentTpe)
-    Logger("CL", Debug,
+    Logger("CL", Info,
       byType.mapValues(vs => vs.mkString("\n    ","\n    ","")).
         mkString("reduceComprehension, comprehensions:\n  ", "\n  ","")
     )

@@ -13,7 +13,7 @@ import dzufferey.utils.LogLevel._
 object Parser extends StandardTokenParsers {
 
   lexical.delimiters += (
-    "(", ")", "!",
+    "(", ")", "!", ".",
     "=", "<", ">", ">=", "<=", "=>",
     "+", "-", "*"
   )
@@ -27,23 +27,32 @@ object Parser extends StandardTokenParsers {
     "true", "false"
   )
 
-  override def ident = (
-      super.ident ~ "!" ~ repsep(super.ident | numericLit, "!") ^^ { case head ~ _ ~ tail => if (tail.isEmpty) head else head + "!" + tail.mkString("!") }
-    | super.ident 
+  def identTail: Parser[String] = (
+    "." ~ (super.ident | numericLit) ~ identTail ^^ { case a ~ b ~ c => a + b + c }
+  | "!" ~ (super.ident | numericLit) ~ identTail ^^ { case a ~ b ~ c => a + b + c }
+  | success("")
+  )
+
+  override def ident: Parser[String] = (
+    super.ident ~ identTail  ^^ { case head ~ tail => head + tail }
   )
     
   def paren[T](parser: Parser[T]): Parser[T] = "(" ~> parser <~ ")"
 
   def model: Parser[List[Command]] = paren("model" ~> rep(cmd))
 
+  def getValueReply: Parser[List[(Formula, Formula)]] = paren(rep(assignement))
+
   def cmd: Parser[Command] = (
       paren("declare" ~> "-" ~> "sort" ~> ident ~ numericLit)                         ^^ { case id ~ num => DeclareSort(id, num.toInt) }
     | paren("declare" ~> "-" ~> "fun" ~> ident ~ paren(rep(sort)) ~ sort)             ^^ { case id ~ args ~ ret => DeclareFun(id, Function(args, ret))  }
     | paren("define" ~> "-" ~> "sort" ~> ident ~ paren(rep(ident)) ~ sort)            ^^ { case id ~ args ~ ret => DefineSort(id, args, ret) }
     | paren("define" ~> "-" ~> "fun" ~> ident ~ paren(rep(typedVar)) ~ sort ~ term)   ^^ { case id ~ vars ~ tpe ~ body => DefineFun(id, vars, tpe, body) }
-    | paren("assert" ~> term)                                       ^^ { f => Assert(f) }
-    | term                                                          ^^ { f => Assert(f) }
+    | paren("assert" ~> term)                                                         ^^ { f => Assert(f) }
+    | term                                                                            ^^ { f => Assert(f) }
   )
+
+  def assignement: Parser[(Formula, Formula)] = paren(term ~ term) ^^ { case t1 ~ t2 => (t1 -> t2)}
 
   def binder: Parser[(List[Variable], Formula) => Formula] = (
       "forall" ^^^ ( (vs: List[Variable], f: Formula) => ForAll(vs, f) )
@@ -99,5 +108,21 @@ object Parser extends StandardTokenParsers {
       None
     }
   }
+  
+  def parseGetValueReply(str: String): Option[List[(Formula, Formula)]] = {
+    val noComments = removeComments(str)
+    Logger("smtlib.Parser", Debug, "get value reply:\n" + noComments)
+    val tokens = new lexical.Scanner(noComments)
+    val result = phrase(getValueReply)(tokens)
+    if (result.successful) {
+      val assignments = result.get
+      Logger("smtlib.Parser", Debug, "value parsed:\n  " + assignments.mkString("\n  "))
+      Some(assignments)
+    } else {
+      Logger("smtlib.Parser", Warning, "parsing error: " + result.toString)
+      None
+    }
+  }
+
 
 }

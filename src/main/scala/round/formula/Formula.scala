@@ -105,15 +105,14 @@ sealed abstract class Symbol {
   }
 
   def tpe: Type = instanciateType(typeParams.map( t => Type.freshTypeVar))
+  //for variadic functions
+  def tpe(arity: Int): Type = tpe
 
   val fix = Fix.Prefix
   val priority = 10
 
   def apply(args: Formula*): Formula = {
-    val t = tpe //(args.length) TODO variadic stuff
-    //if (args.lengthCompare(t.arity) != 0) {
-    //  Logger("Formula", Debug, "arity of " + this + " is " + t.arity + ", given args: " + args.mkString(", "))
-    //}
+    val t = tpe(args.length)
     val app = Application(this, args.toList)
     val ret = Type.freshTypeVar
     //fill the type as much as possible
@@ -183,10 +182,18 @@ case object Not extends InterpretedFct("¬", "~", "!", "unary_!", "unary_$bang")
 
 case object And extends InterpretedFct("∧", "&&", "$amp$amp", "and") {
   val typeWithParams = Bool ~> Bool ~> Bool
+  override def tpe(arity: Int): Type = {
+    val args = (0 until arity).map(_ => Bool).toList
+    Function(args, Bool)
+  }
   override val priority = 5
 }
 case object Or extends InterpretedFct("∨", "||", "$bar$bar", "or") {
   val typeWithParams = Bool ~> Bool ~> Bool
+  override def tpe(arity: Int): Type = {
+    val args = (0 until arity).map(_ => Bool).toList
+    Function(args, Bool)
+  }
   override val priority = 4
 }
 case object Implies extends InterpretedFct("⇒", "==>", "$eq$eq$greater", "=>") {
@@ -209,6 +216,10 @@ case object Neq extends InterpretedFct("≠", "!=", "~=", "$bang$eq") {
 
 case object Plus extends InterpretedFct("+", "$plus") {
   val typeWithParams = Int ~> Int ~> Int
+  override def tpe(arity: Int): Type = {
+    val args = (0 until arity).map(_ => Int).toList
+    Function(args, Int)
+  }
   override val priority = 10
 }
 case object Minus extends InterpretedFct("-", "$minus") {
@@ -217,6 +228,10 @@ case object Minus extends InterpretedFct("-", "$minus") {
 }
 case object Times extends InterpretedFct("∙", "*", "$times") {
   val typeWithParams = Int ~> Int ~> Int
+  override def tpe(arity: Int): Type = {
+    val args = (0 until arity).map(_ => Int).toList
+    Function(args, Int)
+  }
   override val priority = 15
 }
 case object Divides extends InterpretedFct("/", "$div") {

@@ -58,6 +58,7 @@ class BenOr extends Algorithm[BinaryConsensusIO] {
       callback <~ io
       x <~ io.initialValue
       canDecide <~ false
+      decided <~ false
     }
 
     val rounds = Array[Round](

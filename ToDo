@@ -33,6 +33,7 @@
 
 # verification
 
+- init: get default value when a variable is not assign at init time
 - add temporal elements to spec/formula
 - better structure of the specification: which invariant we can use to prove what property.
 - extraction of initial state: if a variable is not initialized in the process, take the default value in the declaration
