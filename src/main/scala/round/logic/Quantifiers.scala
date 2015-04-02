@@ -46,8 +46,8 @@ object Quantifiers {
       Logger("CL", Debug, "fix uniquely defined universal defs: " + defs.mkString(", "))
       val eqs2 = defs.map{ case (a,(_,b)) => Eq(a, b) }
       val swapped = defs.keySet
-      val restf2 = restf.foldLeft(False(): Formula)(Or(_, _))
-      val withDefs = eqs2.foldLeft(restf2)(And(_, _))
+      val restf2 = Or(restf:_*)
+      val withDefs = And(restf2 +: eqs2.toSeq :_*)
       val withPrefix = FormulaUtils.restoreQuantifierPrefix(prefix, withDefs)
 
       Logger("CL", Info, "fix uniquely defined universal for: " + swapped.mkString(", "))
@@ -55,7 +55,7 @@ object Quantifiers {
       val above = defs.flatMap{ case (v, (deps,_)) => if ( deps.isEmpty) Some(v) else None }.toList
       val below = defs.flatMap{ case (v, (deps,_)) => if (!deps.isEmpty) Some(v) else None }.toList
       val temp = Exists(above, ForAll(remaining, Exists(below, withPrefix)))
-      Simplify.simplifyQuantifiers(temp)
+      Simplify.simplify(temp)
 
     case other => other
   }

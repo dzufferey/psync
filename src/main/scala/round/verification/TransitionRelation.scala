@@ -164,7 +164,7 @@ class TransitionRelation(_tr: Formula,
   /* change the var so the formula refer to the primed vars */
   def primeFormula(f: Formula) = {
     val subst = old.zip(primed).foldLeft(Map.empty[Variable,Variable])(_ + _)
-    f.alpha(subst)
+    FormulaUtils.alpha(subst, f)
   }
 
   class InlinePost(aux: Map[String, AuxiliaryMethod]) extends Transformer {

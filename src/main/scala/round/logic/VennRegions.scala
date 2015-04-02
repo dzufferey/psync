@@ -31,9 +31,6 @@ class VennRegions(tpe: Type, universeSize: Option[Formula], sets: Iterable[(Form
   /** Index to set name */
   protected var posToId = Map[Int, Formula]()
 
-  /** set name to definition */
-  protected var idToDef = Map[Formula, Binding]()
-
   protected var nbrVennRegions = 1
 
   // Initialization
@@ -52,7 +49,6 @@ class VennRegions(tpe: Type, universeSize: Option[Formula], sets: Iterable[(Form
           posToId += (counter -> id)
           counter += 1
           nbrVennRegions *= 2
-          definition.foreach( d => idToDef += (id -> d) )
       }
     }
   }

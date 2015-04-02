@@ -148,6 +148,7 @@ object Typer {
       case Plus | Times => //allows variable arity
         val cstr = variableArity(Int, argsT)
         (Int, cstr)
+      //TODO
       case Tuple =>
         (Product(argsT), TrivialCstr)
       case Fst =>
@@ -212,7 +213,8 @@ object Typer {
             val (returnT, cstr) = processSym(fct, argsTypes)
             val cstrs = if (a.tpe == Wildcard) cstr :: argsCstr
                         else SingleCstr(returnT, a.tpe) :: cstr :: argsCstr
-            val a2 = Application(fct, unwrappedArgs) setType returnT
+            //val a2 = Application(fct, unwrappedArgs) setType returnT
+            val a2 = a setType returnT
             (TypingSuccess(a2), ConjCstr(cstrs).normalize)
         }
       
@@ -237,7 +239,7 @@ object Typer {
             val inCstr = SingleCstr(tpe.get.tpe, Bool)
             val tp = TypingSuccess(Binding(b, vars3, tpe.get) setType bTpe)
             val cstr = ConjCstr(inCstr :: exprCstr :: varsCstr).normalize
-            Logger("Typer", level1, "binding: " + b + ", res:" + cstr)
+            Logger("Typer", level1, "binding: " + b + ", tpe: " +bTpe+ ", res:" + cstr)
             (tp, cstr)
         }
     }
@@ -315,14 +317,21 @@ object Typer {
   def putTypes(e: Formula, subst: Map[TypeVariable, Type]): TypingResult[Formula] = {
     //in the current version, e contains the appropriate type, so no need to check for the smbols
     def addType(e: Formula): Unit = e match {
-      case l @ Literal(_) => l.tpe = l.tpe.alpha(subst)
-      case v @ Variable(_) => v.tpe = v.tpe.alpha(subst)
+      case l @ Literal(_) =>
+        l.tpe = l.tpe.alpha(subst)
+        //assert(l.tpe != Wildcard, "wildcard: " + l)
+      case v @ Variable(_) =>
+        v.tpe = v.tpe.alpha(subst)
+        //assert(v.tpe != Wildcard, "wildcard: " + v)
       case a @ Application(fct, args) =>
         args foreach addType
         a.tpe = a.tpe.alpha(subst)
-      case Binding(_, vars, expr) =>
+        //assert(a.tpe != Wildcard, "wildcard: " + a)
+      case b @ Binding(_, vars, expr) =>
         addType(expr)
         vars foreach addType
+        b.tpe = b.tpe.alpha(subst)
+        //assert(b.tpe != Wildcard, "wildcard: " + b)
     }
     try {
       addType(e)

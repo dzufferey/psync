@@ -73,7 +73,7 @@ object Simplify {
       case Application(fct, args) =>
         val (maps, args2) = args.map(assignNames).unzip
         val map = maps.foldLeft(Map[Type,Int]())(merge(_, _))
-        (map, Application(fct, args2).setType(f.tpe))
+        (map, Copier.Application(f, fct, args2).setType(f.tpe))
       case Binding(bt, vs, f2) =>
         val (map, f3) = assignNames(f2)
         val (vs2, map2) = dzufferey.utils.Misc.mapFold(vs, map, (v: Variable, acc: Map[Type, Int]) => {
@@ -83,7 +83,7 @@ object Simplify {
         })
         val subst = vs.zip(vs2).toMap
         val f4 = FormulaUtils.alpha(subst, f3)
-        (map2, Binding(bt, vs2, f4).setType(f.tpe))
+        (map2, Copier.Binding(f, bt, vs2, f4).setType(f.tpe))
     }
 
     assignNames(cleanNames)._2

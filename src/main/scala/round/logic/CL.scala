@@ -121,14 +121,31 @@ object CL {
     (FormulaUtils.getConjuncts(f2), acc)
   }
   
+  //TODO something is wrong here
   protected def anonymComprehensions(conjuncts: List[Formula]): (List[Formula], Set[SetDef]) = {
+    //reuse defs when possible
     var acc = Set[SetDef]()
     def process(bound: Set[Variable], f: Formula) = f match {
       case c @ Binding(Comprehension, vs, body) => 
         val scope = bound intersect (body.freeVariables -- vs)
-        val id = Quantifiers.skolemify(Variable(Namer("_comp")).setType(c.tpe), scope)
-        acc += SetDef(scope, id, Some(c))
-        id
+        val tpe = c.tpe match {
+          case t @ FSet(_) => t
+          case other =>
+            val t = FSet(vs.head.tpe)
+            Logger("CL", Warning, "Comprehension with type " + other + " instead of " + t + "\n  " + c)
+            Logger.assert(vs.size == 1, "CL", "Comprehension not binding just one var " + vs)
+            t
+        }
+        val id = Quantifiers.skolemify(Variable(Namer("_comp")).setType(tpe), scope)
+        val sd = SetDef(scope, id, Some(c)).normalize
+        val id2 = acc.find( d => d.similar(sd) ) match {
+          case Some(d) =>
+            d.id
+          case None =>
+            acc += sd
+            id
+        }
+        id2
       case other =>
         other
     }

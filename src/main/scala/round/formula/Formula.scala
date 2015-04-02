@@ -13,8 +13,6 @@ sealed abstract class Formula {
     this
   }
 
-  def alpha(map: Map[Variable, Variable]): Formula
-
   val freeVariables: Set[Variable]
   val boundVariables: Set[Variable]
 }
@@ -33,7 +31,6 @@ case class Literal[T](value: T) extends Formula {//removed <: AnyVal to allow un
   override def toString = value.toString
   def toStringFull = "(" + toString + ": " + tpe + ")"
 
-  def alpha(map: Map[Variable, Variable]) = this
   lazy val freeVariables = Set[Variable]()
   lazy val boundVariables = Set[Variable]()
 
@@ -68,7 +65,6 @@ case class Variable(name: String) extends Formula {
   override def toString = name
   def toStringFull = "(" + toString + ": " + tpe + ")"
 
-  def alpha(map: Map[Variable, Variable]) = map.getOrElse(this, this)
   lazy val freeVariables = Set[Variable](this)
   lazy val boundVariables = Set[Variable]()
 
@@ -84,7 +80,6 @@ case class Application(fct: Symbol, args: List[Formula]) extends Formula {
   override def toString = fct.toString + args.mkString("(",", ",")")
   def toStringFull = "(" + fct.toString + args.map(_.toStringFull).mkString("(",", ",")") + ": " + tpe + ")"
 
-  def alpha(map: Map[Variable, Variable]) = Application(fct, args.map(_.alpha(map)))
   lazy val freeVariables = (Set[Variable]() /: args)(_ ++ _.freeVariables)
   lazy val boundVariables = (Set[Variable]() /: args)(_ ++ _.boundVariables)
 
@@ -445,7 +440,6 @@ case class Binding(binding: BindingType, vs: List[Variable], f: Formula) extends
     case Comprehension => "{ "+ vs.map(_.toStringFull).mkString(" ") + ". " + f.toStringFull + "}"
   }
 
-  def alpha(map: Map[Variable, Variable]) = Binding(binding, vs, f.alpha(map -- vs))
   lazy val freeVariables = f.freeVariables -- vs
   lazy val boundVariables = f.boundVariables ++ vs
 
@@ -473,7 +467,7 @@ case object ForAll extends BindingType {
     case _ => None
   }
   def apply(vs:List[Variable], f: Formula) = f match {
-    case ForAll(vs2, f2) => Binding(ForAll, vs ::: vs2, f2)
+    case ForAll(vs2, f2) => Binding(ForAll, vs ::: vs2, f2).setType(Bool)
     case _ => if (vs.isEmpty) f else Binding(ForAll, vs, f).setType(Bool)
   }
 }
@@ -483,7 +477,7 @@ case object Exists extends BindingType {
     case _ => None
   }
   def apply(vs:List[Variable], f: Formula) = f match {
-    case Exists(vs2, f2) => Binding(Exists, vs ::: vs2, f2)
+    case Exists(vs2, f2) => Binding(Exists, vs ::: vs2, f2).setType(Bool)
     case _ => if (vs.isEmpty) f else Binding(Exists, vs, f).setType(Bool)
   }
 }

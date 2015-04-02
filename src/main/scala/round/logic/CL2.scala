@@ -41,30 +41,41 @@ object CL2 {
     if (gts0.exists( t => t.tpe == CL.procType)) gts0
     else gts0 + Variable(Namer("p")).setType(CL.procType)
   }
-  
+    
   def reduce(formula: Formula, bound: Option[Int] = None): Formula = {
     //TODO normalization:
-    //-fixUniquelyDefinedUniversal
     //-de Bruijn then bound var unique (TODO make sure there is no clash about this)
     //-filter type of the VennRegions
-    //-congruence closure to reduve the instanciation
+    //-congruence closure to reduce the number of terms instanciation
+
     val query = CL.normalize(formula)
     assert(Typer(query).success, "CL.entailment, not well typed")
+
+    //remove the top level ∃ quantifiers (sat query)
     val (query1, _) = Quantifiers.getExistentialPrefix(query)
     val clauses0 = FormulaUtils.getConjuncts(query1)
     val clauses = clauses0.map( f => {
       val f2 = Simplify.pnf(f)
       Quantifiers.fixUniquelyDefinedUniversal(f2)
     })
+
     val (epr, rest) = clauses.partition(keepAsIt)
     Logger("CL", Debug, "epr clauses:\n  " + epr.mkString("\n  "))
     Logger("CL", Debug, "clauses to process:\n  " + rest.mkString("\n  "))
+
+    //get rid on the ∀ quantifiers
     val gts0 = getGrounTerms(epr)
     val inst0 = FormulaUtils.getConjuncts(InstGen.saturate(And(rest:_*), gts0, Some(0), false))
+    
+    //the venn regions
     val withILP = epr ::: CL.reduceComprehension(inst0, bound)
+
+    //add axioms for the other theories
     val withSetAx = SetOperationsAxioms.addAxioms(withILP)
     val withOpt = OptionAxioms.addAxioms(withSetAx)
     val withTpl = TupleAxioms.addAxioms(withOpt)
+
+    //clean-up and skolemization
     val last = InstGen.postprocess(And(withTpl:_*))
     assert(Typer(last).success, "CL.reduce, not well typed")
     last

@@ -83,6 +83,7 @@ object FormulaUtils {
   }
   
   def replace(from: Formula, to: Formula, f: Formula): Formula = {
+    assert(from.tpe == to.tpe, "replacing " + from + " by " + to + " does not respect type: " + from.tpe + ", " + to.tpe)
     def fct(e: Formula) = if (e == from) to else e
     val m = new Mapper(fct)
     m.transform(f)
@@ -127,7 +128,7 @@ object FormulaUtils {
     case Application(And, lst) => Copier.Application(f, And, lst.flatMap(flatten1(And, _)))
     case Application(Or, lst) => Copier.Application(f, Or, lst.flatMap(flatten1(Or, _)))
     case Application(other, lst) => Copier.Application(f, other, lst map flatten)
-    case Binding(b, v, f) =>Copier. Binding(f, b, v, flatten(f))
+    case Binding(b, v, f) => Copier.Binding(f, b, v, flatten(f))
     case other => other
   }
 

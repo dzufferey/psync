@@ -27,6 +27,7 @@ object InstGen {
       ??? //TODO local instantiation needs fetching the fct up to boolean level and implementing E-matching
     } else {
       val candidates = groundTerms.filter(_.tpe == v.tpe).toList
+      Logger("InstGen", Debug, "instantiatging "+ v +" with " + candidates.mkString(", "))
       candidates.toList.map( gt => FormulaUtils.map(x => if (x == v) gt else x, axiom) )
     }
   }
