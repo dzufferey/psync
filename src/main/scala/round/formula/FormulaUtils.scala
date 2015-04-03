@@ -264,7 +264,9 @@ object FormulaUtils {
           val (x,y) = collect(f, bound)
           (acc._1 ++ x, acc._2 && y)
         })
-        if (ground && a.tpe != Bool) (acc + a, true)
+        val nonBool = fct != And && fct != Or && fct != Not &&
+                      fct != Implies && fct != Eq && fct != Neq
+        if (ground && nonBool) (acc + a, true)
         else (acc, false)
       case l @ Literal(_) =>
         (Set(l), true)
