@@ -166,12 +166,31 @@ object CL {
     else None
   }
 
+  protected def mergeComprehension(lst: Set[SetDef]): (Set[SetDef], Map[Formula, Formula]) = {
+    lst.foldLeft((Set.empty[SetDef],Map.empty[Formula, Formula]))( (acc, d) => {
+      val (ds, ms) = acc
+      //TODO better way of dealing with the scope
+      ds.find(_.similar(d) && d.scope.isEmpty) match {
+        case Some(d2) => (ds, ms + (d.id -> d2.id))
+        case None => (ds + d, ms)
+      }
+    })
+  }
+
   //TODO non-empty scope means we should introduce more terms
   def reduceComprehension(conjuncts: List[Formula], bound: Option[Int]): List[Formula] = {
-    val (woComp, c1) = collectComprehensionDefinitions(conjuncts)
+    //get the comprehensions from the formula
+    val (_woComp, _c1) = collectComprehensionDefinitions(conjuncts)
+    val (c1, subst) = mergeComprehension(_c1)
+    val woComp = _woComp.map(FormulaUtils.map( f => subst.getOrElse(f, f), _))
+    Logger("CL", Debug, "similar: " + subst.mkString(", "))
+
+    //add HO if needed
     val v = Variable(Namer("v")).setType(procType)
     val ho = SetDef(Set(v), Application(HO, List(v)), None)
     val c2 = if (woComp exists hasHO) c1 + ho else c1
+
+    //generate the ILP
     val byType = c2.groupBy(_.contentTpe)
     Logger("CL", Info,
       byType.mapValues(vs => vs.mkString("\n    ","\n    ","")).

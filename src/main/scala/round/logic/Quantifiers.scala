@@ -11,49 +11,63 @@ object Quantifiers {
   /*  Sometime we introduce constant as shorthand for set.
    *  Negation makes them universal.
    *  This method fix this and put the ∃ back.
-   *  assumes formula in PNF, looks only at the top level ∀
+   *  assumes formula in PNF and flattened, looks only at the top level ∀
    */
   def fixUniquelyDefinedUniversal(f: Formula): Formula = f match {
     case ForAll(vs, f) =>
-      val (swappable, rest) = vs.partition(_.tpe match {case FSet(_) => true; case _ => false})
+      val (_swappable, rest) = vs.partition(_.tpe match {case FSet(_) => true; case _ => false})
+      val swappable = _swappable.toSet
       Logger("CL", Debug, "fix uniquely defined universal swappable: " + swappable.mkString(", "))
-
       //we are looking for clause like A = {x. ...} ⇒ ...
       val (prefix, f2) = FormulaUtils.getQuantifierPrefix(f)
       val avoid = f.boundVariables ++ vs
-      val disj = FormulaUtils.getDisjuncts(f2)
-      Logger("CL", Debug, "fix uniquely defined universal disj:\n " + disj.mkString("\n "))
-      def interesting(v: Variable, f: Formula): Boolean = (swappable contains v)
-      val (_defs, restf) = disj.partition( f => f match {
-        case Not(Eq(v @ Variable(_), c @ Comprehension(_,_))) if interesting(v, c) => true
-        case Not(Eq(c @ Comprehension(_,_), v @ Variable(_))) if interesting(v, c) => true
-        case _ => false
-      })
-      val eqs = _defs.collect{ case Not(eq) => eq }
-      assert(eqs.size == _defs.size)
-      def checkDependencies(v: Variable, c: Formula): Iterable[Variable] = {
-        val deps = (f.freeVariables intersect avoid) - v
-        //skolemify(v, deps)
-        deps
+
+      def extractDef(candidates: Set[Variable], f: Formula): (Seq[(Variable, Formula)], Formula) = f match {
+        case Or(lst @ _*) =>
+          //try to get the definitions at this level
+          val (_defs, rest) = lst.partition( f => f match {
+            case Not(Eq(v @ Variable(_), c @ Comprehension(_,_))) if candidates(v) => true
+            case Not(Eq(c @ Comprehension(_,_), v @ Variable(_))) if candidates(v) => true
+            case _ => false
+          })
+          val defs1 = _defs.collect{
+            case Not(Eq(v @ Variable(_), c @ Comprehension(_,_))) => v -> c
+            case Not(Eq(c @ Comprehension(_,_), v @ Variable(_))) => v -> c
+          }
+          assert(defs1.size == _defs.size)
+          
+          //no def at this stage and present only in one clause, then can go further down
+          val candidates2 = (candidates -- defs1.map(_._1)).filter( v => rest.filter(_.freeVariables contains v).size == 1 )
+          val (defs2, rest2) = rest.map(extractDef(candidates2, _)).unzip
+
+          (defs1 ++ defs2.flatten, Or(rest2:_*))
+
+        case And(lst @ _*) =>
+          //Conj: can go down on each clause separately
+          val (ds, ls) = lst.map(extractDef(candidates, _)).unzip
+          (ds.flatten, And(ls:_*))
+
+        case other => (Seq.empty, other)
       }
-      val defs = eqs.map{
-        case Eq(v @ Variable(_), c @ Comprehension(_,_)) =>
-          v -> (checkDependencies(v,c), c)
-        case Eq(c @ Comprehension(_,_), v @ Variable(_)) =>
-          v -> (checkDependencies(v,c), c)
-        case _ => ???
-      }.toMap
+
+      val (defs, f3) = extractDef(swappable, f2)
+
       Logger("CL", Debug, "fix uniquely defined universal defs: " + defs.mkString(", "))
-      val eqs2 = defs.map{ case (a,(_,b)) => Eq(a, b) }
-      val swapped = defs.keySet
-      val restf2 = Or(restf:_*)
-      val withDefs = And(restf2 +: eqs2.toSeq :_*)
+      val eqs2 = defs.map{ case (a,b) => Eq(a, b) }
+      val withDefs = And(f3 +: eqs2.toSeq :_*)
       val withPrefix = FormulaUtils.restoreQuantifierPrefix(prefix, withDefs)
 
+
+      def hasDependencies(v: Variable, c: Formula) = {
+        val deps = (c.freeVariables intersect avoid) - v
+        deps.isEmpty
+      }
+
+      val swapped = defs.map(_._1).toSet
       Logger("CL", Info, "fix uniquely defined universal for: " + swapped.mkString(", "))
-      val remaining = swappable.filterNot(swapped contains _) ::: rest
-      val above = defs.flatMap{ case (v, (deps,_)) => if ( deps.isEmpty) Some(v) else None }.toList
-      val below = defs.flatMap{ case (v, (deps,_)) => if (!deps.isEmpty) Some(v) else None }.toList
+      val remaining = swappable.filterNot(swapped contains _).toList ::: rest
+      val above = defs.flatMap{ case (v, c) => if ( hasDependencies(v,c)) Some(v) else None }.toList
+      val below = defs.flatMap{ case (v, c) => if (!hasDependencies(v,c)) Some(v) else None }.toList
       val temp = Exists(above, ForAll(remaining, Exists(below, withPrefix)))
       Simplify.simplify(temp)
 
