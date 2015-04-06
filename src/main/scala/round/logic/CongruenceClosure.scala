@@ -5,11 +5,12 @@ import round.formula._
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
-//TODO congruence closure to reduce the number of terms in the instanciation
-
+//congruence closure to reduce the number of terms in the instanciation
 object CongruenceClosure {
 
-  def apply(f: Formula): Seq[CongruenceClass] = {
+  def apply(f: Seq[Formula]): CongruenceClasses = apply(And(f:_*))
+
+  def apply(f: Formula): CongruenceClasses = {
 
     var formulaToNode = Map.empty[Formula, CcNode]
 
@@ -20,7 +21,9 @@ object CongruenceClosure {
         val n = f match {
           case Application(f, args) =>
             val argsN = args.map(getNode(_))
-            new CcSym(f, argsN)
+            val node = new CcSym(f, argsN)
+            for (n <- argsN) n.ccParents += node
+            node
           case v @ Variable(_) => new CcVar(v)
           case l @ Literal(_) => new CcLit(l)
           case other =>
@@ -49,14 +52,48 @@ object CongruenceClosure {
     
     //extract the CC classes
     val cls = formulaToNode.values.groupBy(_.find)
-    cls.map{ case (repr, ms) => new CongruenceClass(repr.formula, ms.map(_.formula).toSet) }.toSeq
+    val classes = cls.map{ case (repr, ms) => new CongruenceClass(repr.formula, ms.map(_.formula).toSet) }
+    val map = classes.foldLeft(Map.empty[Formula, CongruenceClass])( (acc, c) => {
+      c.members.foldLeft(acc)( (a, m) => a + (m -> c) )
+    } )
+    new CongruenceClasses(classes, map)
+  }
+
+}
+
+class CongruenceClasses(cls: Iterable[CongruenceClass], map: Map[Formula, CongruenceClass]) {
+
+  override def toString = cls.mkString("\n")
+
+  def apply(f: Formula): CongruenceClass = {
+    map.getOrElse(f, new CongruenceClass(f, Set(f))) 
+  }
+
+  def repr(f: Formula) = {
+    if (map.contains(f)) map(f).repr
+    else f
+  }
+
+  def normalize(f: Formula) = {
+    FormulaUtils.mapTopDown(repr(_), f)
+  }
+
+  def formula: Formula = {
+    if (cls.isEmpty) True()
+    else And(cls.toSeq.map(_.formula):_*)
   }
 
 }
 
 //a container for CC classes
 class CongruenceClass(val repr: Formula, val members: Set[Formula]) {
+  override def toString = repr + " <- " + (members - repr).mkString(", ")
   def contains(f: Formula) = members(f)
+  def formula: Formula = {
+    val eqs = (members - repr).map( Eq(repr, _) ).toSeq
+    if (eqs.isEmpty) True()
+    else And(eqs:_*)
+  }
 }
 
 //node in the CC graph

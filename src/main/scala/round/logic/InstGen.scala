@@ -53,7 +53,10 @@ object InstGen {
   }
   
   //TODO E-matching
-  protected def instantiateLocally(formula: Formula, groundTerms: Set[Formula]): Formula = formula match {
+  protected def instantiateLocally(formula: Formula,
+                                   groundTerms: Set[Formula],
+                                   cClasses: CongruenceClasses = new CongruenceClasses(Nil, Map.empty)
+                                   ): Formula = formula match {
     case _ => ???
   }
 
@@ -83,11 +86,13 @@ object InstGen {
    */
   def saturate( formula: Formula,
                 groundTerms: Set[Formula] = Set(),
+                cClasses: CongruenceClasses = new CongruenceClasses(Nil, Map.empty),
                 depth: Option[Int] = None,
-                local: Boolean = false): Formula = {
+                local: Boolean = false ): Formula = {
     val gts = groundTerms ++ FormulaUtils.collectGroundTerms(formula)
-    val formula2 = if (local) instantiateLocally(formula, gts)
-                   else instantiateGlobally(formula, gts)
+    val formula2 =
+      if (local) instantiateLocally(formula, gts, cClasses)
+      else instantiateGlobally(formula, gts.map(cClasses.repr(_)))
     if (depth.getOrElse(1) <= 0) {
       postprocess(formula2)
     } else {
@@ -95,7 +100,8 @@ object InstGen {
       if (gts2.isEmpty) {
         postprocess(formula2)
       } else {
-        saturate(formula, gts ++ gts2, depth.map(_ - 1), local)
+        val cClasses1 = CongruenceClosure(And(formula2, cClasses.formula))
+        saturate(formula, gts ++ gts2, cClasses1, depth.map(_ - 1), local)
       }
     }
   }

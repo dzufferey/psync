@@ -30,7 +30,7 @@ class FormulaUtilsSuite extends FunSuite {
     assert(collectGroundTerms(form1) == gts1)
 
     val form2 = And(ax, Lt(rp2,rqp3))
-    val gts2 = gts + rp2 + rqp3 + qp3 + p3
+    val gts2 = gts + rp2 + rqp3 + qp3 + p3 + Lt(rp2,rqp3)
     assert(collectGroundTerms(form2) == gts2)
   }
 

@@ -6,13 +6,10 @@ import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 import dzufferey.utils.Namer
 
-object CL {
-
-  //TODO generalize
-  //-more than procType: to generate the constraints we need to know the size of the universe
-  //-more than pairwise constraints
-  //-Map[A,b] as a Set[A] of keys and a content(key: A): B function
-
+object CL extends CL( Some(2), //pairwise Venn regions
+                      Some(Set(UnInterpreted("ProcessID"))) //only on set of type ProcessID
+                    ) {
+  
   val procType = UnInterpreted("ProcessID")
   val HO = UnInterpretedFct("HO",Some(procType ~> FSet(procType)))
   val n = Variable("n").setType(Int)
@@ -25,7 +22,19 @@ object CL {
     FormulaUtils.collect(false, check, f)
   }
 
-  def normalize(f: Formula) = {
+}
+
+object ClFull extends CL(None, None) 
+
+class CL(bound: Option[Int],
+         onType: Option[Set[Type]]) {
+
+  //TODO generalize
+  //-Map[A,b] as a Set[A] of keys and a content(key: A): B function
+
+  import CL.{procType, HO, n, hasHO}
+
+  protected def normalize(f: Formula) = {
     //TODO some (lazy) CNF conversion ?
     //TODO purification before or after instantiation ?
     val f1 = Simplify.normalize(f)
@@ -33,73 +42,22 @@ object CL {
     val f3 = Simplify.boundVarUnique(f2)
     f3
   }
-
-  //unsupported quantifiers are implicitely universal, we care about the ∀ in ∀∃φ
-  //TODO should still allows EPR no quantified processID below
-  protected def getUnsupportedQuantifierPrefix(f: Formula): (Formula, List[Variable]) = {
-    val f2 = Simplify.pnf(f)
-    val (f3,vs) = Quantifiers.getUniversalPrefix(f2)
-    val (supported, unsupported) = vs.toList.partition( v => v.tpe == procType)
-    Logger("CL", Info, "unsupported quantifiers are: " + unsupported.map(v => v.name + ": " + v.tpe).mkString(", "))
-    val f4 = ForAll(supported, f3)
-    (f4, unsupported)
+ 
+  protected def keepAsIt(f: Formula): Boolean = {
+    var hasComp = false
+    def check(f1: Formula) = f1 match {
+      case Comprehension(_, _) => hasComp = true
+      case _ => ()
+    }
+    FormulaUtils.traverse(check, f)
+    Quantifiers.isEPR(f) && !hasComp
   }
 
-
-  protected def matchQuantifiers( qf: Formula, 
-                                  vs: List[Variable],
-                                  existentials: Iterable[Variable],
-                                  groundTerms: Iterable[Formula]
-                                ): Iterable[Formula] = {
-
-    def findMatch(v: Variable) = {
-      val prefered = existentials.filter(_.tpe == v.tpe)
-      if (!prefered.isEmpty) {
-        prefered
-      } else {
-        Logger("CL", Notice, "did not find instantiation candidate among existential for " + v + ": " + v.tpe)
-        groundTerms.filter(_.tpe == v.tpe)
-      }
-    }
-
-    vs.foldLeft(List(qf))( (acc, v) => {
-      val candidates = findMatch(v)
-      if (candidates.isEmpty) {
-        Logger("CL", Notice, "did not find any instantiation candidate for " + v + ": " + v.tpe)
-        acc.map( f => ForAll(List(v), f) )
-      } else {
-        Logger("CL", Info, "instantiating " + v + ": " + v.tpe + " with " + candidates.mkString(", "))
-        acc.flatMap( f => InstGen.instantiateWithTerms(v, f, candidates.toSet) )
-      }
-    })
-  }
-
-  /** preprocess and reduce (hypothesis ∧ ¬conclusion),
-   *  returned formula can be checked for satisfiability. */
-  def entailment(hypothesis: Formula, conclusion: Formula): Formula = {
-    assert(Typer(And(hypothesis, Not(conclusion))).success, "CL.entailment, not well typed")
-    val h1 = normalize(hypothesis)
-    val c1 = normalize(Not(conclusion))
-    
-    val (h2, ext) = Quantifiers.getExistentialPrefix(h1)
-    val gt = FormulaUtils.collectGroundTerms(h2)
-    //what can be used to instantiate the unsupported quantifiers: ext ∪ gt
-
-    val c2 = {
-      val (c, e) = Quantifiers.getExistentialPrefix(c1)
-      //TODO this assumes unique bound var, we should alpha
-      c
-    }
-    val cs1 = FormulaUtils.getConjuncts(c2)
-    Logger("CL", Debug, "negated conclusion:\n " + cs1.mkString("\n "))
-    val cs2 = cs1.flatMap( c => {
-      val (qf, vs) = getUnsupportedQuantifierPrefix(c)
-      matchQuantifiers(qf, vs, ext, gt)
-    })
-    val cs3 = cs2.map(Quantifiers.fixUniquelyDefinedUniversal)
-
-    val query = cs3.foldLeft(h2)(And(_,_))
-    reduce(query)
+  //make sure we have a least one process
+  protected def getGrounTerms(fs: List[Formula]): Set[Formula] = {
+    val gts0 = FormulaUtils.collectGroundTerms(And(fs:_*))
+    if (gts0.exists( t => t.tpe == CL.procType)) gts0
+    else gts0 + Variable(Namer("p")).setType(CL.procType)
   }
 
   //TODO assumes positive occurance!!
@@ -160,44 +118,40 @@ object CL {
     (f2, allDefs)
   }
 
-  protected def sizeOfUniverse(tpe: Type): Option[Formula] = {
-    if (tpe == procType) Some(n)
-    else if (tpe == Bool) Some(Literal(2))
-    else None
-  }
-
-  protected def mergeComprehension(lst: Set[SetDef]): (Set[SetDef], Map[Formula, Formula]) = {
-    lst.foldLeft((Set.empty[SetDef],Map.empty[Formula, Formula]))( (acc, d) => {
-      val (ds, ms) = acc
-      //TODO better way of dealing with the scope
-      ds.find(_.similar(d) && d.scope.isEmpty) match {
-        case Some(d2) => (ds, ms + (d.id -> d2.id))
-        case None => (ds + d, ms)
+  protected def sizeOfUniverse(tpe: Type): Option[Formula] = tpe match {
+    case `procType` => Some(n)
+    case Bool => Some(Literal(2))
+    case Product(args) =>
+      val s2 = args.map(sizeOfUniverse)
+      if (s2.forall(_.isDefined)) {
+        if (s2.isEmpty) Some(Literal(1))
+        else Some(Times(s2.map(_.get):_*))
+      } else {
+        None
       }
-    })
+    case _ => None
   }
 
   //TODO non-empty scope means we should introduce more terms
-  def reduceComprehension(conjuncts: List[Formula], bound: Option[Int]): List[Formula] = {
+  def reduceComprehension(conjuncts: List[Formula],
+                          cClasses: CongruenceClasses = new CongruenceClasses(Nil, Map.empty)): List[Formula] = {
+
     //get the comprehensions from the formula
     val (_woComp, _c1) = collectComprehensionDefinitions(conjuncts)
-    val (c1, subst) = mergeComprehension(_c1)
+    val (c1, subst) = SetDef.normalize(_c1, cClasses)
     val woComp = _woComp.map(FormulaUtils.map( f => subst.getOrElse(f, f), _))
     Logger("CL", Debug, "similar: " + subst.mkString(", "))
 
     //add HO if needed
     val v = Variable(Namer("v")).setType(procType)
     val ho = SetDef(Set(v), Application(HO, List(v)), None)
-    val c2 = if (woComp exists hasHO) c1 + ho else c1
+    val c2 = if (woComp exists hasHO) ho :: c1 else c1
 
     //generate the ILP
     val byType = c2.groupBy(_.contentTpe)
-    Logger("CL", Info,
-      byType.mapValues(vs => vs.mkString("\n    ","\n    ","")).
-        mkString("reduceComprehension, comprehensions:\n  ", "\n  ","")
-    )
     val ilps =
-      for ( (tpe, sDefs) <- byType ) yield {
+      for ( (tpe, sDefs) <- byType if onType.map(_ contains tpe).getOrElse(true)) yield {
+        Logger("CL", Info, sDefs.mkString("reduceComprehension "+tpe+"\n    ","\n    ",""))
         val fs = sDefs.map(_.fresh)
         val sets = fs.map( sd => (sd.id, sd.body)) 
         val cstrs = bound match {
@@ -209,30 +163,51 @@ object CL {
       }
     Lt(Literal(0), n) :: woComp ::: ilps.toList
   }
-
+  
+  
   def reduce(formula: Formula): Formula = {
-    val typed = Typer(formula).get 
-    val n1 = normalize(typed)
-    val n2 = Quantifiers.getExistentialPrefix(n1)._1
-    val rawConjuncts = FormulaUtils.getConjuncts(n2)
-    val conjuncts = rawConjuncts.map(f => Quantifiers.skolemize(Simplify.simplify(Simplify.pnf(f))))
-    Logger("CL", Info, "reducing:\n  " + conjuncts.mkString("\n  "))
-    val withILP = reduceComprehension(conjuncts, None)
-    Logger("CL", Debug, "with ILP:\n  " + withILP.mkString("\n  "))
+    //TODO normalization:
+    //-de Bruijn then bound var unique (TODO make sure there is no clash about this)
+    //-filter type of the VennRegions
+    //-congruence closure to reduce the number of terms instanciation
+
+    val query = CL.normalize(formula)
+    assert(Typer(query).success, "CL.entailment, not well typed")
+
+    //remove the top level ∃ quantifiers (sat query)
+    val (query1, _) = Quantifiers.getExistentialPrefix(query)
+    val clauses0 = FormulaUtils.getConjuncts(query1)
+    val clauses = clauses0.map( f => {
+      val f2 = Simplify.pnf(f)
+      Quantifiers.fixUniquelyDefinedUniversal(f2)
+    })
+
+    val (epr, rest) = clauses.partition(keepAsIt)
+    Logger("CL", Debug, "epr clauses:\n  " + epr.mkString("\n  "))
+    Logger("CL", Debug, "clauses to process:\n  " + rest.mkString("\n  "))
+
+    //get rid on the ∀ quantifiers
+    val cCls0 = CongruenceClosure(clauses)
+    val gts0 = getGrounTerms(epr)
+    val inst0 = FormulaUtils.getConjuncts(InstGen.saturate(And(rest:_*), gts0, cCls0, Some(0), false))
+    
+    //the venn regions
+    val cCls1 = CongruenceClosure(epr ++ inst0)
+    val withILP = epr ::: CL.reduceComprehension(inst0, cCls1)
+
+    //add axioms for the other theories
     val withSetAx = SetOperationsAxioms.addAxioms(withILP)
     val withOpt = OptionAxioms.addAxioms(withSetAx)
     val withTpl = TupleAxioms.addAxioms(withOpt)
-    Logger("CL", Debug, "with axiomatized theories:\n  " + withTpl.mkString("\n  "))
-    val last = withTpl
-    Typer(And(last:_*)) match {
-      case Typer.TypingSuccess(f) =>
-        Logger("CL", Info, "reduced formula:\n  " + FormulaUtils.getConjuncts(f).mkString("\n  "))
-        f
-      case Typer.TypingFailure(r) =>
-        Logger.logAndThrow("CL", Error, "could not type:\n  " + last.map(_.toStringFull).mkString("\n  ") + "\n  " + r)
-      case Typer.TypingError(r) =>
-        Logger.logAndThrow("CL", Error, "typer failed on:\n  " + last + "\n  " + r)
-    }
+
+    //clean-up and skolemization
+    val last = InstGen.postprocess(And(withTpl:_*))
+    assert(Typer(last).success, "CL.reduce, not well typed")
+    last
+  }
+  
+  def entailment(hypothesis: Formula, conclusion: Formula): Formula = {
+    reduce(And(hypothesis, Not(conclusion)))
   }
   
 }

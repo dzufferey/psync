@@ -36,6 +36,8 @@ class SingleVC(description: String, hypothesis: Formula, transition: Formula, co
 
   protected var reduced: Formula = False()
 
+  protected val cl = CL //TODO bound according to the options
+
   def solve {
     if (!solved) { 
       var solver: Solver = null
@@ -45,8 +47,7 @@ class SingleVC(description: String, hypothesis: Formula, transition: Formula, co
         Logger("vC", Debug, "transition:\n  " + FormulaUtils.getConjuncts(transition).mkString("\n  "))
         Logger("VC", Debug, "conclusion:\n  " + FormulaUtils.getConjuncts(conclusion).mkString("\n  "))
         Logger("VC", Debug, "additionalAxioms:\n  " + additionalAxioms.mkString("\n  "))
-        //reduced = CL.entailment(And(hypothesis, transition), conclusion)
-        reduced = CL2.entailment(And(hypothesis, transition), conclusion, Some(2)) //TODO bound according to the options
+        reduced = cl.entailment(And(hypothesis, transition), conclusion)
         reduced = Application(And, FormulaUtils.getConjuncts(reduced) ::: additionalAxioms).setType(Bool)
         reduced = Simplify.simplify(reduced)
         solver = if (round.utils.Options.dumpVcs) Solver(UFLIA, fName)

@@ -105,6 +105,11 @@ object FormulaUtils {
     val m = new MapperSym(fct)
     m.transform(f)
   }
+  
+  def mapTopDown(fct: Formula => Formula, f: Formula): Formula = {
+    val m = new TopDownMapper(fct)
+    m.transform(f)
+  }
 
   /** Rename all free variables that appears in the formula. */
   def renameFreeVar(f: Formula): (Formula, Map[Variable, Variable]) = {

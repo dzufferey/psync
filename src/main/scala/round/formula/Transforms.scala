@@ -121,6 +121,26 @@ class MapperSym(fct: Symbol => Symbol ) extends Transformer {
   }
 }
 
+class TopDownMapper(fct: Formula => Formula) extends Transformer {
+  override def transform(f: Formula): Formula = {
+    val f2 = fct(f)
+    if (f2 != f) {
+      f2
+    } else {
+      f match {
+        case b @ Binding(bt, vs, f) =>
+          def fct2(f: Formula): Formula = {
+            if (vs.exists(v => f == v)) f else fct(f)
+          }
+          val m2 = new TopDownMapper(fct2)
+          Copier.Binding(b, bt, vs, m2.transform(f))
+        case other =>
+          super.transform(f)
+      }
+    }
+  }
+}
+
 class Alpha(map: Map[Variable, Variable]) extends Transformer {
 
   lazy val from = map.keySet

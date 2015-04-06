@@ -36,6 +36,12 @@ case class SetDef(scope: Set[Variable], id: Formula, body: Option[Binding]) {
     n
   }
 
+  def ccNormalize(cClasses: CongruenceClasses): SetDef = {
+    val n1 = normalize
+    val newBody = n1.body.map( cClasses.normalize(_).asInstanceOf[Binding] )
+    SetDef(n1.scope, n1.id, newBody)
+  }
+
   //assume normalized
   def similar(sd: SetDef) = {
     scope == sd.scope && body == sd.body
@@ -43,3 +49,20 @@ case class SetDef(scope: Set[Variable], id: Formula, body: Option[Binding]) {
 
 }
 
+object SetDef {
+
+  def normalize(sDefs: Iterable[SetDef],
+                cClasses: CongruenceClasses = new CongruenceClasses(Nil, Map.empty) 
+               ): (List[SetDef], Map[Formula, Formula]) = {
+    val init = (List[SetDef](), Map[Formula,Formula]())
+    sDefs.foldLeft(init)( (acc, d0) => {
+      val d = d0.ccNormalize(cClasses)
+      val (ds, subst) = acc
+      ds.find(_.similar(d)) match {
+        case Some(s) => (ds, subst + (d.id -> s.id))
+        case None => (d :: ds, subst)
+      }
+    })
+  }
+
+}
