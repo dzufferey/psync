@@ -181,7 +181,7 @@ class Verifier[IO](val alg: Algorithm[IO]) {
           val (tr, aux) = roundsTR(r)
           val f = And(invariant, property)
           new SingleVC(
-            "relational property preserved at round " + r,
+            descr + " preserved at round " + r,
             f,//TODO this might still contains old terms, they are harmless
             tr.makeFullTr(procLocalVars ++ procGhostVars, aux),
             tr.primeFormula(f),
@@ -192,7 +192,7 @@ class Verifier[IO](val alg: Algorithm[IO]) {
     } else if (isGlobalProperty(property)) {
       new CompositeVC(descr, true,
         new SingleVC(
-          "global property hold initially",
+          descr + " holds initially",
           ForAll(List(procI), localize(procLocalVars ++ procGhostVars, procI, procInitState)),
           Eq(r, Literal(0)),
           removeInitPrefix(property),
@@ -202,7 +202,7 @@ class Verifier[IO](val alg: Algorithm[IO]) {
           val (tr, aux) = roundsTR(r)
           val f = And(invariant, property)
           new SingleVC(
-            "global property preserved at round " + r,
+            descr + " preserved at round " + r,
             f,
             tr.makeFullTr(procLocalVars ++ procGhostVars, aux),
             tr.primeFormula(f),
