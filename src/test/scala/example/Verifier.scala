@@ -14,9 +14,7 @@ object Verifier extends round.utils.DefaultOptions {
   newOption("-lv", Unit( () => lv = true), "LastVoting (default OTR)")
 
   var r = "report.html"
-  newOption("-r", String( i => r = i), "report.html")
-
-  newOption("-dumpVcs", Unit( () => round.utils.Options.dumpVcs = true), "dump the SMT queries into files")
+  newOption("-r", String( i => r = i), "report name (default: report.html)")
 
   val usage = "Give the name of the class to verify as argument"
 

@@ -13,7 +13,7 @@ class FloodMin(f: Int) extends Algorithm[ConsensusIO] {
   //
   val callback = new LocalVariable[ConsensusIO](null)
 
-  val spec = TrivialSpec
+  val spec = TrivialSpec //TODO we need safety predicates on transition to account for synchronous crash-stop
 
   def process = p(new Process[ConsensusIO]{
 

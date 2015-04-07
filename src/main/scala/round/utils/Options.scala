@@ -13,25 +13,20 @@ abstract class DefaultOptions extends Options {
   newOption("--hide", String( str => Logger.disallow(str)), "hide the output with given prefix.")
   newOption("--noAssert", Unit(() => Logger.disableAssert), "remove some assertions.")
  
+  //verification
+  newOption("--smtSolver", String(str => smtlib.Solver.setCmd(str.split(" "))), "[verification] The smt sovler (+ options) to use (default: \"z3 -smt2 -in\").")
+  newOption("--dumpVcs", Unit( () => Options.dumpVcs = true ), "[verification] dump the SMT queries into files.")
+  newOption("--timeout", Int( i => Options.timeout = i.toLong * 1000 ), "[verification] timeout for the SMT solver is second (default: 10).")
+ 
 }
 
-object Options extends DefaultOptions {
+object Options {
   
-  //general reporting option
-  var report = false
-  var reportOutput: Option[java.lang.String] = None
-  var stats = false
+  //var stats = false
+  //newOption("--stats", Unit(() => Options.stats = true), "print statistics about the execution.")
  
-  newOption("-r", Unit(() => report = true), "output a report (with a default name).")
-  newOption("--report", String(str => { report = true; reportOutput = Some(str) } ), "output a report with given name.")
-  newOption("--stats", Unit(() => stats = true), "print statistics about the execution.")
- 
+  //verification
   var dumpVcs = false
-
-  newOption("--smtSolver", String(str => smtlib.Solver.setCmd(str.split(" "))), "The smt sovler (+ options) to use (default: \"z3 -smt2 -in\").")
-  newOption("--dumpVcs", Unit( () => dumpVcs = true ), "dump the SMT queries into files.")
- 
-  val usage = "..."
-
+  var timeout = 10000l
  
 }

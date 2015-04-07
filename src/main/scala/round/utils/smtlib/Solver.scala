@@ -18,7 +18,8 @@ class Solver( th: Theory,
               cmd: String,
               options: Iterable[String],
               implicitDeclaration: Boolean,
-              dumpToFile: Option[String]) {
+              dumpToFile: Option[String],
+              timeout: Long) {
 
   protected var stackCounter = 0
 
@@ -108,7 +109,7 @@ class Solver( th: Theory,
     }
   }
 
-  protected def fromSolver(timeout: Long = 10000): String = {
+  protected def fromSolver: String = {
 
     def reader(stream: BufferedReader) =
       new java.util.concurrent.Callable[String] {
@@ -269,7 +270,7 @@ class Solver( th: Theory,
   
   def checkSat: Result = {
     toSolver(CheckSat)
-    fromSolver() match {
+    fromSolver match {
       case "sat" => Sat()
       case "unsat" => UnSat
       case "unknown" => Unknown
@@ -282,7 +283,7 @@ class Solver( th: Theory,
   def getModel: Option[Model] = {
     toSolver(GetModel)
     Thread.sleep(100) //sleep a bit to let z3 make the model. TODO better!
-    Parser.parseModel(fromSolver()).map( cmds => {
+    Parser.parseModel(fromSolver).map( cmds => {
       Model(cmds, declaredV, declaredS)
     })
   }
@@ -304,7 +305,11 @@ class Solver( th: Theory,
     push
     conjuncts.foreach(assert(_))
     val res = checkSat
-    pop
+    res match {
+      case Failure(_) => //solver might be dead
+      try pop catch { case _: Throwable => () }
+      case other => pop
+    }
     res
   }
 
@@ -326,13 +331,17 @@ class Solver( th: Theory,
         }
       case other => other
     }
-    pop
+    res match {
+      case Failure(_) => //solver might be dead
+      try pop catch { case _: Throwable => () }
+      case other => pop
+    }
     res
   }
 
   def getValue(fs: Formula*): Option[List[(Formula,Formula)]] = {
     toSolver(GetValue(fs.toList))
-    Parser.parseGetValueReply(fromSolver())
+    Parser.parseGetValueReply(fromSolver)
   }
 
 }
@@ -350,12 +359,18 @@ object Solver {
   var solver = "z3"
   var solverArg = Array("-smt2", "-in")
 
-  def apply(th: Theory) = {
-    new Solver(th, solver, solverArg, true, None)
-  }
+  def defaultTO = round.utils.Options.timeout
+
+  def apply(th: Theory): Solver = apply(th, None, defaultTO)
   
-  def apply(th: Theory, file: String) = {
-    new Solver(th, solver, solverArg, true, Some(file))
+  def apply(th: Theory, file: String): Solver = apply(th, Some(file), defaultTO)
+
+  def apply(th: Theory, timeout: Long): Solver = apply(th, None, timeout)
+
+  def apply(th: Theory, file: String, timeout: Long): Solver = apply(th, Some(file), timeout)
+
+  def apply(th: Theory, file: Option[String], timeout: Long): Solver = {
+    new Solver(th, solver, solverArg, true, file, timeout)
   }
 
 }

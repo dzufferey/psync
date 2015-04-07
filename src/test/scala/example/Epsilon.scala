@@ -20,7 +20,7 @@ class EpsilonConsensus(f: Int, epsilon: Double) extends Algorithm[RealConsensusI
   val halted = new LocalVariable[Map[ProcessID, Double]](Map())
   val callback = new LocalVariable[RealConsensusIO](null)
 
-  val spec = TrivialSpec
+  val spec = TrivialSpec //TODO we need to add support for Real numbers
 
   def process = p(new Process[RealConsensusIO]{
 
