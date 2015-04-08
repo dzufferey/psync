@@ -117,6 +117,13 @@ class CL(bound: Option[Int],
     val allDefs = (defs1 ++ defs2).map(_.normalize)
     (f2, allDefs)
   }
+  
+  protected def collectHO(conjuncts: List[Formula]): List[SetDef] = {
+    val gts = FormulaUtils.collectGroundTerms(And(conjuncts:_*))
+    val hos = gts.filter{ case Application(UnInterpretedFct("HO",_,_), _) => true
+                          case _ => false } 
+    hos.toList.map( ho => SetDef(Set(), ho, None) )
+  }
 
   protected def sizeOfUniverse(tpe: Type): Option[Formula] = tpe match {
     case `procType` => Some(n)
@@ -136,19 +143,15 @@ class CL(bound: Option[Int],
   def reduceComprehension(conjuncts: List[Formula],
                           cClasses: CongruenceClasses = new CongruenceClasses(Nil, Map.empty)): List[Formula] = {
 
-    //get the comprehensions from the formula
+    //get the comprehensions and HO sets from the formula
     val (_woComp, _c1) = collectComprehensionDefinitions(conjuncts)
-    val (c1, subst) = SetDef.normalize(_c1, cClasses)
+    val ho = collectHO(conjuncts)
+    val (c1, subst) = SetDef.normalize(_c1 ++ ho, cClasses)
     val woComp = _woComp.map(FormulaUtils.map( f => subst.getOrElse(f, f), _))
     Logger("CL", Debug, "similar: " + subst.mkString(", "))
 
-    //add HO if needed
-    val v = Variable(Namer("v")).setType(procType)
-    val ho = SetDef(Set(v), Application(HO, List(v)), None)
-    val c2 = if (woComp exists hasHO) ho :: c1 else c1
-
     //generate the ILP
-    val byType = c2.groupBy(_.contentTpe)
+    val byType = c1.groupBy(_.contentTpe)
     val ilps =
       for ( (tpe, sDefs) <- byType if onType.map(_ contains tpe).getOrElse(true)) yield {
         Logger("CL", Info, sDefs.mkString("reduceComprehension "+tpe+"\n    ","\n    ",""))

@@ -38,13 +38,14 @@ case class SetDef(scope: Set[Variable], id: Formula, body: Option[Binding]) {
 
   def ccNormalize(cClasses: CongruenceClasses): SetDef = {
     val n1 = normalize
+    val newId = if (n1.scope.isEmpty) cClasses.normalize(n1.id) else n1.id
     val newBody = n1.body.map( cClasses.normalize(_).asInstanceOf[Binding] )
-    SetDef(n1.scope, n1.id, newBody)
+    SetDef(n1.scope, newId, newBody)
   }
 
   //assume normalized
   def similar(sd: SetDef) = {
-    scope == sd.scope && body == sd.body
+    scope == sd.scope && body.isDefined && body == sd.body
   }
 
 }
