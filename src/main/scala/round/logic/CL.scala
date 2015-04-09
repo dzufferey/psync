@@ -167,6 +167,13 @@ class CL(bound: Option[Int],
     Lt(Literal(0), n) :: woComp ::: ilps.toList
   }
   
+  protected def cleanUp(ls: List[Formula]) = {
+    val f = And(ls:_*)
+    val simp = Simplify.boundVarUnique(f)
+    val qf = Quantifiers.skolemize(simp) //get ride of ∃
+    val renamed = Simplify.deBruijnIndex(qf)
+    Simplify.simplify(renamed)
+  }
   
   def reduce(formula: Formula): Formula = {
     //TODO normalization:
@@ -204,7 +211,7 @@ class CL(bound: Option[Int],
     val withTpl = TupleAxioms.addAxioms(withOpt)
 
     //clean-up and skolemization
-    val last = InstGen.postprocess(And(withTpl:_*))
+    val last = cleanUp(withTpl)
     assert(Typer(last).success, "CL.reduce, not well typed")
     last
   }

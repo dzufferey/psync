@@ -225,6 +225,7 @@ class VennRegionsWithBound(bound: Int, tpe: Type, universeSize: Option[Formula],
     val seq = if (bound >= sets.size) Seq(_sets)
               else mkSeq(0,0)
     val cstrs = seq.map( s => new VennRegions(tpe, universeSize, s).constraints )
+    //TODO there are redundant constraints
     And(cstrs:_*)
   }
 

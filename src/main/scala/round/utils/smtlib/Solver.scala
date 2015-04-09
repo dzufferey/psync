@@ -359,6 +359,36 @@ object Solver {
   var solver = "z3"
   var solverArg = Array("-smt2", "-in")
 
+  val z3Cmd = "z3"
+  val z3Args = Array("-smt2", "-in")
+  
+  val cvc4MfCmd = "cvc4"
+  val cvc4MfArgs = Array( "--lang=smt2",
+                          "--finite-model-find",
+                          "--mbqi=none",
+                          "--inst-max-level=0",
+                          "--fmf-inst-engine",
+                          "--simplification=none",
+                          "-i" )
+
+  def z3(th: Theory, file: Option[String], timeout: Long): Solver = {
+    new Solver(th, z3Cmd, z3Args, true, file, timeout)
+  }
+
+  def cvc4mf(th: Theory, file: Option[String], timeout: Long): Solver = {
+    new Solver(th, cvc4MfCmd, cvc4MfArgs, true, file, timeout)
+  }
+
+  def useZ3 {
+    solver = z3Cmd
+    solverArg = z3Args
+  }
+
+  def useCvc4Mf {
+    solver = cvc4MfCmd
+    solverArg = cvc4MfArgs
+  }
+
   def defaultTO = round.utils.Options.timeout
 
   def apply(th: Theory): Solver = apply(th, None, defaultTO)

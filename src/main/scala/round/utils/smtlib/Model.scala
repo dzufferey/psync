@@ -105,7 +105,7 @@ object Model {
 
     val values: Map[String, ValExt] = (cmds.collect{
       case DeclareFun(id, Function(Nil, tpe)) =>
-        (id -> ValExt(id.split("!").last.toInt, tpe))
+        (id -> ValExt(id.split("!").last.toInt, tpe)) //z3 values
     }).toMap
     val domains = values.values.groupBy(_.tpe).map{ case (k, v) => (k, v.toSet) }
 
@@ -118,6 +118,14 @@ object Model {
       case Literal(b: Boolean) => Some(ValB(b))
       case Literal(l: Long) => Some(ValI(l))
       case Minus(Literal(l: Long)) => Some(ValI(-l))
+      case Variable(id) if id.startsWith("@uc_") => //cvc4 values
+        val idx = id.reverse.takeWhile(_.isDigit).reverse
+        val tpe = id.substring(4, id.length - idx.length - 1) match {
+          case "Int" => Int
+          case "Bool" => Bool
+          case id => UnInterpreted(id)
+        }
+        Some(ValExt(idx.toInt, tpe))
       case Variable(id) => values get id
       case _ => None
     }
@@ -128,10 +136,22 @@ object Model {
         case other => List(other)
       }
       val args3 = args2.map( _ match {
-        case Eq(_, v) => tryParseVal(v).get
+        case eq @ Eq(v1, v2) => tryParseVal(v2).orElse(tryParseVal(v1)) match {
+            case Some(vd) => vd
+            case None => sys.error("could not parse: " + eq.toStringFull)
+          }
         case other => sys.error("expected Eq, found: " + other)
       })
-      (args3, tryParseVal(ret).get)
+      val (args4, retParsed) = ret match {
+        case eq @ Eq(v1, v2) => tryParseVal(v2).orElse(tryParseVal(v1)) match {
+            case Some(vd) => (args3 :+ vd, ValB(true)) //TODO forgetting the false case!!
+            case None => sys.error("could not parse: " + eq.toStringFull)
+          }
+        case ret =>
+          val r = tryParseVal(ret).getOrElse(sys.error("cannot parse (expected value) " + ret))
+          (args3, r)
+      }
+      (args4, retParsed)
     }
 
     def getSym(id: String): Symbol = {

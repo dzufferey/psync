@@ -13,7 +13,7 @@ import dzufferey.utils.LogLevel._
 object Parser extends StandardTokenParsers {
 
   lexical.delimiters += (
-    "(", ")", "!", ".",
+    "(", ")", "!", ".", "@",
     "=", "<", ">", ">=", "<=", "=>",
     "+", "-", "*"
   )
@@ -34,7 +34,7 @@ object Parser extends StandardTokenParsers {
   )
 
   override def ident: Parser[String] = (
-    super.ident ~ identTail  ^^ { case head ~ tail => head + tail }
+    opt("@") ~ super.ident ~ identTail  ^^ { case at ~ head ~ tail => at.getOrElse("") + head + tail }
   )
     
   def paren[T](parser: Parser[T]): Parser[T] = "(" ~> parser <~ ")"
@@ -92,34 +92,34 @@ object Parser extends StandardTokenParsers {
 
   def typedVar: Parser[Variable] = "(" ~> ident ~ sort <~ ")" ^^ { case id ~ srt => Variable(id).setType(srt) }
 
-  def removeComments(str: String) = str.replaceAll("[ \t\f]*;;.*\\n", "")
+  def removeComments(str: String) = str.replaceAll("[ \t\f]*;.*\\n", "")
 
   def parseModel(str: String): Option[List[Command]] = {
     val noComments = removeComments(str)
-    Logger("smtlib.Parser", Debug, "raw smt model:\n" + noComments)
+    Logger("smtlib", Debug, "raw smt model:\n" + noComments)
     val tokens = new lexical.Scanner(noComments)
     val result = phrase(model)(tokens)
     if (result.successful) {
       val cmds = result.get
-      Logger("smtlib.Parser", Debug, "smt command parsed:\n  " + cmds.mkString("\n  "))
+      Logger("smtlib", Debug, "smt command parsed:\n  " + cmds.mkString("\n  "))
       Some(cmds)
     } else {
-      Logger("smtlib.Parser", Warning, "parsing error: " + result.toString)
+      Logger("smtlib", Warning, "parsing error: " + result.toString)
       None
     }
   }
   
   def parseGetValueReply(str: String): Option[List[(Formula, Formula)]] = {
     val noComments = removeComments(str)
-    Logger("smtlib.Parser", Debug, "get value reply:\n" + noComments)
+    Logger("smtlib", Debug, "get value reply:\n" + noComments)
     val tokens = new lexical.Scanner(noComments)
     val result = phrase(getValueReply)(tokens)
     if (result.successful) {
       val assignments = result.get
-      Logger("smtlib.Parser", Debug, "value parsed:\n  " + assignments.mkString("\n  "))
+      Logger("smtlib", Debug, "value parsed:\n  " + assignments.mkString("\n  "))
       Some(assignments)
     } else {
-      Logger("smtlib.Parser", Warning, "parsing error: " + result.toString)
+      Logger("smtlib", Warning, "parsing error: " + result.toString)
       None
     }
   }
