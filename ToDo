@@ -1,7 +1,6 @@
 # general
 
 - find a nice acronym for 'round'
-- interface between the algorithm and the predicate
 - expected number of messages for a round: inferred from the send function
 - locally testable safety/liveness conditions: of the form ∀ p. QF-φ(p)
 - split the sources into multiple parts/sub-projects
@@ -12,7 +11,6 @@
   "Parameter type in structural refinement may not refer to an abstract type defined outside that refinement"
   need to either find a way of processing Process differently or encapsulate instance variables differently
   it is possible to add the type parameter when rewriting the class ?
-- rename Domain into Universe and add a size, e.g. P.size == n.
 - from Set to Map, e.g. send should have signature Map[ProcessID, A]
 
 
@@ -22,12 +20,13 @@
 - accessing members of outer class inside an inner class
     * check if fixed in 2.11.5 (with the right untypcheck) or report macro bug about it
 - runtime 
-    * add wake-up all option in the start option
+    * put the options declaration in a single place (same as verification, but not global scope, as different RT have different options)
     * reduce number of threads, improve pooling 
+    * add a strict timeout option (be careful about trying to catch up too quickly)
+    * add wake-up all option in the start option
     * reduce memory footprint
     * a TCP version
-    * more predictable performances when overloaded
-    * add a strict timeout option (be carefull about try to catch up too quickly)
+    * more predictable performances (when overloaded)
 - logging as macro that can be removed at compile time.
 
 
@@ -37,12 +36,11 @@
 - add temporal elements to spec/formula
 - better structure of the specification: which invariant we can use to prove what property.
 - extraction of initial state: if a variable is not initialized in the process, take the default value in the declaration
-- decision procedure
 - rewrite the TR so we get directly set of processes for mailbox (easier to handle cardinality cstr later)
 - extract the spec of aux fct from the type annotation
 - use https://github.com/dzufferey/scala-smtlib-interface for the smtlib interface 
 - parsing model:
-  * support more things
+  * better support for CVC4
   * use the smtlib eval command as alternative (once we know the domain)
 
 
@@ -71,34 +69,7 @@ This will cause 0.3% of packets to be lost, and each successive probability depe
     tc qdisc change dev eth0 root netem delay 10ms reorder 25% 50%
 In this example, 25% of packets (with a correlation of 50%) will get sent immediately, others will be delayed by 10ms.
 
-# bugs
+# known bugs
 
+* incompleteness in the verification (currently pretty broken)
 
-graceful shutdown
-```
-Aug 01, 2014 2:03:30 PM io.netty.util.HashedWheelTimer$HashedWheelTimeout expire
-WARNING: An exception was thrown by TimerTask.
-java.lang.ArrayIndexOutOfBoundsException: -1
-    at example.OTR2$$anon$1.currentRound(Otr2.scala:46)
-    at round.Process.update(Process.scala:33)
-    at round.predicate.Predicate.deliver(Predicate.scala:82)
-    at round.predicate.ToPredicate$$anon$1.run(ToPredicate.scala:72)
-    at io.netty.util.HashedWheelTimer$HashedWheelTimeout.expire(HashedWheelTimer.java:568)
-    ...
-```
-
-there is race when stopping the runtime and the instance terminates "naturally"
-this is not bad as the thread throwing the expection is part of the group that will be shutdown.
-```
-java.lang.RuntimeException: dispatcher.remove: instance not found
-    at scala.sys.package$.error(package.scala:27)
-    at round.runtime.InstanceDispatcher.remove(InstanceDispatcher.scala:79)
-    at round.predicate.Predicate.stop(Predicate.scala:93)
-    at round.predicate.ToPredicate.stop(ToPredicate.scala:120)
-    at round.predicate.Predicate.deliver(Predicate.scala:80)
-    at round.predicate.ToPredicate.receive(ToPredicate.scala:168)
-    at round.predicate.Predicate.messageReceived(Predicate.scala:128)
-    at round.runtime.InstanceDispatcher.channelRead0(InstanceDispatcher.scala:100)
-    at round.runtime.InstanceDispatcher.channelRead0(InstanceDispatcher.scala:14)
-    ...
-```

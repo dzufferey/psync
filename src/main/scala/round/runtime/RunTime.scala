@@ -1,7 +1,6 @@
 package round.runtime
 
 import round._
-import round.predicate._
 import io.netty.buffer.ByteBuf
 import io.netty.channel.socket._
 import dzufferey.utils.LogLevel._
