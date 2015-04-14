@@ -12,8 +12,7 @@ import java.util.concurrent.ConcurrentSkipListSet
 import scala.util.Random
 import io.netty.buffer.PooledByteBufAllocator
 
-class PerfTest2(id: Int,
-                confFile: String,
+class PerfTest2(options: RuntimeOptions,
                 nbrValues: Short,
                 _rate: Short,
                 algorithm: String,
@@ -25,6 +24,7 @@ class PerfTest2(id: Int,
   final val Decision = 4
   final val Recovery = 5
 
+  val id = options.id
   val rate = new Semaphore(_rate)
 
   val log: java.io.BufferedWriter =
@@ -38,8 +38,8 @@ class PerfTest2(id: Int,
   }
 
   val alg = ConsensusSelector(algorithm, additionalOptions)
-  val rt = new RunTime(alg)
-  rt.startService(defaultHandler(_), confFile, additionalOptions + ("id" -> id.toString))
+  val rt = new RunTime(alg, options, defaultHandler(_))
+  rt.startService
 
   val values   = Array.ofDim[Short](nbrValues)
   val versions = Array.ofDim[Short](nbrValues)
@@ -316,13 +316,9 @@ class PerfTest2(id: Int,
 
 }
 
-object PerfTest2 extends round.utils.DefaultOptions {
-
-  var id = -1
-  newOption("-id", dzufferey.arg.Int( i => id = i), "the replica ID")
+object PerfTest2 extends RTOptions {
 
   var confFile = "src/test/resources/sample-conf.xml"
-  newOption("--conf", dzufferey.arg.String(str => confFile = str ), "config file")
   
   var logFile: Option[String] = None
   newOption("--log", dzufferey.arg.String(str => logFile = Some(str) ), "log file prefix")
@@ -335,9 +331,6 @@ object PerfTest2 extends round.utils.DefaultOptions {
 
   var rd = new Random()
   newOption("-r", dzufferey.arg.Int( i => rd = new Random(i)), "random number generator seed")
-  
-  var to = -1
-  newOption("-to", dzufferey.arg.Int( i => to = i), "timeout (default in config file)")
   
   var algorithm = ""
   newOption("-lv", dzufferey.arg.Unit( () => algorithm = "lv"), "use the last voting algorithm")
@@ -356,13 +349,12 @@ object PerfTest2 extends round.utils.DefaultOptions {
   var system: PerfTest2 = null 
 
   def main(args: Array[java.lang.String]) {
-    apply(args)
+    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
+    apply(args2)
     val opts =
-      if (after >= 0 && to > 0) Map("timeout" -> to.toString, "after" -> after.toString)
-      else if (to > 0) Map("timeout" -> to.toString)
-      else if (after >= 0) Map("after" -> after.toString)
+      if (after >= 0) Map("after" -> after.toString)
       else Map[String, String]()
-    system = new PerfTest2(id, confFile, n.toShort, rate.toShort, algorithm, logFile, opts)
+    system = new PerfTest2(this, n.toShort, rate.toShort, algorithm, logFile, opts)
 
     //let the system setup before starting
     Thread.sleep(delay)

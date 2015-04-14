@@ -54,11 +54,8 @@ class KSetEarlyStopping(t: Int, k: Int) extends Algorithm[ConsensusIO] {
   })
 }
 
-object KSetESRunner extends round.utils.DefaultOptions {
+object KSetESRunner extends RTOptions {
   
-  var id = -1
-  newOption("-id", dzufferey.arg.Int( i => id = i), "the replica ID")
-
   var k = 2
   newOption("-k", dzufferey.arg.Int( i => k = i), "k (default = 2)")
 
@@ -66,7 +63,6 @@ object KSetESRunner extends round.utils.DefaultOptions {
   newOption("-t", dzufferey.arg.Int( i => k = i), "t (default = 2)")
 
   var confFile = "src/test/resources/3replicas-conf.xml"
-  newOption("--conf", dzufferey.arg.String(str => confFile = str ), "config file")
   
   val usage = "..."
   
@@ -77,10 +73,11 @@ object KSetESRunner extends round.utils.DefaultOptions {
   }
   
   def main(args: Array[java.lang.String]) {
-    apply(args)
+    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
+    apply(args2)
     val alg = new KSetEarlyStopping(t, k)
-    rt = new RunTime(alg)
-    rt.startService(defaultHandler(_), confFile, Map("id" -> id.toString))
+    rt = new RunTime(alg, this, defaultHandler(_))
+    rt.startService
 
     import scala.util.Random
     val init = Random.nextInt

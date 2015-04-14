@@ -3,7 +3,7 @@
 
 <configuration>
   <parameters>
-    <param> <name>transport layer</name> <value>UDP</value> </param>
+    <param> <name>protocol</name> <value>UDP</value> </param>
     <param> <name>timeout</name> <value>500</value> </param>
     <param> <name>group</name> <value>nio</value> </param>
     <param> <name>bufferSize</name> <value>256</value> </param>

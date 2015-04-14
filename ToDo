@@ -20,7 +20,6 @@
 - accessing members of outer class inside an inner class
     * check if fixed in 2.11.5 (with the right untypcheck) or report macro bug about it
 - runtime 
-    * put the options declaration in a single place (same as verification, but not global scope, as different RT have different options)
     * reduce number of threads, improve pooling 
     * add a strict timeout option (be careful about trying to catch up too quickly)
     * add wake-up all option in the start option

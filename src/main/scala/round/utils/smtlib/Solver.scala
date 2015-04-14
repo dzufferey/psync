@@ -116,7 +116,9 @@ class Solver( th: Theory,
         def call = {
           val acc = new StringBuilder()
           do {
-            acc.append(stream.readLine)
+            val line = stream.readLine
+            Logger("smtlib", Debug, "< " + line)
+            acc.append(line)
             acc.append("\n")
           } while(stream.ready)
           acc.toString.trim
@@ -134,7 +136,6 @@ class Solver( th: Theory,
       val future = Solver.executor.submit(reader(solverOutput))
       try {
         val res = future.get(timeout, TimeUnit.MILLISECONDS)
-        Logger("smtlib", Debug, "< " + res)
         res
       } catch {
         case e: java.util.concurrent.TimeoutException =>

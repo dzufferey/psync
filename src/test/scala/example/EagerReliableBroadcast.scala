@@ -56,11 +56,8 @@ class EagerReliableBroadcast extends Algorithm[BroadcastIO] {
 
 }
 
-object ERBRunner extends round.utils.DefaultOptions {
+object ERBRunner extends RTOptions {
   
-  var id = -1
-  newOption("-id", dzufferey.arg.Int( i => id = i), "the replica ID")
-
   var confFile = "src/test/resources/sample-conf.xml"
   newOption("--conf", dzufferey.arg.String(str => confFile = str ), "config file")
   
@@ -88,10 +85,11 @@ object ERBRunner extends round.utils.DefaultOptions {
   }
   
   def main(args: Array[java.lang.String]) {
-    apply(args)
+    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
+    apply(args2)
     val alg = new EagerReliableBroadcast
-    rt = new RunTime(alg)
-    rt.startService(defaultHandler(_), confFile, Map("id" -> id.toString))
+    rt = new RunTime(alg, this, defaultHandler(_))
+    rt.startService
 
     import scala.util.Random
     val init = Random.nextInt

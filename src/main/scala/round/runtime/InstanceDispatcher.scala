@@ -6,17 +6,12 @@ import io.netty.channel.socket._
 import java.util.concurrent.locks.ReentrantLock
 
 /** a dispatcher that scales better than putting all the instance in the pipeline */
-class InstanceDispatcher(options: Map[String, String] = Map.empty)
+class InstanceDispatcher(options: RuntimeOptions)
 {
 
-  private val exp = {
-    try {
-      options.getOrElse("dispatcher", "7").toInt
-    } catch { case e: Exception =>
-      Logger("InstanceDispatcher", Warning, "dispatcher unspecified or wrong format, using 7")
-      7
-    }
-  }
+  private val exp = options.dispatch
+  assert(exp >= 0)
+
   private val mask = {
     var x = 0
     for (_ <- 0 until exp) {
