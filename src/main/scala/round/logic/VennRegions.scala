@@ -93,16 +93,6 @@ class VennRegions(tpe: Type, universeSize: Option[Formula], sets: Iterable[(Form
     case _ => true
   }
 
-  /** Returns the variable associated with the given set names */
-  def getVennRegion(ids: Iterable[Formula]): Variable = {
-    val map = ids.map( id => idx(id) -> (if (polarity(id)) "t" else "f") ).toMap
-    val suffix = for (i <- 0 until counter) yield map.getOrElse(i, "_")
-    Variable(prefix + suffix.mkString("")).setType(Int)
-  }
-
-  def getVennRegion(id: Formula): Variable = getVennRegion(List(id))
-
-
   //the sum of the regions where id holds
   def getCardDef(id: Formula): Formula = {
     val index = prefix.length + idx(id)

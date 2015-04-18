@@ -20,7 +20,18 @@
 - accessing members of outer class inside an inner class
     * check if fixed in 2.11.5 (with the right untypcheck) or report macro bug about it
 - runtime 
-    * reduce number of threads, improve pooling 
+    * reduce number of threads, improve pooling:
+        - could we use ForkJoinTask as queue of thing to do (instead of the current queue of message)
+          a new task join on the previous task (do we need locking to avoid weak memory model problem, TODO make some test)
+          use an java.util.concurrent.atomic.AtomicReference to store the tail of the task queue
+            compareAndSet for cleanUp
+            getAndSet for adding a new task
+          what are the tasks:
+            start
+            stop
+            message
+            timeout
+            defaultHandler
     * add a strict timeout option (be careful about trying to catch up too quickly)
     * add wake-up all option in the start option
     * reduce memory footprint
