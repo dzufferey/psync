@@ -16,8 +16,7 @@ import java.util.concurrent.Semaphore
 
 
 class LockManager(self: Short,
-                  clientPort: Int,
-                  confFile: String) {
+                  clientPort: Int) {
  
   type ProcessID = Short
 
@@ -36,10 +35,8 @@ class LockManager(self: Short,
   private val semaphore = new Semaphore(1, true) //at most one consensus at the time
 
   private val consensus = {
-    if (Main.lv)
-      new RunTime(new LastVoting2)
-    else
-      new RunTime(new OTR2)
+    if (Main.lv) new RunTime(new LastVoting2, Main, defaultHandler(_))
+    else new RunTime(new OTR2, Main, defaultHandler(_))
   }
 
   private def onDecideOther(decision: Option[ProcessID]) {
@@ -116,7 +113,7 @@ class LockManager(self: Short,
   }
 
   def start() {
-    consensus.startService(defaultHandler(_), confFile, Map("id" -> self.toString))
+    consensus.startService
     listenForClient //this never returns
   }
 
@@ -247,7 +244,7 @@ class LockManagerClient(myPort: Int, remote: (String, Int)) {
 
 }
 
-object Main extends round.utils.DefaultOptions {
+object Main extends RTOptions {
   import dzufferey.arg._
 
   var client = false
@@ -260,25 +257,22 @@ object Main extends round.utils.DefaultOptions {
   var remoteAddress = "127.0.0.1"
   newOption("-ra", String( str => remoteAddress = str), "replica address")
 
-  var id = -1
-  newOption("-id", Int( i => id = i), "the replica ID")
-  
   var lv = false
   newOption("-lv", Unit( () => lv = true), "use the last voting instead of the OTR")
 
   var confFile = "src/test/resources/sample-conf.xml"
-  newOption("--conf", String(str => confFile = str ), "config file")
 
   val usage = "..."
 
   def main(args: Array[java.lang.String]) {
     Logger.moreVerbose
-    apply(args)
+    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
+    apply(args2)
     if (client) {
       val cli = new LockManagerClient(clientPort, (remoteAddress, remotePort))
       cli.run
     } else {
-      val srv = new LockManager(id.toShort, clientPort, confFile)
+      val srv = new LockManager(id.toShort, clientPort)
       srv.start
     }
   }

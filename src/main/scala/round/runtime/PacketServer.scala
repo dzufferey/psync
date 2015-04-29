@@ -21,7 +21,7 @@ class PacketServer(
     ports: Iterable[Int],
     initGroup: Group,
     _defaultHandler: Message => Unit, //defaultHandler is responsible for releasing the ByteBuf payload
-    options: Map[String, String] = Map.empty)
+    options: RuntimeOptions)
 {
 
   val directory = new Directory(initGroup)
@@ -31,23 +31,12 @@ class PacketServer(
     _defaultHandler(msg)
   }
 
-  private val groupKind = options.getOrElse("group", "nio").toLowerCase
-  private def epoll = groupKind == "epoll"
-  private def nio = groupKind == "nio"
-  private def oio = groupKind == "oio"
-    
-  if (options.getOrElse("transport layer", "udp").toLowerCase != "udp") {
-    Logger("PacketServer", Warning, "transport layer: only UDP supported for the moment")
-  }
+  Logger.assert(options.protocol == NetworkProtocol.UDP, "PacketServer", "transport layer: only UDP supported for the moment")
 
-  private val group: EventLoopGroup = {
-    if (epoll) new EpollEventLoopGroup()
-    else if (nio) new NioEventLoopGroup()
-    else if (oio) new OioEventLoopGroup()
-    else {
-      Logger("PacketServer", Warning, "event group is unknown, using nio instead")
-      new NioEventLoopGroup()
-    }
+  private val group: EventLoopGroup = options.group match {
+    case NetworkGroup.NIO => new NioEventLoopGroup()
+    case NetworkGroup.OIO => new OioEventLoopGroup()
+    case NetworkGroup.EPOLL => new EpollEventLoopGroup()
   }
 
   private var chans: Array[Channel] = null
@@ -70,13 +59,14 @@ class PacketServer(
   }
 
   def start {
-    val packetSize = try options.getOrElse("packetSize", "-1").toInt 
-                     catch { case _: Throwable => -1 }
+    val packetSize = options.packetSize
     val b = new Bootstrap()
     b.group(group)
-    if (epoll) b.channel(classOf[EpollDatagramChannel])
-    else if (oio) b.channel(classOf[OioDatagramChannel])
-    else b.channel(classOf[NioDatagramChannel])
+    options.group match {
+      case NetworkGroup.NIO =>   b.channel(classOf[NioDatagramChannel])
+      case NetworkGroup.OIO =>   b.channel(classOf[OioDatagramChannel])
+      case NetworkGroup.EPOLL => b.channel(classOf[EpollDatagramChannel])
+    }
 
     if (packetSize >= 8) {//make sure we have at least space for the tag
       b.option[Integer](ChannelOption.SO_RCVBUF, packetSize)

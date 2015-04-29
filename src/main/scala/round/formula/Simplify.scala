@@ -10,7 +10,7 @@ object Simplify {
   private def normalizef(f: Formula): Formula = f match {
     case Implies(a,b) => Copier.Application(f, Or, List(Copier.Application(a, Not, List(a)),b))
     case Neq(a,b) => Copier.Application(f, Not, List(Copier.Application(f, Eq, List(a,b))))
-    case Geq(a,b) => Copier.Application(f, Not, List(Copier.Application(f, Lt, List(b,a))))
+    case Geq(a,b) => Copier.Application(f, Not, List(Copier.Application(f, Lt, List(a,b))))
     case Leq(a,b) => Copier.Application(f, Not, List(Copier.Application(f, Lt, List(b,a))))
     case Gt(a,b) =>  Copier.Application(f, Lt, List(b,a))
     case SupersetEq(a,b) => Copier.Application(f, SubsetEq, List(b,a))

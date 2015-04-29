@@ -77,11 +77,8 @@ class EpsilonConsensus(f: Int, epsilon: Double) extends Algorithm[RealConsensusI
 
 }
 
-object EpsilonRunner extends round.utils.DefaultOptions {
+object EpsilonRunner extends RTOptions {
   
-  var id = -1
-  newOption("-id", dzufferey.arg.Int( i => id = i), "the replica ID")
-
   var f = 1
   newOption("-f", dzufferey.arg.Int( i => f = i), "f (default = 1)")
   
@@ -89,7 +86,6 @@ object EpsilonRunner extends round.utils.DefaultOptions {
   //newOption("-e", dzufferey.arg.Real( i => e = i), "ε (default = 0.1)")
 
   var confFile = "src/test/resources/7replicas-conf.xml"
-  newOption("--conf", dzufferey.arg.String(str => confFile = str ), "config file")
   
   val usage = "..."
   
@@ -101,10 +97,11 @@ object EpsilonRunner extends round.utils.DefaultOptions {
   
   def main(args: Array[java.lang.String]) {
     val start = java.lang.System.currentTimeMillis()
-    apply(args)
+    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
+    apply(args2)
     val alg = new EpsilonConsensus(f, e)
-    rt = new RunTime(alg)
-    rt.startService(defaultHandler(_), confFile, Map("id" -> id.toString))
+    rt = new RunTime(alg, this, defaultHandler(_))
+    rt.startService
 
     import scala.util.Random
     val init = Random.nextDouble

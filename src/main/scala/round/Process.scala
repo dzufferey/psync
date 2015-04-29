@@ -7,7 +7,7 @@ abstract class Process[IO] extends RtProcess {
   val rounds: Array[Round]
 
   // for the runtime
-  def setOptions(options: Map[String, String]) {
+  def setOptions(options: runtime.RuntimeOptions) {
     rounds.foreach(_.setOptions(options))
   }
 
@@ -32,7 +32,7 @@ abstract class RtProcess {
 
   def setGroup(g: round.runtime.Group): Unit //defined by macros
 
-  protected def setOptions(options: Map[String, String]): Unit
+  protected def setOptions(options: runtime.RuntimeOptions): Unit
   
   protected def incrementRound: Unit //defined by macros
 

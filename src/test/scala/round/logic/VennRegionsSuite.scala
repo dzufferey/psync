@@ -19,7 +19,6 @@ class VennRegionsSuite extends FunSuite {
 
   test("0 set") {
     val vr = new VennRegions(pid, Some(n), Nil)
-    assert(vr.getVennRegion(Nil).name.endsWith("_"))
     assert(vr.ennumerate.toList.length == 1)
     vr.sumToUniverse match {
       case Eq(n, Variable(_)) => ()
@@ -37,9 +36,6 @@ class VennRegionsSuite extends FunSuite {
 
   test("1 set") {
     val vr = new VennRegions(pid, Some(n), List(a -> None))
-    assert(vr.getVennRegion(a).name.endsWith("t"))
-    assert(vr.getVennRegion(Not(a)).name.endsWith("f"))
-    assert(vr.getVennRegion(Nil).name.endsWith("_"))
     assert(vr.ennumerate.toList.length == 2)
     vr.sumToUniverse match {
       case Eq(n, Plus(lst @ _*)) if lst.size == 2 => ()
@@ -49,10 +45,6 @@ class VennRegionsSuite extends FunSuite {
 
   test("2 sets") {
     val vr = new VennRegions(pid, Some(n), List(a -> None, b -> None))
-    assert(vr.getVennRegion(a).name.endsWith("_"))
-    assert(vr.getVennRegion(b).name.endsWith("t"))
-    assert(vr.getVennRegion(Not(b)).name.endsWith("f"))
-    assert(vr.getVennRegion(Nil).name.endsWith("_"))
     assert(vr.ennumerate.toList.length == 4)
     vr.sumToUniverse match {
       case Eq(n, Plus(lst @ _*)) if lst.size == 4 => ()
@@ -62,11 +54,6 @@ class VennRegionsSuite extends FunSuite {
 
   test("3 sets") {
     val vr = new VennRegions(pid, Some(n), List(a -> None, b -> None, c -> None))
-    assert(vr.getVennRegion(a).name.endsWith("_"))
-    assert(vr.getVennRegion(b).name.endsWith("_"))
-    assert(vr.getVennRegion(c).name.endsWith("t"))
-    assert(vr.getVennRegion(Not(c)).name.endsWith("f"))
-    assert(vr.getVennRegion(Nil).name.endsWith("_"))
     assert(vr.ennumerate.toList.length == 8)
     vr.sumToUniverse match {
       case Eq(n, Plus(lst @ _*)) if lst.size == 8 => ()

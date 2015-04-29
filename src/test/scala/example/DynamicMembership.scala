@@ -106,7 +106,7 @@ class BasicConsensus extends Algorithm[MembershipIO] {
 
 }
 
-object DynamicMembership extends round.utils.DefaultOptions with DecisionLog[MembershipOp] {
+object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
 
   final val Heartbeat = 3
   final val Recover = 4
@@ -135,8 +135,8 @@ object DynamicMembership extends round.utils.DefaultOptions with DecisionLog[Mem
   
   var address = "127.0.0.1"
   newOption("-a", dzufferey.arg.String( str => address = str), "replica address (default is 127.0.0.1)")
-  var port = 8889
-  newOption("-p", dzufferey.arg.Int( i => port = i), "port (default is 8889)")
+  _port = 8889
+  newOption("-p", dzufferey.arg.Int( i => _port = i), "port (default is 8889)")
   
   var masterAddress: Option[String] = None
   newOption("-ma", dzufferey.arg.String( str => masterAddress = Some(str)), "master address")
@@ -392,20 +392,20 @@ object DynamicMembership extends round.utils.DefaultOptions with DecisionLog[Mem
   // setup //
   ///////////
 
-  private val rt = new round.runtime.RunTime[MembershipIO](new BasicConsensus)
+  private var rt: round.runtime.RunTime[MembershipIO] = null
 
   def setup() {
     val isMaster = masterPort.isEmpty && masterAddress.isEmpty
     assert(isMaster || (masterPort.isDefined && masterAddress.isDefined))
-    val id = if (isMaster) new ProcessID(0) else new ProcessID(-1)
-    val self = Replica(id, address, Set(port))
-    val peers =
+    _id = if (isMaster) 0 else -1
+    _peers =
       if (isMaster) {
-        List(self)
+        List(Replica(new ProcessID(id), address, Set(port)))
       } else {
         List(Replica(new ProcessID(0), masterAddress.get, Set(masterPort.get)))
       }
-    rt.startService(defaultHandler(_), peers, Map("id" -> id.id.toString, "port" -> port.toString))
+    rt = new round.runtime.RunTime[MembershipIO](new BasicConsensus, this, defaultHandler(_))
+    rt.startService
     view = rt.directory
     if (isMaster) {
       Logger("DynamicMembership", Info, "Starting as master")

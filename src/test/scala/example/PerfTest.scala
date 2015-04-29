@@ -10,14 +10,10 @@ import java.util.concurrent.Semaphore
 import java.util.concurrent.locks.ReentrantLock
 import scala.util.Random
 
-object PerfTest extends round.utils.DefaultOptions with DecisionLog[scala.Int] {
+object PerfTest extends RTOptions with DecisionLog[scala.Int] {
   
   
-  var id = -1
-  newOption("-id", Int( i => id = i), "the replica ID")
-
   var confFile = "src/test/resources/sample-conf.xml"
-  newOption("--conf", String(str => confFile = str ), "config file")
   
   var logFile = ""
   newOption("--log", String(str => logFile = str ), "log file prefix")
@@ -31,9 +27,6 @@ object PerfTest extends round.utils.DefaultOptions with DecisionLog[scala.Int] {
 
   var rd = new Random()
   newOption("-r", Int( i => rd = new Random(i)), "random number generator seed")
-  
-  var to = 50
-  newOption("-to", Int( i => to = i), "timeout")
   
   val usage = "..."
   
@@ -108,14 +101,15 @@ object PerfTest extends round.utils.DefaultOptions with DecisionLog[scala.Int] {
   var log: java.io.BufferedWriter = null
 
   def main(args: Array[java.lang.String]) {
-    apply(args)
+    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
+    apply(args2)
     if (logFile != "") {
       val fw = new java.io.FileWriter(logFile + "_" + id + ".log")
       log = new java.io.BufferedWriter(fw)
     } 
     val alg = ConsensusSelector(algorithm, Map())
-    rt = new RunTime(alg)
-    rt.startService(defaultHandler(_), confFile, Map("id" -> id.toString, "timeout" -> to.toString))
+    rt = new RunTime(alg, this, defaultHandler)
+    rt.startService
     Thread.sleep(1000)
     begin = java.lang.System.currentTimeMillis()
     while (true) {

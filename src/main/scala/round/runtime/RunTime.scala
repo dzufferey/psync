@@ -9,46 +9,28 @@ import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.atomic.AtomicInteger
 
 
-class RunTime[IO](val alg: Algorithm[IO]) {
+class RunTime[IO](val alg: Algorithm[IO],
+                  options: RuntimeOptions,
+                  defaultHandler: Message => Unit) {
 
   private var srv: Option[PacketServer] = None
 
-  private var options = Map.empty[String, String]
+  private val processPool = new ArrayBlockingQueue[InstanceHandler[IO]](options.processPool)
 
-  private val defaultSize = 64
-  private val maxSize = {
-    try {
-      options.getOrElse("processPool", defaultSize.toString).toInt
-    } catch { case e: Exception =>
-      Logger("RunTime", Warning, "processPool: wrong format, using " + defaultSize)
-      defaultSize
-    }
+  private val executor = options.workers match {
+    case Factor(n) =>
+      val w = n * java.lang.Runtime.getRuntime().availableProcessors()
+      Logger("Runtime", Debug, "using fixed thread pool of size " + w)
+      java.util.concurrent.Executors.newFixedThreadPool(w)
+    case Fixed(n) =>
+      val w = n
+      Logger("Runtime", Debug, "using fixed thread pool of size " + w)
+      java.util.concurrent.Executors.newFixedThreadPool(w)
+    case Adapt => 
+      Logger("Runtime", Debug, "using cached thread pool")
+      java.util.concurrent.Executors.newCachedThreadPool()
   }
-  private val processPool = new ArrayBlockingQueue[InstanceHandler[IO]](maxSize)
 
-  private val executor = {
-    options.get("workers") match {
-      case Some(n) =>
-        val cores = java.lang.Runtime.getRuntime().availableProcessors()
-        val w = try {
-          if (n endsWith "x") {
-            val coeff = n.substring(0, n.length -1).toInt
-            coeff * cores
-          } else {
-            n.toInt
-          }
-        } catch {
-          case e: Exception =>
-            Logger("Runtime", Warning, "size of pool of workers has wrong format, using " + cores)
-            cores
-        }
-        Logger("Runtime", Debug, "using fixed thread pool of size " + w)
-        java.util.concurrent.Executors.newFixedThreadPool(w)
-      case None =>
-        Logger("Runtime", Debug, "using cached thread pool")
-        java.util.concurrent.Executors.newCachedThreadPool()
-    }
-  }
 
   private var channelIdx = new AtomicInteger
   private def createProcess: InstanceHandler[IO] = {
@@ -116,42 +98,25 @@ class RunTime[IO](val alg: Algorithm[IO]) {
   }
 
   /** Start the service that ... */
-  def startService(
-    defaultHandler: Message => Unit,
-    peers: List[Replica],
-    options: Map[String, String]
-  ) {
+  def startService {
     if (srv.isDefined) {
       //already running
       return
     }
     
     //create the group
-    val me = new ProcessID(options("id").toShort)
-    val grp = Group(me, peers)
+    val me = new ProcessID(options.id)
+    val grp = Group(me, options.peers)
 
     //start the server
     val ports = 
       if (grp contains me) grp.get(me).ports
-      else Set(options("port").toInt)
+      else Set(options.port)
     Logger("RunTime", Info, "starting service on ports: " + ports.mkString(", "))
     val pktSrv = new PacketServer(executor, ports, grp, defaultHandler, options)
     srv = Some(pktSrv)
     pktSrv.start
-    for (i <- 0 until maxSize) processPool.offer(createProcess)
-  }
-
-  def startService(
-    defaultHandler: Message => Unit,
-    configFile: String,
-    additionalOpt: Map[String, String]
-  ) {
-
-    //parse config
-    val (peers,param1) = Config.parse(configFile)
-    options = param1 ++ additionalOpt
-
-    startService(defaultHandler, peers, options)    
+    for (i <- 0 until options.processPool) processPool.offer(createProcess)
   }
 
   def shutdown {

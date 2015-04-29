@@ -13,19 +13,18 @@ import java.util.concurrent.TimeUnit
 import scala.util.Random
 import io.netty.buffer.PooledByteBufAllocator
 
-class PerfTest3(id: Int,
-                confFile: String,
+class PerfTest3(options: RuntimeOptions,
                 nbrValues: Int,
                 batchSize: Int,
                 _rate: Short,
-                logFile: Option[String],
-                additionalOptions: Map[String,String]
+                logFile: Option[String]
                ) extends DecisionLog[Array[Byte]]
 {
 
   final val Decision = 4
   final val Late = 5
 
+  val id = options.id
   val rate = new Semaphore(_rate)
   var selfStarted = scala.collection.mutable.Set[Short]()
 
@@ -40,8 +39,8 @@ class PerfTest3(id: Int,
   }
   
   val alg = new LastVoting2B
-  val rt = new RunTime(alg)
-  rt.startService(defaultHandler(_), confFile, additionalOptions + ("id" -> id.toString))
+  val rt = new RunTime(alg, options, defaultHandler(_))
+  rt.startService
 
   val lck = new ReentrantLock 
   var nbr = 0l
@@ -237,13 +236,9 @@ class PerfTest3(id: Int,
 
 }
 
-object PerfTest3 extends round.utils.DefaultOptions {
-
-  var id = -1
-  newOption("-id", dzufferey.arg.Int( i => id = i), "the replica ID")
+object PerfTest3 extends RTOptions {
 
   var confFile = "src/test/resources/sample-conf.xml"
-  newOption("--conf", dzufferey.arg.String(str => confFile = str ), "config file")
   
   var logFile: Option[String] = None
   newOption("--log", dzufferey.arg.String(str => logFile = Some(str) ), "log file prefix")
@@ -254,9 +249,6 @@ object PerfTest3 extends round.utils.DefaultOptions {
   var n = 50
   newOption("-n", dzufferey.arg.Int( i => n = i), "number of different values that we can modify")
 
-  var to = -1
-  newOption("-to", dzufferey.arg.Int( i => to = i), "timeout (default in config file)")
-  
   var delay = 1000
   newOption("-delay", dzufferey.arg.Int( i => delay = i), "delay in ms before making queries (allow the replicas to setup)")
 
@@ -274,10 +266,7 @@ object PerfTest3 extends round.utils.DefaultOptions {
 
   def main(args: Array[java.lang.String]) {
     apply(args)
-    val opts =
-      if (to > 0) Map("timeout" -> to.toString)
-      else Map[String, String]()
-    system = new PerfTest3(id, confFile, n, batch, rate.toShort, logFile, opts)
+    system = new PerfTest3(this, n, batch, rate.toShort, logFile)
 
     //let the system setup before starting
     Thread.sleep(delay)

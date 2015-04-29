@@ -44,16 +44,12 @@ class FloodMin(f: Int) extends Algorithm[ConsensusIO] {
   })
 }
 
-object FloodMinRunner extends round.utils.DefaultOptions {
+object FloodMinRunner extends RTOptions {
   
-  var id = -1
-  newOption("-id", dzufferey.arg.Int( i => id = i), "the replica ID")
-
   var f = 2
   newOption("-f", dzufferey.arg.Int( i => f = i), "f (default = 2)")
 
   var confFile = "src/test/resources/3replicas-conf.xml"
-  newOption("--conf", dzufferey.arg.String(str => confFile = str ), "config file")
   
   val usage = "..."
   
@@ -64,10 +60,11 @@ object FloodMinRunner extends round.utils.DefaultOptions {
   }
   
   def main(args: Array[java.lang.String]) {
-    apply(args)
+    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
+    apply(args2)
     val alg = new FloodMin(f)
-    rt = new RunTime(alg)
-    rt.startService(defaultHandler(_), confFile, Map("id" -> id.toString))
+    rt = new RunTime(alg, this, defaultHandler(_))
+    rt.startService
 
     import scala.util.Random
     val init = Random.nextInt

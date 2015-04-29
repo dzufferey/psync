@@ -120,15 +120,10 @@ class BenOr extends Algorithm[BinaryConsensusIO] {
 
 }
 
-object BenOrRunner extends round.utils.DefaultOptions {
+object BenOrRunner extends RTOptions {
   
-  var id = -1
-  newOption("-id", dzufferey.arg.Int( i => id = i), "the replica ID")
-
-
   var confFile = "src/test/resources/3replicas-conf.xml"
-  newOption("--conf", dzufferey.arg.String(str => confFile = str ), "config file")
-  
+
   val usage = "..."
   
   var rt: RunTime[BinaryConsensusIO] = null
@@ -138,10 +133,11 @@ object BenOrRunner extends round.utils.DefaultOptions {
   }
   
   def main(args: Array[java.lang.String]) {
-    apply(args)
+    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
+    apply(args2)
     val alg = new BenOr
-    rt = new RunTime(alg)
-    rt.startService(defaultHandler(_), confFile, Map("id" -> id.toString))
+    rt = new RunTime(alg, this, defaultHandler(_))
+    rt.startService
 
     import scala.util.Random
     val init = Random.nextBoolean

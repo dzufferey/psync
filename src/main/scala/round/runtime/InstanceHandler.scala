@@ -39,30 +39,13 @@ class InstanceHandler[IO](proc: Process[IO],
                           channel: Channel,
                           dispatcher: InstanceDispatcher,
                           defaultHandler: DatagramPacket => Unit,
-                          options: Map[String, String] = Map.empty) extends Runnable with InstHandler {
+                          options: RuntimeOptions) extends Runnable with InstHandler {
   
-  protected val defaultBufferSize = 16
-  protected val bufferSize = try options.getOrElse("bufferSize", defaultBufferSize.toString).toInt
-                             catch { case _: Throwable => defaultBufferSize } //TODO some logging
-  protected val buffer = new ArrayBlockingQueue[DatagramPacket](bufferSize) 
+  protected val buffer = new ArrayBlockingQueue[DatagramPacket](options.bufferSize) 
   
-  protected var timeout = {
-    try options.getOrElse("timeout", "20").toInt
-    catch {
-      case e: Exception =>
-        Logger("InstanceHandler", Warning, "timeout unspecified or wrong format, using 20")
-        20 //milliseconds
-    }
-  }
+  protected var timeout = options.timeout
   
-  protected val adaptative = {
-    try options.getOrElse("adaptative", "false").toBoolean
-    catch {
-      case e: Exception =>
-        Logger("Predicate", Warning, "adaptative has wrong format, reverting to false.")
-        false
-    }
-  }
+  protected val adaptative = options.adaptative
   
   protected var didTimeOut = 0
 

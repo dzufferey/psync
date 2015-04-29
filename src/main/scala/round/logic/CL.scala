@@ -30,7 +30,7 @@ class CL(bound: Option[Int],
          onType: Option[Set[Type]]) {
 
   //TODO generalize
-  //-Map[A,b] as a Set[A] of keys and a content(key: A): B function
+  //-Map[A,B] as a Set[A] of keys and a content(key: A): B function
 
   import CL.{procType, HO, n, hasHO}
 
@@ -191,7 +191,7 @@ class CL(bound: Option[Int],
     //-filter type of the VennRegions
     //-congruence closure to reduce the number of terms instanciation
 
-    val query = CL.normalize(formula)
+    val query = normalize(formula)
     assert(Typer(query).success, "CL.entailment, not well typed")
 
     //remove the top level ∃ quantifiers (sat query)

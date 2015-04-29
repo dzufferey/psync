@@ -3,7 +3,7 @@
 
 <configuration>
   <parameters>
-    <param> <name>transport layer</name> <value>UDP</value> </param>
+    <param> <name>protocol</name> <value>UDP</value> </param>
     <!-- in millisecond (used to know when to move to the next round if messages are lost).
          this is for a single round, so the value should be low (don't want to get stuck on missing UDP messages) -->
     <param> <name>timeout</name> <value>5</value> </param>
