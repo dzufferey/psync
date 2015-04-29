@@ -53,6 +53,16 @@ class CL(bound: Option[Int],
     Quantifiers.isEPR(f) && !hasComp
   }
 
+  protected def forall(f: Formula): Boolean = {
+    var isForAll = false
+    def check(f1: Formula) = f1 match {
+      case ForAll(_, _) => isForAll = true
+      case Comprehension(_, _) => isForAll=false
+      case _ => ()
+    }
+    FormulaUtils.traverse(check, f)
+    isForAll 
+  }
   //make sure we have a least one process
   protected def getGrounTerms(fs: List[Formula]): Set[Formula] = {
     val gts0 = FormulaUtils.collectGroundTerms(And(fs:_*))
@@ -141,7 +151,7 @@ class CL(bound: Option[Int],
 
   //TODO non-empty scope means we should introduce more terms
   def reduceComprehension(conjuncts: List[Formula],
-                          cClasses: CongruenceClasses = new CongruenceClasses(Nil, Map.empty)): List[Formula] = {
+                          cClasses: CongruenceClasses = new CongruenceClasses(Nil, Map.empty), univConjuncts: List[Formula]=Nil): List[Formula] = {
 
     //get the comprehensions and HO sets from the formula
     val (_woComp, _c1) = collectComprehensionDefinitions(conjuncts)
@@ -158,8 +168,8 @@ class CL(bound: Option[Int],
         val fs = sDefs.map(_.fresh)
         val sets = fs.map( sd => (sd.id, sd.body)) 
         val cstrs = bound match {
-          case Some(b) => new VennRegionsWithBound(b, tpe, sizeOfUniverse(tpe), sets).constraints
-          case None => new VennRegions(tpe, sizeOfUniverse(tpe), sets).constraints
+          case Some(b) => new VennRegionsWithBound(b, tpe, sizeOfUniverse(tpe), sets, univConjuncts).constraints
+          case None => new VennRegions(tpe, sizeOfUniverse(tpe), sets, univConjuncts).constraints
         }
         val scope = fs.map(_.scope).flatten.toList
         ForAll(scope, cstrs) //TODO this needs skolemization
@@ -193,22 +203,26 @@ class CL(bound: Option[Int],
     })
 
     val (epr, rest) = clauses.partition(keepAsIt)
+    val (univ, rest1) = rest.partition(forall)
+  
     Logger("CL", Debug, "epr clauses:\n  " + epr.mkString("\n  "))
     Logger("CL", Debug, "clauses to process:\n  " + rest.mkString("\n  "))
-
+    //CD add neprUniv 	
     //get rid on the ∀ quantifiers
     val cCls0 = CongruenceClosure(clauses)
+    //separte groud term into equivalence classes 
     val gts0 = getGrounTerms(epr)
     val inst0 = FormulaUtils.getConjuncts(InstGen.saturate(And(rest:_*), gts0, cCls0, Some(0), false))
-    
+	    
     //the venn regions
     val cCls1 = CongruenceClosure(epr ++ inst0)
-    val withILP = epr ::: CL.reduceComprehension(inst0, cCls1)
-
+    val withILP = epr ::: CL.reduceComprehension(inst0, cCls1, univ)
+    
     //add axioms for the other theories
     val withSetAx = SetOperationsAxioms.addAxioms(withILP)
     val withOpt = OptionAxioms.addAxioms(withSetAx)
     val withTpl = TupleAxioms.addAxioms(withOpt)
+
 
     //clean-up and skolemization
     val last = cleanUp(withTpl)
