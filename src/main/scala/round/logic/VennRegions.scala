@@ -10,8 +10,14 @@ import dzufferey.utils.Namer
  * @param tpe the type of the elements in the sets, e.g., ProcessID
  * @param universeSize the size of the universe (if the universe is finite), e.g., 'n' for ProcessID
  * @param sets the sets as pair (id, definition), where the definition is an optional Comprehension.
+ * @param gts (optional) the sets of ground terms in the original formula
+ * @param univ (optional) the set of universally quantified clauses in the original formula
  */
-class VennRegions(tpe: Type, universeSize: Option[Formula], sets: Iterable[(Formula, Option[Binding])], univ: List[Formula]=Nil) {
+class VennRegions(tpe: Type,
+                  universeSize: Option[Formula],
+                  sets: Iterable[(Formula, Option[Binding])],
+                  gts: Set[Formula] = Set(),
+                  univ: List[Formula] = Nil) {
 
   /** Removes funny characters from string to make them smt-lib compliant. */
   protected def sanitize(str: String) = {
@@ -120,9 +126,11 @@ class VennRegions(tpe: Type, universeSize: Option[Formula], sets: Iterable[(Form
   //c: |p| ≥ 1 ⇒ ∃ i. i ∈ p
   def nonZeroCardNonEmpty: Seq[Formula] = {
     for(i <- 0 until nbrVennRegions) yield {
-      Exists(List(elt), Implies(Leq(Literal(1), mkVar(i)), And(mkMembership(elt, i), InstGen.saturateNewTerms(And(univ:_*),Set(elt), Some(0), false))))
+      //here we should be a bit more cautious and keep only the clauses where elt appears
+      val rawCstr = InstGen.saturate(And(univ:_*), gts + elt, CongruenceClasses.empty, Some(0), false)
+      val univCstr = FormulaUtils.getConjuncts(rawCstr).filter(_.freeVariables contains elt)
+      Exists(List(elt), Implies(Leq(Literal(1), mkVar(i)), And(mkMembership(elt, i) :: univCstr :_*)))
     }
-   
   }
 
   //d: |p| ≥ 0
@@ -200,7 +208,12 @@ class VennRegions(tpe: Type, universeSize: Option[Formula], sets: Iterable[(Form
 }
 
 
-class VennRegionsWithBound(bound: Int, tpe: Type, universeSize: Option[Formula], _sets: Iterable[(Formula, Option[Binding])], univ: List[Formula]=Nil) {
+class VennRegionsWithBound(bound: Int,
+                           tpe: Type,
+                           universeSize: Option[Formula],
+                           _sets: Iterable[(Formula, Option[Binding])],
+                           gts: Set[Formula] = Set(),
+                           univ: List[Formula] = Nil) {
 
   protected def sets = _sets.toArray
 
@@ -217,7 +230,7 @@ class VennRegionsWithBound(bound: Int, tpe: Type, universeSize: Option[Formula],
   def constraints = {
     val seq = if (bound >= sets.size) Seq(_sets)
               else mkSeq(0,0)
-    val cstrs = seq.map( s => new VennRegions(tpe, universeSize, s, univ).constraints )
+    val cstrs = seq.map( s => new VennRegions(tpe, universeSize, s, gts, univ).constraints )
     //TODO there are redundant constraints
     And(cstrs:_*)
   }

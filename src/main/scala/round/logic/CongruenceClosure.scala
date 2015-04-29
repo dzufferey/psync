@@ -78,11 +78,17 @@ class CongruenceClasses(cls: Iterable[CongruenceClass], map: Map[Formula, Congru
     FormulaUtils.mapTopDown(repr(_), f)
   }
 
-  def formula: Formula = {
+  lazy val formula: Formula = {
     if (cls.isEmpty) True()
     else And(cls.toSeq.map(_.formula):_*)
   }
 
+  lazy val groundTerms: Set[Formula] = FormulaUtils.collectGroundTerms(formula)
+
+}
+
+object CongruenceClasses {
+  val empty = new CongruenceClasses(Nil, Map.empty)
 }
 
 //a container for CC classes

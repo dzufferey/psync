@@ -223,7 +223,7 @@ object Simplify {
     FormulaUtils.map(fct, f)
   }
   
-  //TODO better
+  //TODO better: like the polynomial in react
   def simplifyInt(f: Formula): Formula = {
     //division: from 'x > 2n/3' to '3x > 2n'
     def getDenom(f: Formula): scala.Int = f match {

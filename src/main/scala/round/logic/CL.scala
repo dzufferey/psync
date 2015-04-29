@@ -53,16 +53,18 @@ class CL(bound: Option[Int],
     Quantifiers.isEPR(f) && !hasComp
   }
 
-  protected def forall(f: Formula): Boolean = {
+  protected def forallOnly(f: Formula): Boolean = {
     var isForAll = false
+    var hasComp = false
     def check(f1: Formula) = f1 match {
       case ForAll(_, _) => isForAll = true
-      case Comprehension(_, _) => isForAll=false
+      case Comprehension(_, _) => hasComp = true
       case _ => ()
     }
     FormulaUtils.traverse(check, f)
-    isForAll 
+    isForAll && !hasComp
   }
+
   //make sure we have a least one process
   protected def getGrounTerms(fs: List[Formula]): Set[Formula] = {
     val gts0 = FormulaUtils.collectGroundTerms(And(fs:_*))
@@ -151,7 +153,8 @@ class CL(bound: Option[Int],
 
   //TODO non-empty scope means we should introduce more terms
   def reduceComprehension(conjuncts: List[Formula],
-                          cClasses: CongruenceClasses = new CongruenceClasses(Nil, Map.empty), univConjuncts: List[Formula]=Nil): List[Formula] = {
+                          cClasses: CongruenceClasses = new CongruenceClasses(Nil, Map.empty),
+                          univConjuncts: List[Formula]=Nil): List[Formula] = {
 
     //get the comprehensions and HO sets from the formula
     val (_woComp, _c1) = collectComprehensionDefinitions(conjuncts)
@@ -168,8 +171,8 @@ class CL(bound: Option[Int],
         val fs = sDefs.map(_.fresh)
         val sets = fs.map( sd => (sd.id, sd.body)) 
         val cstrs = bound match {
-          case Some(b) => new VennRegionsWithBound(b, tpe, sizeOfUniverse(tpe), sets, univConjuncts).constraints
-          case None => new VennRegions(tpe, sizeOfUniverse(tpe), sets, univConjuncts).constraints
+          case Some(b) => new VennRegionsWithBound(b, tpe, sizeOfUniverse(tpe), sets, cClasses.groundTerms, univConjuncts).constraints
+          case None => new VennRegions(tpe, sizeOfUniverse(tpe), sets, cClasses.groundTerms, univConjuncts).constraints
         }
         val scope = fs.map(_.scope).flatten.toList
         ForAll(scope, cstrs) //TODO this needs skolemization
@@ -203,7 +206,7 @@ class CL(bound: Option[Int],
     })
 
     val (epr, rest) = clauses.partition(keepAsIt)
-    val (univ, rest1) = rest.partition(forall)
+    val (univ, rest1) = rest.partition(forallOnly)
   
     Logger("CL", Debug, "epr clauses:\n  " + epr.mkString("\n  "))
     Logger("CL", Debug, "clauses to process:\n  " + rest.mkString("\n  "))

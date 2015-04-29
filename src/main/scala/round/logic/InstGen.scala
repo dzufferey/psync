@@ -81,12 +81,13 @@ object InstGen {
   /** instantiate all the universally quantified variables with the provided ground terms.
    * @param formula list of formula
    * @param groundTerms (optional) set of terms to add to the terms present in the formulas
-   * @param depth optional bound on the recursion depth (depth 0 does not intruduce new ground terms)
+   * @param cClasses (optional) congruence classes to reduce the number of terms used in the instantiation
+   * @param depth (optional) bound on the recursion depth (depth 0 does not intruduce new ground terms)
    * @param local (optional) should the instantiation be local (default is false)
    */
   def saturate( formula: Formula,
                 groundTerms: Set[Formula] = Set(),
-                cClasses: CongruenceClasses = new CongruenceClasses(Nil, Map.empty),
+                cClasses: CongruenceClasses = CongruenceClasses.empty,
                 depth: Option[Int] = None,
                 local: Boolean = false ): Formula = {
     val gts = groundTerms ++ FormulaUtils.collectGroundTerms(formula)
@@ -107,29 +108,4 @@ object InstGen {
     }
   }
  
-  def saturateNewTerms( formula: Formula, 
-		groundTerms: Set[Formula] = Set(),
-		depth: Option[Int] = None, 
-		local: Boolean = false): Formula = {
-     val gts = groundTerms 
-    //ground terms are new existentials; todo: add terms they generate. So far they are only vars.  
-    //println("instantiate on new exists " + formula) 
-    val formula2 =
-      if (local) { 
-		println(" Not defined yet") 
-		formula}
-      else instantiateGlobally(formula, gts)
-    if (depth.getOrElse(1) <= 0) {
-      postprocess(formula2)
-    } else {
-	val gts2 = FormulaUtils.collectGroundTerms(formula2) -- gts
-      if (gts2.isEmpty) {
-        postprocess(formula2)
-      } else {
-        saturateNewTerms(formula, gts ++ gts2, depth.map(_ - 1), local)
-      }
-    }
-  }
-   
-
 }
