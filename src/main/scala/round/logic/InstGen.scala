@@ -90,6 +90,7 @@ object InstGen {
                 depth: Option[Int] = None,
                 local: Boolean = false ): Formula = {
     val gts = groundTerms ++ FormulaUtils.collectGroundTerms(formula)
+    //ground terms are from the epr part 
     val formula2 =
       if (local) instantiateLocally(formula, gts, cClasses)
       else instantiateGlobally(formula, gts.map(cClasses.repr(_)))
@@ -102,6 +103,30 @@ object InstGen {
       } else {
         val cClasses1 = CongruenceClosure(And(formula2, cClasses.formula))
         saturate(formula, gts ++ gts2, cClasses1, depth.map(_ - 1), local)
+      }
+    }
+  }
+ 
+  def saturateNewTerms( formula: Formula, 
+		groundTerms: Set[Formula] = Set(),
+		depth: Option[Int] = None, 
+		local: Boolean = false): Formula = {
+     val gts = groundTerms 
+    //ground terms are new existentials; todo: add terms they generate. So far they are only vars.  
+    //println("instantiate on new exists " + formula) 
+    val formula2 =
+      if (local) { 
+		println(" Not defined yet") 
+		formula}
+      else instantiateGlobally(formula, gts)
+    if (depth.getOrElse(1) <= 0) {
+      postprocess(formula2)
+    } else {
+	val gts2 = FormulaUtils.collectGroundTerms(formula2) -- gts
+      if (gts2.isEmpty) {
+        postprocess(formula2)
+      } else {
+        saturateNewTerms(formula, gts ++ gts2, depth.map(_ - 1), local)
       }
     }
   }
