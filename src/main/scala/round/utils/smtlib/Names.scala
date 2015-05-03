@@ -14,16 +14,16 @@ object Names {
     case Eq => "="
     case Geq => ">="
     case Leq => "<="
-    case Gt => ">"
-    case Lt => "<"
-    case Plus => "+"
-    case Minus => "-"
     case Times => "*"
+    case Divides => "div" //todo check it is the right thing for integer division
     case Fst => "fst"
     case Snd => "snd"
     case Trd => "trd"
     case Tuple => "tuple"
     case In => "in"
+    case Intersection => "intersection"
+    case Union => "union"
+    case SubsetEq => "subsetEq"
     case Neq => Logger.logAndThrow("smtlib", Error, "≠ should be replaced by Not(Eq(...))")
     case UnInterpretedFct(f, _, _) => f
     case i: InterpretedFct => i.symbol

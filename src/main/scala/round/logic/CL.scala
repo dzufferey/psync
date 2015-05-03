@@ -130,11 +130,10 @@ class CL(bound: Option[Int],
     (f2, allDefs)
   }
   
-  protected def collectHO(conjuncts: List[Formula]): List[SetDef] = {
-    val gts = FormulaUtils.collectGroundTerms(And(conjuncts:_*))
-    val hos = gts.filter{ case Application(UnInterpretedFct("HO",_,_), _) => true
-                          case _ => false } 
-    hos.toList.map( ho => SetDef(Set(), ho, None) )
+  protected def collectSetTerms(gts: Set[Formula]): List[SetDef] = {
+    val sts = gts.filter( _.tpe match { case FSet(_) => true
+                                        case _ => false } )
+    sts.toList.map( ho => SetDef(Set(), ho, None) )
   }
 
   protected def sizeOfUniverse(tpe: Type): Option[Formula] = tpe match {
@@ -156,15 +155,19 @@ class CL(bound: Option[Int],
                           cClasses: CongruenceClasses = new CongruenceClasses(Nil, Map.empty),
                           univConjuncts: List[Formula]=Nil): List[Formula] = {
 
-    //get the comprehensions and HO sets from the formula
+    //get the comprehensions and normalize
     val (_woComp, _c1) = collectComprehensionDefinitions(conjuncts)
-    val ho = collectHO(conjuncts)
-    val (c1, subst) = SetDef.normalize(_c1 ++ ho, cClasses)
-    val woComp = _woComp.map(FormulaUtils.map( f => subst.getOrElse(f, f), _))
+    val (c1, subst) = SetDef.normalize(_c1, cClasses)
     Logger("CL", Debug, "similar: " + subst.mkString(", "))
+    val woComp = _woComp.map(FormulaUtils.map( f => subst.getOrElse(f, f), _))
+
+    //get all the sets and merge the ones which are equal
+    val gts = FormulaUtils.collectGroundTerms(And(conjuncts:_*)) ++ cClasses.groundTerms
+    val _c2 = c1 ++ collectSetTerms(gts)
+    val c2 = SetDef.mergeEqual(_c2, cClasses)
 
     //generate the ILP
-    val byType = c1.groupBy(_.contentTpe)
+    val byType = c2.groupBy(_.contentTpe)
     val ilps =
       for ( (tpe, sDefs) <- byType if onType.map(_ contains tpe).getOrElse(true)) yield {
         Logger("CL", Info, sDefs.mkString("reduceComprehension "+tpe+"\n    ","\n    ",""))

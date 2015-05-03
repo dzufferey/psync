@@ -52,9 +52,9 @@ case class SetDef(scope: Set[Variable], id: Formula, body: Option[Binding]) {
 
 object SetDef {
 
-  def normalize(sDefs: Iterable[SetDef],
-                cClasses: CongruenceClasses = new CongruenceClasses(Nil, Map.empty) 
-               ): (List[SetDef], Map[Formula, Formula]) = {
+  protected def normalizeSetBody( sDefs: Iterable[SetDef],
+                                  cClasses: CongruenceClasses
+                                ): (List[SetDef], Map[Formula, Formula]) = {
     val init = (List[SetDef](), Map[Formula,Formula]())
     sDefs.foldLeft(init)( (acc, d0) => {
       val d = d0.ccNormalize(cClasses)
@@ -64,6 +64,45 @@ object SetDef {
         case None => (d :: ds, subst)
       }
     })
+  }
+
+  def normalize(sDefs: Iterable[SetDef],
+                cClasses: CongruenceClasses = new CongruenceClasses(Nil, Map.empty) 
+               ): (List[SetDef], Map[Formula, Formula]) = {
+    normalizeSetBody(sDefs, cClasses)
+  }
+
+  //assume normalized
+  protected def merge(s1: SetDef, s2: SetDef): SetDef = {
+    if (s1.body.isDefined && s2.body.isDefined) {
+      val scope = s1.scope ++ s2.scope
+      val body = (s1.body.get, s2.body.get) match {
+        case (Comprehension(List(i1), b1), Comprehension(List(i2), b2)) =>
+          //TODO better way
+          assert(!b2.freeVariables.contains(i1) && !b2.boundVariables.contains(i1), "TODO not sure how to merge")
+          val b2p = FormulaUtils.replace(i2, i1, b2)
+          Comprehension(List(i1), And(b1, b2p))
+        case (c1, c2) =>
+          Logger.logAndThrow("SetDef", Error, "merge: " + c1 + ", " + c2)
+      }
+      SetDef(scope, s1.id, Some(body))
+    } else if (s1.body.isDefined) s1
+    else s2
+  }
+
+  def mergeEqual( sDefs: Iterable[SetDef],
+                  cClasses: CongruenceClasses
+                ): Iterable[SetDef] = {
+    var acc = Map[Formula, SetDef]()
+    val map = sDefs.foldLeft(Map[Formula, SetDef]())( (acc, s) => {
+      val r = cClasses.repr(s.id)
+      if (acc contains r) {
+        acc + (r -> merge(acc(r), s))
+      } else {
+        acc + (r -> s)
+      }
+    })
+    map.values
   }
 
 }
