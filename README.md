@@ -56,7 +56,38 @@ class OTR extends Algorithm[IO] {
 
 )})})}
 ```
-Working examples are located in `src/test/scala/example`.
+
+The client code that uses a such algorithm is:
+```scala
+  //setup the service
+  val option: round.runtime.RuntimeOptions = ??? //the list of peers and other parameters
+  val algorithm = new OTR
+  val rt = new RunTime(alg, options, defaultHandler(_))
+  rt.startService
+
+  //run the algorithm for one decision
+  val init = Random.nextBoolean
+  val io = new ConsensusIO {
+    val initialValue = Random.nextInt
+    def decide(value: Int) {
+      Console.println("decision is " + value)
+    }
+  }
+  rt.startInstance(0, io) //the 1st parameter is the ID of the instance
+
+  //an handler for unexpected messages
+  def defaultHandler(msg: Message) {
+    ???
+    msg.release //unused messages must be released
+  }
+
+  //graceful shutdown
+  rt.shutdown
+```
+A given `RunTime` can run many instances in parallel.
+However, the ID must be different for each instance.
+
+Complete working examples are located in `src/test/scala/example`.
 
 
 ## Status
