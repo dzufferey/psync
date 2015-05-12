@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<!-- DOCTYPE ... -->
+
+<configuration>
+  <parameters>
+    <param> <name>protocol</name> <value>UDP</value> </param>
+    <param> <name>timeout</name> <value>500</value> </param>
+    <param> <name>group</name> <value>nio</value> </param>
+    <param> <name>bufferSize</name> <value>128</value> </param>
+  </parameters>
+  <peers>
+    <replica>  <id>0</id> <address>127.0.0.1</address> <port>4444</port> </replica>
+    <replica>  <id>1</id> <address>127.0.0.1</address> <port>4445</port> </replica>
+    <replica>  <id>2</id> <address>127.0.0.1</address> <port>4446</port> </replica>
+    <replica>  <id>3</id> <address>127.0.0.1</address> <port>4447</port> </replica>
+    <replica>  <id>4</id> <address>127.0.0.1</address> <port>4448</port> </replica>
+    <replica>  <id>5</id> <address>127.0.0.1</address> <port>4449</port> </replica>
+    <replica>  <id>6</id> <address>127.0.0.1</address> <port>4450</port> </replica>
+    <replica>  <id>7</id> <address>127.0.0.1</address> <port>4451</port> </replica>
+    <replica>  <id>8</id> <address>127.0.0.1</address> <port>4452</port> </replica>
+    <replica>  <id>9</id> <address>127.0.0.1</address> <port>4453</port> </replica>
+    <replica> <id>10</id> <address>127.0.0.1</address> <port>4454</port> </replica>
+    <replica> <id>11</id> <address>127.0.0.1</address> <port>4455</port> </replica>
+    <replica> <id>12</id> <address>127.0.0.1</address> <port>4456</port> </replica>
+    <replica> <id>13</id> <address>127.0.0.1</address> <port>4457</port> </replica>
+    <replica> <id>14</id> <address>127.0.0.1</address> <port>4458</port> </replica>
+  </peers>
+</configuration>
