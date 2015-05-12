@@ -24,5 +24,15 @@
     <replica> <id>12</id> <address>127.0.0.1</address> <port>4456</port> </replica>
     <replica> <id>13</id> <address>127.0.0.1</address> <port>4457</port> </replica>
     <replica> <id>14</id> <address>127.0.0.1</address> <port>4458</port> </replica>
+    <replica> <id>15</id> <address>127.0.0.1</address> <port>4459</port> </replica>
+    <replica> <id>16</id> <address>127.0.0.1</address> <port>4460</port> </replica>
+    <replica> <id>17</id> <address>127.0.0.1</address> <port>4461</port> </replica>
+    <replica> <id>18</id> <address>127.0.0.1</address> <port>4462</port> </replica>
+    <replica> <id>19</id> <address>127.0.0.1</address> <port>4463</port> </replica>
+    <replica> <id>20</id> <address>127.0.0.1</address> <port>4464</port> </replica>
+    <replica> <id>21</id> <address>127.0.0.1</address> <port>4465</port> </replica>
+    <replica> <id>22</id> <address>127.0.0.1</address> <port>4466</port> </replica>
+    <replica> <id>23</id> <address>127.0.0.1</address> <port>4467</port> </replica>
+    <replica> <id>24</id> <address>127.0.0.1</address> <port>4468</port> </replica>
   </peers>
 </configuration>

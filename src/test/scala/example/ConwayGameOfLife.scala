@@ -34,11 +34,11 @@ class ConwayGameOfLife extends Algorithm[CgolIO] {
         type A = Boolean
 
         def send: Set[(Boolean,ProcessID)] = {
-          broadcast( alive )
+          neighbours.map( (alive: Boolean) -> _ )
         }
 
         def update(mailbox: Set[(Boolean, ProcessID)]) {
-          val aliveNeighbours = mailbox.filter(neighbours contains _._2).size
+          val aliveNeighbours = mailbox.filter(_._1).size
           if (alive) {
             if (aliveNeighbours != 2 && aliveNeighbours != 3) {
               alive <~ false
@@ -48,7 +48,7 @@ class ConwayGameOfLife extends Algorithm[CgolIO] {
               alive <~ true
             }
           }
-          println("replica: "+id+","+r+" ("+(row:Int)+","+(col: Int)+") is " + (if(alive) "alive" else "dead"))
+          println("replica: "+id.id+","+r+" ("+(row:Int)+","+(col: Int)+") is " + (if(alive) "alive" else "dead"))
           Thread.sleep(1000)
         }
 
@@ -62,10 +62,10 @@ object ConwayGameOfLife {
 
   def toID(rows: Int, cols: Int, r0: Int, c0: Int): ProcessID = {
     val r1 = if (r0 < 0) r0 + rows
-             else if (r0 > rows) r0 - rows
+             else if (r0 >= rows) r0 - rows
              else r0 
     val c1 = if (c0 < 0) c0 + cols
-             else if (c0 > cols) c0 - cols
+             else if (c0 >= cols) c0 - cols
              else c0 
     val id = r1 * cols + c1
     new ProcessID(id.toShort)
