@@ -241,11 +241,44 @@ class CLSuite extends FunSuite {
     assertUnsat(fs)
   }
 
-  test("options") {
+  test("options 0") {
     val fs = List(
       IsDefined(FNone().setType(FOption(Int)))
     )
     assertUnsat(fs)
   }
+
+  test("options 1") {
+    val x = Variable("x").setType(FOption(pid))
+    val none = FNone().setType(FOption(pid))
+    val some = FSome(p1)
+    val fs = List(
+      Or(Eq(x, some), Eq(x, none)),
+      Implies(
+        IsDefined(x),
+        Eq(Get(x), p1)
+      )
+    )
+    assertSat(fs)
+  }
+
+  test("options 2") {
+    val x = Variable("x").setType(FOption(pid))
+    val none = FNone().setType(FOption(pid))
+    val some = FSome(p1)
+    val fs = List(
+      Neq(p1, p2),
+      Eq(x, some),
+      Implies(
+        IsDefined(x),
+        Eq(Get(x), p2)
+      )
+    )
+    assertUnsat(fs)
+  }
+
+  //TODO tuples
+  //test("pairs 0") {
+  //}
 
 }

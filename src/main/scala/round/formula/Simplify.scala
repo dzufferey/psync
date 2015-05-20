@@ -52,13 +52,14 @@ object Simplify {
     ???
   }
 
-  def deBruijnIndex(f: Formula, renameFreeVars: Boolean = false): Formula = {
+  def deBruijnIndex(f0: Formula, renameFreeVars: Boolean = false): Formula = {
     def mkVar(tpe: Type, idx: Int) = {
       val prefix = round.utils.smtlib.Names.tpe(tpe)
       Variable(prefix + "_" + idx).setType(tpe)
     }
 
     //generic renaming of variables _XXX
+    val f = boundVarUnique(f0)
     val allVars = if (renameFreeVars) f.freeVariables ++ f.boundVariables else f.boundVariables
     val dummyNames = allVars.foldLeft(Map[Variable,Variable]())( (acc, v) => acc + (v -> Variable(Namer("_")).setType(v.tpe)) )
     val cleanNames = FormulaUtils.alphaAll(dummyNames, f)
@@ -189,7 +190,7 @@ object Simplify {
       case other => (other, used)
     }
     process(f,
-            Set.empty[String],
+            f.freeVariables.map(_.name),
             Map.empty[String, String])._1
   }
 
