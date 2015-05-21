@@ -2,6 +2,7 @@ package round.logic
 
 import round.formula._
 import round.utils.smtlib._
+import dzufferey.utils.Logger
 
 import org.scalatest._
 
@@ -38,13 +39,25 @@ class CLSuite extends FunSuite {
 
   def assertUnsat(conjuncts: List[Formula]) {
     val c0 = conjuncts.map(Simplify.simplify)
-    //println("=======before reduce ")
-    //c0.foreach( f => println("  " + f) )
     val f0 = And(c0 :_*)
     val f1 = CL.reduce(f0)
-    //println("======= send to solver")
-    //FormulaUtils.getConjuncts(f1).foreach( f => println("  " + f) )
-    val solver = Solver(UFLIA, "test.smt2")
+    val solver = Solver(UFLIA)
+    assert(!solver.testB(f1), "unsat formula")
+  }
+  
+  def assertUnsatDebug(conjuncts: List[Formula]) {
+    Logger.moreVerbose
+    val c0 = conjuncts.map(Simplify.simplify)
+    println("=======before reduce ")
+    c0.foreach( f => println("  " + f) )
+    val f0 = And(c0 :_*)
+    val f1 = CL.reduce(f0)
+    println("======= send to solver")
+    FormulaUtils.getConjuncts(f1).foreach( f => println("  " + f) )
+    //val solver = Solver(UFLIA, "test.smt2")
+    //val solver = Solver.cvc4mf(UFLIA, None, 10000)
+    val solver = Solver(UFLIA)
+    Logger.lessVerbose
     assert(!solver.testB(f1), "unsat formula")
   }
 
@@ -153,6 +166,31 @@ class CLSuite extends FunSuite {
       Eq(Cardinality(b), n),
       Eq(c, Intersection(a,b)),
       Eq(Cardinality(c), Literal(0))
+    )
+    assertUnsat(fs)
+  }
+
+  //from https://github.com/psuter/bapa-z3/blob/master/src/main/scala/bapa/Main.scala
+  test("BAPA 1") {
+    val fs = List(
+      Not(Eq(a,b)),
+      SubsetEq(a,b),
+      Lt(Cardinality(b), Cardinality(Union(a, b)))
+    )
+    assertUnsat(fs)
+  }
+
+  //TODO better way to handle singletons
+  //from https://github.com/psuter/bapa-z3/blob/master/src/main/scala/bapa/Main.scala
+  test("BAPA 2") {
+    val fs = List(
+      Eq(a, Comprehension(List(i), Eq(i,p1))),
+      Eq(b, Comprehension(List(i), Eq(i,p2))),
+      Eq(Cardinality(a), Literal(1)), //added because we don't have singletons
+      Eq(Cardinality(b), Literal(1)), //added because we don't have singletons
+      Not(Eq(a,b)),
+      SubsetEq(b,c),
+      Lt(Cardinality(c), Cardinality(a))
     )
     assertUnsat(fs)
   }

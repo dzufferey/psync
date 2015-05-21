@@ -112,8 +112,7 @@ object SetOperationsAxioms {
     val s = Variable("S1").setType(FSet(tpe))
     val t = Variable("S2").setType(FSet(tpe))
     ForAll(List(x,s,t),
-      Implies(And(In(x,s), SubsetEq(s, t)),
-              Leq(Cardinality(s),Cardinality(t))))
+      Implies(And(In(x,s), SubsetEq(s,t)), In(x,t)))
   }
 
   //∀ S,T. S⊆T ⇒ |S| ≤ |T|

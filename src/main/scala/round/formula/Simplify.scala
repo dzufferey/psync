@@ -194,9 +194,20 @@ object Simplify {
             Map.empty[String, String])._1
   }
 
-  def simplifySet(f: Formula): Formula = {
-    //TODO
-    ???
+  //TODO some more
+  def simplifySetOp(f: Formula): Formula = {
+    import FormulaUtils._
+    def fct(f: Formula) = f match {
+      case Union(lst @ _*) =>
+        val lst2 = lst.toSet
+        Application(Union, lst2.toList.sorted).setType(f.tpe)
+      case Intersection(lst @ _*) =>
+        val lst2 = lst.toSet
+        Application(Intersection, lst2.toList.sorted).setType(f.tpe)
+      case other =>
+        other
+    }
+    FormulaUtils.map(fct, f)
   }
   
   def lcm(m: scala.Int, n: scala.Int) = {
@@ -345,12 +356,14 @@ object Simplify {
   }
 
   def simplify(f: Formula): Formula = {
-    val f1 = normalize(f)
+    val f0 = normalize(f)
+    val f1 = nnf(f0)
     val f2 = FormulaUtils.flatten(f1)
     val f3 = simplifyInt(f2)
     val f4 = simplifyBool(f3)
-    val f5 = simplifyQuantifiers(f4)
-    f5
+    val f5 = simplifySetOp(f4)
+    val f6 = simplifyQuantifiers(f5)
+    f6
   }
 
   //TODO while simplifying rename the variables (de Bruijn indices)

@@ -84,7 +84,7 @@ class CongruenceClasses(cls: Iterable[CongruenceClass], map: Map[Formula, Congru
     else And(cls.toSeq.map(_.formula):_*)
   }
 
-  lazy val groundTerms: Set[Formula] = FormulaUtils.collectGroundTerms(formula)
+  lazy val groundTerms: Set[Formula] = cls.foldLeft(Set[Formula]())( _ ++ _.terms)
 
 }
 
@@ -101,6 +101,7 @@ class CongruenceClass(val repr: Formula, val members: Set[Formula]) {
     if (eqs.isEmpty) True()
     else And(eqs:_*)
   }
+  def terms: Set[Formula] = Set(repr) ++ members
 }
 
 //node in the CC graph
