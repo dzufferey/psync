@@ -113,12 +113,7 @@ class CLSuite extends FunSuite {
   }
 */
   
-/* TODO, DZ: is this one really unsat ?
-   what about a model with 3 processes and the following data:
-    p:    3
-    p1:   3
-    sk_i: 2
-  test("Univ not in EPR"){
+  test("sat 1"){
     val fs = List(
       Exists(List(i), Eq(data(i),Literal(2))), 
       Not(Eq(Cardinality(Comprehension(List(i), Eq(data(i), Literal(3)))), nOver2)),
@@ -126,9 +121,8 @@ class CLSuite extends FunSuite {
       Not(Exists(List(i), Eq(data(i), Literal(1)))), 
       Or(ForAll(List(i), Eq(data(i), Literal(1))), Eq(data(p),Literal(3)))
     )
-    assertUnsat(fs)
+    assertSat(fs)
   }
-*/
 
   test("Size of comprehension bigger than two"){
     val fs = List(
