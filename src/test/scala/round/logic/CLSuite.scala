@@ -27,12 +27,14 @@ class CLSuite extends FunSuite {
   val k = Variable("K").setType(FSet(pid)) 
 
   val x = Variable("x").setType(Int) 
+  val v = Variable("v").setType(Int) 
 
-  val _data = UnInterpretedFct("data",Some(pid ~> Int))
-  def data(i: Formula) = Application(_data, List(i)).setType(Int)
-
-  val _dec = UnInterpretedFct("dec", Some(pid ~> Int))
-  def dec(i: Formula) = Application(_dec, List(i)).setType(Int)
+  val data = UnInterpretedFct("data",Some(pid ~> Int))
+  val data1 = UnInterpretedFct("data1",Some(pid ~> Int))
+  val data0 = UnInterpretedFct("data0",Some(pid ~> Int))
+  val decision = UnInterpretedFct("decision", Some(pid ~> Int))
+  val decided = UnInterpretedFct("decided", Some(pid ~> Bool))
+  val decided1 = UnInterpretedFct("decided1", Some(pid ~> Bool))
 
   val m = UnInterpretedFct("M",Some(pid ~> FSet(pid))) //sender mailbox, dual of HO
   val ho = CL.HO
@@ -47,6 +49,7 @@ class CLSuite extends FunSuite {
   
   def assertUnsatDebug(conjuncts: List[Formula]) {
     Logger.moreVerbose
+    Logger.moreVerbose
     val c0 = conjuncts.map(Simplify.simplify)
     println("=======before reduce ")
     c0.foreach( f => println("  " + f) )
@@ -57,6 +60,7 @@ class CLSuite extends FunSuite {
     //val solver = Solver(UFLIA, "test.smt2")
     //val solver = Solver.cvc4mf(UFLIA, None, 10000)
     val solver = Solver(UFLIA)
+    Logger.lessVerbose
     Logger.lessVerbose
     assert(!solver.testB(f1), "unsat formula")
   }
@@ -85,15 +89,15 @@ class CLSuite extends FunSuite {
       Gt(Cardinality(a), nOver2), 
       ForAll(List(i), Leq(x, data(i))),
       Eq(b, Comprehension(List(p), 
-          Exists(List(j), And(Eq(data(j), dec(p)),
+          Exists(List(j), And(Eq(data(j), decision(p)),
                               In(j, ho(p)), 
                               ForAll(List(i), Implies(In(i, ho(p)), Geq(data(j), data(i)))))
           )
         )
       ), 
       //Eq(Cardinality(b),n),
-      //Exists(List(j), Gt(dec(j),x)),
-      Exists(List(j), And(In(j,b), Gt(dec(j),x)))
+      //Exists(List(j), Gt(decision(j),x)),
+      Exists(List(j), And(In(j,b), Gt(decision(j),x)))
     )       
     assertUnsat(fs)
   }
@@ -312,5 +316,40 @@ class CLSuite extends FunSuite {
   //TODO tuples
   //test("pairs 0") {
   //}
+
+
+  //port of the example from the vmcai paper.
+  //they are more readable than dumping the VCs from the code
+
+  val agreement = ForAll(List(i,j), Implies(And(decided(i), decided(j)), Eq(data(i),data(j))))
+  val integrity = ForAll(List(i), Implies(decided(i), And(decided1(i), Eq(data(i), data1(i)))))
+  val termination = ForAll(List(i), Implies(decided(i)))
+  val validity = ForAll(List(i), Exists(List(j), Eq(data(i), data0(j))))
+
+  //for safety only
+  val otrInvariantAgreement = Or(
+    ForAll(List(i), Not(decided(i))),
+    Exists(List(v,a), And(
+      Eq(a, Comprehension(List(i), Eq(data(i), v))),
+      Lt(Times(n, Literal(2)), Times(Cardinality(a), Literal(3))),
+      ForAll(List(i), Implies(decided(i), Eq(data(i), v)))
+    ))
+  )
+  
+  val otrInvariantAgreementPrimed = Or(
+    ForAll(List(i), Not(decided1(i))),
+    Exists(List(v,a), And(
+      Eq(a, Comprehension(List(i), Eq(data1(i), v))),
+      Lt(Times(n, Literal(2)), Times(Cardinality(a), Literal(3))),
+      ForAll(List(i), Implies(decided1(i), Eq(data1(i), v)))
+    ))
+  )
+
+  //TODO otr transition relation
+  //TODO invariant for validity and invariants for progess
+
+  test("vmcai 14, otr: invariant implies agreement") {
+    assertUnsat(List(otrInvariantAgreement, Not(agreement)))
+  }
 
 }
