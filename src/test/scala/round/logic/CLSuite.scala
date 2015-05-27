@@ -50,6 +50,7 @@ class CLSuite extends FunSuite {
   def assertUnsatDebug(conjuncts: List[Formula]) {
     Logger.moreVerbose
     Logger.moreVerbose
+    Logger.disallow("Typer")
     val c0 = conjuncts.map(Simplify.simplify)
     println("=======before reduce ")
     c0.foreach( f => println("  " + f) )
@@ -57,11 +58,12 @@ class CLSuite extends FunSuite {
     val f1 = CL.reduce(f0)
     println("======= send to solver")
     FormulaUtils.getConjuncts(f1).foreach( f => println("  " + f) )
-    //val solver = Solver(UFLIA, "test.smt2")
-    //val solver = Solver.cvc4mf(UFLIA, None, 10000)
-    val solver = Solver(UFLIA)
+    val solver = Solver(UFLIA, "test.smt2")
+    //val solver = Solver.cvc4mf(UFLIA, None, 600000)
+    //val solver = Solver(UFLIA)
     Logger.lessVerbose
     Logger.lessVerbose
+    Logger.allow("Typer")
     assert(!solver.testB(f1), "unsat formula")
   }
 
@@ -326,12 +328,16 @@ class CLSuite extends FunSuite {
   val termination = ForAll(List(i), Implies(decided(i)))
   val validity = ForAll(List(i), Exists(List(j), Eq(data(i), data0(j))))
 
+  def twoThird(f: Formula): Formula = {
+    Lt(Times(n, Literal(2)), Times(Cardinality(f), Literal(3)))
+  }
+
   //for safety only
   val otrInvariantAgreement = Or(
     ForAll(List(i), Not(decided(i))),
     Exists(List(v,a), And(
       Eq(a, Comprehension(List(i), Eq(data(i), v))),
-      Lt(Times(n, Literal(2)), Times(Cardinality(a), Literal(3))),
+      twoThird(a),
       ForAll(List(i), Implies(decided(i), Eq(data(i), v)))
     ))
   )
@@ -340,16 +346,69 @@ class CLSuite extends FunSuite {
     ForAll(List(i), Not(decided1(i))),
     Exists(List(v,a), And(
       Eq(a, Comprehension(List(i), Eq(data1(i), v))),
-      Lt(Times(n, Literal(2)), Times(Cardinality(a), Literal(3))),
+      twoThird(a),
       ForAll(List(i), Implies(decided1(i), Eq(data1(i), v)))
     ))
   )
 
-  //TODO otr transition relation
   //TODO invariant for validity and invariants for progess
+
+  //min most often received
+  val mailbox = UnInterpretedFct("mailbox", Some(pid ~> FSet(Product(List(Int,pid)))))
+  val mmor = UnInterpretedFct("mmor", Some(pid ~> Int))
+  val mmorDef = ForAll(List(i,v), Or(
+    Lt( Cardinality(Comprehension(List(j), In(Tuple(v,j), mailbox(i)))),
+        Cardinality(Comprehension(List(j), In(Tuple(mmor(i),j), mailbox(i))))),
+    Leq(mmor(i), v)
+  ))
+
+  val otrInitialState = ForAll(List(i), Eq(decided(i), False()))
+
+  //otr transition relation
+  val otrTR = And(
+    //send, mailbox
+    ForAll(List(i,j), Implies(In(i,ho(j)), In(Tuple(data(i),j), mailbox(i)))),
+    ForAll(List(i), Eq(Cardinality(mailbox(i)),Cardinality(ho(i)))),
+    //update
+    ForAll(List(i), And(
+      Implies(twoThird(mailbox(i)),
+        And(Eq(data1(i), mmor(i)),
+            Exists(List(a), And(
+              Eq(a, Comprehension(List(j), In(Tuple(mmor(i),j), mailbox(i)))),
+              Implies(twoThird(a), Eq(decided1(i), True())),
+              Implies(Not(twoThird(a)), Eq(decided1(i), decided(i)))
+        )))
+      ),
+      Implies(Not(twoThird(mailbox(i))),
+        And(Eq(decided(i), decided1(i)), Eq(data1(i), data(i)))
+      )
+    ))
+  )
+
+  val otrMagicRound = Exists(List(a), And(
+    Lt(Times(n, Literal(2)), Times(Cardinality(a), Literal(3))),
+    ForAll(List(i), Eq(ho(i), a))
+  ))
+  
+  test("vmcai 14, otr: initial state implies invariant") {
+    assertUnsat(List(otrInitialState, Not(otrInvariantAgreement)))
+  }
 
   test("vmcai 14, otr: invariant implies agreement") {
     assertUnsat(List(otrInvariantAgreement, Not(agreement)))
   }
+
+  /*
+  test("vmcai 14, otr: invariant is inductive") {
+    val fs = List(
+        //ForAll(List(i), Eq(Cardinality(mailbox(i)),Literal(0))), //try the else branch
+        otrInvariantAgreement,
+        otrTR,
+        mmorDef,
+        Not(otrInvariantAgreementPrimed)
+    )
+    assertUnsat(fs)
+  }
+  */
 
 }
