@@ -44,19 +44,29 @@ case object Int extends Type {
 case class FSet(arg: Type) extends Type {
   override def toString = "Set("+arg+")"
   def freeParameters = arg.freeParameters
-  def alpha(subst: Map[TypeVariable, Type]) = FSet(arg.alpha(subst))
+  def alpha(subst: Map[TypeVariable, Type]) = {
+    val arg2 = arg.alpha(subst)
+    if (arg2 == arg) this else FSet(arg2)
+  }
 }
 
 case class FMap(key: Type, value: Type) extends Type {
   override def toString = "Map("+key+","+value+")"
   def freeParameters = key.freeParameters ++ value.freeParameters
-  def alpha(subst: Map[TypeVariable, Type]) = FMap(key.alpha(subst), value.alpha(subst))
+  def alpha(subst: Map[TypeVariable, Type]) = {
+    val k2 = key.alpha(subst)
+    val v2 = value.alpha(subst)
+    if (key == k2 && value == v2) this else FMap(k2, v2)
+  }
 }
 
 case class FOption(arg: Type) extends Type {
   override def toString = "Option("+arg+")"
   def freeParameters = arg.freeParameters
-  def alpha(subst: Map[TypeVariable, Type]) = FOption(arg.alpha(subst))
+  def alpha(subst: Map[TypeVariable, Type]) = {
+    val arg2 = arg.alpha(subst)
+    if (arg2 == arg) this else FOption(arg2)
+  }
 }
 
 case object Wildcard extends Type {
@@ -68,14 +78,21 @@ case object Wildcard extends Type {
 case class Product(cmpts: List[Type]) extends Type {
   override def toString = cmpts.mkString("(","*",")")
   def freeParameters = (Set[TypeVariable]() /: cmpts)(_ ++ _.freeParameters)
-  def alpha(subst: Map[TypeVariable, Type]) = Product(cmpts.map(_.alpha(subst))) 
+  def alpha(subst: Map[TypeVariable, Type]) = {
+    val c2 = cmpts.map(_.alpha(subst))
+    if (cmpts == c2) this else Product(c2)
+  }
 }
 
 case class Function(args: List[Type], returns: Type) extends Type {
   override def toString = args.mkString("(","->","->") + returns + ")"
   override def arity = args.length
   def freeParameters = (returns.freeParameters /: args)(_ ++ _.freeParameters)
-  def alpha(subst: Map[TypeVariable, Type]) = Function(args.map(_.alpha(subst)), returns.alpha(subst)) 
+  def alpha(subst: Map[TypeVariable, Type]) = {
+    val args2 = args.map(_.alpha(subst))
+    val r2 = returns.alpha(subst)
+    if (args == args2 && returns == r2) this else Function(args2, r2) 
+  }
 }
 
 case class UnInterpreted(id: String) extends Type {

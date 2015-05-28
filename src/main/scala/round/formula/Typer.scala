@@ -249,8 +249,16 @@ object Typer {
   
 
   def mergeSubst(base: Map[TypeVariable, Type], addition: Map[TypeVariable, Type]): Map[TypeVariable, Type] = {
-    assert(base.keySet.intersect(addition.values.flatMap(_.freeParameters).toSet).isEmpty)
-    base.map{ case (t1, t2) => (t1, t2.alpha(addition))} ++ addition
+    //assert(base.keySet.intersect(addition.values.flatMap(_.freeParameters).toSet).isEmpty)
+    //semantics:
+    //  base.map{ case (t1, t2) => (t1, t2.alpha(addition))} ++ addition
+    //more efficient implementation:
+    val base2 = base.foldLeft(base)( (acc, kv) => {
+      val (k, v) = kv
+      val v2 = v.alpha(addition)
+      if (v2 != v) acc + (k -> v2) else acc
+    })
+    base2 ++ addition
   }
 
   def solveConstraints(eqs: TypeConstraints): List[Map[TypeVariable, Type]] = eqs match {
