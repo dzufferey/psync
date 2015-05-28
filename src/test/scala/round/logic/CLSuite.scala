@@ -3,6 +3,7 @@ package round.logic
 import round.formula._
 import round.utils.smtlib._
 import dzufferey.utils.Logger
+import TestCommon._
 
 import org.scalatest._
 
@@ -27,59 +28,12 @@ class CLSuite extends FunSuite {
   val k = Variable("K").setType(FSet(pid)) 
 
   val x = Variable("x").setType(Int) 
-  val v = Variable("v").setType(Int) 
 
   val data = UnInterpretedFct("data",Some(pid ~> Int))
-  val data1 = UnInterpretedFct("data1",Some(pid ~> Int))
-  val data0 = UnInterpretedFct("data0",Some(pid ~> Int))
   val decision = UnInterpretedFct("decision", Some(pid ~> Int))
-  val decided = UnInterpretedFct("decided", Some(pid ~> Bool))
-  val decided1 = UnInterpretedFct("decided1", Some(pid ~> Bool))
 
   val m = UnInterpretedFct("M",Some(pid ~> FSet(pid))) //sender mailbox, dual of HO
   val ho = CL.HO
-
-  def assertUnsat(conjuncts: List[Formula]) {
-    val c0 = conjuncts.map(Simplify.simplify)
-    val f0 = And(c0 :_*)
-    val f1 = CL.reduce(f0)
-    val solver = Solver(UFLIA)
-    assert(!solver.testB(f1), "unsat formula")
-  }
-  
-  def assertUnsatDebug(conjuncts: List[Formula]) {
-    Logger.moreVerbose
-    Logger.moreVerbose
-    Logger.disallow("Typer")
-    val c0 = conjuncts.map(Simplify.simplify)
-    println("=======before reduce ")
-    c0.foreach( f => println("  " + f) )
-    val f0 = And(c0 :_*)
-    val f1 = CL.reduce(f0)
-    println("======= send to solver")
-    FormulaUtils.getConjuncts(f1).foreach( f => println("  " + f) )
-    val solver = Solver(UFLIA, "test.smt2")
-    //val solver = Solver.cvc4mf(UFLIA, None, 600000)
-    //val solver = Solver(UFLIA)
-    Logger.lessVerbose
-    Logger.lessVerbose
-    Logger.allow("Typer")
-    assert(!solver.testB(f1), "unsat formula")
-  }
-
-  def assertSat(conjuncts: List[Formula]) {
-    val c0 = conjuncts.map(Simplify.simplify)
-    //Simplify is in src/main/scala/round/formula/simplify  
-    val f0 = And(c0 :_*)
-    // this call apply from formula in class symbol line 93
-    //println("=======before reduce ")
-    //c0.foreach( f => println("  " + f) )
-    val f1 = CL.reduce(f0)
-    //println("======= send to solver")
-    //FormulaUtils.getConjuncts(f1).foreach( f => println("  " + f) )
-    val solver = Solver(UFLIA)
-    assert( solver.testB(f1), "sat formula")
-  }
 
 /* TODO not sure about what happens with ∃ inside comprehension
   test("HO test: kernel and data"){
@@ -318,97 +272,5 @@ class CLSuite extends FunSuite {
   //TODO tuples
   //test("pairs 0") {
   //}
-
-
-  //port of the example from the vmcai paper.
-  //they are more readable than dumping the VCs from the code
-
-  val agreement = ForAll(List(i,j), Implies(And(decided(i), decided(j)), Eq(data(i),data(j))))
-  val integrity = ForAll(List(i), Implies(decided(i), And(decided1(i), Eq(data(i), data1(i)))))
-  val termination = ForAll(List(i), Implies(decided(i)))
-  val validity = ForAll(List(i), Exists(List(j), Eq(data(i), data0(j))))
-
-  def twoThird(f: Formula): Formula = {
-    Lt(Times(n, Literal(2)), Times(Cardinality(f), Literal(3)))
-  }
-
-  //for safety only
-  val otrInvariantAgreement = Or(
-    ForAll(List(i), Not(decided(i))),
-    Exists(List(v,a), And(
-      Eq(a, Comprehension(List(i), Eq(data(i), v))),
-      twoThird(a),
-      ForAll(List(i), Implies(decided(i), Eq(data(i), v)))
-    ))
-  )
-  
-  val otrInvariantAgreementPrimed = Or(
-    ForAll(List(i), Not(decided1(i))),
-    Exists(List(v,a), And(
-      Eq(a, Comprehension(List(i), Eq(data1(i), v))),
-      twoThird(a),
-      ForAll(List(i), Implies(decided1(i), Eq(data1(i), v)))
-    ))
-  )
-
-  //TODO invariant for validity and invariants for progess
-
-  //min most often received
-  val mailbox = UnInterpretedFct("mailbox", Some(pid ~> FSet(Product(List(Int,pid)))))
-  val mmor = UnInterpretedFct("mmor", Some(pid ~> Int))
-  val mmorDef = ForAll(List(i,v), Or(
-    Lt( Cardinality(Comprehension(List(j), In(Tuple(v,j), mailbox(i)))),
-        Cardinality(Comprehension(List(j), In(Tuple(mmor(i),j), mailbox(i))))),
-    Leq(mmor(i), v)
-  ))
-
-  val otrInitialState = ForAll(List(i), Eq(decided(i), False()))
-
-  //otr transition relation
-  val otrTR = And(
-    //send, mailbox
-    ForAll(List(i,j), Implies(In(i,ho(j)), In(Tuple(data(i),j), mailbox(i)))),
-    ForAll(List(i), Eq(Cardinality(mailbox(i)),Cardinality(ho(i)))),
-    //update
-    ForAll(List(i), And(
-      Implies(twoThird(mailbox(i)),
-        And(Eq(data1(i), mmor(i)),
-            Exists(List(a), And(
-              Eq(a, Comprehension(List(j), In(Tuple(mmor(i),j), mailbox(i)))),
-              Implies(twoThird(a), Eq(decided1(i), True())),
-              Implies(Not(twoThird(a)), Eq(decided1(i), decided(i)))
-        )))
-      ),
-      Implies(Not(twoThird(mailbox(i))),
-        And(Eq(decided(i), decided1(i)), Eq(data1(i), data(i)))
-      )
-    ))
-  )
-
-  val otrMagicRound = Exists(List(a), And(
-    Lt(Times(n, Literal(2)), Times(Cardinality(a), Literal(3))),
-    ForAll(List(i), Eq(ho(i), a))
-  ))
-  
-  test("vmcai 14, otr: initial state implies invariant") {
-    assertUnsat(List(otrInitialState, Not(otrInvariantAgreement)))
-  }
-
-  test("vmcai 14, otr: invariant implies agreement") {
-    assertUnsat(List(otrInvariantAgreement, Not(agreement)))
-  }
-
-  /*
-  test("vmcai 14, otr: invariant is inductive") {
-    val fs = List(
-        //ForAll(List(i), Eq(Cardinality(mailbox(i)),Literal(0))), //try the else branch
-        otrInvariantAgreement,
-        otrTR,
-        mmorDef,
-        Not(otrInvariantAgreementPrimed)
-    )
-    assertUnsat(fs)
-  }
-  */
 
 }

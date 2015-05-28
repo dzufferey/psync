@@ -16,7 +16,7 @@
 
 # implementation
 
-- faster typer for the formulas
+- make InstGen faster
 - ghost variables: make sure they are only read in the verification part and remove at compile time
 - accessing members of outer class inside an inner class
     * check if fixed in 2.11.5 (with the right untypcheck) or report macro bug about it
