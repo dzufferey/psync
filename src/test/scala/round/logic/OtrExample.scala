@@ -31,6 +31,12 @@ class OtrExample extends FunSuite {
   val decided = UnInterpretedFct("decided", Some(pid ~> Bool))
   val decided1 = UnInterpretedFct("decided1", Some(pid ~> Bool))
 
+  val primeMap = Map[Symbol,Symbol](
+    data -> data1,
+    decided -> decided1
+  )
+  def prime(f: Formula) = FormulaUtils.mapSymbol( x => primeMap.getOrElse(x, x), f)
+
   val agreement = ForAll(List(i,j), Implies(And(decided(i), decided(j)), Eq(data(i),data(j))))
   val integrity = ForAll(List(i), Implies(decided(i), And(decided1(i), Eq(data(i), data1(i)))))
   val termination = ForAll(List(i), decided(i))
@@ -49,15 +55,6 @@ class OtrExample extends FunSuite {
       ForAll(List(i), Implies(decided(i), Eq(data(i), v)))
     ))
   )
-  
-  val invariantAgreementPrimed = Or(
-    ForAll(List(i), Not(decided1(i))),
-    Exists(List(v,a), And(
-      Eq(a, Comprehension(List(i), Eq(data1(i), v))),
-      twoThird(a),
-      ForAll(List(i), Implies(decided1(i), Eq(data1(i), v)))
-    ))
-  )
 
   val invariantProgress1 = Exists(List(v,a), And(
     Eq(a, Comprehension(List(i), Eq(data(i), v))),
@@ -65,18 +62,9 @@ class OtrExample extends FunSuite {
     ForAll(List(i), Implies(decided(i), Eq(data(i), v)))
   ))
   
-  val invariantProgress1Primed = Exists(List(v,a), And(
-    Eq(a, Comprehension(List(i), Eq(data1(i), v))),
-    Eq(Cardinality(a), n),
-    ForAll(List(i), Implies(decided1(i), Eq(data1(i), v)))
-  ))
-  
   val invariantProgress2 =
     Exists(List(v), ForAll(List(i), And(decided(i), Eq(data(i), v))))
 
-  val invariantProgress2Primed =
-    Exists(List(v), ForAll(List(i), And(decided1(i), Eq(data1(i), v))))
-  
   val initialState = ForAll(List(i), Eq(decided(i), False()))
 
   //TODO something seems wrong with the TR, mailbox, or mmor
@@ -141,7 +129,7 @@ class OtrExample extends FunSuite {
       //ForAll(List(i), Eq(Cardinality(mailbox(i)),Literal(0))), //try the else branch
       invariantAgreement,
       tr,
-      Not(invariantAgreementPrimed)
+      Not(prime(invariantAgreement))
     )
     assertUnsat(fs)
   }
@@ -153,7 +141,7 @@ class OtrExample extends FunSuite {
       invariantAgreement,
       magicRound
       tr,
-      Not(invariantProgress1Primed)
+      Not(prime(invariantProgress1))
     )
     assertUnsat(fs)
   }
@@ -164,7 +152,7 @@ class OtrExample extends FunSuite {
     val fs = List(
       invariantProgress1,
       tr,
-      Not(invariantProgress1Primed)
+      Not(prime(invariantProgress1))
     )
     assertUnsat(fs)
   }
@@ -176,7 +164,7 @@ class OtrExample extends FunSuite {
       invariantProgress1,
       magicRound
       tr,
-      Not(invariantProgress2Primed)
+      Not(prime(invariantProgress2))
     )
     assertUnsat(fs)
   }
@@ -187,7 +175,7 @@ class OtrExample extends FunSuite {
     val fs = List(
       invariantProgress2,
       tr,
-      Not(invariantProgress2Primed)
+      Not(prime(invariantProgress2))
     )
     assertUnsat(fs)
   }
@@ -197,7 +185,7 @@ class OtrExample extends FunSuite {
   test("integrity") {
     val fs = List(
       invariantAgreement,
-      invariantAgreementPrimed,
+      prime(invariantAgreement),
       tr,
       Not(integrity)
     )
@@ -210,7 +198,7 @@ class OtrExample extends FunSuite {
     val fs = List(
       validity,
       tr,
-      Not(validityPrimed)
+      Not(prime(validity))
     )
     assertUnsat(fs)
   }

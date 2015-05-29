@@ -16,6 +16,11 @@ import dzufferey.utils.Namer
 // * set of ground terms
 // * namer for hygiene
 
+//TODO
+// more efficient implementation
+// better simplification:
+//  redundant terms and formula being generated multiple times
+
 /** Instance generation: methods to instanciate the quantifiers */
 object InstGen {
 
@@ -41,7 +46,8 @@ object InstGen {
       Or(args2:_*)
     case And(args @ _*) =>
       val args2 = args.map(instantiateGlobally(_, groundTerms))
-      And(args2:_*)
+      val args3 = args2.flatMap(FormulaUtils.getConjuncts)
+      And(args3:_*)
     case Exists(vs, f) =>
       Exists(vs, instantiateGlobally(f, groundTerms))
     case ForAll(vs, f) =>

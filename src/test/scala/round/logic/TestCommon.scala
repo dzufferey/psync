@@ -7,8 +7,9 @@ import dzufferey.utils.Logger
 object TestCommon {
 
   def assertUnsat(conjuncts: List[Formula]) {
-    val c0 = conjuncts.map(Simplify.simplify)
-    val f0 = And(c0 :_*)
+    val c0 = conjuncts.flatMap(FormulaUtils.getConjuncts(_))
+    val c1 = c0.map(Simplify.simplify)
+    val f0 = And(c1 :_*)
     val f1 = CL.reduce(f0)
     val solver = Solver(UFLIA)
     assert(!solver.testB(f1), "unsat formula")
@@ -18,10 +19,11 @@ object TestCommon {
     Logger.moreVerbose
     Logger.moreVerbose
     Logger.disallow("Typer")
-    val c0 = conjuncts.map(Simplify.simplify)
+    val c0 = conjuncts.flatMap(FormulaUtils.getConjuncts(_))
+    val c1 = c0.map(Simplify.simplify)
     println("=======before reduce ")
-    c0.foreach( f => println("  " + f) )
-    val f0 = And(c0 :_*)
+    c1.foreach( f => println("  " + f) )
+    val f0 = And(c1 :_*)
     val f1 = CL.reduce(f0)
     println("======= send to solver")
     FormulaUtils.getConjuncts(f1).foreach( f => println("  " + f) )
@@ -35,8 +37,9 @@ object TestCommon {
   }
 
   def assertSat(conjuncts: List[Formula]) {
-    val c0 = conjuncts.map(Simplify.simplify)
-    val f0 = And(c0 :_*)
+    val c0 = conjuncts.flatMap(FormulaUtils.getConjuncts(_))
+    val c1 = c0.map(Simplify.simplify)
+    val f0 = And(c1 :_*)
     val f1 = CL.reduce(f0)
     val solver = Solver(UFLIA)
     assert( solver.testB(f1), "sat formula")

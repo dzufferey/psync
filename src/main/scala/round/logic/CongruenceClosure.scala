@@ -5,6 +5,8 @@ import round.formula._
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
+//TODO something more incremental, so when new terms are generated, not needed to make it again from scratch
+
 //congruence closure to reduce the number of terms in the instanciation
 object CongruenceClosure {
 
@@ -51,9 +53,13 @@ object CongruenceClosure {
     processEqs(f)
     
     //extract the CC classes
-    //TODO could we return the simplest representative ?, i.e., a variables if there is one
+    //tries to return a simple representative (minimal according to FormulaOrdering)
     val cls = formulaToNode.values.groupBy(_.find)
-    val classes = cls.map{ case (repr, ms) => new CongruenceClass(repr.formula, ms.map(_.formula).toSet) }
+    val classes = cls.map{ case (_, ms) =>
+      import FormulaUtils.FormulaOrdering
+      val msf = ms.map(_.formula).toSet
+      new CongruenceClass(msf.min, msf) 
+    }
     val map = classes.foldLeft(Map.empty[Formula, CongruenceClass])( (acc, c) => {
       c.members.foldLeft(acc)( (a, m) => a + (m -> c) )
     } )
