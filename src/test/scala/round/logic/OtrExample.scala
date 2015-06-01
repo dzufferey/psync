@@ -123,85 +123,72 @@ class OtrExample extends FunSuite {
 
   //TODO some simple test for the encoding of the mailbox
   
-  /*
-  test("invariant is inductive") {
-    val fs = List(
-      //ForAll(List(i), Eq(Cardinality(mailbox(i)),Literal(0))), //try the else branch
-      invariantAgreement,
-      tr,
-      Not(prime(invariantAgreement))
-    )
-    assertUnsat(fs)
-  }
-  */
+//test("invariant is inductive") {
+//  val fs = List(
+//    //ForAll(List(i), Eq(Cardinality(mailbox(i)),Literal(0))), //try the else branch
+//    invariantAgreement,
+//    tr,
+//    Not(prime(invariantAgreement))
+//  )
+//  assertUnsat(fs)
+//}
 
-  /*
-  test("1st magic round") {
-    val fs = List(
-      invariantAgreement,
-      magicRound
-      tr,
-      Not(prime(invariantProgress1))
-    )
-    assertUnsat(fs)
-  }
-  */
-  
-  /*
-  test("invariant 1 is inductive") {
-    val fs = List(
-      invariantProgress1,
-      tr,
-      Not(prime(invariantProgress1))
-    )
-    assertUnsat(fs)
-  }
-  */
-  
-  /*
-  test("2nd magic round") {
-    val fs = List(
-      invariantProgress1,
-      magicRound
-      tr,
-      Not(prime(invariantProgress2))
-    )
-    assertUnsat(fs)
-  }
-  */
+//test("1st magic round") {
+//  val fs = List(
+//    invariantAgreement,
+//    magicRound
+//    tr,
+//    Not(prime(invariantProgress1))
+//  )
+//  assertUnsat(fs)
+//}
 
-  /*
-  test("invariant 2 is inductive") {
-    val fs = List(
-      invariantProgress2,
-      tr,
-      Not(prime(invariantProgress2))
-    )
-    assertUnsat(fs)
-  }
-  */
-  
-  /*
-  test("integrity") {
-    val fs = List(
-      invariantAgreement,
-      prime(invariantAgreement),
-      tr,
-      Not(integrity)
-    )
-    assertUnsat(fs)
-  }
-  */
+//test("invariant 1 is inductive") {
+//  val fs = List(
+//    invariantProgress1,
+//    tr,
+//    Not(prime(invariantProgress1))
+//  )
+//  assertUnsat(fs)
+//}
 
-  /*
-  test("validity is inductive") {
-    val fs = List(
-      validity,
-      tr,
-      Not(prime(validity))
-    )
-    assertUnsat(fs)
-  }
-  */
+//test("2nd magic round") {
+//  val fs = List(
+//    invariantProgress1,
+//    magicRound
+//    tr,
+//    Not(prime(invariantProgress2))
+//  )
+//  assertUnsat(fs)
+//}
+
+//test("invariant 2 is inductive") {
+//  val fs = List(
+//    invariantProgress2,
+//    tr,
+//    Not(prime(invariantProgress2))
+//  )
+//  assertUnsat(fs)
+//}
+
+//test("integrity") {
+//  val fs = List(
+//    invariantAgreement,
+//    prime(invariantAgreement),
+//    tr,
+//    Not(integrity)
+//  )
+//  assertUnsat(fs)
+//}
+
+//test("validity is inductive") {
+//  val fs = List(
+//    //ForAll(List(i), Eq(Cardinality(mailbox(i)),Literal(0))), //try the else branch
+//    validity,
+//    tr,
+//    Not(prime(validity))
+//  )
+//  assertUnsat(fs, 60000)
+//}
 
 }

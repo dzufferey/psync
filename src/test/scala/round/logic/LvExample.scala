@@ -247,44 +247,44 @@ class LvExample extends FunSuite {
   test("validity holds initially") {
     assertUnsat(List(initialState, Not(validity)))
   }
+
+  //TODO those completely blow-up
   
-  /*
-  test("invariant 1 is inductive at round 1") {
-    val fs = List(
-      invariant1,
-      round1,
-      Not(prime(invariant1))
-    )
-    assertUnsat(fs)
-  }
+//test("invariant 1 is inductive at round 1") {
+//  val fs = List(
+//    invariant1,
+//    round1,
+//    Not(prime(invariant1))
+//  )
+//  assertUnsat(fs)
+//}
 
-  test("invariant 1 is inductive at round 2") {
-    val fs = List(
-      invariant1,
-      round2,
-      Not(prime(invariant1))
-    )
-    assertUnsat(fs)
-  }
+//test("invariant 1 is inductive at round 2") {
+//  val fs = List(
+//    invariant1,
+//    round2,
+//    Not(prime(invariant1))
+//  )
+//  assertUnsat(fs)
+//}
 
-  test("invariant 1 is inductive at round 3") {
-    val fs = List(
-      invariant1,
-      round3,
-      Not(prime(invariant1))
-    )
-    assertUnsat(fs)
-  }
+//test("invariant 1 is inductive at round 3") {
+//  val fs = List(
+//    invariant1,
+//    round3,
+//    Not(prime(invariant1))
+//  )
+//  assertUnsat(fs)
+//}
 
-  test("invariant 1 is inductive at round 4") {
-    val fs = List(
-      invariant1,
-      round4,
-      Not(prime(invariant1))
-    )
-    assertUnsat(fs)
-  }
-  */
+//test("invariant 1 is inductive at round 4") {
+//  val fs = List(
+//    invariant1,
+//    round4,
+//    Not(prime(invariant1))
+//  )
+//  assertUnsat(fs)
+//}
 
 
 }

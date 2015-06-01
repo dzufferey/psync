@@ -150,7 +150,6 @@ class CL(bound: Option[Int],
     case _ => None
   }
 
-  //TODO non-empty scope means we should introduce more terms
   def reduceComprehension(conjuncts: List[Formula],
                           cClasses: CongruenceClasses = new CongruenceClasses(Nil, Map.empty),
                           univConjuncts: List[Formula]=Nil): List[Formula] = {

@@ -127,8 +127,8 @@ class VennRegions(tpe: Type,
   def nonZeroCardNonEmpty: Seq[Formula] = {
     for(i <- 0 until nbrVennRegions) yield {
       //here we should be a bit more cautious and keep only the clauses where elt appears
-      val rawCstr = InstGen.saturate(And(univ:_*), cc.groundTerms + elt, cc, Some(0), false) //TODO smarter
-      val univCstr = FormulaUtils.getConjuncts(rawCstr).filter(_.freeVariables contains elt)
+      val rawCstr = InstGen.saturateWith(And(univ:_*), Set(elt), cc.groundTerms, cc, Some(0), false)
+      val univCstr = FormulaUtils.getConjuncts(rawCstr).filter(_.freeVariables contains elt) //TODO filtering is much faster but incomplete...
       Exists(List(elt), Implies(Leq(Literal(1), mkVar(i)), And(mkMembership(elt, i) :: univCstr :_*)))
     }
   }
