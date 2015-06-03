@@ -83,6 +83,9 @@ case class Product(cmpts: List[Type]) extends Type {
     if (cmpts == c2) this else Product(c2)
   }
 }
+object Product {
+  def apply(t: Type, ts: Type*): Product = Product(t :: ts.toList)
+}
 
 case class Function(args: List[Type], returns: Type) extends Type {
   override def toString = args.mkString("(","->","->") + returns + ")"

@@ -15,6 +15,10 @@ scalacOptions in Compile ++= Seq(
 //    "-Xlog-implicit-conversions"
 )
 
+logBuffered in Test := false
+
+parallelExecution in Test := false
+
 libraryDependencies ++=  Seq(
     "org.scala-lang" % "scala-reflect" % scalaVersion.value,
     "org.scala-lang" % "scala-compiler" % scalaVersion.value,

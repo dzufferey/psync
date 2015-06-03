@@ -7,9 +7,14 @@ import dzufferey.utils.LogLevel._
 import dzufferey.utils.Namer
 
 object CL extends CL( Some(2), //pairwise Venn regions
-                      Some(Set(UnInterpreted("ProcessID"))) //only on set of type ProcessID
-                    ) {
-  
+                      Some(Set(UnInterpreted("ProcessID")))) //only on set of type ProcessID
+
+object ClFull extends CL(None, None) 
+
+
+class CL(bound: Option[Int],
+         onType: Option[Set[Type]]) {
+
   val procType = UnInterpreted("ProcessID")
   val HO = UnInterpretedFct("HO",Some(procType ~> FSet(procType)))
   val n = Variable("n").setType(Int)
@@ -22,17 +27,8 @@ object CL extends CL( Some(2), //pairwise Venn regions
     FormulaUtils.collect(false, check, f)
   }
 
-}
-
-object ClFull extends CL(None, None) 
-
-class CL(bound: Option[Int],
-         onType: Option[Set[Type]]) {
-
   //TODO generalize
   //-Map[A,B] as a Set[A] of keys and a content(key: A): B function
-
-  import CL.{procType, HO, n, hasHO}
 
   protected def normalize(f: Formula) = {
     //TODO some (lazy) CNF conversion ?
@@ -68,8 +64,8 @@ class CL(bound: Option[Int],
   //make sure we have a least one process
   protected def getGrounTerms(fs: List[Formula]): Set[Formula] = {
     val gts0 = FormulaUtils.collectGroundTerms(And(fs:_*))
-    if (gts0.exists( t => t.tpe == CL.procType)) gts0
-    else gts0 + Variable(Namer("p")).setType(CL.procType)
+    if (gts0.exists( t => t.tpe == procType)) gts0
+    else gts0 + Variable(Namer("p")).setType(procType)
   }
 
   //TODO assumes positive occurance!!
@@ -197,7 +193,7 @@ class CL(bound: Option[Int],
     //-congruence closure to reduce the number of terms instanciation
 
     val query = normalize(formula)
-    assert(Typer(query).success, "CL.entailment, not well typed")
+    assert(Typer(query).success, "CL.reduce, not well typed")
 
     //remove the top level ∃ quantifiers (sat query)
     val (query1, _) = Quantifiers.getExistentialPrefix(query)
@@ -217,11 +213,13 @@ class CL(bound: Option[Int],
     val cCls0 = CongruenceClosure(clauses)
     //separte groud term into equivalence classes 
     val gts0 = getGrounTerms(epr)
-    val inst0 = FormulaUtils.getConjuncts(InstGen.saturate(And(rest:_*), gts0, cCls0, Some(0), false))
+    val rawInst = InstGen.saturate(And(rest:_*), gts0, cCls0, Some(0), false)
+    val inst0 = FormulaUtils.getConjuncts(rawInst)
+    Logger("CL", Debug, "after instantiation:\n  " + inst0.mkString("\n  "))
 	    
     //the venn regions
     val cCls1 = CongruenceClosure(epr ++ inst0)
-    val withILP = epr ::: CL.reduceComprehension(inst0, cCls1, univ)
+    val withILP = epr ::: reduceComprehension(inst0, cCls1, univ)
     
     //add axioms for the other theories
     val withSetAx = SetOperationsAxioms.addAxioms(withILP)

@@ -66,6 +66,9 @@ object FormulaUtils {
       case (Binding(_,_,_), _) => 1
     }
   }
+  
+  //TODO use this in the normalization
+  val commutative = Set[Symbol](And,Or,Eq,Neq,Plus,Times,Union,Intersection)
 
   def alpha(map: Map[Variable, Variable], f: Formula): Formula = {
     val a = new Alpha(map)
@@ -261,6 +264,8 @@ object FormulaUtils {
     collect(Set[(Symbol, List[Type])](), process, f)
   }
 
+  val symbolExcludedFromGroundTerm = Set[Symbol](And,Or,Not,Implies,Eq,Neq)
+
   def collectGroundTerms(f: Formula): Set[Formula] = {
     def collect(f: Formula, bound: Set[Variable]): (Set[Formula], Boolean) = f match {
       case Binding(_, vs, f) => (collect(f, bound ++ vs)._1, false)
@@ -269,9 +274,7 @@ object FormulaUtils {
           val (x,y) = collect(f, bound)
           (acc._1 ++ x, acc._2 && y)
         })
-        val nonBool = fct != And && fct != Or && fct != Not &&
-                      fct != Implies && fct != Eq && fct != Neq
-        if (ground && nonBool) (acc + a, true)
+        if (ground && !symbolExcludedFromGroundTerm(fct)) (acc + a, true)
         else (acc, false)
       case l @ Literal(_) =>
         (Set(l), true)

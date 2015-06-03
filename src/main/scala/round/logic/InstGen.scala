@@ -27,7 +27,7 @@ object InstGen {
   /** instantiate the given free variable with the provided gounded terms (substitution) */
   protected def instantiateWithTerms(v: Variable, axiom: Formula, groundTerms: Set[Formula]): List[Formula] = {
     val candidates = groundTerms.filter(_.tpe == v.tpe).toList
-    Logger("InstGen", Debug, "instantiating "+ v +" with " + candidates.mkString(", "))
+    Logger("InstGen", Debug, "(O) instantiating "+ v +" with " + candidates.mkString(", "))
     candidates.toList.map( gt => FormulaUtils.replace(v, gt, axiom) )
   }
 
@@ -63,6 +63,7 @@ object InstGen {
         val candidates = mandatoryTerms.filter(_.tpe == v.tpe).toList
         val f2Now = if (candidates.isEmpty) True()
                     else instantiateGlobally(ForAll(vs, f), Set(), true, mandatoryTerms ++ groundTerms)
+        Logger("InstGen", Debug, "(M) instantiating "+ v +" with " + candidates.mkString(", "))
         val f3Now = candidates.toList.map( gt => FormulaUtils.replace(v, gt, f2Now) )
         //case 2: not now
         val f3NotNow = instantiateWithTerms(v, f2, groundTerms)

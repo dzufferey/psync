@@ -1,8 +1,6 @@
 package round.logic
 
 import round.formula._
-import round.utils.smtlib._
-import dzufferey.utils.Logger
 import TestCommon._
 
 import org.scalatest._
@@ -15,6 +13,7 @@ class OtrExample extends FunSuite {
 
   val i = Variable("i").setType(pid)
   val j = Variable("j").setType(pid)
+  val k = Variable("k").setType(pid)
 
   val ho = CL.HO
   val n = CL.n
@@ -71,16 +70,15 @@ class OtrExample extends FunSuite {
 
   //min most often received
   val mmor = UnInterpretedFct("mmor", Some(pid ~> Int))
-  val mmorDef = ForAll(List(i,v), Or(
-    Lt( Cardinality(Comprehension(List(j), In(Tuple(v,j), mailbox(i)))),
-        Cardinality(Comprehension(List(j), In(Tuple(mmor(i),j), mailbox(i))))),
-    Leq(mmor(i), v)
-  ))
 
   //transition relation
   val tr = And(
     //aux fun
-    mmorDef,
+    ForAll(List(i,v), Or(
+      Lt( Cardinality(Comprehension(List(j), In(Tuple(v,j), mailbox(i)))),
+          Cardinality(Comprehension(List(j), In(Tuple(mmor(i),j), mailbox(i))))),
+      Leq(mmor(i), v)
+    )),
     //send, mailbox
     ForAll(List(i,j), Eq(In(i,ho(j)), In(Tuple(data(i),j), mailbox(i)))),
     ForAll(List(i), Eq(Cardinality(mailbox(i)), Cardinality(ho(i)))),
@@ -95,6 +93,31 @@ class OtrExample extends FunSuite {
         )))
       ),
       Implies(Not(twoThird(mailbox(i))),
+        And(Eq(decided(i), decided1(i)), Eq(data1(i), data(i)))
+      )
+    ))
+  )
+
+  //sightly different encoding of the mailbox
+  val tr2 = And(
+    //aux fun
+    ForAll(List(i,k), Or(
+      Lt( Cardinality(Comprehension(List(j), And(In(j,ho(i)), Eq(data(j),data(k))))),
+          Cardinality(Comprehension(List(j), And(In(j,ho(i)), Eq(data(j),mmor(i)))))),
+      Leq(mmor(i),data(k))
+    )),
+    ForAll(List(i), Exists(List(j), Eq(mmor(i), data(j)))),
+    //update
+    ForAll(List(i), And(
+      Implies(twoThird(ho(i)),
+        And(Eq(data1(i), mmor(i)),
+            Exists(List(a), And(
+              Eq(a, Comprehension(List(j), And(In(j,ho(i)), Eq(data(j),mmor(i))))),
+              Implies(twoThird(a), Eq(decided1(i), True())),
+              Implies(Not(twoThird(a)), Eq(decided1(i), decided(i)))
+        )))
+      ),
+      Implies(Not(twoThird(ho(i))),
         And(Eq(decided(i), decided1(i)), Eq(data1(i), data(i)))
       )
     ))
@@ -121,16 +144,15 @@ class OtrExample extends FunSuite {
     assertUnsat(List(ForAll(List(i), Eq(data0(i), data(i))), Not(validity)))
   }
 
-  //TODO some simple test for the encoding of the mailbox
-  
 //test("invariant is inductive") {
 //  val fs = List(
 //    //ForAll(List(i), Eq(Cardinality(mailbox(i)),Literal(0))), //try the else branch
 //    invariantAgreement,
-//    tr,
+//    //tr,
+//    tr2,
 //    Not(prime(invariantAgreement))
 //  )
-//  assertUnsat(fs)
+//  assertUnsat(fs, 10000, true) //, 60000, false, Some("test.smt2"), true)
 //}
 
 //test("1st magic round") {
@@ -185,7 +207,8 @@ class OtrExample extends FunSuite {
 //  val fs = List(
 //    //ForAll(List(i), Eq(Cardinality(mailbox(i)),Literal(0))), //try the else branch
 //    validity,
-//    tr,
+//    //tr,
+//    tr2,
 //    Not(prime(validity))
 //  )
 //  assertUnsat(fs, 60000)

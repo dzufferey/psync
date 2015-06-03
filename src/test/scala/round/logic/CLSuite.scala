@@ -155,11 +155,18 @@ class CLSuite extends FunSuite {
     assertUnsat(fs)
   }
 
-  test("universe cardinality ⇒ ∀") {
+  test("universe cardinality ⇒ ∀ (1)") {
     val fs = List(
-      Eq(a, Comprehension(List(i), Eq(data(i), Literal(1)))),
-      Eq(Cardinality(a), n),
+      Eq(Cardinality(Comprehension(List(i), Eq(data(i), Literal(1)))), n),
       ForAll(List(i), Eq(data(i), Literal(0)))
+    )
+    assertUnsat(fs)
+  }
+
+  test("universe cardinality ⇒ ∀ (2)") {
+    val fs = List(
+      Eq(Cardinality(Comprehension(List(i), Eq(data(i), Literal(1)))), n),
+      Eq(data(j), Literal(0))
     )
     assertUnsat(fs)
   }

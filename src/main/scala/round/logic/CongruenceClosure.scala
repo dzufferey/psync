@@ -81,6 +81,10 @@ class CongruenceClasses(cls: Iterable[CongruenceClass], map: Map[Formula, Congru
     else f
   }
 
+  def classes = cls
+  
+  def knows(f: Formula) = map.contains(f)
+
   def normalize(f: Formula) = {
     FormulaUtils.mapTopDown(repr(_), f)
   }
@@ -108,6 +112,13 @@ class CongruenceClass(val repr: Formula, val members: Set[Formula]) {
     else And(eqs:_*)
   }
   def terms: Set[Formula] = Set(repr) ++ members
+  def tpe = repr.tpe
+  override def equals(a: Any): Boolean = {
+    if (a.isInstanceOf[CongruenceClass]) {
+      a.asInstanceOf[CongruenceClass].members == members
+    } else false
+  }
+  override def hashCode: Int = members.hashCode
 }
 
 //node in the CC graph

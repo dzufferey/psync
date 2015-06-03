@@ -1,8 +1,6 @@
 package round.logic
 
 import round.formula._
-import round.utils.smtlib._
-import dzufferey.utils.Logger
 import TestCommon._
 
 import org.scalatest._
@@ -12,6 +10,7 @@ import org.scalatest._
 class LvExample extends FunSuite {
 
   val pid = CL.procType
+  val pld = UnInterpreted("payload")
 
   val i = Variable("i").setType(pid)
   val j = Variable("j").setType(pid)
@@ -23,26 +22,25 @@ class LvExample extends FunSuite {
 
   val a = Variable("A").setType(FSet(pid))
 
-  val v = Variable("v").setType(Int) 
+  val v = Variable("v").setType(pld) 
   val t = Variable("t").setType(Int) 
 
-  val mailbox1 = UnInterpretedFct("mailbox", Some(pid ~> FSet(Product(List(Product(List(Int,Int)),pid)))))
-  val mailbox2 = UnInterpretedFct("mailbox", Some(pid ~> FSet(Product(List(Int,pid)))))
+  val mailbox1 = UnInterpretedFct("mailbox", Some(pid ~> FSet(Product(Product(pld,Int),pid))))
+  val mailbox2 = UnInterpretedFct("mailbox", Some(pid ~> FSet(Product(pld,pid))))
   val mailbox3 = UnInterpretedFct("mailbox", Some(pid ~> FSet(pid)))
-  val mailbox4 = UnInterpretedFct("mailbox", Some(pid ~> FSet(Product(List(Int,pid)))))
+  val mailbox4 = UnInterpretedFct("mailbox", Some(pid ~> FSet(Product(pld,pid))))
 
   val coord = UnInterpretedFct("coord", Some(pid ~> pid))
 
-  val data = UnInterpretedFct("data",Some(pid ~> Int))
-  val data1 = UnInterpretedFct("data1",Some(pid ~> Int))
-
-  val data0 = UnInterpretedFct("data0",Some(pid ~> Int))
+  val data0 = UnInterpretedFct("data0",Some(pid ~> pld))
+  val data = UnInterpretedFct("data",Some(pid ~> pld))
+  val data1 = UnInterpretedFct("data1",Some(pid ~> pld))
 
   val decided = UnInterpretedFct("decided", Some(pid ~> Bool))
   val decided1 = UnInterpretedFct("decided1", Some(pid ~> Bool))
 
-  val vote = UnInterpretedFct("vote",Some(pid ~> Int))
-  val vote1 = UnInterpretedFct("vote1",Some(pid ~> Int))
+  val vote = UnInterpretedFct("vote",Some(pid ~> pld))
+  val vote1 = UnInterpretedFct("vote1",Some(pid ~> pld))
 
   val commit = UnInterpretedFct("commit",Some(pid ~> Bool))
   val commit1 = UnInterpretedFct("commit1",Some(pid ~> Bool))
@@ -84,8 +82,8 @@ class LvExample extends FunSuite {
   //transition relations
 
   val mt = Variable("mt").setType(Int) 
-  val maxTS = UnInterpretedFct("maxTS", Some(FSet(Product(List(Product(List(Int,Int)),pid))) ~> Int))
-  val b = Variable("B").setType(FSet(Product(List(Product(List(Int,Int)),pid))))
+  val maxTS = UnInterpretedFct("maxTS", Some(FSet(Product(Product(pld,Int),pid)) ~> pld))
+  val b = Variable("B").setType(FSet(Product(Product(pld,Int),pid)))
 
   val round1 = And(
     //aux fun
@@ -256,7 +254,7 @@ class LvExample extends FunSuite {
 //    round1,
 //    Not(prime(invariant1))
 //  )
-//  assertUnsat(fs)
+//  assertUnsat(fs)//, 60000, true, Some("test.smt2"))
 //}
 
 //test("invariant 1 is inductive at round 2") {

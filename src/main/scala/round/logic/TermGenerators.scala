@@ -7,6 +7,7 @@ import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
 //facility to generate additional ground terms (ψ-local theory extensions)
+
 /** define a term generation function
  * @param vars are the free variables in expr that are replaced with ground terms during the generation
  * @param expr is the template expression to generate
@@ -20,7 +21,7 @@ class TermGenerator(vars: List[Variable],
 
   //returns new terms, i.e., not already in gts
   def apply(gts: Set[Formula]): Set[Formula] = {
-    //TODO this is the braindead version...
+    //TODO this is the brain-dead version...
     val candidates = vars.map( v => gts.filter( t => {
       t.tpe == v.tpe &&
       FormulaUtils.collectSymbols(t).intersect(symbols).isEmpty

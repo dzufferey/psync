@@ -25,27 +25,38 @@ object TestCommon {
     val f0 = And(c1 :_*)
     val f1 = cl.reduce(f0)
     if(debug) {
-      println("======= send to solver")
-      FormulaUtils.getConjuncts(f1).foreach( f => println("  " + f) )
       Logger.lessVerbose
       Logger.lessVerbose
       Logger.allow("Typer")
+      println("======= send to solver")
+      FormulaUtils.getConjuncts(f1).foreach( f => println("  " + f) )
     }
     f1
   }
 
-  def assertUnsat(conjuncts: List[Formula], to: Long = 10000, debug: Boolean = false, fname: Option[String] = None) {
+  def assertUnsat(conjuncts: List[Formula], to: Long = 10000, debug: Boolean = false, fname: Option[String] = None, useCvcMf: Boolean = false) {
     val f1 = reduce(conjuncts, debug)
-    //val solver = Solver.cvc4mf(UFLIA, fname, to)
-    val solver = Solver(UFLIA, fname, to)
+    val solver = if (useCvcMf) Solver.cvc4mf(UFLIA, fname, to)
+                 else Solver(UFLIA, fname, to)
     assert(!solver.testB(f1), "unsat formula")
   }
 
-  def assertSat(conjuncts: List[Formula], to: Long = 10000, debug: Boolean = false, fname: Option[String] = None) {
+  def assertSat(conjuncts: List[Formula], to: Long = 10000, debug: Boolean = false, fname: Option[String] = None, useCvcMf: Boolean = false) {
     val f1 = reduce(conjuncts, debug)
-    //val solver = Solver.cvc4mf(UFLIA, fname, to)
-    val solver = Solver(UFLIA, fname, to)
+    val solver = if (useCvcMf) Solver.cvc4mf(UFLIA, fname, to)
+                 else Solver(UFLIA, fname, to)
     assert( solver.testB(f1), "sat formula")
+  }
+
+  def getModel(conjuncts: List[Formula]) {
+    val f1 = reduce(conjuncts, true)
+    val solver = Solver(UFLIA)
+    solver.testWithModel(f1) match {
+      case Sat(Some(model)) =>
+        Console.println(model.toString)
+      case res =>
+        assert( false, "could not parse model: " + res)
+    }
   }
 
 }
