@@ -167,6 +167,7 @@ class TpcExample extends FunSuite {
 //    round1b,
 //    Not(prime(invariant1))
 //  )
+//  //getModel(fs)
 //  assertUnsat(fs)
 //}
 
