@@ -163,6 +163,25 @@ object Simplify {
     ???
   }
 
+  //TODO mergedForall, splitExist, mergeExist
+
+  def splitForall(f: Formula): Formula = {
+    val f0 = nnf(f)
+    def split(f: Formula): Formula = f match {
+      case ForAll(vars, And(conjs @ _*)) =>
+        And(conjs.map( c => {
+          val vars2 = vars.filter(c.freeVariables)
+          if (vars2.isEmpty) c
+          else ForAll(vars2, c)
+        }):_*)
+      case And(_*) =>
+        val conjs2 = FormulaUtils.getConjuncts(f)
+        Copier.Application(f, And, conjs2)
+      case other => other
+    }
+    FormulaUtils.map(split, f)
+  }
+
   //makes all the bound variables different
   def boundVarUnique(f: Formula): Formula = {
     def s(subst: Map[String, String], v: Variable): Variable = {
@@ -221,6 +240,7 @@ object Simplify {
   }
   
   def simplifyQuantifiers(f: Formula): Formula = {
+    //TODO merge chained ForAll and Exists
     def fct(formula: Formula) = formula match {
       case ForAll(vs, f) =>
         val free = f.freeVariables
@@ -340,13 +360,13 @@ object Simplify {
         if (lst2.exists(_ == True())) True()
         else if (lst2.isEmpty) False()
         else if (lst2.size == 1) lst2.head
-        else Application(Or, lst2.toList.sorted).setType(Bool)
+        else Copier.Application(f, Or, lst2.toList.sorted)
       case And(lst @ _*) =>
         val lst2 = lst.toSet.filterNot(_ == True())
         if (lst2.exists(_ == False())) False()
         else if (lst2.isEmpty) True()
         else if (lst2.size == 1) lst2.head
-        else Application(And, lst2.toList.sorted).setType(Bool)
+        else Copier.Application(f, And, lst2.toList.sorted)
       case Not(Literal(b: Boolean)) =>
         Literal(!b)
       case other =>

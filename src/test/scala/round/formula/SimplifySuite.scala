@@ -46,5 +46,15 @@ class SimplifySuite extends FunSuite {
     val i2 = Variable("Int_2").setType(Int)
     assert(f3 == Exists(List(i2, i1), Eq(i2, i1)))
   }
+  
+  test("split ∀ 1") {
+    val a = Variable("a").setType(Int)
+    val b = Variable("b").setType(Int)
+    val c = Variable("c").setType(Int)
+    val f = ForAll(List(a,b,c), And(Eq(a, b), Eq(a, c)))
+    val expected = And(ForAll(List(a,b), Eq(a,b)), ForAll(List(a,c), Eq(a,c)))
+    val f2 = Simplify.splitForall(f)
+    assert(Simplify.simplify(f2) == Simplify.simplify(expected))
+  }
 
 }
