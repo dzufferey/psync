@@ -55,6 +55,16 @@ class QuantifiersSuite extends FunSuite {
     assert( Quantifiers.isStratified(f3, lt1))
     assert(!Quantifiers.isStratified(f3, lt2))
   }
+  
+  test("isStratified 2") {
+    import round.formula.Common._
+    val f1 = ForAll(List(p1), Eq(rp1, Literal(0)))
+    assert(TypeStratification.isStratified(f1))
+    val f2 = ForAll(List(p1), Eq(rqp1, Literal(0)))
+    assert(!TypeStratification.isStratified(f2))
+    val f3 = ForAll(List(p1), In(p1, CL.HO(p1)))
+    assert(TypeStratification.isStratified(f3))
+  }
 
 }
 

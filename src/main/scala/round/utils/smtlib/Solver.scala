@@ -120,6 +120,10 @@ class Solver( th: Theory,
             Logger("smtlib", Debug, "< " + line)
             acc.append(line)
             acc.append("\n")
+            //for large model we need to wait that the stream refill
+            if (!stream.ready) {
+              Thread.sleep(1)
+            }
           } while(stream.ready)
           acc.toString.trim
         }

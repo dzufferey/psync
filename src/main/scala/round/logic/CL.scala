@@ -229,7 +229,7 @@ class CL(bound: Option[Int],
 
     //clean-up and skolemization
     val last = cleanUp(withTpl)
-    assert(Typer(last).success, "CL.reduce, not well typed")
+    //assert(Typer(last).success, "CL.reduce, not well typed")
     last
   }
   

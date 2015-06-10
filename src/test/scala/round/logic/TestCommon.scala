@@ -48,9 +48,9 @@ object TestCommon {
     assert( solver.testB(f1), "sat formula")
   }
 
-  def getModel(conjuncts: List[Formula]) {
+  def getModel(conjuncts: List[Formula], to: Long = 10000) {
     val f1 = reduce(conjuncts, true)
-    val solver = Solver(UFLIA)
+    val solver = Solver(UFLIA, None, to)
     solver.testWithModel(f1) match {
       case Sat(Some(model)) =>
         Console.println(model.toString)

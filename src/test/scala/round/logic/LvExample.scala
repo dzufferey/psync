@@ -25,11 +25,6 @@ class LvExample extends FunSuite {
   val v = Variable("v").setType(pld) 
   val t = Variable("t").setType(Int) 
 
-  val mailbox1 = UnInterpretedFct("mailbox", Some(pid ~> FSet(Product(Product(pld,Int),pid))))
-  val mailbox2 = UnInterpretedFct("mailbox", Some(pid ~> FSet(Product(pld,pid))))
-  val mailbox3 = UnInterpretedFct("mailbox", Some(pid ~> FSet(pid)))
-  val mailbox4 = UnInterpretedFct("mailbox", Some(pid ~> FSet(Product(pld,pid))))
-
   val coord = UnInterpretedFct("coord", Some(pid ~> pid))
 
   val data0 = UnInterpretedFct("data0",Some(pid ~> pld))
@@ -85,6 +80,7 @@ class LvExample extends FunSuite {
   val maxTS = UnInterpretedFct("maxTS", Some(FSet(Product(Product(pld,Int),pid)) ~> pld))
   val b = Variable("B").setType(FSet(Product(Product(pld,Int),pid)))
 
+  val mailbox1 = UnInterpretedFct("mailbox", Some(pid ~> FSet(Product(Product(pld,Int),pid))))
   val round1 = And(
     //aux fun
     ForAll(List(b), Exists(List(mt,j),
@@ -126,6 +122,7 @@ class LvExample extends FunSuite {
     ))
   )
 
+  val mailbox2 = UnInterpretedFct("mailbox", Some(pid ~> FSet(Product(pld,pid))))
   val round2 = And(
     //send, mailbox
     ForAll(List(i,j),
@@ -155,6 +152,7 @@ class LvExample extends FunSuite {
     ))
   )
 
+  val mailbox3 = UnInterpretedFct("mailbox", Some(pid ~> FSet(pid)))
   val round3 = And(
     //send, mailbox
     ForAll(List(i,j),
@@ -179,30 +177,60 @@ class LvExample extends FunSuite {
     ))
   )
 
+//val mailbox4 = UnInterpretedFct("mailbox", Some(pid ~> FSet(Product(pld,pid))))
+//val round4 = And(
+//  //send, mailbox
+//  ForAll(List(i,j),
+//    Eq( In(Tuple(vote(i), i), mailbox4(j)),
+//        And(Eq(i, coord(i)),
+//            ready(i),
+//            In(i, ho(j))))
+//  ),
+//  //update
+//  ForAll(List(i), Exists(List(v),
+//    Implies(In(Tuple(v,coord(i)), mailbox4(i)),
+//      And(Eq(data1(i), v),
+//          Eq(decided1(i), True())))
+//  )),
+//  ForAll(List(i,v),
+//    Implies(Not(In(Tuple(v,coord(i)), mailbox4(i))),
+//      And(Eq(data1(i), data(i)),
+//          Eq(decided1(i), decided(i))))
+//  ),
+//  Eq(Plus(r, Literal(1)), r1),
+//  ForAll(List(i), And(
+//    //global update
+//    Eq(commit1(i), False()),
+//    Eq(ready1(i), False()),
+//    //frame
+//    Eq(decided(i), decided1(i)),
+//    Eq(data(i), data1(i)),
+//    Eq(vote(i), vote1(i)),
+//    Eq(timeStamp(i), timeStamp1(i))
+//  ))
+//)
+  val mailbox4 = UnInterpretedFct("mailbox", Some(pid ~> FSet(pid)))
   val round4 = And(
     //send, mailbox
-    ForAll(List(i,j),
-      Eq( In(Tuple(vote(i), i), mailbox4(j)),
-          And(Eq(i, coord(i)),
-              ready(i),
-              In(i, ho(j))))
+    ForAll(List(j),
+      Eq(mailbox4(j), Comprehension(List(i), And(Eq(i, coord(i)), ready(i), In(i, ho(j)))))
     ),
     //update
-    ForAll(List(i), Exists(List(v),
-      Implies(In(Tuple(v,coord(i)), mailbox4(i)),
-        And(Eq(data1(i), v),
+    ForAll(List(i),
+      Implies(In(coord(i), mailbox4(i)),
+        And(Eq(data1(i), vote(coord(i))),
             Eq(decided1(i), True())))
-    )),
-    ForAll(List(i,v),
-      Implies(Not(In(Tuple(v,coord(i)), mailbox4(i))),
+    ),
+    ForAll(List(i),
+      Implies(Not(In(coord(i), mailbox4(i))),
         And(Eq(data1(i), data(i)),
             Eq(decided1(i), decided(i))))
     ),
     Eq(Plus(r, Literal(1)), r1),
     ForAll(List(i), And(
       //global update
-      Eq(commit(i), False()),
-      Eq(ready(i), False()),
+      Eq(commit1(i), False()),
+      Eq(ready1(i), False()),
       //frame
       Eq(decided(i), decided1(i)),
       Eq(data(i), data1(i)),
@@ -223,11 +251,13 @@ class LvExample extends FunSuite {
       Eq(a, Comprehension(List(i), Leq(t, timeStamp(i)))),
       majority(a),
       Leq(t, r),
-      ForAll(List(i), Implies(In(i, a), Eq(data(i), v))),
-      ForAll(List(i), Implies(decided(i), Eq(data(i), v))),
-      ForAll(List(i), Implies(commit(i), Eq(vote(i), v))),
-      ForAll(List(i), Implies(ready(i), Eq(vote(i), v))),
-      ForAll(List(i), Implies(Eq(timeStamp(i), r), commit(coord(i))))
+      ForAll(List(i), And(Implies(In(i, a), Eq(data(i), v)),
+                          Implies(decided(i), Eq(data(i), v)),
+                          Implies(commit(i), Eq(vote(i), v)),
+                          Implies(ready(i), Eq(vote(i), v)),
+                          Implies(Eq(timeStamp(i), r), commit(coord(i)))
+                      )
+      )
       //TODO validity
     ))
   )
@@ -281,7 +311,8 @@ class LvExample extends FunSuite {
 //    round4,
 //    Not(prime(invariant1))
 //  )
-//  assertUnsat(fs)
+//  //assertUnsat(fs)//, 60000, true, Some("test.smt2"))
+//  getModel(fs, 60000)
 //}
 
 

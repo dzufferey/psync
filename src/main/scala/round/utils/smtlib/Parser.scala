@@ -37,7 +37,7 @@ object Parser extends StandardTokenParsers {
     opt("@") ~ super.ident ~ identTail  ^^ { case at ~ head ~ tail => at.getOrElse("") + head + tail }
   )
     
-  def paren[T](parser: Parser[T]): Parser[T] = "(" ~> parser <~ ")"
+  @inline private def paren[T](parser: Parser[T]): Parser[T] = "(" ~> parser <~ ")"
 
   def model: Parser[List[Command]] = paren("model" ~> rep(cmd))
 
