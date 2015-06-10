@@ -245,23 +245,25 @@ class LvExample extends FunSuite {
 
   //invariants
 
-  val invariant1 = Or(
-    ForAll(List(i), And(Not(decided(i)), Not(ready(i)))),
-    Exists(List(v,t,a), And(
-      Eq(a, Comprehension(List(i), Leq(t, timeStamp(i)))),
-      majority(a),
-      Leq(t, r),
-      ForAll(List(i), And(Implies(In(i, a), Eq(data(i), v)),
-                          Implies(decided(i), Eq(data(i), v)),
-                          Implies(commit(i), Eq(vote(i), v)),
-                          Implies(ready(i), Eq(vote(i), v)),
-                          Implies(Eq(timeStamp(i), r), commit(coord(i)))
-                      )
-      )
-      //TODO validity
-    ))
+  val invariant1 = And(
+    Or(
+      ForAll(List(i), And(Not(decided(i)), Not(ready(i)))),
+      Exists(List(v,t,a), And(
+        Eq(a, Comprehension(List(i), Leq(t, timeStamp(i)))),
+        majority(a),
+        Leq(t, r),
+        ForAll(List(i), And(Implies(In(i, a), Eq(data(i), v)),
+                            Implies(decided(i), Eq(data(i), v)),
+                            Implies(commit(i), Eq(vote(i), v)),
+                            Implies(ready(i), Eq(vote(i), v)),
+                            Implies(Eq(timeStamp(i), r), commit(coord(i)))
+                        )
+        )
+      ))
+    ),
+    ForAll(List(i), Exists(List(j), Eq(data(i), data0(j))))
   )
-
+  
   //test VCs
 
   test("initial state implies invariant") {

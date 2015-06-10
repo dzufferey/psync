@@ -46,7 +46,8 @@ class CL(bound: Option[Int],
       case _ => ()
     }
     FormulaUtils.traverse(check, f)
-    Quantifiers.isEPR(f) && !hasComp
+    //!hasComp && TypeStratification.isStratified(f)
+    !hasComp && Quantifiers.isEPR(f)
   }
 
   protected def forallOnly(f: Formula): Boolean = {
@@ -206,7 +207,7 @@ class CL(bound: Option[Int],
     val (epr, rest) = clauses.partition(keepAsIt)
     val (univ, rest1) = rest.partition(forallOnly)
   
-    Logger("CL", Debug, "epr clauses:\n  " + epr.mkString("\n  "))
+    Logger("CL", Debug, "epr/stratified clauses:\n  " + epr.mkString("\n  "))
     Logger("CL", Debug, "clauses to process:\n  " + rest.mkString("\n  "))
     //CD add neprUniv 	
     //get rid on the ∀ quantifiers

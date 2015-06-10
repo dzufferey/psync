@@ -187,10 +187,12 @@ class OtrExample extends FunSuite {
 //test("invariant 2 is inductive") {
 //  val fs = List(
 //    invariantProgress2,
-//    tr,
+//    //tr,
+//    tr2,
 //    Not(prime(invariantProgress2))
 //  )
-//  assertUnsat(fs)
+//  //assertUnsat(fs)
+//  getModel(fs, 60000, Some("test.smt2"))
 //}
 
 //test("integrity") {

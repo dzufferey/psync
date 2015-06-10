@@ -315,7 +315,7 @@ object Model {
     val defined = toSym.values.toSet
     val there = defs filter { case (s, _) => defined(s) }
 
-    var vs = variables.map( v => v.name -> v).toMap
+    var vs = variables.map( v => Printer.printable(v.name) -> v).toMap
     val vars = defs collect { case (UnInterpretedFct(v,_,_), d: ValDef) if vs contains v => vs(v) -> d }
 
     new Model(domains, vars, there)
