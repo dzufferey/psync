@@ -160,13 +160,76 @@ object Simplify {
 
   /** try to push the quantifiers as low as possible. */
   def reversePnf(f: Formula): Formula = {
-    ???
+    def partition(vars: Set[Variable],
+                  fs: Seq[Formula],
+                  mkApp: Symbol,
+                  mkQuant: (List[Variable], Formula) => Formula): Seq[Formula] = {
+      def span(v: Variable): Int = fs.foldLeft(0)( (acc,f) => if (f.freeVariables contains v) acc + 1 else acc )
+      def nonOverlapingSpan(vs: Set[Variable]): (Set[Variable], Seq[Formula], Seq[Formula]) = {
+        val (fIn,fOut) = fs.partition(f => !f.freeVariables.intersect(vs).isEmpty)
+        val overlapping = vars.filter( v => {
+          fIn.exists(_.freeVariables(v)) &&
+          fOut.exists(_.freeVariables(v))
+        })
+        if (overlapping.size > vs.size) nonOverlapingSpan(overlapping)
+        else {
+          val same = vars.filter(v => fIn.forall(_.freeVariables(v)))
+          assert(vs.subsetOf(same))
+          (same, fIn, fOut)
+        }
+      }
+
+      if (vars.isEmpty) {
+        fs
+      } else {
+        val largest = vars.maxBy(span)
+        val (currSpan, fIn, fOut) = nonOverlapingSpan(Set(largest))
+        val remaining = vars -- currSpan
+        val (strictlyIn, outside) = remaining.partition{ v =>
+          val sIn = fIn.exists( _.freeVariables(v)) &&
+                    fIn.exists(!_.freeVariables(v))
+          if (sIn) assert(fOut.forall(!_.freeVariables(v)))
+          else fOut.exists( _.freeVariables(v))
+          sIn
+        }
+        val fIn2 = partition(strictlyIn, fIn, mkApp, mkQuant)
+        val fOut2 = partition(outside, fOut, mkApp, mkQuant)
+        mkQuant(currSpan.toList, mkApp(fIn2:_*)) +: fOut2
+      }
+    }
+    def pushDown(f: Formula): Formula = f match {
+      case ForAll(vars, And(conjs @ _*)) =>
+        And(conjs.map( c => {
+          val vars2 = vars.filter(c.freeVariables)
+          if (vars2.isEmpty) c
+          else ForAll(vars2, c)
+        }):_*)
+      case Exists(vars, Or(disjs @ _*)) =>
+        Or(disjs.map( c => {
+          val vars2 = vars.filter(c.freeVariables)
+          if (vars2.isEmpty) c
+          else Exists(vars2, c)
+        }):_*)
+      case Exists(vars, And(conjs @ _*)) =>
+        val (c1,c2) = conjs.partition(c => c.freeVariables.exists(vars contains _))
+        val c1p = partition(vars.toSet, c1, And, Exists.apply)
+        And(c1p ++ c2 :_*)
+      case ForAll(vars, Or(disjs @ _*)) =>
+        val (c1,c2) = disjs.partition(c => c.freeVariables.exists(vars contains _))
+        val c1p = partition(vars.toSet, c1, Or, ForAll.apply)
+        Or(c1p ++ c2 :_*)
+      case other => other
+    }
+    def fixedPoint(f: Formula): Formula = {
+      val f0 = simplifyBool(simplifyQuantifiers(f))
+      val f1 = FormulaUtils.map(pushDown, f0)
+      val f2 = simplifyBool(simplifyQuantifiers(f1))
+      if (f0 != f2) fixedPoint(f2) else f2
+    }
+    fixedPoint(f)
   }
 
-  //TODO mergedForall, splitExist, mergeExist
-
   def splitForall(f: Formula): Formula = {
-    val f0 = nnf(f)
     def split(f: Formula): Formula = f match {
       case ForAll(vars, And(conjs @ _*)) =>
         And(conjs.map( c => {
@@ -181,6 +244,35 @@ object Simplify {
     }
     FormulaUtils.map(split, f)
   }
+
+  //warning: this will pull up the ∃ to the top ∨
+  def mergeExists(f: Formula): Formula = {
+    def merge(f: Formula): Formula = f match {
+      case Or(disjs @ _*) =>
+        val init = (List[Formula](), Set[Variable]())
+        val (disj2, vars) = disjs.foldLeft( init )( (acc, f) => {
+          val (fs, vs) = acc
+          val (f2, v) = round.logic.Quantifiers.getExistentialPrefix(f)
+          val existing = vs -- v
+          val news = v.filterNot(vs)
+          val (map,_) = news.foldLeft((Map[Variable,Variable](),existing))( (acc, v) => {
+            //try to map the news to existing of the same type and alpha
+            val (m,vs) = acc
+            vs.find(_.tpe == v.tpe) match {
+              case Some(v2) =>
+                (m + (v -> v2), vs - v2)
+              case None => acc
+            }
+          })
+          (FormulaUtils.alpha(map, f2) ::fs, vs ++ v.map( v => map.getOrElse(v,v)))
+        })
+        if (!vars.isEmpty) Exists(vars.toList, Or(disj2:_*))
+        else Copier.Application(f, Or, disjs.toList)
+      case other => other
+    }
+    FormulaUtils.map(merge, f)
+  }
+
 
   //makes all the bound variables different
   def boundVarUnique(f: Formula): Formula = {
@@ -240,16 +332,22 @@ object Simplify {
   }
   
   def simplifyQuantifiers(f: Formula): Formula = {
-    //TODO merge chained ForAll and Exists
-    def fct(formula: Formula) = formula match {
+    import FormulaUtils.VariableOrdering
+    def fct(formula: Formula): Formula = formula match {
+      case ForAll(vs, ForAll(vs2, f)) =>
+        val vs3 = (vs.toSet ++ vs2.toSet).toList
+        fct(ForAll(vs3, f))
+      case Exists(vs, Exists(vs2, f)) =>
+        val vs3 = (vs.toSet ++ vs2.toSet).toList
+        fct(Exists(vs3, f))
       case ForAll(vs, f) =>
         val free = f.freeVariables
         val vs2 = vs.filter(free contains _)
-        if (vs2.isEmpty) f else ForAll(vs2, f)
+        if (vs2.isEmpty) f else ForAll(vs2.sorted, f)
       case Exists(vs, f) =>
         val free = f.freeVariables
         val vs2 = vs.filter(free contains _)
-        if (vs2.isEmpty) f else Exists(vs2, f)
+        if (vs2.isEmpty) f else Exists(vs2.sorted, f)
       case other => other 
     }
     FormulaUtils.map(fct, f)

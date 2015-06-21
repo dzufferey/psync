@@ -28,6 +28,10 @@ object FormulaUtils {
     }
   }
 
+  implicit object VariableOrdering extends Ordering[Variable] {
+    def compare(a: Variable, b: Variable) = a.name compare b.name
+  }
+
   implicit object FormulaOrdering extends Ordering[Formula] {
     val lstOrdering = Ordering.Iterable(this)
 

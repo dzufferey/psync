@@ -23,6 +23,19 @@ class SimplifySuite extends FunSuite {
     assert(isPnf(f4))
   }
 
+  test("reverse pnf 1"){
+    val a = Variable("a").setType(Int)
+    val b = Variable("b").setType(Int)
+    val c = Variable("c").setType(Int)
+    val f0 = Eq(a,b)
+    val f1 = Eq(a,Plus(Literal(1),c))
+    val f2 = Eq(a,c)
+    val tst = ForAll(List(a,b), Exists(List(c), And(f0, Or(f1,f2))))
+    val tst2 = Simplify.reversePnf(tst)
+    val expected = And(ForAll(List(a,b), f0), ForAll(List(a), Or(Exists(List(c), f1), Exists(List(c), f2))))
+    assert(Simplify.simplify(tst2) == Simplify.simplify(expected))
+  }
+
   test("simplification 1") {
     val v = Variable("v").setType(Int)
     val s = Eq(v, Literal(1))
@@ -44,7 +57,7 @@ class SimplifySuite extends FunSuite {
     val f3 = Simplify.simplify(f2)
     val i1 = Variable("Int_1").setType(Int)
     val i2 = Variable("Int_2").setType(Int)
-    assert(f3 == Exists(List(i2, i1), Eq(i2, i1)))
+    assert(f3 == Exists(List(i1, i2), Eq(i2, i1))) //due to normalization the indices are 1,2 instead of 2,1 but this is OK since they are bound at the same level.
   }
   
   test("split ∀ 1") {
@@ -54,6 +67,16 @@ class SimplifySuite extends FunSuite {
     val f = ForAll(List(a,b,c), And(Eq(a, b), Eq(a, c)))
     val expected = And(ForAll(List(a,b), Eq(a,b)), ForAll(List(a,c), Eq(a,c)))
     val f2 = Simplify.splitForall(f)
+    assert(Simplify.simplify(f2) == Simplify.simplify(expected))
+  }
+
+  test("merge ∃ 1") {
+    val a = Variable("a").setType(Int)
+    val b = Variable("b").setType(Int)
+    val c = Variable("c").setType(Int)
+    val f = Or(Exists(List(a,b), Eq(a,b)), Exists(List(a,c), Eq(a,c)))
+    val expected = Exists(List(a,b), Eq(a,b))
+    val f2 = Simplify.mergeExists(f)
     assert(Simplify.simplify(f2) == Simplify.simplify(expected))
   }
 
