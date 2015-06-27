@@ -33,10 +33,13 @@ class CL(bound: Option[Int],
   protected def normalize(f: Formula) = {
     //TODO some (lazy) CNF conversion ?
     //TODO purification before or after instantiation ?
+    //TODO de Bruijn then bound var unique ?
     val f1 = Simplify.normalize(f)
     val f2 = Simplify.nnf(f1)
     val f3 = Simplify.boundVarUnique(f2)
-    f3
+    val f4 = Simplify.mergeExists(f3)
+    val f5 = Simplify.splitForall(f4)
+    f5
   }
  
   protected def keepAsIt(f: Formula): Boolean = {
@@ -46,8 +49,8 @@ class CL(bound: Option[Int],
       case _ => ()
     }
     FormulaUtils.traverse(check, f)
-    //!hasComp && TypeStratification.isStratified(f)
-    !hasComp && Quantifiers.isEPR(f)
+    !hasComp && TypeStratification.isStratified(f)
+    //!hasComp && Quantifiers.isEPR(f)
   }
 
   protected def forallOnly(f: Formula): Boolean = {
@@ -188,10 +191,12 @@ class CL(bound: Option[Int],
   }
   
   def reduce(formula: Formula): Formula = {
-    //TODO normalization:
-    //-de Bruijn then bound var unique (TODO make sure there is no clash about this)
-    //-filter type of the VennRegions
-    //-congruence closure to reduce the number of terms instanciation
+    //TODO make that part more modular:
+    //preprocessing:
+    //  term generation for 'unsupported' ∀
+    //  instantiate not in one step but 
+    //filtering for venn region:
+    //  something smarter than the type ?
 
     val query = normalize(formula)
     assert(Typer(query).success, "CL.reduce, not well typed")

@@ -24,11 +24,12 @@ object TypeStratification extends TypeStratification {
 
   def apply(t1: Type, t2: Type): Boolean = (t1,t2) match {
     //TODO FMap(key: Type, value: Type)
+    case (_,FSet(_)) => false //nothing can generate a set
     case (Bool,_) | (_,Bool) => true
     case (Product(lst), t) => t != CL.procType && lst.contains(t)
     case (FSet(t), t2) => t2 == Int || (t2 != CL.procType && t == t2)
     case (FOption(t), t2) => t2 == Int || (t2 != CL.procType && t == t2)
-    case (CL.procType, Int | FSet(_) | FOption(_)) => true
+    case (CL.procType, Int | FOption(_)) => true
     case (CL.procType, t2 @ UnInterpreted(_)) => t2 != CL.procType
     case (UnInterpreted(_), Int) => true
     case _ => false

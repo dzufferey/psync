@@ -63,7 +63,7 @@ class QuantifiersSuite extends FunSuite {
     val f2 = ForAll(List(p1), Eq(rqp1, Literal(0)))
     assert(!TypeStratification.isStratified(f2))
     val f3 = ForAll(List(p1), In(p1, CL.HO(p1)))
-    assert(TypeStratification.isStratified(f3))
+    assert(!TypeStratification.isStratified(f3))
   }
 
 }

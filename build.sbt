@@ -2,7 +2,7 @@ name := "round"
 
 version := "0.1-SNAPSHOT"
 
-scalaVersion := "2.11.6"
+scalaVersion := "2.11.7"
 
 scalacOptions in Compile ++= Seq(
     "-unchecked",
@@ -22,10 +22,10 @@ parallelExecution in Test := false
 libraryDependencies ++=  Seq(
     "org.scala-lang" % "scala-reflect" % scalaVersion.value,
     "org.scala-lang" % "scala-compiler" % scalaVersion.value,
-    "org.scala-lang.modules" %% "scala-xml" % "1.0.2",
-    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.3",
+    "org.scala-lang.modules" %% "scala-xml" % "1.0.4",
+    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4",
     "org.scalatest" %% "scalatest" % "2.2.4" % "test",
-    "org.scalacheck" %% "scalacheck" % "1.12.3" % "test",
+    "org.scalacheck" %% "scalacheck" % "1.12.4" % "test",
     "org.scala-lang.modules" %% "scala-pickling" % "0.10.1",
     "io.netty" % "netty-all" % "4.0.28.Final",
     "io.github.dzufferey" %% "scala-arg" % "0.1-SNAPSHOT",
