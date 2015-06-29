@@ -26,54 +26,78 @@ object InstGen {
 
   /** instantiate the given free variable with the provided gounded terms (substitution) */
   protected def instantiateWithTerms(v: Variable, axiom: Formula, groundTerms: Set[Formula]): List[Formula] = {
-    val candidates = groundTerms.filter(_.tpe == v.tpe).toList
-    Logger("InstGen", Debug, "(O) instantiating "+ v +" with " + candidates.mkString(", "))
-    candidates.toList.map( gt => FormulaUtils.replace(v, gt, axiom) )
+    if (!axiom.freeVariables.contains(v)) List(axiom)
+    else {
+      val candidates = groundTerms.filter(_.tpe == v.tpe).toList
+      Logger("InstGen", Debug, "(O) instantiating "+ v +" with " + candidates.mkString(", "))
+      candidates.toList.map( gt => FormulaUtils.replace(v, gt, axiom) )
+    }
   }
 
   //the returned formula still contains ∃ quantifiers
   protected def instantiateGlobally(formula: Formula, groundTerms: Set[Formula]): Formula =
     instantiateGlobally(formula, Set(), true, groundTerms)
-  
+
+  //TODO that can get very slow
+  //find a better way to handle Opt vs Mandatory branching (now is 2^#vars)
+  //this should cache the path with the global instantiation
   /* the returned formula still contains ∃ quantifiers
    * if (didMandatory) assume mandatoryTerms ⊆ groundTerms
    */
   protected def instantiateGlobally(formula: Formula,
                                     mandatoryTerms: Set[Formula],
                                     didMandatory: Boolean,
-                                    groundTerms: Set[Formula]): Formula = formula match {
-    case Not(arg) =>
-      Not(instantiateGlobally(arg, mandatoryTerms, didMandatory, groundTerms))
-    case Or(args @ _*) =>
-      val args2 = args.map(instantiateGlobally(_, mandatoryTerms, didMandatory, groundTerms))
-      Or(args2:_*)
-    case And(args @ _*) =>
-      val args2 = args.map(instantiateGlobally(_, mandatoryTerms, didMandatory, groundTerms))
-      val args3 = args2.flatMap(FormulaUtils.getConjuncts)
-      And(args3:_*)
-    case Exists(vs, f) =>
-      Exists(vs, instantiateGlobally(f, mandatoryTerms, didMandatory, groundTerms))
-    case ForAll(v :: vs, f) =>
-      val f2 = if (groundTerms.forall(_.tpe != v.tpe)) True()
-               else instantiateGlobally(ForAll(vs, f), mandatoryTerms, didMandatory, groundTerms)
-      if (didMandatory) {
-        And(instantiateWithTerms(v, f2, groundTerms):_*)
+                                    groundTerms: Set[Formula]): Formula = {
+    var cacheAll = scala.collection.mutable.HashMap[(Variable,Formula),List[Formula]]()
+    var cacheGnd = scala.collection.mutable.HashMap[(Variable,Formula),List[Formula]]()
+    var allTerms = mandatoryTerms ++ groundTerms
+    def instCache(cache: scala.collection.mutable.HashMap[(Variable,Formula),List[Formula]],
+                  v: Variable, f: Formula, ts: Set[Formula]): List[Formula] = {
+      if (cache.contains(v -> f)) {
+        cache(v -> f)
       } else {
-        //case 1: now
-        val candidates = mandatoryTerms.filter(_.tpe == v.tpe).toList
-        val f2Now = if (candidates.isEmpty) True()
-                    else instantiateGlobally(ForAll(vs, f), Set(), true, mandatoryTerms ++ groundTerms)
-        Logger("InstGen", Debug, "(M) instantiating "+ v +" with " + candidates.mkString(", "))
-        val f3Now = candidates.toList.map( gt => FormulaUtils.replace(v, gt, f2Now) )
-        //case 2: not now
-        val f3NotNow = instantiateWithTerms(v, f2, groundTerms)
-        //
-        And((f3Now ++ f3NotNow):_*)
+        val f2 = instantiateWithTerms(v, f, ts)
+        cache += ((v -> f) -> f2)
+        f2
       }
-    case ForAll(Nil, f) =>
-      if (!didMandatory && FormulaUtils.universallyBound(f).isEmpty) True()
-      else instantiateGlobally(f, mandatoryTerms, didMandatory, groundTerms)
-    case other => other
+    }
+    def instAll(v: Variable, f: Formula): List[Formula] = instCache(cacheAll, v, f, allTerms)
+    def instGnd(v: Variable, f: Formula): List[Formula] = instCache(cacheGnd, v, f, groundTerms)
+    def process(formula: Formula, didMandatory: Boolean): Formula = formula match {
+      case Not(arg) =>
+        Not(process(arg, didMandatory))
+      case Or(args @ _*) =>
+        val args2 = args.map(process(_, didMandatory))
+        Or(args2:_*)
+      case And(args @ _*) =>
+        val args2 = args.map(process(_, didMandatory))
+        val args3 = args2.flatMap(FormulaUtils.getConjuncts)
+        And(args3:_*)
+      case Exists(vs, f) =>
+        Exists(vs, process(f, didMandatory))
+      case ForAll(v :: vs, f) =>
+        val f2 = if (allTerms.forall(_.tpe != v.tpe)) True()
+                 else process(ForAll(vs, f), didMandatory)
+        if (didMandatory) {
+          val f3 = instAll(v, f2)
+          And(f3:_*)
+        } else {
+          //case 1: do the mandatory thing
+          val candidates = mandatoryTerms.filter(_.tpe == v.tpe).toList
+          val f2Now = if (candidates.isEmpty) True()
+                      else process(ForAll(vs, f), true)
+          Logger("InstGen", Debug, "(M) instantiating "+ v +" with " + candidates.mkString(", "))
+          val f3Now = candidates.toList.map( gt => FormulaUtils.replace(v, gt, f2Now) )
+          //case 2: do some non-mandatoryTerms
+          val f3 = instGnd(v, f2)
+          And((f3Now ++ f3):_*)
+        }
+      case ForAll(Nil, f) =>
+        if (!didMandatory && FormulaUtils.universallyBound(f).isEmpty) True()
+        else process(f, didMandatory)
+      case other => other
+    }
+    process(formula, didMandatory)
   }
   
   //Get terms generated by the universally quantified variables
@@ -111,15 +135,15 @@ object InstGen {
       val candidates = generatingTerms.foldLeft(init)( (acc, gen) => {
         Matching.mergeMaps(acc, m.find(gen, uvars))
       })
-      //instantiate with the right repr so it does not generate new terms
-      val withMandatory = candidates.filter( _.values.exists(mandatoryTerms) )
-      val insts = withMandatory.toList.map( m => {
+      val insts = candidates.toList.flatMap( m => {
         assert(uvars.forall( v => m contains v ), "not value for all the variables")
         def map(f: Formula): Formula = f match {
           case v @ Variable(_) => m.getOrElse(v, v)
           case other => other
         }
-        FormulaUtils.map(map, f2)
+        val f = FormulaUtils.map(map, f2)
+        if (FormulaUtils.exists(mandatoryTerms, f)) Some(f)
+        else None
       })
       And(insts:_*)
     }
@@ -132,7 +156,7 @@ object InstGen {
   def postprocess(f: Formula): Formula = {
     val simp = Simplify.boundVarUnique(f)
     val qf = Quantifiers.skolemize(simp)
-    FormulaUtils.flatten(qf)
+    Simplify.simplifyBool(FormulaUtils.flatten(qf))
   }
 
   //at least one variable must be instantiated with one of the new term
@@ -150,6 +174,28 @@ object InstGen {
       //TODO this adds some new terms, we should instantiateLocally on those terms
     }
   }
+
+
+  protected def generatedTerms( formula: Formula,
+                                cClasses: CongruenceClasses,
+                                depth: Option[Int] ): Formula = {
+    val clauses = FormulaUtils.getConjuncts(formula)
+    val genTerms: List[(List[Variable],Formula)] = clauses.flatMap( f => {
+      val (f2, _uvars) = Quantifiers.getUniversalPrefix(f)
+      val uvars = _uvars.toSet
+      val gens = termsGeneratedBy(uvars, f2)
+      gens.toList.map(g => {
+        val needed = uvars.intersect(g.freeVariables).toList
+        Simplify.deBruijnIndex(ForAll(needed, g)) match {
+          case ForAll(vs, f) => vs -> f
+          case other => Logger.logAndThrow("InstGen", Error, "expect ∀, found: " + other)
+        }
+      })
+    })
+    //TODO create a map from type to index by type of vars so we can easily generate
+    //TODO when there are multiple vars once one is instantiated we should add the ...
+    ???
+  }
   
   /** instantiate all the universally quantified variables with the provided ground terms.
    * @param formula list of formula
@@ -165,11 +211,21 @@ object InstGen {
                     cClasses: CongruenceClasses = CongruenceClasses.empty,
                     depth: Option[Int] = None,
                     local: Boolean = false ): Formula = {
+    //TODO smarter strategy:
+    //for depth rounds, generate new terms, then do one step of local instantiation
     val gts = mandatoryTerms ++ optionalTerms ++ FormulaUtils.collectGroundTerms(formula)
     //ground terms are from the epr part 
     val formula2 = instanciateOneStep(formula, mandatoryTerms, gts, cClasses, local)
     if (depth.getOrElse(1) <= 0) {
-      postprocess(formula2)
+      if (!local) {
+        val gts2 = FormulaUtils.collectGroundTerms(formula2) -- gts
+        val cClasses1 = CongruenceClosure(And(formula2, cClasses.formula))
+        val formula3 = instanciateOneStep(formula, gts2, cClasses1.groundTerms, cClasses1, true)
+        val formula4 = And(formula2, formula3)
+        postprocess(formula4)
+      } else {
+        postprocess(formula2)
+      }
     } else {
       val gts2 = FormulaUtils.collectGroundTerms(formula2) -- gts
       if (gts2.isEmpty) {

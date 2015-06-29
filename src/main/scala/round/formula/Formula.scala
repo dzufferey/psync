@@ -432,11 +432,13 @@ sealed abstract class BindingType
 case class Binding(binding: BindingType, vs: List[Variable], f: Formula) extends Formula {
 
   override def toString = binding match {
-    case Exists | ForAll => binding + " " + vs.mkString(" ") + ". " + f
+    case Exists => "∃ " + vs.mkString(" ") + ". " + f
+    case ForAll => "∀ " + vs.mkString(" ") + ". " + f
     case Comprehension => "{ "+ vs.mkString(" ") + ". " + f + "}"
   }
   def toStringFull = binding match {
-    case Exists | ForAll => binding + " " + vs.map(_.toStringFull).mkString(" ") + ". " + f.toStringFull
+    case Exists => "∃ " + vs.map(_.toStringFull).mkString(" ") + ". " + f.toStringFull
+    case ForAll => "∀ " + vs.map(_.toStringFull).mkString(" ") + ". " + f.toStringFull
     case Comprehension => "{ "+ vs.map(_.toStringFull).mkString(" ") + ". " + f.toStringFull + "}"
   }
 

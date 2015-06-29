@@ -267,9 +267,10 @@ class LvExample extends FunSuite {
   //test VCs
 
   test("initial state implies invariant") {
-    assertUnsat(List(initialState, Not(invariant1)))
+    val fs = List(initialState, Not(invariant1))
+    assertUnsat(fs)
   }
-  
+
   test("invariant implies agreement") {
     assertUnsat(List(invariant1, Not(agreement)))
   }

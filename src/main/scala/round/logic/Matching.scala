@@ -24,19 +24,22 @@ class Matching(cClasses: CongruenceClasses) {
    * @return a set of possible instantiation for the freeVariables
    */
   def find(term: Formula, freeVariables: Set[Variable]): Set[Map[Variable,Formula]] = {
-    assert(freeVariables.subsetOf(term.freeVariables))
+    //assert(freeVariables.subsetOf(term.freeVariables), term + ": " + freeVariables + " ⊆ " + term.freeVariables )
     val emp: Option[Map[Variable,Formula]] = Some(Map())
-    def unify(t1: Formula, t2: Formula): Option[Map[Variable,Formula]] = (t1,t2) match {
-      case (Application(f1, args1), Application(f2, args2)) if f1 == f2 && args1.length == args2.length =>
-        args1.zip(args2).foldLeft(emp)( (acc, t12) => {
-          acc.flatMap( m1 => mergeMap(m1, unify(t12._1, t12._2)) )
-        })
-      case (v @ Variable(_), t2) if freeVariables(v) => Some(Map(v -> t2))
-      case (a, b) if a == b => emp
-      case _ => None
+    def unify(t1: Formula, t2: Formula): Option[Map[Variable,Formula]] = {
+      if (t1.tpe != t2.tpe) None //because of polymorphims filter on type first
+      else (t1,t2) match {
+        case (Application(f1, args1), Application(f2, args2)) if f1 == f2 && args1.length == args2.length =>
+          args1.zip(args2).foldLeft(emp)( (acc, t12) => {
+            acc.flatMap( m1 => mergeMap(m1, unify(t12._1, t12._2)) )
+          })
+        case (v @ Variable(_), t2) if freeVariables(v) => Some(Map(v -> t2))
+        case (a, b) if a == b => emp
+        case _ => None
+      }
     }
     term match {
-      case Application(f, _) => symbolsToTerms(f).flatMap( gt => unify(term, gt) ).toSet
+      case Application(f, _) => symbolsToTerms.getOrElse(f, Nil).flatMap( gt => unify(term, gt) ).toSet //TODO the toSet is expensive
       case v @ Variable(_) => cClasses.classes.filter(_.tpe == v.tpe).map( c => Map(v -> c.repr) ).toSet
       case _ => Set()
     }
@@ -70,7 +73,10 @@ object Matching {
 
   def mergeMap[A](m1: Map[Variable,A], m2: Option[Map[Variable,A]]): Option[Map[Variable,A]] = {
     m1.foldLeft(m2)( (acc, kv) => {
-      acc.flatMap( m => if (m.getOrElse(kv._1, kv._2) == kv._2) Some(m + kv) else None )
+      acc.flatMap( m => if (m.contains(kv._1)) {
+                          if (m(kv._1) == kv._2) Some(m)
+                          else None
+                        } else Some(m + kv) )
     })
   }
 

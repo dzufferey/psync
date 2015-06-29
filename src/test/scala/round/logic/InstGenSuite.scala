@@ -26,4 +26,19 @@ class InstGenSuite extends FunSuite {
     assert(FormulaUtils.getConjuncts(i2b).size == 5)
   }
 
+  test("local 2"){
+    val fs = Eq(p1, p1)
+    val cc = CongruenceClosure(fs)
+    val gts = cc.groundTerms
+    val s1 = Variable("s1").setType(FSet(pid))
+    val ax1 = And(
+      ForAll(List(p2), In(p2, CL.HO(p2))),
+      ForAll(List(s1), SubsetEq(s1, s1))
+    )
+    val i1a = InstGen.saturateWith(ax1, gts, gts, cc, Some(0), true)
+    val i1b = InstGen.saturateWith(ax1, gts, gts, cc, Some(0), false)
+    assert(i1a == True())
+    assert(FormulaUtils.getConjuncts(i1b).size == 2)
+  }
+
 }

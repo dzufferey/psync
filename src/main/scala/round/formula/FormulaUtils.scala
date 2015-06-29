@@ -270,6 +270,18 @@ object FormulaUtils {
 
   val symbolExcludedFromGroundTerm = Set[Symbol](And,Or,Not,Implies,Eq,Neq)
 
+  def exists(p: Formula => Boolean, f: Formula): Boolean = {
+    if (p(f)) true
+    else f match {
+      case Binding(_, _, f1) => exists(p, f1)
+      case Application(_, args) => args.exists(exists(p, _))
+      case _ => false
+    }
+  }
+
+  /** is f2 a descendent of f1 */
+  def contains(f1: Formula, f2: Formula): Boolean = exists( x => x == f2, f1)
+
   def collectGroundTerms(f: Formula): Set[Formula] = {
     def collect(f: Formula, bound: Set[Variable]): (Set[Formula], Boolean) = f match {
       case Binding(_, vs, f) => (collect(f, bound ++ vs)._1, false)

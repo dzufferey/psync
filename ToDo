@@ -1,6 +1,6 @@
 # general
 
-- find a nice acronym for 'round'
+- find a nice acronym for 'round' → rename to PSync
 - expected number of messages for a round: inferred from the send function
 - locally testable safety/liveness conditions: of the form ∀ p. QF-φ(p)
 - split the sources into multiple parts/sub-projects
