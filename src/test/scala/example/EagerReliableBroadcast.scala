@@ -27,8 +27,8 @@ class EagerReliableBroadcast extends Algorithm[BroadcastIO] {
       x <~ io.initialValue
     }
 
-    val rounds = Array[Round](
-      rnd(new Round{
+    val rounds = phase(
+      new Round{
       
         type A = Int
 
@@ -49,8 +49,7 @@ class EagerReliableBroadcast extends Algorithm[BroadcastIO] {
           }
         }
 
-      })
-      
+      }
     )
   })
 
@@ -58,8 +57,7 @@ class EagerReliableBroadcast extends Algorithm[BroadcastIO] {
 
 object ERBRunner extends RTOptions {
   
-  var confFile = "src/test/resources/sample-conf.xml"
-  newOption("--conf", dzufferey.arg.String(str => confFile = str ), "config file")
+  var confFile = "src/test/resources/3replicas-conf.xml"
   
   val usage = "..."
   

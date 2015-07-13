@@ -28,8 +28,8 @@ class ConwayGameOfLife extends Algorithm[CgolIO] {
       neighbours <~ getNeighbours(io.rows, io.cols, io.id)
     }
 
-    val rounds = Array[Round](
-      rnd(new Round{
+    val rounds = phase(
+      new Round{
       
         type A = Boolean
 
@@ -52,7 +52,7 @@ class ConwayGameOfLife extends Algorithm[CgolIO] {
           Thread.sleep(1000)
         }
 
-      })
+      }
     )
   })
 }

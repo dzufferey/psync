@@ -53,8 +53,8 @@ class OTR2(afterDecision: Int = 2) extends Algorithm[ConsensusIO] {
       after <~ afterDecision
     }
 
-    val rounds = Array[Round](
-      rnd(new Round{
+    val rounds = phase(
+      new Round{
 
         type A = Int
 
@@ -93,7 +93,7 @@ class OTR2(afterDecision: Int = 2) extends Algorithm[ConsensusIO] {
           }
         }
 
-      })
+      }
     )
 
   })

@@ -59,8 +59,8 @@ class TwoPhaseCommit extends Algorithm[TpcIO] {
       decision <~ None
     }
 
-    val rounds = Array[Round](
-      rnd(new Round{
+    val rounds = phase(
+      new Round{
         type A = Boolean //place holder for PrepareCommit
         def send(): Set[(Boolean, ProcessID)] = {
           if (id == c(coord)) broadcast(true)
@@ -70,9 +70,9 @@ class TwoPhaseCommit extends Algorithm[TpcIO] {
         def update(mailbox: Set[(Boolean, ProcessID)]) {
           //nothing to do
         } 
-      }),
+      },
 
-      rnd(new Round{
+      new Round{
         type A = Boolean
 
         def send(): Set[(Boolean, ProcessID)] = {
@@ -90,9 +90,9 @@ class TwoPhaseCommit extends Algorithm[TpcIO] {
             }
           }
         }
-      }),
+      },
 
-      rnd(new Round{
+      new Round{
         type A = Boolean
 
         def send(): Set[(Boolean, ProcessID)] = {
@@ -108,7 +108,7 @@ class TwoPhaseCommit extends Algorithm[TpcIO] {
           callback.decide(decision)
           terminate
         }
-      })
+      }
     )
   })
 

@@ -19,6 +19,10 @@ class TermGenerator(vars: List[Variable],
 
   val symbols = FormulaUtils.collectSymbols(expr)
 
+  //TODO a more efficient version that can be used in InstGen
+  //normalizing, chaining, etc
+  //watchlist, avoiding duplication, etc.
+
   //returns new terms, i.e., not already in gts
   def apply(gts: Set[Formula]): Set[Formula] = {
     //TODO this is the brain-dead version...

@@ -28,8 +28,8 @@ class KSetEarlyStopping(t: Int, k: Int) extends Algorithm[ConsensusIO] {
       callback <~ io
     }
 
-    val rounds = Array[Round](
-      rnd(new Round{
+    val rounds = phase(
+      new Round{
       
         type A = (Int, Boolean)
 
@@ -49,7 +49,7 @@ class KSetEarlyStopping(t: Int, k: Int) extends Algorithm[ConsensusIO] {
           }
         }
 
-      })
+      }
     )
   })
 }

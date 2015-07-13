@@ -60,8 +60,8 @@ class BasicConsensus extends Algorithm[MembershipIO] {
       x <~ io.initialValue
     }
 
-    val rounds = Array[Round](
-      rnd(new Round{
+    val rounds = phase(
+      new Round{
 
         type A = MembershipOp
         
@@ -100,7 +100,7 @@ class BasicConsensus extends Algorithm[MembershipIO] {
           }
 
         }
-      })
+      }
     )
   })
 

@@ -29,9 +29,9 @@ class EpsilonConsensus(f: Int, epsilon: Double) extends Algorithm[RealConsensusI
       x <~ io.initialValue
     }
 
-    val rounds = Array[Round](
+    val rounds = phase(
 
-      rnd(new Round{
+      new Round{
         type A = (Double, Boolean)
        
         def diff(s: Iterable[Double]) = s.max - s.min //this is never defined in the slides. double check that this is the right thing...
@@ -71,7 +71,7 @@ class EpsilonConsensus(f: Int, epsilon: Double) extends Algorithm[RealConsensusI
             terminate
           }
         }
-      })
+      }
     )
   })
 

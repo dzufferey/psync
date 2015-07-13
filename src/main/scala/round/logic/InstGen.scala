@@ -176,6 +176,7 @@ object InstGen {
   }
 
 
+  //TODO using TermGenerators
   protected def generatedTerms( formula: Formula,
                                 cClasses: CongruenceClasses,
                                 depth: Option[Int] ): Formula = {

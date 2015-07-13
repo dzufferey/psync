@@ -22,8 +22,8 @@ class FloodMin(f: Int) extends Algorithm[ConsensusIO] {
       x <~ io.initialValue
     }
 
-    val rounds = Array[Round](
-      rnd(new Round{
+    val rounds = phase(
+      new Round{
       
         type A = Int
 
@@ -39,7 +39,7 @@ class FloodMin(f: Int) extends Algorithm[ConsensusIO] {
           }
         }
 
-      })
+      }
     )
   })
 }

@@ -36,6 +36,7 @@ class LastVoting2B extends Algorithm[BConsensusIO] {
       commit <~ false
     }
 
+    //TODO: trying with "phase": too many arguments for method apply: (p: round.ProcessID)Int in class LocalVariable
     val rounds = Array[Round](
       rnd(new Round{
 

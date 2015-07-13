@@ -86,8 +86,8 @@ class LastVoting2 extends Algorithm[ConsensusIO] {
       commit <~ false
     }
 
-    val rounds = Array[Round](
-      rnd(new Round{
+    val rounds = phase(
+      new Round{
 
         type A = (Int, Int)
 
@@ -112,9 +112,9 @@ class LastVoting2 extends Algorithm[ConsensusIO] {
           }
         }
 
-      }),
+      },
 
-      rnd(new Round{
+      new Round{
 
         type A = Int
 
@@ -142,9 +142,9 @@ class LastVoting2 extends Algorithm[ConsensusIO] {
           }
         }
 
-      }),
+      },
 
-      rnd(new Round{
+      new Round{
 
         //place holder for ACK
         type A = Int
@@ -169,9 +169,9 @@ class LastVoting2 extends Algorithm[ConsensusIO] {
           }
         }
 
-      }),
+      },
 
-      rnd(new Round{
+      new Round{
 
         type A = Int
 
@@ -204,7 +204,7 @@ class LastVoting2 extends Algorithm[ConsensusIO] {
           commit <~ false
         }
 
-      })
+      }
 
     )
 

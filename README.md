@@ -39,7 +39,7 @@ class OTR extends Algorithm[IO] {
       x <~ io.initialValue
     }
 
-    val rounds = Array[Round](rnd(new Round{
+    val rounds = phase(new Round{
 
         type A = Int
        
@@ -54,7 +54,7 @@ class OTR extends Algorithm[IO] {
               io.decide(v)
         } }
 
-)})})}
+})})}
 ```
 
 The client code that uses a such algorithm is:

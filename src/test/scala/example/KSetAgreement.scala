@@ -34,8 +34,8 @@ class KSetAgreement(i: ProcessID, k: Int) extends Algorithm[ConsensusIO] {
       t <~ Map(i -> io.initialValue)
     }
 
-    val rounds = Array[Round](
-      rnd(new Round{
+    val rounds = phase(
+      new Round{
       
         type A = (Boolean, Map[ProcessID,Int])
 
@@ -68,7 +68,7 @@ class KSetAgreement(i: ProcessID, k: Int) extends Algorithm[ConsensusIO] {
           }
         }
 
-      })
+      }
     )
   })
 }

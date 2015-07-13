@@ -53,6 +53,20 @@ class Impl(val c: Context) extends Lifting
     }
   }
 
+  def mkPhase(e: c.Expr[Round]*): c.Expr[Array[Round]] = {
+    try {
+      val rounds = e.map( expr => processRound(expr.tree) )
+      val array = q"Array[Round](..$rounds)"
+      val res = c.Expr[Array[Round]](array)
+      //println(res)
+      res
+    } catch {
+      case e: Throwable =>
+        e.printStackTrace
+        c.abort(c.enclosingPosition, e.toString)
+    }
+  }
+
 }
 
 object Macros {
@@ -63,5 +77,7 @@ object Macros {
   def p[T <: Process[_]](e: T): T = macro Impl.process[T]
   
   def rnd[T <: Round](e: T): T = macro Impl.postprocessRound[T]
+
+  def phase(e: Round*): Array[Round] = macro Impl.mkPhase
 
 }

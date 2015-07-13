@@ -61,8 +61,8 @@ class BenOr extends Algorithm[BinaryConsensusIO] {
       decided <~ false
     }
 
-    val rounds = Array[Round](
-      rnd(new Round{
+    val rounds = phase(
+      new Round{
       
         type A = (Boolean, Boolean)
 
@@ -86,9 +86,9 @@ class BenOr extends Algorithm[BinaryConsensusIO] {
           canDecide <~ mailbox.exists(_._1._2)
         }
 
-      }),
+      },
       
-      rnd(new Round{
+      new Round{
       
         type A = Option[Boolean]
 
@@ -114,7 +114,7 @@ class BenOr extends Algorithm[BinaryConsensusIO] {
           }
         }
 
-      })
+      }
     )
   })
 
