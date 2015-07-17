@@ -1,6 +1,7 @@
 package example
 
 import round._
+import round.formula._
 import round.macros.Macros._
 
 //a version of OTR that eventually terminates
@@ -20,26 +21,26 @@ class OTR2(afterDecision: Int = 2) extends Algorithm[ConsensusIO] {
 
 
   val spec = new Spec {
-      val livenessPredicate = List( f( S.exists( s => P.forall( p => HO(p) == s && s.size > 2*n/3 ))))
-      val invariants = List(
-        f(  P.forall( i => !decision(i).isEmpty )
-         || V.exists( v => {
-           val A = P.filter( i => x(i) == v);
-           A.size > 2*n/3 && P.forall( i => decision(i).isDefined ==> (decision(i).get == v))
-        })),
-        f(V.exists( v => {
-           val A = P.filter( i => x(i) == v);
-           A.size == n && P.forall( i => decision(i).isDefined ==> (decision(i).get == v))
-        })),
-        f(V.exists( v => P.forall( i => decision(i).isDefined ==> (decision(i).get == v)) ))
+      val livenessPredicate = List[Formula]( S.exists( s => P.forall( p => HO(p) == s && s.size > 2*n/3 )))
+      val invariants = List[Formula](
+           P.forall( i => !decision(i).isEmpty )
+        || V.exists( v => {
+             val A = P.filter( i => x(i) == v);
+             A.size > 2*n/3 && P.forall( i => decision(i).isDefined ==> (decision(i).get == v))
+           }),
+        V.exists( v => {
+          val A = P.filter( i => x(i) == v);
+          A.size == n && P.forall( i => decision(i).isDefined ==> (decision(i).get == v))
+        }),
+        V.exists( v => P.forall( i => decision(i).isDefined ==> (decision(i).get == v)) )
       ) //how to relate the invariants and the magic rounds
 
-      val properties = List(
-        ("Termination",    f(P.forall( i => decision(i).isDefined) )),
-        ("Agreement",      f(P.forall( i => P.forall( j => decision(i).isDefined && decision(j).isDefined ==> (decision(i).get == decision(j).get) )))),
-        ("Validity",       f(P.forall( i => decision(i).isDefined ==> P.exists( j => init(x)(j) == decision(i).get )))),
-        ("Integrity",      f(P.exists( j => P.forall( i => decision(i).isDefined ==> (decision(i).get == init(x)(j)) )))),
-        ("Irrevocability", f(P.forall( i => old(decision)(i).isDefined ==> (old(decision)(i) == decision(i)) )))
+      val properties = List[(String,Formula)](
+        ("Termination",    P.forall( i => decision(i).isDefined) ),
+        ("Agreement",      P.forall( i => P.forall( j => decision(i).isDefined && decision(j).isDefined ==> (decision(i).get == decision(j).get) ))),
+        ("Validity",       P.forall( i => decision(i).isDefined ==> P.exists( j => init(x)(j) == decision(i).get ))),
+        ("Integrity",      P.exists( j => P.forall( i => decision(i).isDefined ==> (decision(i).get == init(x)(j)) ))),
+        ("Irrevocability", P.forall( i => old(decision)(i).isDefined ==> (old(decision)(i) == decision(i)) ))
       )
   }
   

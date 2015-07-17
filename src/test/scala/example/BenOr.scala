@@ -1,6 +1,7 @@
 package example
 
 import round._
+import round.formula._
 import round.runtime._
 import round.macros.Macros._
 
@@ -27,9 +28,9 @@ class BenOr extends Algorithm[BinaryConsensusIO] {
 
   val V = new Domain[Boolean]
   val spec = new Spec {
-    override val safetyPredicate = f( P.forall( p => HO(p).size > n/2 ) ) //TODO might need something stronger like crash-fault
+    override val safetyPredicate: Formula = P.forall( p => HO(p).size > n/2 ) //TODO might need something stronger like crash-fault
     val livenessPredicate = List( )
-    val invariants = List(f(
+    val invariants = List[Formula](
         P.forall( i => !decided(i) && !canDecide(i) )
       ||
         V.exists( v => {
@@ -38,15 +39,15 @@ class BenOr extends Algorithm[BinaryConsensusIO] {
           P.forall( i => (decided(i) ==> (decision(i) == v) ) &&
                          (vote(i).isDefined ==> (vote(i) == Some(v))) )
         })
-    )) //todo about canDecide ...
+    ) //TODO about canDecide ...
     override val roundInvariants = List(
-      List(
-        f( P.forall( p => vote(p).isDefined ==> P.filter( i => x(i) == vote(p).get ).size > n/2 ) )
+      List[Formula](
+        P.forall( p => vote(p).isDefined ==> P.filter( i => x(i) == vote(p).get ).size > n/2 )
       )
     )
-    val properties = List(
-      ("Agreement",      f(P.forall( i => P.forall( j => (decided(i) && decided(j)) ==> (decision(i) == decision(j)) )))),
-      ("Irrevocability", f(P.forall( i => old(decided)(i) ==> (decided(i) && old(decision)(i) == decision(i)) )))
+    val properties = List[(String,Formula)](
+      ("Agreement",      P.forall( i => P.forall( j => (decided(i) && decided(j)) ==> (decision(i) == decision(j)) ))),
+      ("Irrevocability", P.forall( i => old(decided)(i) ==> (decided(i) && old(decision)(i) == decision(i)) ))
       //TODO how to do non-triviality with random choice
       //no termination since we deal don't deal with probabilities
     )

@@ -72,6 +72,7 @@ class Impl(val c: Context) extends Lifting
 object Macros {
 
   def f(e: Boolean): Formula = macro Impl.formula
+  implicit def booleanToFormula(e: Boolean): Formula = macro Impl.formula
 
   //def p(e: Process): Process = macro Impl.process
   def p[T <: Process[_]](e: T): T = macro Impl.process[T]

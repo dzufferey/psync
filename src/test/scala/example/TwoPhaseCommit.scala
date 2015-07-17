@@ -1,6 +1,7 @@
 package example
 
 import round._
+import round.formula._
 import round.runtime._
 import round.macros.Macros._
 
@@ -26,25 +27,24 @@ class TwoPhaseCommit extends Algorithm[TpcIO] {
 
   def c(pid: Short) = new ProcessID(pid)
 
-  Axiom("well-coordinated", f( P.exists( p => P.forall( q => (p: ProcessID) == c(coord(q))) )))
+  Axiom("well-coordinated", P.exists( p => P.forall( q => (p: ProcessID) == c(coord(q))) ))
 
   val spec = new Spec {
-    val livenessPredicate = List(
-      f(P.exists( p => P.forall( q => (p: ProcessID) == c(coord(q)) && HO(p).size == n && (HO(q) contains p) ) ))
+    val livenessPredicate = List[Formula](
+      P.exists( p => P.forall( q => (p: ProcessID) == c(coord(q)) && HO(p).size == n && (HO(q) contains p) ) )
     )
-    val invariants = List(
-      f( P.forall( p => decision(p) == Some(true) ==> P.forall( q => vote(q) )) && 
-         P.forall( p => P.forall( q => (decision(p).isDefined && decision(q).isDefined) ==> (decision(p) == decision(q)) ))
-      )
+    val invariants = List[Formula](
+      P.forall( p => decision(p) == Some(true) ==> P.forall( q => vote(q) )) && 
+      P.forall( p => P.forall( q => (decision(p).isDefined && decision(q).isDefined) ==> (decision(p) == decision(q)) ))
     )
 //  override val roundInvariants = List(
 //    List(f(true)),
 //    List(f(true))
 //  )
-    val properties = List(
-      "Uniform Agreement" -> f( P.forall( p => P.forall( q => (decision(p).isDefined && decision(q).isDefined) ==> (decision(p) == decision(q)) ))),
+    val properties = List[(String,Formula)](
+      "Uniform Agreement" -> P.forall( p => P.forall( q => (decision(p).isDefined && decision(q).isDefined) ==> (decision(p) == decision(q)) )),
       //"Irrevocable" -> A site cannot reverse its decision after it has reached one. TODO need better handling of termination
-      "Validity" -> f( P.forall( p => (decision(p) == Some(true)) ==> P.forall( q => vote(q) ) ))
+      "Validity" -> P.forall( p => (decision(p) == Some(true)) ==> P.forall( q => vote(q) ) )
       //"Non-Triviality" -> If there are no fault and all sites voted Yes, then the decision will be to commit. TODO need to reason about HO in the whole run
       //"Termination" -> At any point in the execution of the protocol, if all existing failures are repaired and no new failures occur for sufficiently long, then all sites will eventually reach a decision. TODO we have a different fault model
     )

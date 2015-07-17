@@ -1,6 +1,7 @@
 package example
 
 import round._
+import round.formula._
 import round.macros.Macros._
 
 //like OTR but uses a boolean flag instead of an option for the decision
@@ -22,28 +23,29 @@ class OTR(afterDecision: Int = 2) extends Algorithm[ConsensusIO] {
 
 
   val spec = new Spec {
-      val goodRound = f( S.exists( s => P.forall( p => HO(p) == s && s.size > 2*n/3 )))
+      val goodRound: Formula = S.exists( s => P.forall( p => HO(p) == s && s.size > 2*n/3 ))
       val livenessPredicate = List( goodRound, goodRound )
-      val invariants = List(
-        f((  P.forall( i => !decided(i) )
+      val invariants = List[Formula](
+        (    P.forall( i => !decided(i) )
           || V.exists( v => {
-            val A = P.filter( i => x(i) == v);
-            A.size > 2*n/3 && P.forall( i => decided(i) ==> (decision(i) == v))
-        })) && P.forall( i => P.exists( j1 => x(i) == init(x)(j1) ))
-         ),
-        f(V.exists( v => {
-           val A = P.filter( i => x(i) == v);
-           A.size == (n: Int) && P.forall( i => decided(i) ==> (decision(i) == v))
-        }) && P.forall( i => P.exists( j1 => x(i) == init(x)(j1) )) ),
-        f(P.exists( j => P.forall( i => decided(i) && decision(i) == init(x)(j)) ))
+               val A = P.filter( i => x(i) == v);
+               A.size > 2*n/3 && P.forall( i => decided(i) ==> (decision(i) == v))
+             })
+        ) && P.forall( i => P.exists( j1 => x(i) == init(x)(j1) )),
+           V.exists( v => {
+              val A = P.filter( i => x(i) == v);
+              A.size == (n: Int) && P.forall( i => decided(i) ==> (decision(i) == v))
+           })
+        && P.forall( i => P.exists( j1 => x(i) == init(x)(j1) )),
+        P.exists( j => P.forall( i => decided(i) && decision(i) == init(x)(j)) )
       )
 
-      val properties = List(
-        ("Termination",    f(P.forall( i => decided(i)) )),
-        ("Agreement",      f(P.forall( i => P.forall( j => (decided(i) && decided(j)) ==> (decision(i) == decision(j)) )))),
-        ("Validity",       f(P.forall( i => decided(i) ==> P.exists( j => init(x)(j) == decision(i) )))),
-        ("Integrity",      f(P.exists( j => P.forall( i => decided(i) ==> (decision(i) == init(x)(j)) )))),
-        ("Irrevocability", f(P.forall( i => old(decided)(i) ==> (decided(i) && old(decision)(i) == decision(i)) )))
+      val properties = List[(String,Formula)](
+        ("Termination",    P.forall( i => decided(i)) ),
+        ("Agreement",      P.forall( i => P.forall( j => (decided(i) && decided(j)) ==> (decision(i) == decision(j)) ))),
+        ("Validity",       P.forall( i => decided(i) ==> P.exists( j => init(x)(j) == decision(i) ))),
+        ("Integrity",      P.exists( j => P.forall( i => decided(i) ==> (decision(i) == init(x)(j)) ))),
+        ("Irrevocability", P.forall( i => old(decided)(i) ==> (decided(i) && old(decision)(i) == decision(i)) ))
       )
   }
   

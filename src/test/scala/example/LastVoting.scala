@@ -1,6 +1,7 @@
 package example
 
 import round._
+import round.formula._
 import round.macros.Macros._
 
 class LastVoting extends Algorithm[ConsensusIO] {
@@ -27,11 +28,13 @@ class LastVoting extends Algorithm[ConsensusIO] {
   def coord(phi: Int): ProcessID = new ProcessID((phi % n).toShort)
 
   val spec = new Spec {
-      val livenessPredicate = List( f(P.exists( p => P.forall( q => p == coord(r/4) && HO(p).contains(q) && HO(p).size > n/2 ) )) )
+      val livenessPredicate = List[Formula](
+        P.exists( p => P.forall( q => p == coord(r/4) && HO(p).contains(q) && HO(p).size > n/2 ) )
+      )
 
-      val noDecision = f( P.forall( i => !decided(i) && !ready(i)) )
+      val noDecision: Formula = P.forall( i => !decided(i) && !ready(i))
 
-      val majority = f(
+      val majority: Formula =
         V.exists( v => V.exists( t => {
             val A = P.filter( i => ts(i) >= t )
             A.size > n/2 &&
@@ -42,38 +45,37 @@ class LastVoting extends Algorithm[ConsensusIO] {
                            (ready(i) ==> (vote(i) == v) ) &&
                            ((ts(i) == r/4) ==> commit(coord(r/4)) ))
         }) )
-      )
 
-      val keepInit = f ( P.forall( i => P.exists( j1 => x(i) == init(x)(j1) )) )
+      val keepInit: Formula = P.forall( i => P.exists( j1 => x(i) == init(x)(j1) ))
 
-      val safetyInv = round.formula.And(keepInit, round.formula.Or(noDecision, majority))
+      val safetyInv = And(keepInit, Or(noDecision, majority))
 
-      val invariants = List(
+      val invariants = List[Formula](
         safetyInv,
-        f(P.exists( j => P.forall( i => decided(i) && decision(i) == init(x)(j)) ))
+        P.exists( j => P.forall( i => decided(i) && decision(i) == init(x)(j)) )
       )
       
       override val roundInvariants = List(
-        List(
-          round.formula.True(),
-          f(P.exists( i => commit(i) ))
+        List[Formula](
+          true,
+          P.exists( i => commit(i) )
         ),
-        List(
-          round.formula.True(),
-          f(P.exists( i => commit(i) && P.forall( j => ts(j) == r/4 && x(j) == vote(i) )))
+        List[Formula](
+          true,
+          P.exists( i => commit(i) && P.forall( j => ts(j) == r/4 && x(j) == vote(i) ))
         ),
-        List(
-          round.formula.True(),
-          f(P.exists( i => commit(i) && ready(i) && P.forall( j => ts(j) == r/4 && x(j) == vote(i) )))
+        List[Formula](
+          true,
+          P.exists( i => commit(i) && ready(i) && P.forall( j => ts(j) == r/4 && x(j) == vote(i) ))
         )
       )
 
-      val properties = List(
-        ("Termination",    f(P.forall( i => decided(i)) )),
-        ("Agreement",      f(P.forall( i => P.forall( j => (decided(i) && decided(j)) ==> (decision(i) == decision(j)) )))),
-        ("Validity",       f(P.forall( i => decided(i) ==> P.exists( j => init(x)(j) == decision(i) )))),
-        ("Integrity",      f(P.exists( j => P.forall( i => decided(i) ==> (decision(i) == init(x)(j)) )))),
-        ("Irrevocability", f(P.forall( i => old(decided)(i) ==> (decided(i) && old(decision)(i) == decision(i)) )))
+      val properties = List[(String,Formula)](
+        ("Termination",    P.forall( i => decided(i)) ),
+        ("Agreement",      P.forall( i => P.forall( j => (decided(i) && decided(j)) ==> (decision(i) == decision(j)) ))),
+        ("Validity",       P.forall( i => decided(i) ==> P.exists( j => init(x)(j) == decision(i) ))),
+        ("Integrity",      P.exists( j => P.forall( i => decided(i) ==> (decision(i) == init(x)(j)) ))),
+        ("Irrevocability", P.forall( i => old(decided)(i) ==> (decided(i) && old(decision)(i) == decision(i)) ))
       )
   }
   
