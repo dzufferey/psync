@@ -11,7 +11,6 @@ abstract class DefaultOptions extends Options {
   newOption("-v", Unit(() => Logger.moreVerbose), "increase the verbosity level.")
   newOption("-q", Unit(() => Logger.lessVerbose), "decrease the verbosity level.")
   newOption("--hide", String( str => Logger.disallow(str)), "hide the output with given prefix.")
-  newOption("--noAssert", Unit(() => Logger.disableAssert), "remove some assertions.")
  
 }
 

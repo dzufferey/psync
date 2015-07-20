@@ -144,6 +144,22 @@ class PerfTest3(options: RuntimeOptions,
         val inst = msg.instance
         if (Instance.lt(started, inst)) {
           start(inst, emp, Set(msg))
+        } else if (Instance.lt(inst, started)) {
+          getDec(inst) match {
+            case Some(d) => 
+              val payload = PooledByteBufAllocator.DEFAULT.buffer()
+              payload.writeLong(8)
+              payload.writeInt(d.size)
+              payload.writeBytes(d)
+              rt.sendMessage(msg.senderId, Tag(inst,0,Decision,0), payload)
+            case None =>
+              if (started - inst > 50) {
+                val payload = PooledByteBufAllocator.DEFAULT.buffer()
+                payload.writeLong(8)
+                rt.sendMessage(msg.senderId, Tag(inst,0,Late,0), payload)
+              }
+          }
+          msg.release
         } else {
           //TODO check if running and push to inst ?
           msg.release
@@ -255,9 +271,6 @@ object PerfTest3 extends RTOptions {
   var batch = 100
   newOption("-b", dzufferey.arg.Int( i => batch = i), "batch size")
 
-  var req = 8
-  //newOption("-r", dzufferey.arg.Int( i => req = i), "request size")
-
   val usage = "..."
   
   var begin = 0l
@@ -292,7 +305,7 @@ object PerfTest3 extends RTOptions {
         val versionNbr = system.shutdown
         val end = java.lang.System.currentTimeMillis()
         val duration = (end - begin) / 1000
-        println("#instances = " + versionNbr + ", Δt = " + duration + ", throughput = " + (versionNbr/duration))
+        println("#decisions = " + versionNbr + ", Δt = " + duration + ", throughput = " + (versionNbr/duration))
       }
     }
   )

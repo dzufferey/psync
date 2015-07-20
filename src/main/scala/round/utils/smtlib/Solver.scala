@@ -23,9 +23,6 @@ class Solver( th: Theory,
 
   protected var stackCounter = 0
 
-  SysCmd.acquire
-  protected var released = false
-
   //////////////
   // Plumbing //
   //////////////
@@ -77,11 +74,6 @@ class Solver( th: Theory,
     } catch {
       case _: java.lang.IllegalThreadStateException =>
         solver.destroy
-    } finally {
-      if (!released) {
-        SysCmd.release
-        released = true
-      }
     }
   }
 
@@ -151,34 +143,20 @@ class Solver( th: Theory,
   }
 
   def forceExit {
-    try {
-      solver.destroy 
-      solverInput.close
-      solverOutput.close
-      solverError.close
-      for (f <- fileDump) f.close
-    } finally {
-      if (!released) {
-        SysCmd.release
-        released = true
-      }
-    }
+    solver.destroy 
+    solverInput.close
+    solverOutput.close
+    solverError.close
+    for (f <- fileDump) f.close
   }
 
   def exit = {
     toSolver(Exit)
-    try {
-      solver.waitFor
-      solverInput.close
-      solverOutput.close
-      solverError.close
-      for (f <- fileDump) f.close
-    } finally {
-      if (!released) {
-        SysCmd.release
-        released = true
-      }
-    }
+    solver.waitFor
+    solverInput.close
+    solverOutput.close
+    solverError.close
+    for (f <- fileDump) f.close
   }
   
   def declare(t: Type) = {
