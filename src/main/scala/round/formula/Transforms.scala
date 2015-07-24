@@ -141,6 +141,21 @@ class TopDownMapper(fct: Formula => Formula) extends Transformer {
   }
 }
 
+class StubornTopDownMapper(fct: Formula => Formula) extends Transformer {
+  override def transform(f: Formula): Formula = {
+    fct(f) match {
+      case b @ Binding(bt, vs, f) =>
+        def fct2(f: Formula): Formula = {
+          if (vs.exists(v => f == v)) f else fct(f)
+        }
+        val m2 = new StubornTopDownMapper(fct2)
+        Copier.Binding(b, bt, vs, m2.transform(f))
+      case other =>
+        super.transform(other)
+    }
+  }
+}
+
 class Alpha(map: Map[Variable, Variable]) extends Transformer {
 
   lazy val from = map.keySet

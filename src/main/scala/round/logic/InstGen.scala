@@ -175,27 +175,54 @@ object InstGen {
     }
   }
 
-
-  //TODO using TermGenerators
-  protected def generatedTerms( formula: Formula,
-                                cClasses: CongruenceClasses,
-                                depth: Option[Int] ): Formula = {
+  protected def getGenerators( formula: Formula) = {
     val clauses = FormulaUtils.getConjuncts(formula)
-    val genTerms: List[(List[Variable],Formula)] = clauses.flatMap( f => {
+    clauses.foldLeft(Set[TermGenerator]())( (acc,f) => {
       val (f2, _uvars) = Quantifiers.getUniversalPrefix(f)
       val uvars = _uvars.toSet
       val gens = termsGeneratedBy(uvars, f2)
-      gens.toList.map(g => {
+      gens.foldLeft(acc)( (acc,g) => {
         val needed = uvars.intersect(g.freeVariables).toList
-        Simplify.deBruijnIndex(ForAll(needed, g)) match {
-          case ForAll(vs, f) => vs -> f
-          case other => Logger.logAndThrow("InstGen", Error, "expect ∀, found: " + other)
-        }
+        acc + new TermGenerator(needed, g)
       })
     })
-    //TODO create a map from type to index by type of vars so we can easily generate
-    //TODO when there are multiple vars once one is instantiated we should add the ...
-    ???
+  }
+
+  /** generate terms (from the ∀ in the formula) and normalize them by the given congruence classes
+   *  normalization make those terms not suitable for local instantiation (completeness)
+   */
+  protected def generateReprTerms( formula: Formula,
+                                   cClasses: CongruenceClasses,
+                                   depth: Option[Int] ): Set[Formula] = {
+    val generators = getGenerators(formula)
+    def normalize(f: Formula) = cClasses.normalize(cClasses.repr(f))
+    def gen(terms: Set[Formula], depth: Option[Int]): Set[Formula] = depth match {
+      case Some(d) if d <= 0 => terms
+      case _ => 
+        val newTerms = generators.flatMap( g => g(terms).map(normalize) )
+        if (newTerms.isEmpty) terms
+        else gen(terms ++ newTerms, depth.map(_ - 1))
+    }
+    val gts0 = FormulaUtils.collectGroundTerms(formula).map(normalize)
+    val gts1 = cClasses.groundTerms.map(normalize)
+    val gts = gts0 ++ gts1
+    gen(gts, depth)
+  }
+
+  /** generate terms (from the ∀ in the formula) */
+  protected def generateAllTerms( formula: Formula,
+                                  additionalTerms: Set[Formula],
+                                  depth: Option[Int] ): Set[Formula] = {
+    val generators = getGenerators(formula)
+    def gen(terms: Set[Formula], depth: Option[Int]): Set[Formula] = depth match {
+      case Some(d) if d <= 0 => terms
+      case _ => 
+        val newTerms = generators.flatMap(_(terms))
+        if (newTerms.isEmpty) terms
+        else gen(terms ++ newTerms, depth.map(_ - 1))
+    }
+    val gts = FormulaUtils.collectGroundTerms(formula) ++ additionalTerms
+    gen(gts, depth)
   }
   
   /** instantiate all the universally quantified variables with the provided ground terms.

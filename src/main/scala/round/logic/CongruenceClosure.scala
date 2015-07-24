@@ -5,55 +5,67 @@ import round.formula._
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
-//TODO something more incremental, so when new terms are generated, not needed to make it again from scratch
-
 //congruence closure to reduce the number of terms in the instanciation
-object CongruenceClosure {
 
-  def apply(f: Seq[Formula]): CongruenceClasses = apply(And(f:_*))
-
-  def apply(f: Formula): CongruenceClasses = {
-
-    var formulaToNode = Map.empty[Formula, CcNode]
-
-    def getNode(f: Formula): CcNode = {
-      if (formulaToNode contains f) { 
-        formulaToNode(f)
-      } else {
-        val n = f match {
-          case Application(f, args) =>
-            val argsN = args.map(getNode(_))
-            val node = new CcSym(f, argsN)
-            for (n <- argsN) n.ccParents += node
-            node
-          case v @ Variable(_) => new CcVar(v)
-          case l @ Literal(_) => new CcLit(l)
-          case other =>
-            Logger.logAndThrow("CongruenceClosure", Error, "did not expect: " + other)
-        }
-        formulaToNode += f -> n
-        n
-      }
-    }
-
-    //create the graph
-    val gts = FormulaUtils.collectGroundTerms(f)
-    gts.foreach( getNode(_) )
-
-    def processEqs(f: Formula): Unit = f match {
-      case And(lst @ _*) =>
-        lst.foreach(processEqs(_))
-      case Eq(a, b) if formulaToNode.contains(a) && formulaToNode.contains(b) =>
-        formulaToNode(a).merge(formulaToNode(b))
-      case Binding(ForAll | Exists, _, f) =>
-        processEqs(f)
-      case other =>
-        ()
-    }
-    processEqs(f)
+class CongruenceClosure {
     
-    //extract the CC classes
-    //tries to return a simple representative (minimal according to FormulaOrdering)
+  import scala.collection.mutable.{ArrayBuffer, Map => MMap}
+  protected val formulaToNode = MMap[Formula, CcNode]()
+  protected val symbolToNodes = MMap[Symbol, ArrayBuffer[CcNode]]()
+    
+  protected def getNode(f: Formula): CcNode = {
+    if (formulaToNode contains f) { 
+      formulaToNode(f)
+    } else {
+      val n = f match {
+        case a @ Application(f, args) =>
+          val argsN = args.map(getNode(_))
+          val node = new CcSym(a, f, argsN)
+          for (n <- argsN) n.find.ccParents += node //calling find here for inserting incrementally
+          //check according to existing equalities
+          val existing = symbolToNodes.getOrElseUpdate(f, ArrayBuffer[CcNode]())
+          existing.foreach( n => if (node.congruent(n)) node.merge(n) )
+          existing.append(node)
+          //return the newly inserted node
+          node
+        case v @ Variable(_) => new CcVar(v)
+        case l @ Literal(_) => new CcLit(l)
+        case other =>
+          Logger.logAndThrow("CongruenceClosure", Error, "did not expect: " + other)
+      }
+      formulaToNode += f -> n
+      n
+    }
+  }
+    
+  protected def processEqs(f: Formula): Unit = f match {
+    case And(lst @ _*) =>
+      lst.foreach(processEqs(_))
+    case Eq(a, b) if formulaToNode.contains(a) && formulaToNode.contains(b) =>
+      formulaToNode(a).merge(formulaToNode(b))
+    case Binding(ForAll | Exists, _, f) =>
+      processEqs(f)
+    case other =>
+      ()
+  }
+
+  def repr(f: Formula): Formula = {
+    if (FormulaUtils.isGround(f)) {
+      if (formulaToNode.contains(f)) {
+        formulaToNode(f).find.formula
+      } else {
+        getNode(f).find.formula
+      }
+    } else {
+      f
+    }
+  }
+  
+  def normalize(f: Formula): Formula = {
+    FormulaUtils.stubornMapTopDown(repr(_), f)
+  }
+
+  def cc: CongruenceClasses = {
     val cls = formulaToNode.values.groupBy(_.find)
     val classes = cls.map{ case (_, ms) =>
       import FormulaUtils.FormulaOrdering
@@ -64,6 +76,27 @@ object CongruenceClosure {
       c.members.foldLeft(acc)( (a, m) => a + (m -> c) )
     } )
     new CongruenceClasses(classes, map)
+  }
+  
+  def apply(f: Seq[Formula]) { apply(And(f:_*)) }
+
+  def apply(f: Formula) {
+    FormulaUtils.collectGroundTerms(f).foreach( getNode(_) )
+    processEqs(f)
+  }
+
+
+}
+
+object CongruenceClosure {
+
+  def apply(f: Seq[Formula]): CongruenceClasses = apply(And(f:_*))
+
+  def apply(f: Formula): CongruenceClasses = {
+
+    val graph = new CongruenceClosure
+    graph(f)
+    graph.cc
   }
 
 }
@@ -86,7 +119,7 @@ class CongruenceClasses(cls: Iterable[CongruenceClass], map: Map[Formula, Congru
   def knows(f: Formula) = map.contains(f)
 
   def normalize(f: Formula) = {
-    FormulaUtils.mapTopDown(repr(_), f)
+    FormulaUtils.stubornMapTopDown(repr(_), f)
   }
 
   lazy val formula: Formula = {
@@ -122,11 +155,10 @@ class CongruenceClass(val repr: Formula, val members: Set[Formula]) {
 }
 
 //node in the CC graph
-abstract class CcNode {
+abstract class CcNode(val formula: Formula) {
   var parent: Option[CcNode] = None
   var ccParents: Set[CcNode] = Set.empty
 
-  def formula: Formula
   def arity: Int
   def getArgs: List[CcNode]
   def name: String
@@ -161,29 +193,25 @@ abstract class CcNode {
       val p1 = this.ccPar
       val p2 = that.ccPar
       union(that)
-      val toTest = p1.flatMap( x => p2.map( y => (x,y) ) )
-      for ( (x,y) <- toTest if x.find != y.find && x.congruent(y)) x.merge(y)
+      for ( x <- p1; y <- p2 if x.find != y.find && x.congruent(y) ) x.merge(y)
     }
   }
 
 }
 
-class CcSym(symbol: Symbol, args: List[CcNode]) extends CcNode {
-  def formula = symbol(args.map(_.formula):_*) 
+class CcSym(f: Formula, symbol: Symbol, args: List[CcNode]) extends CcNode(f) {
   def name = symbol.toString
   def arity = args.length
   def getArgs: List[CcNode] = args
 }
 
-class CcVar(v: Variable) extends CcNode {
-  def formula = v
+class CcVar(v: Variable) extends CcNode(v) {
   def name = v.toString
   def arity = 0
   def getArgs: List[CcNode] = Nil
 }
 
-class CcLit(l: Literal[_]) extends CcNode {
-  def formula = l
+class CcLit(l: Literal[_]) extends CcNode(l) {
   def name = l.toString
   def arity = 0
   def getArgs: List[CcNode] = Nil

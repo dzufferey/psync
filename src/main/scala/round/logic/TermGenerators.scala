@@ -13,9 +13,24 @@ import dzufferey.utils.LogLevel._
  * @param expr is the template expression to generate
  * @param modifiers are a list of function that can additionally be used to check candiates variables
  */
-class TermGenerator(vars: List[Variable],
-                    expr: Formula,
-                    modifiers: (Seq[Formula] => Boolean)*) {
+class TermGenerator(_vars: List[Variable],
+                    _expr: Formula,
+                    val modifiers: (Seq[Formula] => Boolean)*) {
+
+  val (vars, expr) = Simplify.deBruijnIndex(ForAll(_vars, _expr)) match {
+    case ForAll(vs, f) => vs -> f
+    case other => Logger.logAndThrow("TermGenerator", Error, "expect ∀, found: " + other)
+  }
+  
+  override def equals(a: Any): Boolean = {
+    if (a.isInstanceOf[TermGenerator]) {
+      val tg = a.asInstanceOf[TermGenerator]
+      tg.vars == vars && tg.expr == expr &&
+      tg.modifiers.isEmpty && modifiers.isEmpty
+    } else false
+  }
+  override def hashCode: Int = vars.hashCode + expr.hashCode + modifiers.length
+
 
   val symbols = FormulaUtils.collectSymbols(expr)
 
@@ -23,20 +38,26 @@ class TermGenerator(vars: List[Variable],
   //normalizing, chaining, etc
   //watchlist, avoiding duplication, etc.
 
-  //returns new terms, i.e., not already in gts
+  /** returns only the newly generated terms, i.e., the terms not already in gts
+   *  TODO this is the (semi) brain-dead version...
+   */
   def apply(gts: Set[Formula]): Set[Formula] = {
-    //TODO this is the brain-dead version...
-    val candidates = vars.map( v => gts.filter( t => {
-      t.tpe == v.tpe &&
-      FormulaUtils.collectSymbols(t).intersect(symbols).isEmpty
-    }))
-    val tuplified = Misc.cartesianProduct(candidates).filter( cs => modifiers.forall(_(cs)) )
-    val terms = tuplified.foldLeft(Set[Formula]())( (acc, ts) => {
-      val map = vars.zip(ts).toMap[Formula,Formula]
-      val t = FormulaUtils.map( f => map.getOrElse(f, f), expr)
-      if (gts contains t) acc else acc + t
-      acc + t
-    })
+    val gts2 = gts.view.filter(t => !FormulaUtils.exists({
+        case Application(s, _) => symbols(s)
+        case _ => false }, t) ).toVector
+    val candidates = vars.map( v => gts2.filter( t => t.tpe == v.tpe )).toVector
+    val tuplified = Misc.cartesianProductIterator(candidates)
+    var terms = Set[Formula]()
+    while (tuplified.hasNext) {
+      val ts = tuplified.next
+      if (modifiers.forall(_(ts))) {
+        val map = vars.zip(ts).toMap[Formula,Formula]
+        val t = FormulaUtils.map( f => map.getOrElse(f, f), expr)
+        if (!gts.contains(t)) {
+          terms += t
+        }
+      }
+    }
     terms
   }
 

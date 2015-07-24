@@ -20,4 +20,19 @@ class CongruenceClosureSuite extends FunSuite {
     assert(cc.normalize(pp1) == cc.normalize(pp2))
   }
 
+  test("cc 2") {
+    val cc = new CongruenceClosure
+    cc(Eq(p1, p2))
+    assert(cc.repr(pp2) == cc.repr(pp1))
+    assert(cc.repr(qp1) != cc.repr(qp3))
+    assert(cc.normalize(pp1) == cc.normalize(pp2))
+  }
+  
+  test("cc 3") {
+    val cc = new CongruenceClosure
+    cc(Eq(p1, p2))
+    assert(cc.normalize(pp1) == cc.normalize(pp2))
+  }
+
+
 }

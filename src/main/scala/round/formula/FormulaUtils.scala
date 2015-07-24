@@ -118,6 +118,11 @@ object FormulaUtils {
     m.transform(f)
   }
 
+  def stubornMapTopDown(fct: Formula => Formula, f: Formula): Formula = {
+    val m = new StubornTopDownMapper(fct)
+    m.transform(f)
+  }
+
   /** Rename all free variables that appears in the formula. */
   def renameFreeVar(f: Formula): (Formula, Map[Variable, Variable]) = {
     val free = f.freeVariables
@@ -278,9 +283,21 @@ object FormulaUtils {
       case _ => false
     }
   }
+  
+  def forall(p: Formula => Boolean, f: Formula): Boolean = {
+    !exists( x => !p(x), f)
+  }
 
   /** is f2 a descendent of f1 */
   def contains(f1: Formula, f2: Formula): Boolean = exists( x => x == f2, f1)
+
+  def isGround(f: Formula): Boolean = {
+    forall({
+      case Binding(_, _, _) => false
+      case Application(fct, _) => !symbolExcludedFromGroundTerm(fct)
+      case _ => true
+    }, f)
+  }
 
   def collectGroundTerms(f: Formula): Set[Formula] = {
     def collect(f: Formula, bound: Set[Variable]): (Set[Formula], Boolean) = f match {
