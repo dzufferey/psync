@@ -321,7 +321,7 @@ object Simplify {
     FormulaUtils.map(fct, f)
   }
   
-  def lcm(m: scala.Int, n: scala.Int) = {
+  def lcm(m: Long, n: Long) = {
     var a = m
     var b = n
     while (a != b) {
@@ -356,14 +356,14 @@ object Simplify {
   //TODO better: like the polynomial in react
   def simplifyInt(f: Formula): Formula = {
     //division: from 'x > 2n/3' to '3x > 2n'
-    def getDenom(f: Formula): scala.Int = f match {
-      case Plus(lst @ _*) => lst.foldLeft(1)( (acc, f) => lcm(acc, getDenom(f)) )
-      case Minus(lst @ _*) => lst.foldLeft(1)( (acc, f) => lcm(acc, getDenom(f)) )
-      case Times(lst @ _*) => lst.foldLeft(1)( (acc, f) => acc * getDenom(f) )
+    def getDenom(f: Formula): Long = f match {
+      case Plus(lst @ _*) => lst.foldLeft(1l)( (acc, f) => lcm(acc, getDenom(f)) )
+      case Minus(lst @ _*) => lst.foldLeft(1l)( (acc, f) => lcm(acc, getDenom(f)) )
+      case Times(lst @ _*) => lst.foldLeft(1l)( (acc, f) => acc * getDenom(f) )
       case Divides(a, IntLit(i)) => i * getDenom(a)
       case other => 1
     }
-    def rmDenom(f: Formula, i: scala.Int): Formula = f match {
+    def rmDenom(f: Formula, i: Long): Formula = f match {
       case Plus(lst @ _*) => Application(Plus, lst.map(rmDenom(_, i)).toList).setType(Int)
       case Minus(lst @ _*) => Application(Minus, lst.map(rmDenom(_, i)).toList).setType(Int)
       case Times(lst @ _*) => 
@@ -394,7 +394,7 @@ object Simplify {
       case Minus(x, IntLit(i)) =>
         fct(Plus(x , IntLit(-i)))
       case Plus(lst @ _*) =>
-        val init = (Nil: List[Formula], 0)
+        val init = (Nil: List[Formula], 0l)
         val (lst2, csts) = lst.foldLeft( init )( (acc, f) => f match {
           case Plus(l2 @ _*) => (l2.toList ::: acc._1, acc._2)
           case IntLit(i) => (acc._1, acc._2 + i)
@@ -403,12 +403,12 @@ object Simplify {
         if (lst2.isEmpty) {
           IntLit(csts)
         } else if (csts == 0) {
-          Application(Plus, lst2.reverse).setType(Int)
+          Application(Plus, lst2.reverse)
         } else {
-          Application(Plus, (IntLit(csts) :: lst2).reverse).setType(Int)
+          Application(Plus, (IntLit(csts) :: lst2).reverse)
         }
       case Times(lst @ _*) =>
-        val init = (Nil: List[Formula], 1)
+        val init = (Nil: List[Formula], 1l)
         val (lst2, csts) = lst.foldLeft( init )( (acc, f) => f match {
           case Times(l2 @ _*) => (l2.toList ::: acc._1, acc._2)
           case IntLit(i) => (acc._1, acc._2 * i)
@@ -419,9 +419,9 @@ object Simplify {
         } else if (csts == 0) {
           IntLit(0)
         } else if (csts == 1) {
-          Application(Times, lst2.reverse).setType(Int)
+          Application(Times, lst2.reverse)
         } else {
-          Application(Times, (IntLit(csts) :: lst2).reverse).setType(Int)
+          Application(Times, (IntLit(csts) :: lst2).reverse)
         }
       case Divides(IntLit(i1), IntLit(i2)) if i1 % i2 == 0 => IntLit(i1/i2)
       case Divides(a, IntLit(1)) => a

@@ -53,11 +53,17 @@ object False {
   def apply(): Literal[Boolean] = lit
 }
 object IntLit {
-  def unapply(f: Formula): Option[scala.Int] = f match {
-    case Literal(i: scala.Int) => Some(i)
+  def unapply(f: Formula): Option[Long] = f match {
+    case Literal(i: Byte) => Some(i.toLong)
+    case Literal(i: Short) => Some(i.toLong)
+    case Literal(i: scala.Int) => Some(i.toLong)
+    case Literal(i: Long) => Some(i)
     case _ => None
   }
-  def apply(i: scala.Int): Literal[scala.Int] = Literal(i).setType(Int)
+  def apply(i: Long): Literal[Long] = Literal(i).setType(Int)
+  def apply(i: scala.Int): Literal[Long] = Literal(i.toLong).setType(Int)
+  def apply(i: Short): Literal[Long] = Literal(i.toLong).setType(Int)
+  def apply(i: Byte): Literal[Long] = Literal(i.toLong).setType(Int)
 }
 
 case class Variable(name: String) extends Formula {
