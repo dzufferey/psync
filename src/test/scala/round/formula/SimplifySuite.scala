@@ -39,7 +39,7 @@ class SimplifySuite extends FunSuite {
   test("simplification 1") {
     val v = Variable("v").setType(Int)
     val s = Eq(v, Literal(1))
-    assert( s == Simplify.simplifyBool(And(s,s)), "similar elements should cancel")
+    assert( Simplify.simplifyBool(s) == Simplify.simplifyBool(And(s,s)), "similar elements should cancel")
   }
 
   test("simplification 2") {
@@ -57,7 +57,7 @@ class SimplifySuite extends FunSuite {
     val f3 = Simplify.simplify(f2)
     val i1 = Variable("Int_1").setType(Int)
     val i2 = Variable("Int_2").setType(Int)
-    assert(f3 == Exists(List(i1, i2), Eq(i2, i1))) //due to normalization the indices are 1,2 instead of 2,1 but this is OK since they are bound at the same level.
+    assert(f3 == Exists(List(i1, i2), Eq(i1, i2))) //due to normalization the indices are 1,2 instead of 2,1 but this is OK since they are bound at the same level.
   }
   
   test("split ∀ 1") {

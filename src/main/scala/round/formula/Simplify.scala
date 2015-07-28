@@ -453,6 +453,10 @@ object Simplify {
   def simplifyBool(f: Formula): Formula = {
     import FormulaUtils._
     def fct(f: Formula) = f match {
+      case e @ Eq(a, b) =>
+        if (a == b) True()
+        else if (FormulaOrdering.compare(a, b) <= 0) e
+        else Eq(b,a)
       case Or(lst @ _*) =>
         val lst2 = lst.toSet.filterNot(_ == False())
         if (lst2.exists(_ == True())) True()

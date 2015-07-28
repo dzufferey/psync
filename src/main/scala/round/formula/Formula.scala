@@ -1,6 +1,6 @@
 package round.formula
 
-//TODO temporal aspect ??
+//TODO ordering for further normalization
 
 sealed abstract class Formula {
 
