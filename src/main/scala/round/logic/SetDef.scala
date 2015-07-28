@@ -78,10 +78,13 @@ object SetDef {
       val scope = s1.scope ++ s2.scope
       val body = (s1.body.get, s2.body.get) match {
         case (Comprehension(List(i1), b1), Comprehension(List(i2), b2)) =>
-          //TODO better way
-          assert(!b2.freeVariables.contains(i1) && !b2.boundVariables.contains(i1), "TODO not sure how to merge")
-          val b2p = FormulaUtils.replace(i2, i1, b2)
-          Comprehension(List(i1), And(b1, b2p))
+          if (i1 == i2) Comprehension(List(i1), And(b1, b2))
+          else {
+            //TODO better way
+            assert(!b2.freeVariables.contains(i1) && !b2.boundVariables.contains(i1), "TODO not sure how to merge " + s1 + " and " + s2)
+            val b2p = FormulaUtils.replace(i2, i1, b2)
+            Comprehension(List(i1), And(b1, b2p))
+          }
         case (c1, c2) =>
           Logger.logAndThrow("SetDef", Error, "merge: " + c1 + ", " + c2)
       }
@@ -90,12 +93,11 @@ object SetDef {
     else s2
   }
 
-  def mergeEqual( sDefs: Iterable[SetDef],
-                  cClasses: CongruenceClasses
-                ): Iterable[SetDef] = {
-    var acc = Map[Formula, SetDef]()
-    val map = sDefs.foldLeft(Map[Formula, SetDef]())( (acc, s) => {
+  def mergeEqual( sDefs: Iterable[SetDef], cClasses: CC): Iterable[SetDef] = {
+    var acc0 = Map[Formula, SetDef]()
+    val map = sDefs.foldLeft(acc0)( (acc, s) => {
       val r = cClasses.repr(s.id)
+      Logger("SetDef", Debug, "processing: " + s + "\n     eq to: " + r)
       if (acc contains r) {
         acc + (r -> merge(acc(r), s))
       } else {

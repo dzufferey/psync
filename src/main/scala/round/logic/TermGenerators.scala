@@ -29,13 +29,6 @@ class TermGenerator(_vars: List[Variable],
   }
   override def hashCode: Int = vars.hashCode + expr.hashCode
 
-  //TODO for local version
-  //val symbols = FormulaUtils.collectSymbols(expr)
-    //TODO for local version
-    //val gts2 = gts.view.filter(t => !FormulaUtils.exists({
-    //    case Application(s, _) => symbols(s)
-    //    case _ => false }, t) ).toVector
-
   /** returns only the newly generated terms, i.e., the terms not already in gts
    *  TODO this is the (semi) brain-dead version...
    */
@@ -58,15 +51,9 @@ class TermGenerator(_vars: List[Variable],
 }
 
 
-//Those should be normalized so they can be quickly compared
-//applying a term to it should return either nothing, a formula, or a new generator 
-//if a new generator is returned the term should also be applied to it (after checking that the generator is not redundant)
-//class TermGenPattern(vs: List[Variable], e: Formula) {
-//}
-
 //TODO a more efficient version that can be used in InstGen
 //CongruenceClosure (normalization and pushing new constraints) -> could be done by the part calling the IncrementalTermGenerator
-
+  
 //TODO Local IncrementalTermGenerator
 //with triggers, etc.
 
@@ -166,9 +153,57 @@ class IncrementalTermGenerator(axioms: Iterable[Formula]) {
     res
   }
 
-  def generate(groundTerms: Set[Formula]): List[Formula] = {
+  def generate(groundTerms: Iterable[Formula]): List[Formula] = {
     groundTerms.toList.flatMap(generate)
   }
 
 }
-  
+
+
+class IncrementalInstanceGenerator(f: Formula, val cc: CongruenceClosure = new CongruenceClosure) {
+
+  //make sure the current equalities are in the cc
+  cc(f)
+
+  val gen = {
+    val axioms = for( f <- FormulaUtils.getConjuncts(f) if Quantifiers.hasFA(f) )
+                 yield Simplify.pnf(f)
+    new IncrementalTermGenerator(axioms)
+  }
+
+  def generate(term: Formula): List[Formula] = {
+    val r = cc.repr(term)
+    val newInst = gen.generate(r)
+    cc(newInst)
+    newInst
+  }
+
+  def generate(terms: Set[Formula]): List[Formula] = {
+    val buffer = scala.collection.mutable.ListBuffer[Formula]()
+    terms.foreach(t => buffer.appendAll(generate(t)))
+    buffer.result
+  }
+
+  def generateWithExistingGTS = generate(cc.groundTerms)
+
+  /** saturate starting with the groundTerms (in cc), up to a certain depth.
+   * @param depth (optional) bound on the recursion depth
+   * @return applications of the axioms
+   */
+  def saturate(depth: Option[Int] = None) = {
+    val buffer = scala.collection.mutable.ListBuffer[Formula]()
+    var d = depth
+    var processed = scala.collection.mutable.Set[Formula]()
+    var toProcess = cc.groundTerms
+    while (d.getOrElse(1) >= 0 && !toProcess.isEmpty) {
+      val newInst = generate(toProcess)
+      buffer ++= newInst
+      processed ++= toProcess
+      val newGts = newInst.view.flatMap(FormulaUtils.collectGroundTerms)
+      toProcess = newGts.map(cc.repr).filter(f => !processed.contains(f)).toSet
+      d = d.map(_ - 1)
+    }
+    buffer.result
+  }
+
+}

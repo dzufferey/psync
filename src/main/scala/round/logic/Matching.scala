@@ -7,6 +7,8 @@ import dzufferey.utils.LogLevel._
 
 //matching for local quantifier instantiation and term generation
 
+//TODO adapt for incremental CC
+
 class Matching(cClasses: CongruenceClasses) {
 
   import Matching._

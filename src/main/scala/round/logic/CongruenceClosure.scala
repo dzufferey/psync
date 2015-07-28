@@ -6,8 +6,13 @@ import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
 //congruence closure to reduce the number of terms in the instanciation
+trait CC {
+  def repr(f: Formula): Formula
+  def normalize(f: Formula): Formula
+  def groundTerms: Set[Formula]
+}
 
-class CongruenceClosure {
+class CongruenceClosure extends CC {
     
   import scala.collection.mutable.{ArrayBuffer, Map => MMap}
   protected val formulaToNode = MMap[Formula, CcNode]()
@@ -65,6 +70,8 @@ class CongruenceClosure {
     FormulaUtils.stubornMapTopDown(repr(_), f)
   }
 
+  def groundTerms = formulaToNode.keysIterator.toSet
+
   def cc: CongruenceClasses = {
     val cls = formulaToNode.values.groupBy(_.find)
     val classes = cls.map{ case (_, ms) =>
@@ -93,7 +100,6 @@ object CongruenceClosure {
   def apply(f: Seq[Formula]): CongruenceClasses = apply(And(f:_*))
 
   def apply(f: Formula): CongruenceClasses = {
-
     val graph = new CongruenceClosure
     graph(f)
     graph.cc
@@ -101,7 +107,7 @@ object CongruenceClosure {
 
 }
 
-class CongruenceClasses(cls: Iterable[CongruenceClass], map: Map[Formula, CongruenceClass]) {
+class CongruenceClasses(cls: Iterable[CongruenceClass], map: Map[Formula, CongruenceClass]) extends CC {
 
   override def toString = cls.mkString("\n")
 
@@ -127,7 +133,8 @@ class CongruenceClasses(cls: Iterable[CongruenceClass], map: Map[Formula, Congru
     else And(cls.toSeq.map(_.formula):_*)
   }
 
-  lazy val groundTerms: Set[Formula] = cls.foldLeft(Set[Formula]())( _ ++ _.terms)
+  protected lazy val gts: Set[Formula] = cls.foldLeft(Set[Formula]())( _ ++ _.terms)
+  def groundTerms = gts
 
 }
 

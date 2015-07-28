@@ -20,11 +20,11 @@ class CL(bound: Option[Int],
   val n = Variable("n").setType(Int)
 
   def hasHO(f: Formula): Boolean = {
-    def check(acc: Boolean, f: Formula) = f match {
+    def check(f: Formula) = f match {
       case Application(UnInterpretedFct("HO",_,_), _) => true
-      case _ => acc
+      case _ => false
     }
-    FormulaUtils.collect(false, check, f)
+    FormulaUtils.exists(check, f)
   }
 
   //TODO generalize
@@ -43,12 +43,11 @@ class CL(bound: Option[Int],
   }
  
   protected def keepAsIt(f: Formula): Boolean = {
-    var hasComp = false
     def check(f1: Formula) = f1 match {
-      case Comprehension(_, _) => hasComp = true
-      case _ => ()
+      case Comprehension(_, _) => true
+      case _ => false
     }
-    FormulaUtils.traverse(check, f)
+    val hasComp = FormulaUtils.exists(check, f)
     !hasComp && TypeStratification.isStratified(f)
     //!hasComp && Quantifiers.isEPR(f)
   }
@@ -220,12 +219,14 @@ class CL(bound: Option[Int],
     //separte groud term into equivalence classes 
     val gts0 = getGrounTerms(epr)
     val rawInst = InstGen.saturate(And(rest:_*), gts0, cCls0, Some(0), false)
-    val inst0 = FormulaUtils.getConjuncts(rawInst)
-    Logger("CL", Debug, "after instantiation:\n  " + inst0.mkString("\n  "))
+    val inst0 = Simplify.boundVarUnique(rawInst)
+    val (inst1, _) = Quantifiers.getExistentialPrefix(inst0)
+    val inst = FormulaUtils.getConjuncts(inst1)
+    Logger("CL", Debug, "after instantiation:\n  " + inst.mkString("\n  "))
 	    
     //the venn regions
-    val cCls1 = CongruenceClosure(epr ++ inst0)
-    val withILP = epr ::: reduceComprehension(inst0, cCls1, univ)
+    val cCls1 = CongruenceClosure(epr ++ inst)
+    val withILP = epr ::: reduceComprehension(inst, cCls1, univ)
     
     //add axioms for the other theories
     val withSetAx = SetOperationsAxioms.addAxioms(withILP)

@@ -69,7 +69,8 @@ object Quantifiers {
       val above = defs.flatMap{ case (v, c) => if ( hasDependencies(v,c)) Some(v) else None }.toList
       val below = defs.flatMap{ case (v, c) => if (!hasDependencies(v,c)) Some(v) else None }.toList
       val temp = Exists(above, ForAll(remaining, Exists(below, withPrefix)))
-      Simplify.simplify(temp)
+      val simp = Simplify.simplify(temp)
+      simp
 
     case other => other
   }
@@ -180,6 +181,16 @@ object Quantifiers {
     }
 
     process(Set(), f)
+  }
+
+  def hasFA(f: Formula) =
+    FormulaUtils.exists({ case ForAll(_, _) => true; case _ => false }, f)
+
+  def hasFAnotInComp(f: Formula): Boolean = f match {
+    case Application(_, args) => args.exists(hasFAnotInComp)
+    case ForAll(_, _) => true
+    case Exists(_, f) => hasFAnotInComp(f)
+    case _ => false
   }
 
 }
