@@ -132,7 +132,7 @@ class CL(bound: Option[Int],
   protected def collectSetTerms(gts: Set[Formula]): List[SetDef] = {
     val sts = gts.filter( _.tpe match { case FSet(_) => true
                                         case _ => false } )
-    sts.toList.map( ho => SetDef(Set(), ho, None) )
+    sts.toList.map( ho => SetDef(ho, None) )
   }
 
   protected def sizeOfUniverse(tpe: Type): Option[Formula] = tpe match {

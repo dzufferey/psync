@@ -5,11 +5,15 @@ import round.formula._
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
+
 //congruence closure to reduce the number of terms in the instanciation
 trait CC {
   def repr(f: Formula): Formula
+  def allRepr: Set[Formula]
   def normalize(f: Formula): Formula
   def groundTerms: Set[Formula]
+  def withSymbol(s: Symbol): Seq[Formula]
+  //TODO getting the congruence class of a node: cClass(f: Formula): Seq[Formula]
 }
 
 class CongruenceClosure extends CC {
@@ -65,12 +69,36 @@ class CongruenceClosure extends CC {
       f
     }
   }
+
+  def cClass(f: Formula): Seq[Formula] = {
+    if (FormulaUtils.isGround(f)) {
+      if (formulaToNode.contains(f)) {
+        formulaToNode(f).cClass
+      } else {
+        getNode(f).cClass
+      }
+    } else {
+      Seq(f)
+    }
+  }
   
   def normalize(f: Formula): Formula = {
     FormulaUtils.stubornMapTopDown(repr(_), f)
   }
 
   def groundTerms = formulaToNode.keysIterator.toSet
+
+  def withSymbol(s: Symbol) = {
+    val builder = new scala.collection.immutable.VectorBuilder[Formula]()
+    symbolToNodes.get(s) match {
+      case Some(nodes) =>
+        nodes.foreach( n => builder += n.formula )
+      case None => ()
+    }
+    builder.result
+  }
+
+  def allRepr = formulaToNode.values.map(_.find.formula).toSet
 
   def cc: CongruenceClasses = {
     val cls = formulaToNode.values.groupBy(_.find)
@@ -85,9 +113,10 @@ class CongruenceClosure extends CC {
     new CongruenceClasses(classes, map)
   }
   
-  def apply(f: Seq[Formula]) { apply(And(f:_*)) }
 
-  def apply(f: Formula) {
+  def addConstraints(f: Seq[Formula]) { addConstraints(And(f:_*)) }
+
+  def addConstraints(f: Formula) {
     FormulaUtils.collectGroundTerms(f).foreach( getNode(_) )
     processEqs(f)
   }
@@ -101,7 +130,7 @@ object CongruenceClosure {
 
   def apply(f: Formula): CongruenceClasses = {
     val graph = new CongruenceClosure
-    graph(f)
+    graph.addConstraints(f)
     graph.cc
   }
 
@@ -119,6 +148,9 @@ class CongruenceClasses(cls: Iterable[CongruenceClass], map: Map[Formula, Congru
     if (map.contains(f)) map(f).repr
     else f
   }
+  
+  lazy val allR = cls.view.map(_.repr).toSet
+  def allRepr = allR
 
   def classes = cls
   
@@ -135,6 +167,9 @@ class CongruenceClasses(cls: Iterable[CongruenceClass], map: Map[Formula, Congru
 
   protected lazy val gts: Set[Formula] = cls.foldLeft(Set[Formula]())( _ ++ _.terms)
   def groundTerms = gts
+
+  protected lazy val s2t = gts.toSeq.collect{ case a @ Application(_, _) => a }.groupBy(_.fct)
+  def withSymbol(s: Symbol) = s2t(s)
 
 }
 
@@ -165,6 +200,7 @@ class CongruenceClass(val repr: Formula, val members: Set[Formula]) {
 abstract class CcNode(val formula: Formula) {
   var parent: Option[CcNode] = None
   var ccParents: Set[CcNode] = Set.empty
+  var children: Seq[CcNode] = Seq.empty
 
   def arity: Int
   def getArgs: List[CcNode]
@@ -179,12 +215,39 @@ abstract class CcNode(val formula: Formula) {
       this
   }
 
+  def cClassN: Seq[CcNode] = {
+    val n = find
+    val buffer = scala.collection.mutable.ListBuffer[CcNode]()
+    buffer += n
+    def getChildren(n: CcNode) {
+      buffer ++= n.children
+      n.children.foreach(getChildren)
+    }
+    getChildren(n)
+    buffer.result
+  }
+  
+  def cClass: Seq[Formula] = {
+    val n = find
+    val buffer = scala.collection.mutable.ListBuffer[Formula]()
+    def getChildren(n: CcNode) {
+      buffer += n.formula
+      n.children.foreach(getChildren)
+    }
+    getChildren(n)
+    buffer.result
+  }
+
+
   def union(that: CcNode) {
     val n1 = this.find
     val n2 = that.find
     n1.parent = Some(n2)
-    n2.ccParents = n1.ccParents ++ n2.ccParents
-    n1.ccParents = Set.empty
+    n2.ccParents ++= n1.ccParents
+    n1.ccParents   = Set.empty
+    n2.children ++= n1.children
+    n2.children +:= n1
+    n1.children   = Seq.empty
   }
     
   def ccPar = find.ccParents

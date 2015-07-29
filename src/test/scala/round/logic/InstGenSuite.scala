@@ -17,7 +17,7 @@ class InstGenSuite extends FunSuite {
     val i1a = InstGen.saturateWith(ax1, gts, gts, cc, Some(0), true)
     val i1b = InstGen.saturateWith(ax1, gts, gts, cc, Some(0), false)
     assert(FormulaUtils.getConjuncts(i1a).size == 2)
-    assert(FormulaUtils.getConjuncts(i1b).size == 5)
+    assert(FormulaUtils.getConjuncts(i1b).size == 4) //one cstr is actually redundant
     
     val ax2 = ForAll(List(x), Eq(f(x), g(x)))
     val i2a = InstGen.saturateWith(ax2, gts, gts, cc, Some(0), true)
@@ -37,8 +37,12 @@ class InstGenSuite extends FunSuite {
     )
     val i1a = InstGen.saturateWith(ax1, gts, gts, cc, Some(0), true)
     val i1b = InstGen.saturateWith(ax1, gts, gts, cc, Some(0), false)
+    val i1c = InstGen.saturateWith(ax1, gts, gts, cc, Some(1), false)
+    val i1d = InstGen.saturate(ax1, gts)
     assert(i1a == True())
-    assert(FormulaUtils.getConjuncts(i1b).size == 2)
+    assert(FormulaUtils.getConjuncts(i1b).size == 1)
+    assert(FormulaUtils.getConjuncts(i1c).size == 2)
+    assert(FormulaUtils.getConjuncts(i1d).size == 2)
   }
 
   test("saturate1"){

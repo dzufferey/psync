@@ -52,6 +52,8 @@ case class SetDef(scope: Set[Variable], id: Formula, body: Option[Binding]) {
 
 object SetDef {
 
+  def apply(id: Formula, body: Option[Binding]) = new SetDef(Set.empty, id, body)
+
   protected def normalizeSetBody( sDefs: Iterable[SetDef],
                                   cClasses: CongruenceClasses
                                 ): (List[SetDef], Map[Formula, Formula]) = {

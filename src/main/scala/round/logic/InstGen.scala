@@ -57,17 +57,14 @@ object InstGen {
 
   protected def instantiateLocally( formula: Formula,
                                     mandatoryTerms: Set[Formula],
-                                    groundTerms: Set[Formula],
-                                    cClasses: CongruenceClasses): Formula = {
-    assert(groundTerms subsetOf cClasses.groundTerms)
-    val m = new Matching(cClasses)
+                                    cClasses: CC): Formula = {
     def processClause(f: Formula): Formula = {
       val (f2, _uvars) = Quantifiers.getUniversalPrefix(f)
       val uvars = _uvars.toSet
       val generatingTerms = termsGeneratedBy(uvars, f2)
       val init = Set(Map[Variable,Formula]())
       val candidates = generatingTerms.foldLeft(init)( (acc, gen) => {
-        Matching.mergeMaps(acc, m.find(gen, uvars))
+        Matching.mergeMaps(acc, Matching.find(cClasses, uvars, gen))
       })
       val insts = candidates.toList.flatMap( m => {
         assert(uvars.forall( v => m contains v ), "not value for all the variables")
@@ -93,29 +90,19 @@ object InstGen {
     Simplify.simplifyBool(FormulaUtils.flatten(qf))
   }
 
-  //at least one variable must be instantiated with one of the new term
-  protected def instanciateOneStep( formula: Formula,
-                                    mandatoryTerms: Set[Formula],
-                                    gts: Set[Formula],
-                                    cClasses: CongruenceClasses,
-                                    local: Boolean ): Formula = {
-    if (local) {
-      instantiateLocally(formula, mandatoryTerms, gts, cClasses)
-    } else {
-      val cc = new CongruenceClosure //TODO reuse
-      cc(cClasses.formula)
-      val mRepr = mandatoryTerms.map(cClasses.repr(_))
-      val gRepr = gts.map(cClasses.repr(_)) -- mRepr
-      val gen = new IncrementalInstanceGenerator(formula, cc)
-      gen.generate(gRepr) //ignore the ones from the existing terms
-      And(gen.generate(mRepr) :_*)
-    }
+  protected def toCongruenceClosure(cClasses: CC) = cClasses match {
+    case c: CongruenceClosure => c
+    case cl: CongruenceClasses =>
+      val c = new CongruenceClosure
+      c.addConstraints(cl.formula)
+      c
+    case other => sys.error("unexpected: " + other)
   }
   
   /** instantiate all the universally quantified variables with the provided ground terms.
    TODO get rid of this and replace by something simpler (also use CongruenceClosure instead of CongruenceClasses)
    * @param formula list of formula
-   * @param mandatoryTerms given an chain of quantified variables, at least one of them will be instantiated with a mandatory term. The others may also use the optionalTerms
+   * @param mandatoryTerms given an chain of quantified variables, at least one of them will be instantiated with a mandatory term (or its representative in cClasses). The others may also use the optionalTerms.
    * @param optionalTerms (optional) set of terms to add to the terms present in the formulas
    * @param cClasses (optional) congruence classes to reduce the number of terms used in the instantiation
    TODO simplify that: depth 0 should be local, anything above that generates terms
@@ -125,32 +112,37 @@ object InstGen {
   def saturateWith( formula: Formula,
                     mandatoryTerms: Set[Formula],
                     optionalTerms: Set[Formula] = Set(),
-                    cClasses: CongruenceClasses = CongruenceClasses.empty,
+                    cClasses: CC = CongruenceClasses.empty,
                     depth: Option[Int] = None,
                     local: Boolean = false ): Formula = {
-    //TODO smarter strategy:
-    //for depth rounds, generate new terms, then do one step of local instantiation
-    val gts = mandatoryTerms ++ optionalTerms ++ FormulaUtils.collectGroundTerms(formula)
-    //ground terms are from the epr part 
-    val formula2 = instanciateOneStep(formula, mandatoryTerms, gts, cClasses, local)
-    if (depth.getOrElse(1) <= 0) {
-      if (!local) {
-        val gts2 = FormulaUtils.collectGroundTerms(formula2) -- gts
-        val cClasses1 = CongruenceClosure(And(formula2, cClasses.formula))
-        val formula3 = instanciateOneStep(formula, gts2, cClasses1.groundTerms, cClasses1, true)
-        val formula4 = And(formula2, formula3)
-        postprocess(formula4)
-      } else {
-        postprocess(formula2)
-      }
-    } else {
+    //get an incremental CC
+    val cc = toCongruenceClosure(cClasses)
+    //push all the terms to be sure
+    mandatoryTerms.foreach(cc.repr)
+    optionalTerms.foreach(cc.repr)
+    FormulaUtils.collectGroundTerms(formula).foreach(cc.repr)
+    //make sure formula is taking into account
+    cc.addConstraints(formula)
+
+    if (local) {
+      assert(depth.getOrElse(0) <= 0, "local and depth > 0 (" + depth + ")")
+      val gts = cc.groundTerms
+      //TODO do we need the double inst ?
+      val formula2 = instantiateLocally(formula, mandatoryTerms, cc)
       val gts2 = FormulaUtils.collectGroundTerms(formula2) -- gts
-      if (gts2.isEmpty) {
-        postprocess(formula2)
-      } else {
-        val cClasses1 = CongruenceClosure(And(formula2, cClasses.formula))
-        saturateWith(formula, gts2, gts, cClasses1, depth.map(_ - 1), local)
-      }
+      val formula3 = instantiateLocally(formula, gts2, cc)
+      val formula4 = And(formula2, formula3)
+      postprocess(formula4)
+    } else {
+      val (ax, rest) = FormulaUtils.getConjuncts(formula).partition(Quantifiers.hasFAnotInComp)
+      val gen = new IncrementalGenerator(And(ax:_*), cc)
+      val mRepr = mandatoryTerms.map(cc.repr)
+      //ignore things without mandatoryTerms
+      cc.groundTerms.view.map(cc.repr).filterNot(mRepr).foreach(gen.generate)
+      //saturate with the remaining terms
+      val insts = gen.saturate(depth)
+      val res = And(rest ++ insts :_*)
+      postprocess(res)
     }
   }
 
@@ -164,15 +156,14 @@ object InstGen {
    */
   def saturate( formula: Formula,
                 groundTerms: Set[Formula] = Set(),
-                cClasses: CongruenceClasses = CongruenceClasses.empty,
+                cClasses: CC = CongruenceClasses.empty,
                 depth: Option[Int] = None,
                 local: Boolean = false ): Formula = {
     if (local) {
       val gts = groundTerms ++ FormulaUtils.collectGroundTerms(formula)
       saturateWith(formula, gts, Set(), cClasses, depth, local)
     } else {
-      val cc = new CongruenceClosure //TODO reuse
-      cc(cClasses.formula)
+      val cc = toCongruenceClosure(cClasses)
       saturate1(formula, depth, groundTerms, cc)
     }
   }
@@ -182,9 +173,9 @@ object InstGen {
                 groundTerms: Set[Formula] = Set(),
                 cc: CongruenceClosure = new CongruenceClosure): Formula = {
     groundTerms.foreach(cc.repr) //make sure all the terms are in cc
-    cc(formula)
+    cc.addConstraints(formula)
     val (ax, rest) = FormulaUtils.getConjuncts(formula).partition(Quantifiers.hasFAnotInComp)
-    val gen = new IncrementalInstanceGenerator(And(ax:_*), cc)
+    val gen = new IncrementalGenerator(And(ax:_*), cc)
     val insts = gen.saturate(depth)
     And(rest ++ insts :_*)
   }

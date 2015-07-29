@@ -5,15 +5,15 @@ import round.formula.Common._
 
 import org.scalatest._
 
-class TermGeneratorSuite extends FunSuite {
+class IncrementalGeneratorSuite extends FunSuite {
 
-  test("incremental 1"){
+  test("formula 1"){
     val axs = List(
       ForAll(List(p1), Eq(rp1, IntLit(0))),
       ForAll(List(p2), Eq(rp2, IntLit(0))),
       ForAll(List(p1,p2), Eq(pp1, pp2))
     )
-    val itg = new IncrementalTermGenerator(axs)
+    val itg = new IncrementalFormulaGenerator(axs)
     val g1 = itg.generate(p1)
     assert(g1.size == 1)
     assert(g1 contains Eq(IntLit(0), rp1))
