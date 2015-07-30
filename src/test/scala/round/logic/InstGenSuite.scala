@@ -14,14 +14,14 @@ class InstGenSuite extends FunSuite {
     val gts = cc.groundTerms
 
     val ax1 = ForAll(List(x), Eq(f(x), x))
-    val i1a = InstGen.saturateWith(ax1, gts, gts, cc, Some(0), true)
-    val i1b = InstGen.saturateWith(ax1, gts, gts, cc, Some(0), false)
+    val i1a = InstGen.saturateWith(ax1, gts, Some(0), cc)
+    val i1b = InstGen.saturateWith(ax1, gts, Some(1), cc)
     assert(FormulaUtils.getConjuncts(i1a).size == 2)
     assert(FormulaUtils.getConjuncts(i1b).size == 4) //one cstr is actually redundant
     
     val ax2 = ForAll(List(x), Eq(f(x), g(x)))
-    val i2a = InstGen.saturateWith(ax2, gts, gts, cc, Some(0), true)
-    val i2b = InstGen.saturateWith(ax2, gts, gts, cc, Some(0), false)
+    val i2a = InstGen.saturateWith(ax2, gts, Some(0), cc)
+    val i2b = InstGen.saturateWith(ax2, gts, Some(1), cc)
     assert(FormulaUtils.getConjuncts(i2a).size == 1)
     assert(FormulaUtils.getConjuncts(i2b).size == 5)
   }
@@ -35,28 +35,34 @@ class InstGenSuite extends FunSuite {
       ForAll(List(p2), In(p2, CL.HO(p2))),
       ForAll(List(s1), SubsetEq(s1, s1))
     )
-    val i1a = InstGen.saturateWith(ax1, gts, gts, cc, Some(0), true)
-    val i1b = InstGen.saturateWith(ax1, gts, gts, cc, Some(0), false)
-    val i1c = InstGen.saturateWith(ax1, gts, gts, cc, Some(1), false)
-    val i1d = InstGen.saturate(ax1, gts)
+    val i1a = InstGen.saturateWith(ax1, gts, Some(0), cc)
+    val i1b = InstGen.saturateWith(ax1, gts, Some(1), cc)
+    val i1c = InstGen.saturate(ax1)
+    val i1d = InstGen.saturate(ax1, None, cc)
+    val i1e = InstGen.saturateWith(ax1, gts, None, cc)
     assert(i1a == True())
-    assert(FormulaUtils.getConjuncts(i1b).size == 1)
-    assert(FormulaUtils.getConjuncts(i1c).size == 2)
+    assert(FormulaUtils.getConjuncts(i1b).size == 2)
+    assert(FormulaUtils.getConjuncts(i1c).size == 0)
     assert(FormulaUtils.getConjuncts(i1d).size == 2)
+    assert(FormulaUtils.getConjuncts(i1e).size == 2)
   }
 
-  test("saturate1"){
+  test("saturate 1"){
     val f0 = And( ForAll(List(x), Leq(f(x), x)),
                   Leq(f(x), g(y)),
                   Leq(f(y), g(y)))
-    val r0 = InstGen.saturate1(f0, Some(0))
-    assert(FormulaUtils.getConjuncts(r0).size == 7)
+    val r0a = InstGen.saturate(f0, Some(0))
+    assert(FormulaUtils.getConjuncts(r0a).size == 4)
+    val r0b = InstGen.saturate(f0, Some(1))
+    assert(FormulaUtils.getConjuncts(r0b).size == 7)
 
     val f1 = And( ForAll(List(x), Eq(f(x), x)),
                   Leq(f(x), g(y)),
                   Leq(f(y), g(y)))
-    val r1 = InstGen.saturate1(f1, Some(0))
-    assert(FormulaUtils.getConjuncts(r1).size == 6)
+    val r1a = InstGen.saturate(f1, Some(0))
+    assert(FormulaUtils.getConjuncts(r1a).size == 4)
+    val r1b = InstGen.saturate(f1, Some(1))
+    assert(FormulaUtils.getConjuncts(r1b).size == 6)
   }
 
 }

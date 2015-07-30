@@ -215,10 +215,9 @@ class CL(bound: Option[Int],
     Logger("CL", Debug, "clauses to process:\n  " + rest.mkString("\n  "))
     //CD add neprUniv 	
     //get rid on the ∀ quantifiers
-    val cCls0 = CongruenceClosure(clauses)
+    val cCls0 = CongruenceClosure(clauses) //TODO incremental CC
     //separte groud term into equivalence classes 
-    val gts0 = getGrounTerms(epr)
-    val rawInst = InstGen.saturate(And(rest:_*), gts0, cCls0, Some(0), false)
+    val rawInst = InstGen.saturate(And(rest:_*), Some(1), cCls0)
     val inst0 = Simplify.boundVarUnique(rawInst)
     val (inst1, _) = Quantifiers.getExistentialPrefix(inst0)
     val inst = FormulaUtils.getConjuncts(inst1)

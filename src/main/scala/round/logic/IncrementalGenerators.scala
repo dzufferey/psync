@@ -56,6 +56,24 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula]) {
       }
       res
     }
+    
+    def apply(v: Variable, term: Formula): Option[Gen] = {
+      val i = vs.indexOf(v)
+      if (!done(i)(term)) {
+        done(i) += term
+        Some(newGen(i, term))
+      } else {
+        None
+      }
+    }
+
+    def localMatches(cc: CC): Set[Map[Variable,Formula]] = {
+      val toIdx = vs.zipWithIndex.toMap
+      def notDone(m: Map[Variable,Formula]): Boolean = {
+        m.forall{ case (v,f) => !done(toIdx(v))(f) }
+      }
+      Matching.findLocalSubterms(cc, vs.toSet, f).filter(notDone)
+    }
 
   }
 
@@ -64,12 +82,16 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula]) {
   protected val idx  = scala.collection.mutable.Map[Type,ArrayBuffer[Int]]()
   protected val gens = ArrayBuffer[Gen]()
 
-  protected def addGen(g: Gen) {
+  protected def findSimilar(g: Gen): Option[Int] = {
     val potentialConflict = scala.collection.mutable.BitSet()
     g.vs.foreach( v => {
       potentialConflict ++= idx.getOrElseUpdate(v.tpe, ArrayBuffer[Int]())
     })
-    if (potentialConflict.forall( i => !gens(i).similar(g))) {
+    potentialConflict.find( i => gens(i).similar(g))
+  }
+
+  protected def addGen(g: Gen) {
+    if (findSimilar(g).isEmpty) {
       gens.append(g)
       g.vs.foreach( v => {
         val buffer = idx.getOrElseUpdate(v.tpe, ArrayBuffer[Int]())
@@ -104,9 +126,57 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula]) {
     }
     res
   }
-
+  
   def generate(groundTerms: Iterable[Formula]): List[Formula] = {
     groundTerms.toList.flatMap(generate)
+  }
+
+  def locallySaturate(cc: CC): List[Formula] = {
+    var i = 0
+    val done = scala.collection.mutable.BitSet()
+    val res = scala.collection.mutable.ListBuffer[Formula]()
+    def checkDone(g: Gen, remaining: Iterable[Map[Variable,Formula]]) = {
+      if (g.isResult) {
+        assert(remaining.isEmpty || remaining.forall(_.isEmpty))
+        if (g.result != True()) res += g.result
+        true
+      } else {
+        false
+      }
+    }
+    def instVar(g: Gen, matches: Iterable[Map[Variable,Formula]]) {
+      if (!checkDone(g, matches)) {
+        val v = g.vs.last
+        val byV = matches.groupBy(_(v))
+        for ( (candidate, maps) <- byV;
+              g2 <- g(v, candidate) ) {
+          val renaming = g.vs.zip(g2.vs).toMap //g2 has renamed arguments ...
+          val remaining = maps.map( m => {
+            val m1 = m - v 
+            m1.map{ case (a,b) => renaming(a) -> b }
+          })
+          complete(g2, remaining)
+        }
+      }
+    }
+    def complete(g: Gen, remaining: Iterable[Map[Variable,Formula]]) {
+      if (!checkDone(g, remaining)) findSimilar(g) match {
+        case Some(i) =>
+          val g2 = gens(i)
+          done += i
+          instVar(g2, remaining)
+        case None =>
+          done += gens.size
+          addGen(g)
+          instVar(g, remaining)
+      }
+    }
+    while(i < gens.size && !done(i)) {
+      val g = gens(i)
+      instVar(g, g.localMatches(cc))
+      i += 1
+    }
+    res.result
   }
 
 }
@@ -147,13 +217,16 @@ class IncrementalGenerator(f: Formula, val cc: CongruenceClosure = new Congruenc
     var d = depth
     var processed = scala.collection.mutable.Set[Formula]()
     var toProcess = cc.groundTerms.map(cc.repr)
-    while (d.getOrElse(1) >= 0 && !toProcess.isEmpty) {
+    while (d.getOrElse(1) > 0 && !toProcess.isEmpty) {
       val newInst = generate(toProcess)
       buffer ++= newInst
       processed ++= toProcess
       val newGts = newInst.view.flatMap(FormulaUtils.collectGroundTerms)
       toProcess = newGts.map(cc.repr).filter(f => !processed.contains(f)).toSet
       d = d.map(_ - 1)
+    }
+    if (d.getOrElse(1) == 0) {
+      buffer ++= gen.locallySaturate(cc)
     }
     buffer.result
   }
