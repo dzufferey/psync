@@ -16,7 +16,7 @@ import dzufferey.utils.Namer
 class VennRegions(tpe: Type,
                   universeSize: Option[Formula],
                   sets: Iterable[(Formula, Option[Binding])],
-                  cc: CongruenceClasses = CongruenceClasses.empty,
+                  cc: CC = CongruenceClasses.empty,
                   univ: List[Formula] = Nil) {
 
   /** Removes funny characters from string to make them smt-lib compliant. */
@@ -212,7 +212,7 @@ class VennRegionsWithBound(bound: Int,
                            tpe: Type,
                            universeSize: Option[Formula],
                            _sets: Iterable[(Formula, Option[Binding])],
-                           cc: CongruenceClasses = CongruenceClasses.empty,
+                           cc: CC = CongruenceClasses.empty,
                            univ: List[Formula] = Nil) {
 
   protected def sets = _sets.toArray

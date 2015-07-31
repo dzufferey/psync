@@ -23,7 +23,13 @@ class CongruenceClosureSuite extends FunSuite {
   test("cc 2") {
     val cc = new CongruenceClosure
     cc.addConstraints(Eq(p1, p2))
-    assert(cc.repr(pp2) == cc.repr(pp1))
+    //due to "unstability" of the repr of a node might change when a new node is pushed in
+    //so for terms which are not already in cc, it is safer to fist push them in the cc and then check equality
+    cc.repr(pp2)
+    cc.repr(pp1)
+    assert(cc.repr(pp1) == cc.repr(pp2))
+    cc.repr(qp1)
+    cc.repr(qp3)
     assert(cc.repr(qp1) != cc.repr(qp3))
     assert(cc.normalize(pp1) == cc.normalize(pp2))
   }

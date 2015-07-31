@@ -7,13 +7,15 @@ import dzufferey.utils.LogLevel._
 import dzufferey.utils.Namer
 
 object CL extends CL( Some(2), //pairwise Venn regions
-                      Some(Set(UnInterpreted("ProcessID")))) //only on set of type ProcessID
+                      Some(Set(UnInterpreted("ProcessID"))), //only on set of type ProcessID
+                      Some(1)) //one step quantifier instantiation
 
-object ClFull extends CL(None, None) 
+object ClFull extends CL(None, None, Some(10)) 
 
 
 class CL(bound: Option[Int],
-         onType: Option[Set[Type]]) {
+         onType: Option[Set[Type]],
+         instantiationBound: Option[Int]) {
 
   val procType = UnInterpreted("ProcessID")
   val HO = UnInterpretedFct("HO",Some(procType ~> FSet(procType)))
@@ -150,7 +152,7 @@ class CL(bound: Option[Int],
   }
 
   def reduceComprehension(conjuncts: List[Formula],
-                          cClasses: CongruenceClasses = new CongruenceClasses(Nil, Map.empty),
+                          cClasses: CC = CongruenceClasses.empty,
                           univConjuncts: List[Formula]=Nil): List[Formula] = {
 
     //get the comprehensions and normalize
@@ -215,17 +217,17 @@ class CL(bound: Option[Int],
     Logger("CL", Debug, "clauses to process:\n  " + rest.mkString("\n  "))
     //CD add neprUniv 	
     //get rid on the ∀ quantifiers
-    val cCls0 = CongruenceClosure(clauses) //TODO incremental CC
+    val cc = new CongruenceClosure //incremental CC
+    cc.addConstraints(clauses)
     //separte groud term into equivalence classes 
-    val rawInst = InstGen.saturate(And(rest:_*), Some(1), cCls0)
+    val rawInst = InstGen.saturate(And(rest:_*), instantiationBound, cc)
     val inst0 = Simplify.boundVarUnique(rawInst)
     val (inst1, _) = Quantifiers.getExistentialPrefix(inst0)
     val inst = FormulaUtils.getConjuncts(inst1)
     Logger("CL", Debug, "after instantiation:\n  " + inst.mkString("\n  "))
 	    
     //the venn regions
-    val cCls1 = CongruenceClosure(epr ++ inst)
-    val withILP = epr ::: reduceComprehension(inst, cCls1, univ)
+    val withILP = epr ::: reduceComprehension(inst, cc, univ)
     
     //add axioms for the other theories
     val withSetAx = SetOperationsAxioms.addAxioms(withILP)

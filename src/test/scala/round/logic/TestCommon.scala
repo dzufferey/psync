@@ -8,7 +8,7 @@ object TestCommon {
 
   //val cl = CL
   //val cl = ClFull
-  val cl = new CL(Some(2), None)
+  val cl = new CL(Some(2), None, Some(1))
 
   def reduce(conjuncts: List[Formula], debug: Boolean): Formula = {
     if(debug) {

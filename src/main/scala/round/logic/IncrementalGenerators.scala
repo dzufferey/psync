@@ -21,12 +21,14 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula]) {
 
     override def toString = vs.mkString("Gen( ",", "," → " + f)
 
+    override def hashCode = f.hashCode
+
     val done = Array.tabulate(vs.size)( _ => scala.collection.mutable.Set[Formula]() )
 
     def similar(tg: Gen) = {
       tg.vs.size == vs.size &&
-      (0 until tg.vs.size).forall(i => tg.vs(i) == vs(i)) &&
-      tg.f == f
+      tg.f == f &&
+      (0 until tg.vs.size).forall(i => tg.vs(i) == vs(i))
     }
 
     def isResult = vs.isEmpty
@@ -81,22 +83,28 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula]) {
   import scala.collection.mutable.ArrayBuffer
   protected val idx  = scala.collection.mutable.Map[Type,ArrayBuffer[Int]]()
   protected val gens = ArrayBuffer[Gen]()
+  
+  //speed-up the findSimilar test by keeping the hashes of existing generators
+  protected val hashFilter = scala.collection.mutable.Map[Int,ArrayBuffer[Int]]()
 
   protected def findSimilar(g: Gen): Option[Int] = {
-    val potentialConflict = scala.collection.mutable.BitSet()
-    g.vs.foreach( v => {
-      potentialConflict ++= idx.getOrElseUpdate(v.tpe, ArrayBuffer[Int]())
-    })
+    val potentialConflict = hashFilter.getOrElseUpdate(g.hashCode, ArrayBuffer[Int]())
     potentialConflict.find( i => gens(i).similar(g))
   }
 
   protected def addGen(g: Gen) {
     if (findSimilar(g).isEmpty) {
       gens.append(g)
+      val index = gens.size - 1
+      val buffer = hashFilter.getOrElseUpdate(g.hashCode, ArrayBuffer[Int]())
+      buffer += index
       g.vs.foreach( v => {
         val buffer = idx.getOrElseUpdate(v.tpe, ArrayBuffer[Int]())
-        buffer += gens.size -1
+        buffer += index
       })
+      if (gens.size % 1000 == 0) {
+        Logger("IncrementalGenerator", Debug, "#generator: " + gens.size)
+      }
     }
   }
   
@@ -218,6 +226,7 @@ class IncrementalGenerator(f: Formula, val cc: CongruenceClosure = new Congruenc
     var processed = scala.collection.mutable.Set[Formula]()
     var toProcess = cc.groundTerms.map(cc.repr)
     while (d.getOrElse(1) > 0 && !toProcess.isEmpty) {
+      Logger("IncrementalGenerator", Debug, "saturate with |toProcess| = " + toProcess.size + ", depth = " + d)
       val newInst = generate(toProcess)
       buffer ++= newInst
       processed ++= toProcess
@@ -225,9 +234,11 @@ class IncrementalGenerator(f: Formula, val cc: CongruenceClosure = new Congruenc
       toProcess = newGts.map(cc.repr).filter(f => !processed.contains(f)).toSet
       d = d.map(_ - 1)
     }
+    Logger("IncrementalGenerator", Debug, "saturate before local: " + buffer.size + " new clauses")
     if (d.getOrElse(1) == 0) {
       buffer ++= gen.locallySaturate(cc)
     }
+    Logger("IncrementalGenerator", Debug, "saturate generated " + buffer.size + " new clauses")
     buffer.result
   }
 

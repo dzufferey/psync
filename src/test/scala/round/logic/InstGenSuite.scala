@@ -23,7 +23,7 @@ class InstGenSuite extends FunSuite {
     val i2a = InstGen.saturateWith(ax2, gts, Some(0), cc)
     val i2b = InstGen.saturateWith(ax2, gts, Some(1), cc)
     assert(FormulaUtils.getConjuncts(i2a).size == 1)
-    assert(FormulaUtils.getConjuncts(i2b).size == 5)
+    assert(FormulaUtils.getConjuncts(i2b).size == 4)
   }
 
   test("local 2"){

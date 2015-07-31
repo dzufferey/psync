@@ -19,6 +19,7 @@ trait CC {
 class CongruenceClosure extends CC {
     
   import scala.collection.mutable.{ArrayBuffer, Map => MMap}
+  protected var nbrNodes = 0
   protected val formulaToNode = MMap[Formula, CcNode]()
   protected val symbolToNodes = MMap[Symbol, ArrayBuffer[CcNode]]()
     
@@ -43,6 +44,8 @@ class CongruenceClosure extends CC {
           Logger.logAndThrow("CongruenceClosure", Error, "did not expect: " + other)
       }
       formulaToNode += f -> n
+      nbrNodes += 1
+      n.seqNbr = nbrNodes
       n
     }
   }
@@ -202,6 +205,10 @@ abstract class CcNode(val formula: Formula) {
   var ccParents: Set[CcNode] = Set.empty
   var children: Seq[CcNode] = Seq.empty
 
+  //the seqNbr is used to try to keep the representative stable.
+  //older (low seqNbr) are prefered as representative
+  var seqNbr = 0
+
   def arity: Int
   def getArgs: List[CcNode]
   def name: String
@@ -239,9 +246,14 @@ abstract class CcNode(val formula: Formula) {
   }
 
 
-  def union(that: CcNode) {
-    val n1 = this.find
-    val n2 = that.find
+  protected def union(that: CcNode) {
+    var n1 = this.find
+    var n2 = that.find
+    if (n1.seqNbr < n2.seqNbr) {
+      val tmp = n2
+      n2 = n1
+      n1 = tmp
+    }
     n1.parent = Some(n2)
     n2.ccParents ++= n1.ccParents
     n1.ccParents   = Set.empty

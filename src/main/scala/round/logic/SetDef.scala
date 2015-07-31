@@ -36,7 +36,7 @@ case class SetDef(scope: Set[Variable], id: Formula, body: Option[Binding]) {
     n
   }
 
-  def ccNormalize(cClasses: CongruenceClasses): SetDef = {
+  def ccNormalize(cClasses: CC): SetDef = {
     val n1 = normalize
     val newId = if (n1.scope.isEmpty) cClasses.normalize(n1.id) else n1.id
     val newBody = n1.body.map( cClasses.normalize(_).asInstanceOf[Binding] )
@@ -55,7 +55,7 @@ object SetDef {
   def apply(id: Formula, body: Option[Binding]) = new SetDef(Set.empty, id, body)
 
   protected def normalizeSetBody( sDefs: Iterable[SetDef],
-                                  cClasses: CongruenceClasses
+                                  cClasses: CC
                                 ): (List[SetDef], Map[Formula, Formula]) = {
     val init = (List[SetDef](), Map[Formula,Formula]())
     sDefs.foldLeft(init)( (acc, d0) => {
@@ -69,7 +69,7 @@ object SetDef {
   }
 
   def normalize(sDefs: Iterable[SetDef],
-                cClasses: CongruenceClasses = new CongruenceClasses(Nil, Map.empty) 
+                cClasses: CC = CongruenceClasses.empty
                ): (List[SetDef], Map[Formula, Formula]) = {
     normalizeSetBody(sDefs, cClasses)
   }
