@@ -152,7 +152,7 @@ class OtrExample extends FunSuite {
 //    tr2,
 //    Not(prime(invariantAgreement))
 //  )
-//  assertUnsat(fs, 10000, true) //, 60000, false, Some("test.smt2"), true)
+//  assertUnsat(fs, 10000, true, cl2_3, Some("test2_3.smt2")) //, 60000, false, Some("test.smt2"), true)
 //}
 
 //test("1st magic round") {

@@ -2,19 +2,41 @@ package round.logic
 
 import round.formula._
 
-import dzufferey.utils.Misc
+import dzufferey.utils.{Misc, Namer}
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
 //TODO Local IncrementalGenerator
 //TODO triggers/Matching, etc.
 
-//more a formula generator than a term generator
 class IncrementalFormulaGenerator(axioms: Iterable[Formula]) {
 
-  protected def mkGen(vs: Iterable[Variable], f: Formula) = {
-    import FormulaUtils._
-    new Gen(vs.toArray.sorted, Simplify.simplify(f))
+  protected def mkVar(v: Variable) = {
+    Variable(Namer("_generatedExistential")).setType(v.tpe)
+  }
+
+  //check ∃∀: if the top level is ∃, then give it a fresh name and continue
+  protected def mkGen(vs: List[Variable], f: Formula): Gen = {
+    if (vs.isEmpty) {
+      f match {
+        case Exists(vse, fe @ ForAll(_, _)) =>
+          val renaming = vse.map( v => (v -> mkVar(v) ) ).toMap
+          FormulaUtils.alpha(renaming, fe) match {
+            case ForAll(va, fa) => mkGen(va, fa)
+            case other =>
+              Logger.logAndThrow("IncrementalGenerator", Error, "expected ∀: " + other)
+          }
+        case other =>
+          new Gen(Array.empty[Variable], other)
+      }
+    } else {
+      Simplify.deBruijnIndex(ForAll(vs, f)) match {
+        case ForAll(va, fa) =>
+          import FormulaUtils._
+          new Gen(va.toArray.sorted, Simplify.simplify(fa))
+        case other => mkGen(Nil, other)
+      }
+    }
   }
 
   protected class Gen(val vs: Array[Variable], val f: Formula) {
@@ -40,10 +62,7 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula]) {
     def newGen(idx: Int, term: Formula): Gen = {
       val kept = List.tabulate(vs.size -1)( i => if (i < idx) vs(i) else vs(i+1) )
       val subs = FormulaUtils.replace(vs(idx), term, f)
-      Simplify.deBruijnIndex(ForAll(kept, subs)) match {
-        case ForAll(vs, f) => mkGen(vs,f)
-        case other => mkGen(Array.empty[Variable], other)
-      }
+      mkGen(kept, subs)
     }
 
     def apply(term: Formula): Iterable[Gen] = {
@@ -110,11 +129,7 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula]) {
   
   //extract the first Gen from the axioms
   axioms.foreach{
-    case fa @ ForAll(_, _) =>
-      Simplify.deBruijnIndex(fa) match {
-        case ForAll(vs, f) => addGen( mkGen(vs, f) )
-        case other => Logger("IncrementalGenerator", Warning, "(1) expect ∀, found: " + other)
-      }
+    case fa @ ForAll(vs, f) => addGen( mkGen(vs, f) )
     case other => Logger("IncrementalGenerator", Warning, "(2) expect ∀, found: " + other)
   }
   
@@ -155,7 +170,8 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula]) {
     def instVar(g: Gen, matches: Iterable[Map[Variable,Formula]]) {
       if (!checkDone(g, matches)) {
         val v = g.vs.last
-        val byV = matches.groupBy(_(v))
+        //println(matches.mkString(g + "\n  ", "\n  ", ""))
+        val byV = matches.filter(_ contains v).groupBy(_(v)) //matches without v are term generating due to existential quantifiers
         for ( (candidate, maps) <- byV;
               g2 <- g(v, candidate) ) {
           val renaming = g.vs.zip(g2.vs).toMap //g2 has renamed arguments ...

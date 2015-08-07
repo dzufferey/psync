@@ -17,6 +17,10 @@
 # implementation
 
 - make InstGen faster
+    * round number as its own time (value class) to reduce the instantiation between time and inst
+        -test in the LvExample and see what difference it makes
+        -generalize typer for simple overloading
+        -just before solving turn round back into Int
 - ghost variables: make sure they are only read in the verification part and remove at compile time
 - accessing members of outer class inside an inner class
     * check if fixed in 2.11.5 (with the right untypcheck) or report macro bug about it

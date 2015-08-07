@@ -10,7 +10,17 @@ object TestCommon {
   //val cl = ClFull
   val cl = new CL(Some(2), None, Some(1))
 
-  def reduce(conjuncts: List[Formula], debug: Boolean): Formula = {
+  val cl2_1 = new CL(Some(2), None, Some(1))
+  val cl2_2 = new CL(Some(2), None, Some(2))
+  val cl2_3 = new CL(Some(2), None, Some(3))
+  val cl2_4 = new CL(Some(2), None, Some(4))
+
+  val cl3_1 = new CL(Some(3), None, Some(1))
+  val cl3_2 = new CL(Some(3), None, Some(2))
+  val cl3_3 = new CL(Some(3), None, Some(3))
+  val cl3_4 = new CL(Some(3), None, Some(4))
+
+  def reduce(cl: CL, conjuncts: List[Formula], debug: Boolean): Formula = {
     if(debug) {
       Logger.moreVerbose
       Logger.moreVerbose
@@ -34,22 +44,35 @@ object TestCommon {
     f1
   }
 
-  def assertUnsat(conjuncts: List[Formula], to: Long = 10000, debug: Boolean = false, fname: Option[String] = None, useCvcMf: Boolean = false) {
-    val f1 = reduce(conjuncts, debug)
+  def assertUnsat(conjuncts: List[Formula],
+                  to: Long = 10000,
+                  debug: Boolean = false,
+                  reducer: CL = cl,
+                  fname: Option[String] = None, 
+                  useCvcMf: Boolean = false) {
+    val f1 = reduce(reducer, conjuncts, debug)
     val solver = if (useCvcMf) Solver.cvc4mf(UFLIA, fname, to)
                  else Solver(UFLIA, fname, to)
     assert(!solver.testB(f1), "unsat formula")
   }
 
-  def assertSat(conjuncts: List[Formula], to: Long = 10000, debug: Boolean = false, fname: Option[String] = None, useCvcMf: Boolean = false) {
-    val f1 = reduce(conjuncts, debug)
+  def assertSat(conjuncts: List[Formula],
+                to: Long = 10000,
+                debug: Boolean = false,
+                reducer: CL = cl,
+                fname: Option[String] = None,
+                useCvcMf: Boolean = false) {
+    val f1 = reduce(cl, conjuncts, debug)
     val solver = if (useCvcMf) Solver.cvc4mf(UFLIA, fname, to)
                  else Solver(UFLIA, fname, to)
     assert( solver.testB(f1), "sat formula")
   }
 
-  def getModel(conjuncts: List[Formula], to: Long = 10000, fname: Option[String] = None) {
-    val f1 = reduce(conjuncts, true)
+  def getModel(conjuncts: List[Formula],
+               to: Long = 10000,
+               reducer: CL = cl,
+               fname: Option[String] = None) {
+    val f1 = reduce(reducer, conjuncts, true)
     val solver = Solver(UFLIA, fname, to)
     solver.testWithModel(f1) match {
       case Sat(Some(model)) =>

@@ -64,5 +64,27 @@ class InstGenSuite extends FunSuite {
     val r1b = InstGen.saturate(f1, Some(1))
     assert(FormulaUtils.getConjuncts(r1b).size == 6)
   }
+  
+  test("saturate 2"){
+    val f0 = And( ForAll(List(x), Geq(Plus(x,Literal(1)), x)),
+                  Leq(IntLit(1), IntLit(1)))
+    (0 until 10).foreach(i => {
+      val sat = InstGen.saturate(f0, Some(i))
+      assert(FormulaUtils.getConjuncts(sat).size == i + 1)
+    })
+  }
+  
+  test("saturate 3"){
+    val f = And(
+      ForAll(List(p1), Exists(List(p2), ForAll(List(p3), Or(Not(Eq(p1,p2)), Eq(p1, p3))))),
+      Eq(p1,rp1)
+    )
+    val r0 = InstGen.saturate(f, Some(0))
+    assert(FormulaUtils.getConjuncts(r0).size == 1)
+    val r1 = InstGen.saturate(f, Some(1))
+    assert(FormulaUtils.getConjuncts(r1).size == 3)
+    val r2 = InstGen.saturate(f, Some(2))
+    assert(FormulaUtils.getConjuncts(r2).size == 7)
+  }
 
 }
