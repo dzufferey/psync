@@ -225,6 +225,9 @@ class CL(bound: Option[Int],
     val (inst1, _) = Quantifiers.getExistentialPrefix(inst0)
     val inst = FormulaUtils.getConjuncts(inst1)
     Logger("CL", Debug, "after instantiation:\n  " + inst.mkString("\n  "))
+
+    //generate keySet for Maps if they are not already there
+    ReduceMaps.addMapGroundTerms(cc)
 	    
     //the venn regions
     val withILP = epr ::: reduceComprehension(inst, cc, univ)

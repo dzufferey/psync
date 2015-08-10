@@ -39,6 +39,7 @@ object Names {
     case Int => "Int"
     case FSet(elt) => "Set_"+tpe(elt)+"_"
     case FOption(elt) => "Option_"+tpe(elt)+"_"
+    case FMap(k,v) => "Map_"+tpe(k)+"_"+tpe(v)+"_"
     case UnitT() => "Unit"
     case Product(elts) => "Product" + elts.map(tpe).mkString("_","_","_")
     case Function(args, returns) => args.map(tpe).mkString("(", ") (", ")") + " (" + tpe(returns) + ")"

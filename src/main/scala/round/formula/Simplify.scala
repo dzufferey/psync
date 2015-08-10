@@ -16,6 +16,8 @@ object Simplify {
     case SupersetEq(a,b) => Copier.Application(f, SubsetEq, List(b,a))
     case Contains(a,b) => Copier.Application(f, In, List(b,a))
     case IsEmpty(a) => Copier.Application(f, Not, List(Copier.Application(f, IsDefined, List(a))))
+    case IsDefinedAt(a, b) => In(b, KeySet(a))
+    case Size(a) => Cardinality( KeySet(a))
     case other => other
   }
 

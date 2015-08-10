@@ -69,6 +69,10 @@ trait Lifting {
     case Fst => q"round.formula.Fst"
     case Snd => q"round.formula.Snd"
     case Trd => q"round.formula.Trd"
+    case KeySet => q"round.formula.KeySet"
+    case LookUp => q"round.formula.LookUp"
+    case IsDefinedAt => q"round.formula.isDefinedAt"
+    case Size => q"round.formula.Size"
   }
 
   def _liftBT(b: BindingType): Tree = b match {

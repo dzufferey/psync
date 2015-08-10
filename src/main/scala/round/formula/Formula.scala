@@ -263,42 +263,36 @@ case object Union extends InterpretedFct("∪", "|", "union") {
   val typeWithParams = FSet(fv) ~> FSet(fv) ~> FSet(fv)
   override val priority = 10
 }
-
 case object Intersection extends InterpretedFct("∩", "intersect") {
   private val fv = Type.freshTypeVar
   override val typeParams = List(fv)
   val typeWithParams = FSet(fv) ~> FSet(fv) ~> FSet(fv)
   override val priority = 10
 }
-
 case object SubsetEq extends InterpretedFct("⊆", "subsetOf") {
   private val fv = Type.freshTypeVar
   override val typeParams = List(fv)
   val typeWithParams = FSet(fv) ~> FSet(fv) ~> Bool
   override val priority = 9
 }
-
 case object SupersetEq extends InterpretedFct("⊇") {
   private val fv = Type.freshTypeVar
   override val typeParams = List(fv)
   val typeWithParams = FSet(fv) ~> FSet(fv) ~> Bool
   override val priority = 9
 }
-
 case object In extends InterpretedFct("∈", "in") {
   private val fv = Type.freshTypeVar
   override val typeParams = List(fv)
   val typeWithParams = fv ~> FSet(fv) ~> Bool
   override val priority = 9
 }
-
 case object Contains extends InterpretedFct("∋", "contains") {
   private val fv = Type.freshTypeVar
   override val typeParams = List(fv)
   val typeWithParams = FSet(fv) ~> fv ~> Bool
   override val priority = 9
 }
-
 case object Cardinality extends InterpretedFct("card", "size") {
   private val fv = Type.freshTypeVar
   override val typeParams = List(fv)
@@ -378,6 +372,38 @@ case object Trd extends InterpretedFct("_3") {
     else Product(ts) ~> ts(2)
 }
 
+case object KeySet extends InterpretedFct("keySet") {
+  private val fvA = Type.freshTypeVar
+  private val fvB = Type.freshTypeVar
+  override val typeParams = List(fvA, fvB)
+  val typeWithParams = FMap(fvA, fvB) ~> FSet(fvA)
+  override val priority = 9
+}
+//TODO because of name, won't be parsed correctly by the scala macros
+case object LookUp extends InterpretedFct("lookUp") {
+  private val fvA = Type.freshTypeVar
+  private val fvB = Type.freshTypeVar
+  override val typeParams = List(fvA, fvB)
+  val typeWithParams = FMap(fvA, fvB) ~> fvA ~> fvB
+  override val priority = 9
+}
+//TODO because of name, won't be parsed correctly by the scala macros: aliased with contains (also used for sets)
+case object IsDefinedAt extends InterpretedFct("isDefinedAt") {
+  private val fvA = Type.freshTypeVar
+  private val fvB = Type.freshTypeVar
+  override val typeParams = List(fvA, fvB)
+  val typeWithParams = FMap(fvA, fvB) ~> fvA ~> Bool
+  override val priority = 9
+}
+//TODO because of name, won't be parsed correctly by the scala macros
+case object Size extends InterpretedFct("mapCard") {
+  private val fvA = Type.freshTypeVar
+  private val fvB = Type.freshTypeVar
+  override val typeParams = List(fvA, fvB)
+  val typeWithParams = FMap(fvA, fvB) ~> Int
+  override val priority = 9
+}
+
 
 object InterpretedFct {
   private var symbols: List[InterpretedFct] = Nil
@@ -400,12 +426,14 @@ object InterpretedFct {
   }
 
   //need to be added manually since object are initialized lazily
+
   add( Not )
   add( And )
   add( Or )
   add( Implies )
   add( Eq )
   add( Neq )
+  //Int
   add( Plus )
   add( Minus )
   add( Times )
@@ -414,6 +442,7 @@ object InterpretedFct {
   add( Geq )
   add( Lt )
   add( Gt )
+  //Set
   add( Union )
   add( Intersection )
   add( SubsetEq )
@@ -421,15 +450,22 @@ object InterpretedFct {
   add( In )
   add( Contains )
   add( Cardinality )
+  //Option
   add( FSome )
   add( FNone )
   add( IsDefined )
   add( IsEmpty )
   add( Get )
+  //Tuple
   add( Tuple )
   add( Fst )
   add( Snd )
   add( Trd )
+  //Map
+  add( KeySet )
+  add( LookUp )
+  add( IsDefinedAt )
+  add( Size )
 }
 
 
