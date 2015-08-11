@@ -7,14 +7,7 @@ import org.scalatest._
 
 class TpcExample extends FunSuite {
   
-  val pid = CL.procType
-
-  val i = Variable("i").setType(pid)
-  val j = Variable("j").setType(pid)
   val coord = Variable("coord").setType(pid)
-
-  val ho = CL.HO
-  val n = CL.n
 
   val v = Variable("v").setType(Bool)
 

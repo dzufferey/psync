@@ -19,7 +19,8 @@ class Solver( th: Theory,
               options: Iterable[String],
               implicitDeclaration: Boolean,
               dumpToFile: Option[String],
-              timeout: Long) {
+              timeout: Long,
+              incremental: Boolean) {
 
   protected var stackCounter = 0
 
@@ -231,6 +232,7 @@ class Solver( th: Theory,
   }
   
   def push {
+    scala.Predef.assert(incremental)
     if (implicitDeclaration) {
       declStack.push(Set[Variable]())
       symbolStack.push(Set[(Symbol, List[Type])]())
@@ -241,6 +243,7 @@ class Solver( th: Theory,
   }
   
   def pop {
+    scala.Predef.assert(incremental)
     if (implicitDeclaration) {
       declaredV --= declStack.pop
       declaredS --= symbolStack.pop
@@ -285,13 +288,13 @@ class Solver( th: Theory,
 
   def test(conjuncts: List[Formula]): Result = {
     conjuncts.foreach(Checks(_))
-    push
+    if (incremental) push
     conjuncts.foreach(assert(_))
     val res = checkSat
     res match {
       case Failure(_) => //solver might be dead
-      try pop catch { case _: Throwable => () }
-      case other => pop
+        try if (incremental) pop catch { case _: Throwable => () }
+      case other => if (incremental) pop
     }
     res
   }
@@ -302,7 +305,7 @@ class Solver( th: Theory,
 
   def testWithModel(conjuncts: List[Formula]): Result = {
     conjuncts.foreach(Checks(_))
-    push
+    if (incremental) push
     conjuncts.foreach(assert(_))
     val res = checkSat match {
       case Sat(None) =>
@@ -316,8 +319,8 @@ class Solver( th: Theory,
     }
     res match {
       case Failure(_) => //solver might be dead
-      try pop catch { case _: Throwable => () }
-      case other => pop
+        try if (incremental) pop catch { case _: Throwable => () }
+      case other => if (incremental) pop
     }
     res
   }
@@ -351,15 +354,15 @@ object Solver {
                           "--mbqi=none",
                           "--inst-max-level=0",
                           "--fmf-inst-engine",
-                          "--simplification=none",
-                          "-i" )
+                          "--simplification=none")//,
+                          //"-i" )
 
   def z3(th: Theory, file: Option[String], timeout: Long): Solver = {
-    new Solver(th, z3Cmd, z3Args, true, file, timeout)
+    new Solver(th, z3Cmd, z3Args, true, file, timeout, false)
   }
 
   def cvc4mf(th: Theory, file: Option[String], timeout: Long): Solver = {
-    new Solver(th, cvc4MfCmd, cvc4MfArgs, true, file, timeout)
+    new Solver(th, cvc4MfCmd, cvc4MfArgs, true, file, timeout, false)
   }
 
   def useZ3 {
@@ -383,7 +386,7 @@ object Solver {
   def apply(th: Theory, file: String, timeout: Long): Solver = apply(th, Some(file), timeout)
 
   def apply(th: Theory, file: Option[String], timeout: Long): Solver = {
-    new Solver(th, solver, solverArg, true, file, timeout)
+    new Solver(th, solver, solverArg, true, file, timeout, false)
   }
 
 }

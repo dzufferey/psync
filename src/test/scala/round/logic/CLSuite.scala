@@ -9,15 +9,10 @@ import org.scalatest._
 
 class CLSuite extends FunSuite {
 
-  val pid = CL.procType
-
-  val i = Variable("i").setType(pid)
-  val j = Variable("j").setType(pid)
   val p = Variable("p").setType(pid)
   val p1 = Variable("p1").setType(pid)
   val p2 = Variable("p2").setType(pid)
 
-  val n = CL.n
   val nOver2 = Divides(n, Literal(2))
   val nOver3 = Divides(n, Literal(3)) 
   val twonOver3 = Divides(Times(n, Literal(2)), Literal(3))
@@ -33,7 +28,6 @@ class CLSuite extends FunSuite {
   val decision = UnInterpretedFct("decision", Some(pid ~> Int))
 
   val m = UnInterpretedFct("M",Some(pid ~> FSet(pid))) //sender mailbox, dual of HO
-  val ho = CL.HO
 
 /* TODO not sure about what happens with ∃ inside comprehension
   test("HO test: kernel and data"){
@@ -111,7 +105,7 @@ class CLSuite extends FunSuite {
     assertUnsat(fs)
   }
 
-  test("Comprehention introduces new nodes"){
+  test("Comprehension introduces new nodes"){
     val fs = List(
       Eq(a, Comprehension(List(i), Gt(Cardinality(ho(p)), Literal(1)))),
       Geq(Cardinality(a), Literal(1)),

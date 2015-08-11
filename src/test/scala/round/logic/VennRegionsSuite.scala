@@ -17,8 +17,10 @@ class VennRegionsSuite extends FunSuite {
   val b = Variable("B").setType(FSet(pid))
   val c = Variable("C").setType(FSet(pid))
 
+  def nothing(f: Formula) = True()
+
   test("0 set") {
-    val vr = new VennRegions(pid, Some(n), Nil)
+    val vr = new VennRegions(pid, Some(n), Nil, nothing)
     assert(vr.ennumerate.toList.length == 1)
     vr.sumToUniverse match {
       case Eq(n, Variable(_)) => ()
@@ -27,7 +29,7 @@ class VennRegionsSuite extends FunSuite {
   }
   
   test("no universe size") {
-    val vr = new VennRegions(pid, None, Nil)
+    val vr = new VennRegions(pid, None, Nil, nothing)
     vr.sumToUniverse match {
       case True() => ()
       case other => assert(false, other)
@@ -35,7 +37,7 @@ class VennRegionsSuite extends FunSuite {
   }
 
   test("1 set") {
-    val vr = new VennRegions(pid, Some(n), List(a -> None))
+    val vr = new VennRegions(pid, Some(n), List(a -> None), nothing)
     assert(vr.ennumerate.toList.length == 2)
     vr.sumToUniverse match {
       case Eq(n, Plus(lst @ _*)) if lst.size == 2 => ()
@@ -44,7 +46,7 @@ class VennRegionsSuite extends FunSuite {
   }
 
   test("2 sets") {
-    val vr = new VennRegions(pid, Some(n), List(a -> None, b -> None))
+    val vr = new VennRegions(pid, Some(n), List(a -> None, b -> None), nothing)
     assert(vr.ennumerate.toList.length == 4)
     vr.sumToUniverse match {
       case Eq(n, Plus(lst @ _*)) if lst.size == 4 => ()
@@ -53,7 +55,7 @@ class VennRegionsSuite extends FunSuite {
   }
 
   test("3 sets") {
-    val vr = new VennRegions(pid, Some(n), List(a -> None, b -> None, c -> None))
+    val vr = new VennRegions(pid, Some(n), List(a -> None, b -> None, c -> None), nothing)
     assert(vr.ennumerate.toList.length == 8)
     vr.sumToUniverse match {
       case Eq(n, Plus(lst @ _*)) if lst.size == 8 => ()
@@ -66,8 +68,8 @@ class VennRegionsSuite extends FunSuite {
     val c2 = List(a -> None, b -> None)
     val c3 = List(a -> None, b -> None, c -> None)
     def mk(b: Int, lst: List[(Formula, Option[Binding])]): List[Formula] = {
-      val vr = new VennRegionsWithBound(b, pid, Some(n), lst)
-      FormulaUtils.getConjuncts(vr.constraints)
+      val vr = VennRegions.withBound(b, pid, Some(n), lst)
+      FormulaUtils.getConjuncts(vr)
     }
     assert(mk(1, c1).size == 1)
     assert(mk(1, c2).size == 2)

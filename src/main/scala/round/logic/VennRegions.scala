@@ -6,18 +6,57 @@ import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 import dzufferey.utils.Namer
 
+object VennRegions {
+
+  /** Generate the ILP for the given sets.
+   * @param tpe the type of the elements in the sets, e.g., ProcessID
+   * @param universeSize the size of the universe (if the universe is finite), e.g., 'n' for ProcessID
+   * @param sets the sets as pair (id, definition), where the definition is an optional Comprehension.
+   * @param cc (optional) congruence classes of ground terms in the original formula
+   * @param univ (optional) the set of universally quantified clauses in the original formula
+   */
+  def apply(tpe: Type,
+            universeSize: Option[Formula],
+            sets: Iterable[(Formula, Option[Binding])],
+            cc: CC = CongruenceClasses.empty,
+            univ: List[Formula] = Nil) = {
+    def mkUniv(f: Formula) = InstGen.saturateWith(And(univ:_*), Set(f), Some(1), cc)
+    new VennRegions(tpe, universeSize, sets, mkUniv).constraints
+  }
+
+  /** Generate the ILP for the given sets considering only the intersection of at most bound sets.
+   * @param bound the maximal number of sets to consider at once for the Venn Regions
+   * @param tpe the type of the elements in the sets, e.g., ProcessID
+   * @param universeSize the size of the universe (if the universe is finite), e.g., 'n' for ProcessID
+   * @param sets the sets as pair (id, definition), where the definition is an optional Comprehension.
+   * @param cc (optional) congruence classes of ground terms in the original formula
+   * @param univ (optional) the set of universally quantified clauses in the original formula
+   */
+  def withBound(bound: Int,
+                tpe: Type,
+                universeSize: Option[Formula],
+                sets: Iterable[(Formula, Option[Binding])],
+                cc: CC = CongruenceClasses.empty,
+                univ: List[Formula] = Nil) = {
+    val cc2 = cc.immutable //avoids feeding new terms (because it will be replace)
+    val template = Variable(Namer("__template")).setType(tpe)
+    val generated = InstGen.saturateWith(And(univ:_*), Set(template), Some(1), cc2)
+    def mkUniv(f: Formula) = FormulaUtils.replace(template, f, generated)
+    new VennRegionsWithBound(bound, tpe, universeSize, sets, mkUniv).constraints
+  }
+
+}
+
 /** A class to link the cardinality constraints over sets to the elements in the sets.
  * @param tpe the type of the elements in the sets, e.g., ProcessID
  * @param universeSize the size of the universe (if the universe is finite), e.g., 'n' for ProcessID
  * @param sets the sets as pair (id, definition), where the definition is an optional Comprehension.
- * @param cc (optional) congruence classes of ground terms in the original formula
- * @param univ (optional) the set of universally quantified clauses in the original formula
+ * @param mkUniv a function that takes some generated variable and returns constraints (typically instanciate some ∀ over that element)
  */
 class VennRegions(tpe: Type,
                   universeSize: Option[Formula],
                   sets: Iterable[(Formula, Option[Binding])],
-                  cc: CC = CongruenceClasses.empty,
-                  univ: List[Formula] = Nil) {
+                  mkUniv: Formula => Formula) {
 
   /** Removes funny characters from string to make them smt-lib compliant. */
   protected def sanitize(str: String) = {
@@ -125,11 +164,9 @@ class VennRegions(tpe: Type,
 
   //c: |p| ≥ 1 ⇒ ∃ i. i ∈ p
   def nonZeroCardNonEmpty: Seq[Formula] = {
-    val rawCstr = InstGen.saturateWith(And(univ:_*), Set(elt), Some(1), cc)
-    //here we should be a bit more cautious and keep only the clauses where elt appears
-    val univCstr = FormulaUtils.getConjuncts(rawCstr).filter(_.freeVariables contains elt) //TODO filtering is much faster but incomplete...
+    val univCstr = mkUniv(elt)
     for(i <- 0 until nbrVennRegions) yield {
-      Exists(List(elt), Implies(Leq(Literal(1), mkVar(i)), And(mkMembership(elt, i) :: univCstr :_*)))
+      Exists(List(elt), Implies(Leq(Literal(1), mkVar(i)), And(mkMembership(elt, i), univCstr)))
     }
   }
 
@@ -207,13 +244,14 @@ class VennRegions(tpe: Type,
 
 }
 
-
+/** Same as VennRegions but considers only the intersection of at most bound sets.
+ * @param bound the maximal number of sets to consider at once for the Venn Regions
+ */
 class VennRegionsWithBound(bound: Int,
                            tpe: Type,
                            universeSize: Option[Formula],
                            _sets: Iterable[(Formula, Option[Binding])],
-                           cc: CC = CongruenceClasses.empty,
-                           univ: List[Formula] = Nil) {
+                           mkUniv: Formula => Formula) {
 
   protected def sets = _sets.toArray
 
@@ -230,9 +268,9 @@ class VennRegionsWithBound(bound: Int,
   def constraints = {
     val seq = if (bound >= sets.size) Seq(_sets)
               else mkSeq(0,0)
-    val cstrs = seq.map( s => new VennRegions(tpe, universeSize, s, cc, univ).constraints )
-    //TODO there are redundant constraints
+    val cstrs = seq.par.map( s => new VennRegions(tpe, universeSize, s, mkUniv).constraints ).seq
     And(cstrs:_*)
   }
 
 }
+

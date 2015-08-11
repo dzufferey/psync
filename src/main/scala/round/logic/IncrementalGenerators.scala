@@ -6,97 +6,9 @@ import dzufferey.utils.{Misc, Namer}
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
-//TODO Local IncrementalGenerator
-//TODO triggers/Matching, etc.
+//TODO test deep-copy
 
-class IncrementalFormulaGenerator(axioms: Iterable[Formula]) {
-
-  protected def mkVar(v: Variable) = {
-    Variable(Namer("_generatedExistential")).setType(v.tpe)
-  }
-
-  //check ∃∀: if the top level is ∃, then give it a fresh name and continue
-  protected def mkGen(vs: List[Variable], f: Formula): Gen = {
-    if (vs.isEmpty) {
-      f match {
-        case Exists(vse, fe @ ForAll(_, _)) =>
-          val renaming = vse.map( v => (v -> mkVar(v) ) ).toMap
-          FormulaUtils.alpha(renaming, fe) match {
-            case ForAll(va, fa) => mkGen(va, fa)
-            case other =>
-              Logger.logAndThrow("IncrementalGenerator", Error, "expected ∀: " + other)
-          }
-        case other =>
-          new Gen(Array.empty[Variable], other)
-      }
-    } else {
-      Simplify.deBruijnIndex(ForAll(vs, f)) match {
-        case ForAll(va, fa) =>
-          import FormulaUtils._
-          new Gen(va.toArray.sorted, Simplify.simplify(fa))
-        case other => mkGen(Nil, other)
-      }
-    }
-  }
-
-  protected class Gen(val vs: Array[Variable], val f: Formula) {
-
-    override def toString = vs.mkString("Gen( ",", "," → " + f)
-
-    override def hashCode = f.hashCode
-
-    val done = Array.tabulate(vs.size)( _ => scala.collection.mutable.Set[Formula]() )
-
-    def similar(tg: Gen) = {
-      tg.vs.size == vs.size &&
-      tg.f == f &&
-      (0 until tg.vs.size).forall(i => tg.vs(i) == vs(i))
-    }
-
-    def isResult = vs.isEmpty
-    def result = {
-      assert(isResult)
-      f
-    }
-
-    def newGen(idx: Int, term: Formula): Gen = {
-      val kept = List.tabulate(vs.size -1)( i => if (i < idx) vs(i) else vs(i+1) )
-      val subs = FormulaUtils.replace(vs(idx), term, f)
-      mkGen(kept, subs)
-    }
-
-    def apply(term: Formula): Iterable[Gen] = {
-      var i = 0
-      var res = List.empty[Gen]
-      while(i < vs.size) {
-        if (term.tpe == vs(i).tpe && !done(i)(term)) {
-          res ::= newGen(i, term)
-          done(i) += term
-        }
-        i += 1
-      }
-      res
-    }
-    
-    def apply(v: Variable, term: Formula): Option[Gen] = {
-      val i = vs.indexOf(v)
-      if (!done(i)(term)) {
-        done(i) += term
-        Some(newGen(i, term))
-      } else {
-        None
-      }
-    }
-
-    def localMatches(cc: CC): Set[Map[Variable,Formula]] = {
-      val toIdx = vs.zipWithIndex.toMap
-      def notDone(m: Map[Variable,Formula]): Boolean = {
-        m.forall{ case (v,f) => !done(toIdx(v))(f) }
-      }
-      Matching.findLocalSubterms(cc, vs.toSet, f).filter(notDone)
-    }
-
-  }
+class IncrementalFormulaGenerator(axioms: Iterable[Formula]) extends Cloneable {
 
   //the current generators
   import scala.collection.mutable.ArrayBuffer
@@ -129,7 +41,7 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula]) {
   
   //extract the first Gen from the axioms
   axioms.foreach{
-    case fa @ ForAll(vs, f) => addGen( mkGen(vs, f) )
+    case fa @ ForAll(vs, f) => addGen( Gen(vs, f) )
     case other => Logger("IncrementalGenerator", Warning, "(2) expect ∀, found: " + other)
   }
   
@@ -203,6 +115,19 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula]) {
     res.result
   }
 
+  override def clone() = {
+    val g = new IncrementalFormulaGenerator(axioms)
+    g.idx.clear
+    idx.foreach{ case (k,v) => g.idx += (k -> v.clone) }
+    g.gens.clear
+    gens.foreach( gen => g.gens.append(gen.clone) )
+    g.hashFilter.clear
+    hashFilter.foreach{ case (k,v) =>
+      g.hashFilter += (k -> v.clone)
+    }
+    g
+  }
+
 }
 
 
@@ -256,6 +181,108 @@ class IncrementalGenerator(f: Formula, val cc: CongruenceClosure = new Congruenc
     }
     Logger("IncrementalGenerator", Debug, "saturate generated " + buffer.size + " new clauses")
     buffer.result
+  }
+
+}
+
+
+protected class Gen(val vs: Array[Variable], val f: Formula) extends Cloneable {
+
+  override def toString = vs.mkString("Gen( ",", "," → " + f)
+
+  override def hashCode = f.hashCode
+
+  override def clone = {
+    val g = new Gen(vs, f)
+    var i = 0
+    while (i < vs.size) {
+      g.done(i) = done(i).clone
+      i += 1
+    }
+    g
+  }
+
+  val done = Array.tabulate(vs.size)( _ => scala.collection.mutable.Set[Formula]() )
+
+  def similar(tg: Gen) = {
+    tg.vs.size == vs.size &&
+    tg.f == f &&
+    (0 until tg.vs.size).forall(i => tg.vs(i) == vs(i))
+  }
+
+  def isResult = vs.isEmpty
+  def result = {
+    assert(isResult)
+    f
+  }
+
+  def newGen(idx: Int, term: Formula): Gen = {
+    val kept = List.tabulate(vs.size -1)( i => if (i < idx) vs(i) else vs(i+1) )
+    val subs = FormulaUtils.replace(vs(idx), term, f)
+    Gen(kept, subs)
+  }
+
+  def apply(term: Formula): Iterable[Gen] = {
+    var i = 0
+    var res = List.empty[Gen]
+    while(i < vs.size) {
+      if (term.tpe == vs(i).tpe && !done(i)(term)) {
+        res ::= newGen(i, term)
+        done(i) += term
+      }
+      i += 1
+    }
+    res
+  }
+  
+  def apply(v: Variable, term: Formula): Option[Gen] = {
+    val i = vs.indexOf(v)
+    if (!done(i)(term)) {
+      done(i) += term
+      Some(newGen(i, term))
+    } else {
+      None
+    }
+  }
+
+  def localMatches(cc: CC): Set[Map[Variable,Formula]] = {
+    val toIdx = vs.zipWithIndex.toMap
+    def notDone(m: Map[Variable,Formula]): Boolean = {
+      m.forall{ case (v,f) => !done(toIdx(v))(f) }
+    }
+    Matching.findLocalSubterms(cc, vs.toSet, f).filter(notDone)
+  }
+
+}
+
+object Gen {
+  
+  protected def mkVar(v: Variable) = {
+    Variable(Namer("_generatedExistential")).setType(v.tpe)
+  }
+
+  //check ∃∀: if the top level is ∃, then give it a fresh name and continue
+  def apply(vs: List[Variable], f: Formula): Gen = {
+    if (vs.isEmpty) {
+      f match {
+        case Exists(vse, fe @ ForAll(_, _)) =>
+          val renaming = vse.map( v => (v -> mkVar(v) ) ).toMap
+          FormulaUtils.alpha(renaming, fe) match {
+            case ForAll(va, fa) => apply(va, fa)
+            case other =>
+              Logger.logAndThrow("IncrementalGenerator", Error, "expected ∀: " + other)
+          }
+        case other =>
+          new Gen(Array.empty[Variable], other)
+      }
+    } else {
+      Simplify.deBruijnIndex(ForAll(vs, f)) match {
+        case ForAll(va, fa) =>
+          import FormulaUtils._
+          new Gen(va.toArray.sorted, Simplify.simplify(fa))
+        case other => apply(Nil, other)
+      }
+    }
   }
 
 }

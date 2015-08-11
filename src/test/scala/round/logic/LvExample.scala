@@ -9,14 +9,9 @@ import org.scalatest._
 //they are more readable than dumping the VCs from the code
 class LvExample extends FunSuite {
 
-  val pid = CL.procType
   val pld = UnInterpreted("payload")
 
-  val i = Variable("i").setType(pid)
-  val j = Variable("j").setType(pid)
 
-  val ho = CL.HO
-  val n = CL.n
   val r = Variable("r").setType(Int)
   val r1 = Variable("r1").setType(Int)
 
@@ -209,23 +204,26 @@ class LvExample extends FunSuite {
 //    Eq(timeStamp(i), timeStamp1(i))
 //  ))
 //)
-  val mailbox4 = UnInterpretedFct("mailbox", Some(pid ~> FSet(pid)))
+  
+  //using maps
+  val mailbox4 = UnInterpretedFct("mailbox", Some(pid ~> FMap(pid,pld)))
   val round4 = And(
     //send, mailbox
-    ForAll(List(j),
-      Eq(mailbox4(j), Comprehension(List(i), And(Eq(i, coord(i)), ready(i), In(i, ho(j)))))
-    ),
+    ForAll(List(i,j), And(
+      Implies(IsDefinedAt(mailbox4(i), j), And(Eq(j, coord(j)), ready(j), In(j, ho(i)))),
+      Implies(And(Eq(j, coord(j)), ready(j), In(j, ho(i))), IsDefinedAt(mailbox4(i), j)),
+      Eq(LookUp(mailbox4(i), j), vote(j))
+    )),
     //update
     ForAll(List(i),
-      Implies(In(coord(i), mailbox4(i)),
-        And(Eq(data1(i), vote(coord(i))),
-            Eq(decided1(i), True())))
-    ),
-    ForAll(List(i),
-      Implies(Not(In(coord(i), mailbox4(i))),
+      Implies(IsDefinedAt(mailbox4(i), coord(i)),
+        And(Eq(data1(i), LookUp(mailbox4(i), coord(i))),
+            Eq(decided1(i), True())))),
+
+    ForAll(List(i,v),
+      Implies(Not(IsDefinedAt(mailbox4(i), coord(i))),
         And(Eq(data1(i), data(i)),
-            Eq(decided1(i), decided(i))))
-    ),
+            Eq(decided1(i), decided(i))))),
     Eq(Plus(r, Literal(1)), r1),
     ForAll(List(i), And(
       //global update
@@ -314,8 +312,10 @@ class LvExample extends FunSuite {
 //    round4,
 //    Not(prime(invariant1))
 //  )
-//  //assertUnsat(fs)//, 60000, true, Some("test.smt2"))
-//  getModel(fs, 60000)
+//  assertUnsat(fs)
+//  //assertUnsat(fs, 60000, true, cl2_1, Some("test1.smt2"))
+//  //assertUnsat(fs, 60000, true, cl2_2, Some("test2.smt2"), true)
+//  //getModel(fs, 60000)
 //}
 
 

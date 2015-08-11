@@ -6,6 +6,19 @@ import dzufferey.utils.Logger
 
 object TestCommon {
 
+  val pid = CL.procType
+  val n = CL.n
+  val ho = CL.HO
+  
+  val i = Variable("i").setType(pid)
+  val j = Variable("j").setType(pid)
+  val k = Variable("k").setType(pid)
+
+  
+  /////////////
+  // solving //
+  /////////////
+
   //val cl = CL
   //val cl = ClFull
   val cl = new CL(Some(2), None, Some(1))

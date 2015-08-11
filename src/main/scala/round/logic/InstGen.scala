@@ -16,15 +16,7 @@ object InstGen {
     Simplify.simplifyBool(FormulaUtils.flatten(qf))
   }
 
-  protected def toCongruenceClosure(cClasses: CC) = cClasses match {
-    case c: CongruenceClosure => c
-    case cl: CongruenceClasses =>
-      val c = new CongruenceClosure
-      c.addConstraints(cl.formula)
-      cl.groundTerms.foreach(c.repr)
-      c
-    case other => sys.error("unexpected: " + other)
-  }
+  protected def toCongruenceClosure(cClasses: CC) = cClasses.mutable
   
   /** instantiate all the universally quantified variables with the provided ground terms.
    * @param formula list of formula
@@ -52,6 +44,8 @@ object InstGen {
     val mRepr = mandatoryTerms.map(cc.repr)
     //ignore things without mandatoryTerms
     cc.groundTerms.view.map(cc.repr).filterNot(mRepr).foreach(gen.generate)
+    //TODO this wram-up gets very slow when there are many groundTerms, would it be possible to clone an incremental generator ?
+
     //saturate with the remaining terms
     val insts = gen.saturate(depth)
     val res = And(rest ++ insts :_*)

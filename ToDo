@@ -42,18 +42,16 @@
     * reduce memory footprint
     * a TCP version
     * more predictable performances (when overloaded)
-- logging as macro that can be removed at compile time.
 
 
 # verification
 
-- init: get default value when a variable is not assign at init time
 - add temporal elements to spec/formula
 - better structure of the specification: which invariant we can use to prove what property.
 - extraction of initial state: if a variable is not initialized in the process, take the default value in the declaration
 - rewrite the TR so we get directly set of processes for mailbox (easier to handle cardinality cstr later)
 - extract the spec of aux fct from the type annotation
-- use https://github.com/dzufferey/scala-smtlib-interface for the smtlib interface 
+- uses https://github.com/dzufferey/scala-smtlib-interface for the smtlib interface (code duplication)
 - parsing model:
   * better support for CVC4
   * use the smtlib eval command as alternative (once we know the domain)

@@ -13,6 +13,8 @@ trait CC {
   def normalize(f: Formula): Formula
   def groundTerms: Set[Formula]
   def withSymbol(s: Symbol): Seq[Formula]
+  def mutable: CongruenceClosure
+  def immutable: CongruenceClasses
   //TODO getting the congruence class of a node: cClass(f: Formula): Seq[Formula]
 }
 
@@ -103,7 +105,9 @@ class CongruenceClosure extends CC {
 
   def allRepr = formulaToNode.values.map(_.find.formula).toSet
 
-  def cc: CongruenceClasses = {
+  def mutable = this
+
+  def immutable: CongruenceClasses = {
     val cls = formulaToNode.values.groupBy(_.find)
     val classes = cls.map{ case (_, ms) =>
       import FormulaUtils.FormulaOrdering
@@ -117,7 +121,7 @@ class CongruenceClosure extends CC {
   }
   
 
-  def addConstraints(f: Seq[Formula]) { addConstraints(And(f:_*)) }
+  def addConstraints(f: Seq[Formula]) { f.foreach(addConstraints) }
 
   def addConstraints(f: Formula) {
     FormulaUtils.collectGroundTerms(f).foreach( getNode(_) )
@@ -134,7 +138,7 @@ object CongruenceClosure {
   def apply(f: Formula): CongruenceClasses = {
     val graph = new CongruenceClosure
     graph.addConstraints(f)
-    graph.cc
+    graph.immutable
   }
 
 }
@@ -173,6 +177,14 @@ class CongruenceClasses(cls: Iterable[CongruenceClass], map: Map[Formula, Congru
 
   protected lazy val s2t = gts.toSeq.collect{ case a @ Application(_, _) => a }.groupBy(_.fct)
   def withSymbol(s: Symbol) = s2t(s)
+
+  def immutable = this
+  def mutable = {
+    val c = new CongruenceClosure
+    c.addConstraints(formula)
+    groundTerms.foreach(c.repr)
+    c
+  }
 
 }
 

@@ -9,15 +9,6 @@ import org.scalatest._
 //they are more readable than dumping the VCs from the code
 class OtrExample extends FunSuite {
 
-  val pid = CL.procType
-
-  val i = Variable("i").setType(pid)
-  val j = Variable("j").setType(pid)
-  val k = Variable("k").setType(pid)
-
-  val ho = CL.HO
-  val n = CL.n
-
   val a = Variable("A").setType(FSet(pid))
 
   val v = Variable("v").setType(Int) 
@@ -74,6 +65,7 @@ class OtrExample extends FunSuite {
   //transition relation
   val tr = And(
     //aux fun
+    //TODO mmor not quite right
     ForAll(List(i,v), Or(
       Lt( Cardinality(Comprehension(List(j), In(Tuple(v,j), mailbox(i)))),
           Cardinality(Comprehension(List(j), In(Tuple(mmor(i),j), mailbox(i))))),
@@ -101,6 +93,7 @@ class OtrExample extends FunSuite {
   //sightly different encoding of the mailbox
   val tr2 = And(
     //aux fun
+    //TODO mmor not quite right
     ForAll(List(i,k), Or(
       Lt( Cardinality(Comprehension(List(j), And(In(j,ho(i)), Eq(data(j),data(k))))),
           Cardinality(Comprehension(List(j), And(In(j,ho(i)), Eq(data(j),mmor(i)))))),
@@ -118,6 +111,37 @@ class OtrExample extends FunSuite {
         )))
       ),
       Implies(Not(twoThird(ho(i))),
+        And(Eq(decided(i), decided1(i)), Eq(data1(i), data(i)))
+      )
+    ))
+  )
+  
+  //encoding of the mailbox with a map
+  val mailboxM = UnInterpretedFct("mailbox", Some(pid ~> FMap(pid, Int)))
+  def twoThirdMap(f: Formula) = Gt(Size(f), Divides(Times(IntLit(2), n), IntLit(3)))
+  def valueIs(f: Formula) = Comprehension(List(j), And( IsDefinedAt(mailboxM(i), j),
+                                                        Eq(LookUp(mailboxM(i), j), f)))
+  val tr3 = And(
+    //aux fun: mmor
+    ForAll(List(i,v), And(
+      Leq( Cardinality(valueIs(v)), Cardinality(valueIs(mmor(i)))),
+      Implies( Eq( Cardinality(valueIs(v)), Cardinality(valueIs(mmor(i)))),
+               Leq(mmor(i), v) )
+    )),
+    //send, mailbox
+    ForAll(List(i), Eq(KeySet(mailboxM(i)), ho(i))),
+    ForAll(List(i,j), Eq(LookUp(mailboxM(i), j), data(j))),
+    //update
+    ForAll(List(i), And(
+      Implies(twoThirdMap(mailboxM(i)),
+        And(Eq(data1(i), mmor(i)),
+            Exists(List(a), And(
+              Eq(a, valueIs(mmor(i))),
+              Implies(twoThird(a), Eq(decided1(i), True())),
+              Implies(Not(twoThird(a)), Eq(decided1(i), decided(i)))
+        )))
+      ),
+      Implies(Not(twoThirdMap(mailboxM(i))),
         And(Eq(decided(i), decided1(i)), Eq(data1(i), data(i)))
       )
     ))
@@ -146,13 +170,17 @@ class OtrExample extends FunSuite {
 
 //test("invariant is inductive") {
 //  val fs = List(
+//    //ForAll(List(i), Eq(Size(mailboxM(i)),Literal(0))), //try the else branch
 //    //ForAll(List(i), Eq(Cardinality(mailbox(i)),Literal(0))), //try the else branch
 //    invariantAgreement,
 //    //tr,
-//    tr2,
+//    //tr2,
+//    tr3,
 //    Not(prime(invariantAgreement))
 //  )
-//  assertUnsat(fs, 10000, true, cl2_3, Some("test2_3.smt2")) //, 60000, false, Some("test.smt2"), true)
+//  //assertUnsat(fs, 10000, true, cl2_3)
+//  //assertUnsat(fs, 10000, true, cl2_3, Some("test2_3.smt2"))
+//  assertUnsat(fs, 60000, true, cl2_3, Some("test_mf.smt2"), true)
 //}
 
 //test("1st magic round") {

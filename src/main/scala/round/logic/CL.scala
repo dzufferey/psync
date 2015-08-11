@@ -174,8 +174,8 @@ class CL(bound: Option[Int],
         val fs = sDefs.map(_.fresh)
         val sets = fs.map( sd => (sd.id, sd.body)) 
         val cstrs = bound match {
-          case Some(b) => new VennRegionsWithBound(b, tpe, sizeOfUniverse(tpe), sets, cClasses, univConjuncts).constraints
-          case None => new VennRegions(tpe, sizeOfUniverse(tpe), sets, cClasses, univConjuncts).constraints
+          case Some(b) => VennRegions.withBound(b, tpe, sizeOfUniverse(tpe), sets, cClasses, univConjuncts)
+          case None => VennRegions(tpe, sizeOfUniverse(tpe), sets, cClasses, univConjuncts)
         }
         val scope = fs.map(_.scope).flatten.toList
         ForAll(scope, cstrs) //TODO this needs skolemization
