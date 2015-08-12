@@ -50,4 +50,15 @@ class CongruenceClosureSuite extends FunSuite {
     assert(cc.cClass(y).size == 1)
   }
 
+  test("cc 5") {
+    val cc0 = new CongruenceClosure
+    cc0.addConstraints(Eq(f(x), x))
+    val cc = cc0.copy
+    assert(cc.cClass(x).size == 2)
+    assert(cc.cClass(x).contains(x))
+    assert(cc.cClass(x).contains(f(x)))
+    assert(cc.cClass(f(x)) == cc.cClass(x))
+    assert(cc.cClass(y).size == 1)
+  }
+
 }

@@ -14,6 +14,7 @@ object TestCommon {
   val j = Variable("j").setType(pid)
   val k = Variable("k").setType(pid)
 
+  def ite(a: Formula, b: Formula, c: Formula) = And(Or(Not(a), b), Or(a, c))
   
   /////////////
   // solving //

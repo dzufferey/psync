@@ -17,6 +17,21 @@ object InstGen {
   }
 
   protected def toCongruenceClosure(cClasses: CC) = cClasses.mutable
+
+  /** instantiate all the universally quantified variables with the provided ground terms.
+   * @param axioms a list of axioms
+   * @param cClasses (optional) congruence classes to reduce the number of terms used in the instantiation
+   * @param additionalTerms (optional) set of terms to add to the terms present in the formulas
+   */
+  def makeGenerator( axioms: Formula,
+                     cClasses: CC = new CongruenceClosure,
+                     additionalTerms: Iterable[Formula] = Nil) = {
+    val cc = cClasses.mutable
+    additionalTerms.foreach(cc.repr)  //push all the terms to be sure
+    FormulaUtils.collectGroundTerms(axioms).foreach(cc.repr) //push all the terms to be sure
+    cc.addConstraints(axioms) //make sure formula is taken into account
+    new IncrementalGenerator(axioms, cc)
+  }
   
   /** instantiate all the universally quantified variables with the provided ground terms.
    * @param formula list of formula
@@ -30,21 +45,12 @@ object InstGen {
                     depth: Option[Int] = None,
                     cClasses: CC = CongruenceClasses.empty,
                     additionalTerms: Set[Formula] = Set()): Formula = {
-    //get an incremental CC
-    val cc = toCongruenceClosure(cClasses)
-    //push all the terms to be sure
-    mandatoryTerms.foreach(cc.repr)
-    additionalTerms.foreach(cc.repr)
-    FormulaUtils.collectGroundTerms(formula).foreach(cc.repr)
-    //make sure formula is taking into account
-    cc.addConstraints(formula)
-
-    val (ax, rest) = FormulaUtils.getConjuncts(formula).partition(Quantifiers.hasFAnotInComp)
-    val gen = new IncrementalGenerator(And(ax:_*), cc)
+    val (_, rest) = FormulaUtils.getConjuncts(formula).partition(Quantifiers.hasFAnotInComp)
+    val gen = makeGenerator(formula, cClasses, mandatoryTerms ++ additionalTerms)
+    val cc = gen.cc
     val mRepr = mandatoryTerms.map(cc.repr)
     //ignore things without mandatoryTerms
     cc.groundTerms.view.map(cc.repr).filterNot(mRepr).foreach(gen.generate)
-    //TODO this wram-up gets very slow when there are many groundTerms, would it be possible to clone an incremental generator ?
 
     //saturate with the remaining terms
     val insts = gen.saturate(depth)
@@ -62,11 +68,9 @@ object InstGen {
                 depth: Option[Int] = None,
                 cClasses: CC = new CongruenceClosure,
                 additionalTerms: Set[Formula] = Set()): Formula = {
-    val cc = toCongruenceClosure(cClasses)
-    additionalTerms.foreach(cc.repr) //make sure all the terms are in cc
-    cc.addConstraints(formula)
-    val (ax, rest) = FormulaUtils.getConjuncts(formula).partition(Quantifiers.hasFAnotInComp)
-    val gen = new IncrementalGenerator(And(ax:_*), cc)
+    val (_, rest) = FormulaUtils.getConjuncts(formula).partition(Quantifiers.hasFAnotInComp)
+    val gen = makeGenerator(formula, cClasses, additionalTerms)
+    val cc = gen.cc
     val insts = gen.saturate(depth)
     And(rest ++ insts :_*)
   }

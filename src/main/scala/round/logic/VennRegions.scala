@@ -8,6 +8,8 @@ import dzufferey.utils.Namer
 
 object VennRegions {
 
+  //TODO a version where the univ are directly provided as an IncrementalFormulaGenerator
+
   /** Generate the ILP for the given sets.
    * @param tpe the type of the elements in the sets, e.g., ProcessID
    * @param universeSize the size of the universe (if the universe is finite), e.g., 'n' for ProcessID
@@ -20,7 +22,7 @@ object VennRegions {
             sets: Iterable[(Formula, Option[Binding])],
             cc: CC = CongruenceClasses.empty,
             univ: List[Formula] = Nil) = {
-    def mkUniv(f: Formula) = InstGen.saturateWith(And(univ:_*), Set(f), Some(1), cc)
+    def mkUniv(f: Formula) = InstGen.saturateWith(And(univ:_*), Set(f), Some(1), cc) //TODO try to avoid saturateWith, expensive when there are many terms
     new VennRegions(tpe, universeSize, sets, mkUniv).constraints
   }
 
@@ -38,9 +40,9 @@ object VennRegions {
                 sets: Iterable[(Formula, Option[Binding])],
                 cc: CC = CongruenceClasses.empty,
                 univ: List[Formula] = Nil) = {
-    val cc2 = cc.immutable //avoids feeding new terms (because it will be replace)
+    val cc2 = cc.copy //avoids feeding new terms (because it will be replace)
     val template = Variable(Namer("__template")).setType(tpe)
-    val generated = InstGen.saturateWith(And(univ:_*), Set(template), Some(1), cc2)
+    val generated = InstGen.saturateWith(And(univ:_*), Set(template), Some(1), cc2) //TODO even better this could be shared across sets of different types
     def mkUniv(f: Formula) = FormulaUtils.replace(template, f, generated)
     new VennRegionsWithBound(bound, tpe, universeSize, sets, mkUniv).constraints
   }

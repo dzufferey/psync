@@ -137,7 +137,7 @@ class IncrementalGenerator(f: Formula, val cc: CongruenceClosure = new Congruenc
   cc.addConstraints(f)
 
   val gen = {
-    val axioms = for( f <- FormulaUtils.getConjuncts(f) if Quantifiers.hasFA(f) )
+    val axioms = for( f <- FormulaUtils.getConjuncts(f) if Quantifiers.hasFAnotInComp(f) )
                  yield Simplify.pnf(f)
     new IncrementalFormulaGenerator(axioms)
   }

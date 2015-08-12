@@ -13,9 +13,9 @@ trait CC {
   def normalize(f: Formula): Formula
   def groundTerms: Set[Formula]
   def withSymbol(s: Symbol): Seq[Formula]
+  def copy: CC
   def mutable: CongruenceClosure
   def immutable: CongruenceClasses
-  //TODO getting the congruence class of a node: cClass(f: Formula): Seq[Formula]
 }
 
 class CongruenceClosure extends CC {
@@ -119,6 +119,33 @@ class CongruenceClosure extends CC {
     } )
     new CongruenceClasses(classes, map)
   }
+
+  def copy: CongruenceClosure = {
+    val cp = new CongruenceClosure
+    cp.nbrNodes = nbrNodes
+    val nodeMap = MMap[CcNode, CcNode]()
+    def copyNode(n: CcNode): CcNode = {
+      if (nodeMap contains n) nodeMap(n)
+      else {
+        val n2 = n.copyButNotVar(copyNode)
+        nodeMap += (n -> n2)
+        n2
+      }
+    }
+
+    formulaToNode.foreach{ case (f, n) =>
+      cp.formulaToNode += (f -> copyNode(n))
+    }
+    symbolToNodes.foreach{ case (sym, buffer) =>
+     val buffer2 = new ArrayBuffer[CcNode](buffer.size)
+     buffer.foreach( n => buffer2.append(copyNode(n)) )
+     cp.symbolToNodes += (sym -> buffer2)
+    }
+
+    nodeMap.foreach{ case (n1, n2) => n1.copyVarTo(n2, nodeMap) }
+
+    cp
+  }
   
 
   def addConstraints(f: Seq[Formula]) { f.foreach(addConstraints) }
@@ -178,6 +205,7 @@ class CongruenceClasses(cls: Iterable[CongruenceClass], map: Map[Formula, Congru
   protected lazy val s2t = gts.toSeq.collect{ case a @ Application(_, _) => a }.groupBy(_.fct)
   def withSymbol(s: Symbol) = s2t(s)
 
+  def copy = this
   def immutable = this
   def mutable = {
     val c = new CongruenceClosure
@@ -224,6 +252,8 @@ abstract class CcNode(val formula: Formula) {
   def arity: Int
   def getArgs: List[CcNode]
   def name: String
+
+  override def hashCode: Int = formula.hashCode
 
   def find: CcNode = parent match {
     case Some(p) =>
@@ -276,10 +306,38 @@ abstract class CcNode(val formula: Formula) {
     
   def ccPar = find.ccParents
 
+  //not pretty no memory allocation at all
+  @inline private def argsCongruent(_a: List[CcNode], _b: List[CcNode]): Boolean = {
+    var a = _a
+    var b = _b
+    while (true) {
+      a match {
+        case x::xs =>
+          b match {
+            case y::ys =>
+              if (x.find == y.find) {
+                a = xs
+                b = ys
+              } else {
+                return false
+              }
+            case _ =>   return false
+          }
+        case Nil => 
+          b match {
+            case Nil => return true
+            case _ =>   return false
+          }
+      }
+    }
+    sys.error("unreachable")
+  }
+
   def congruent(that: CcNode) = {
     name == that.name &&
-    arity == that.arity &&
-    getArgs.zip(that.getArgs).forall{ case (a,b) => a.find == b.find }
+    argsCongruent(getArgs, that.getArgs)
+    //arity == that.arity &&
+    //getArgs.zip(that.getArgs).forall{ case (a,b) => a.find == b.find }
   }
 
   def merge(that: CcNode) {
@@ -291,22 +349,37 @@ abstract class CcNode(val formula: Formula) {
     }
   }
 
+  def copyButNotVar(copyFct: CcNode => CcNode): CcNode
+  
+  def copyVarTo(c: CcNode, copyFct: CcNode => CcNode) {
+    c.parent = parent.map(copyFct)
+    c.ccParents = ccParents.map(copyFct)
+    c.children = children.map(copyFct)
+    c.seqNbr = seqNbr
+  }
+
+
 }
 
 class CcSym(f: Formula, symbol: Symbol, args: List[CcNode]) extends CcNode(f) {
   def name = symbol.toString
   def arity = args.length
   def getArgs: List[CcNode] = args
+  def copyButNotVar(copyFct: CcNode => CcNode): CcNode = {
+    new CcSym(f, symbol, args.map(copyFct))
+  }
 }
 
 class CcVar(v: Variable) extends CcNode(v) {
   def name = v.toString
   def arity = 0
   def getArgs: List[CcNode] = Nil
+  def copyButNotVar(copyFct: CcNode => CcNode): CcNode = new CcVar(v)
 }
 
 class CcLit(l: Literal[_]) extends CcNode(l) {
   def name = l.toString
   def arity = 0
   def getArgs: List[CcNode] = Nil
+  def copyButNotVar(copyFct: CcNode => CcNode): CcNode = new CcLit(l)
 }

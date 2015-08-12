@@ -112,6 +112,7 @@ sealed abstract class Symbol {
   val fix = Fix.Prefix
   val priority = 10
 
+  //TODO could be improved by making sure we don't introduce new type variables
   def apply(args: Formula*): Formula = {
     val t = tpe(args.length)
     val app = Application(this, args.toList)
@@ -119,7 +120,8 @@ sealed abstract class Symbol {
     //fill the type as much as possible
     Typer.unify(t, Function(args.map(_.tpe).toList, ret)) match {
       case Some(subst) if subst contains ret =>
-        //println(symbol + args.mkString("(",",",")") + ": " + subst(ret))
+        //println(this + args.mkString("(",",",")") + ": " + subst(ret))
+        //println("subst: " + subst.mkString(", "))
         app.setType(subst(ret))
       case _ =>
         t match {
@@ -165,13 +167,7 @@ sealed abstract class InterpretedFct(val symbol: String, aliases: String*) exten
       case _ => None
     }
   }
-//def unapply(f: Formula): Option[List[Formula]] = {
-//  val t = this
-//  f match {
-//    case Application(`t`, args) => Some(args)
-//    case _ => None
-//  }
-//}
+
   override val fix = Fix.Infix
 }
 

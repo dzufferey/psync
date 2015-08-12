@@ -11,7 +11,8 @@ object ReduceMaps {
     val kType = TypeVariable("K")
     val vType = TypeVariable("V")
     val v = Variable("m").setType(FMap(kType, vType))
-    new TermGenerator(List(v), KeySet(v))
+    val t = KeySet(v).setType(FSet(kType)) //currently we need to put the type manully when there are type variables
+    new TermGenerator(List(v), t)
   }
 
   //TODO more operations, e.g.,
