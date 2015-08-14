@@ -1,6 +1,7 @@
 package round.logic
 
 import round.formula._
+import round.formula.InlineOps._
 import TestCommon._
 
 import org.scalatest._
@@ -62,6 +63,7 @@ class OtrExample extends FunSuite {
   //min most often received
   val mmor = UnInterpretedFct("mmor", Some(pid ~> Int))
 
+
   //transition relation
   val tr = And(
     //aux fun
@@ -121,13 +123,14 @@ class OtrExample extends FunSuite {
   def twoThirdMap(f: Formula) = Gt(Size(f), Divides(Times(IntLit(2), n), IntLit(3)))
   def valueIs(f: Formula) = Comprehension(List(j), And( IsDefinedAt(mailboxM(i), j),
                                                         Eq(LookUp(mailboxM(i), j), f)))
+  val mmorDef = ForAll(List(i,v), And(
+      valueIs(v).card <= valueIs(mmor(i)).card,
+      Implies( valueIs(v).card === valueIs(mmor(i)).card, mmor(i) <= v)
+    ))
+
   val tr3 = And(
     //aux fun: mmor
-    ForAll(List(i,v), And(
-      Leq( Cardinality(valueIs(v)), Cardinality(valueIs(mmor(i)))),
-      Implies( Eq( Cardinality(valueIs(v)), Cardinality(valueIs(mmor(i)))),
-               Leq(mmor(i), v) )
-    )),
+    mmorDef,
     //send, mailbox
     ForAll(List(i), Eq(KeySet(mailboxM(i)), ho(i))),
     ForAll(List(i,j), Eq(LookUp(mailboxM(i), j), data(j))),
@@ -167,6 +170,21 @@ class OtrExample extends FunSuite {
   test("validity holds initially") {
     assertUnsat(List(ForAll(List(i), Eq(data0(i), data(i))), Not(validity)))
   }
+
+//XXX already this blows up, also depth beyond 0 does not matter. something is wrong in the quantifier inst
+//test("mmor unsat") {
+//  val fs = List(
+//    mmorDef,
+//    ForAll(List(i,j), And(
+//      IsDefinedAt(mailboxM(i), j) === ho(i).contains(j),
+//      LookUp(mailboxM(i), j) === data(j)
+//    )),
+//    Comprehension(List(i), data(i) === v).card > ((n * 2) / 3),
+//    ForAll(List(i), ho(i).card > ((n * 2) / 3) ),
+//    mmor(k) !== v
+//  )
+//  assertUnsat(fs, 60000, true, cl2_2, Some("test_mmor.smt2"))
+//}
 
 //test("invariant is inductive") {
 //  val fs = List(

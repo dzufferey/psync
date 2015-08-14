@@ -1,6 +1,7 @@
 package round.logic
 
 import round.formula._
+import round.formula.InlineOps._
 import TestCommon._
 
 import org.scalatest._
@@ -10,18 +11,19 @@ class TpcExample extends FunSuite {
   val coord = Variable("coord").setType(pid)
 
   val v = Variable("v").setType(Bool)
+  val s = Variable("s").setType(Int)
 
-  val mailbox = UnInterpretedFct("mailbox", Some(pid ~> FSet(Product(List(Bool,pid)))))
+  val mailbox = UnInterpretedFct("mailbox", Some(pid ~> FMap(pid, Bool)))
 
   val data0 = UnInterpretedFct("data0",Some(pid ~> Bool))
 
-  val data = UnInterpretedFct("data",Some(pid ~> Bool))
+  val data  = UnInterpretedFct("data", Some(pid ~> Bool))
   val data1 = UnInterpretedFct("data1",Some(pid ~> Bool))
 
-  val decided = UnInterpretedFct("decided", Some(pid ~> Bool))
-  val decided1 = UnInterpretedFct("decided1", Some(pid ~> Bool))
+  val decided  = UnInterpretedFct("decided", Some(pid ~> Bool))
+  val decided1 = UnInterpretedFct("decided1",Some(pid ~> Bool))
 
-  val vote = UnInterpretedFct("vote",Some(pid ~> Bool))
+  val vote  = UnInterpretedFct("vote", Some(pid ~> Bool))
   val vote1 = UnInterpretedFct("vote1",Some(pid ~> Bool))
 
   val primeMap = Map[Symbol,Symbol](
@@ -31,10 +33,10 @@ class TpcExample extends FunSuite {
   )
   def prime(f: Formula) = FormulaUtils.mapSymbol( x => primeMap.getOrElse(x, x), f)
   
-  val agreement = ForAll(List(i,j), Implies(And(decided(i), decided(j)), Eq(data(i),data(j))))
-  val validity = Exists(List(i), ForAll(List(j), Implies(And(decided(i), data(i)), data0(j))))
+  val agreement = ForAll(List(i,j), Implies(decided(i) && decided(j), data(i) === data(j)))
+  val validity = Exists(List(i), ForAll(List(j), Implies(decided(i) && data(i), data0(j))))
 
-  val initialState = ForAll(List(i), And(Not(vote(i)), Not(decided(i))))
+  val initialState = ForAll(List(i), Not(vote(i)) && Not(decided(i)))
 
   /////////////
   // round 1 //
@@ -43,46 +45,41 @@ class TpcExample extends FunSuite {
   val round1a =
     ForAll(List(i), And(
       Implies(
-        And(Eq(i,coord),
-            Eq(Cardinality(Comprehension(List(j), And(In(j, ho(i)), data0(j)))), n)),
+        And(i === coord,
+            Comprehension(List(j), (j ∈ ho(i)) && data0(j)).card === n),
         vote1(i)
       ),
       Implies(
-        And(Eq(i,coord),
-            Not(Eq(Cardinality(Comprehension(List(j), And(In(j, ho(i)), data0(j)))), n))),
+        And(i === coord,
+            Not(Comprehension(List(j), (j ∈ ho(i)) && data0(j)).card === n)),
         Not(vote1(i))
       ),
-      Implies(
-        Not(Eq(i,coord)),
-        Eq(vote(i),vote1(i))
-      ),
-      Eq(data(i),data1(i)),
-      Eq(decided(i),decided1(i))
+      Implies(i !== coord, vote(i) === vote1(i)),
+      data(i) === data1(i),
+      decided(i) === decided1(i)
     ))
 
   val round1b = And(
     //send, mailbox
-    ForAll(List(i,j),
-      Eq( In(Tuple(data0(i), i), mailbox(j)),
-          And(Eq(j, coord),
-              In(i, ho(j))))
+    ForAll(List(i, j), And(
+        IsDefinedAt(mailbox(i),j) === (Eq(i, coord) && In(j, ho(i))),
+        LookUp(mailbox(i), j) === data0(j)
+      )
     ),
     //update
     ForAll(List(i), And(
       //coord
-      Implies(Eq(i,coord), And(
-        Implies(Eq(Cardinality(Comprehension(List(j), In(Tuple(True(),j), mailbox(i)))), n),
-                vote1(i)),
-        Implies(Not(Eq(Cardinality(Comprehension(List(j), In(Tuple(True(),j), mailbox(i)))), n)),
-                Not(vote1(i)))
-      )),
+      Implies(i === coord,
+        Exists(List(s), And(
+          s === Comprehension(List(j), IsDefinedAt(mailbox(i), j) && LookUp(mailbox(i), j) === True()).card,
+          Implies(s === n, vote1(i)),
+          Implies(s !== n, Not(vote1(i)))
+      ))),
       //non coord
-      Implies(Not(Eq(i, coord)),
-        Eq(vote(i),vote1(i))
-      ),
+      Implies(i !== coord, vote(i) === vote1(i)),
       //frame
-      Eq(data(i),data1(i)),
-      Eq(decided(i),decided1(i))
+      data(i) === data1(i),
+      decided(i) === decided1(i)
     ))
   )
 
@@ -105,16 +102,16 @@ class TpcExample extends FunSuite {
 
   val round2b = And(
     //send, mailbox
-    ForAll(List(i,j),
-      Eq( In(Tuple(vote(i), i), mailbox(j)),
-          And(Eq(i, coord),
-              In(i, ho(j))))
+    ForAll(List(i,j), And(
+        IsDefinedAt(mailbox(i), j) === (Eq(j, coord) && In(j, ho(i))),
+        LookUp(mailbox(i), j) === vote(j)
+      )
     ),
     //update
     ForAll(List(i), And(
       Or(
-        Exists(List(v), And(In(Tuple(v,coord),mailbox(i)), decided1(i), Eq(data1(i), v))),
-        ForAll(List(v), And(Not(In(Tuple(v,coord),mailbox(i))),Not(decided1(i)), Eq(data1(i),data(i))))
+        IsDefinedAt(mailbox(i), coord) && decided1(i) && Eq(data1(i), LookUp(mailbox(i), coord)),
+        Not(IsDefinedAt(mailbox(i), coord)) && Not(decided1(i)) && Eq(data1(i), data(i))
       ),
       Eq(vote(i),vote1(i))
     ))
@@ -133,7 +130,7 @@ class TpcExample extends FunSuite {
     assertUnsat(List(invariant1, Not(validity)))
   }
 
-  test("initialState and round 1 implies invariant 1a") {
+  test("initialState and round 1a implies invariant 1") {
     val fs = List(
       initialState,
       round1a,
@@ -152,25 +149,22 @@ class TpcExample extends FunSuite {
   }
 
 
-//TODO figure out what is missing for that mailbox encoding
+  test("initialState and round 1b implies invariant 1") {
+    val fs = List(
+      initialState,
+      round1b,
+      Not(prime(invariant1))
+    )
+    assertUnsat(fs)
+  }
 
-//test("initialState and round 1 implies invariant 1b") {
-//  val fs = List(
-//    initialState,
-//    round1b,
-//    Not(prime(invariant1))
-//  )
-//  //getModel(fs)
-//  assertUnsat(fs)
-//}
-
-//test("invariant 1 is inductive at round 2b") {
-//  val fs = List(
-//    invariant1,
-//    round2b,
-//    Not(prime(invariant1))
-//  )
-//  assertUnsat(fs)
-//}
+  test("invariant 1 is inductive at round 2b") {
+    val fs = List(
+      invariant1,
+      round2b,
+      Not(prime(invariant1))
+    )
+    assertUnsat(fs)
+  }
 
 }
