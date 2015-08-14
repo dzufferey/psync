@@ -25,6 +25,7 @@ object ReduceMaps {
     //we only need to add new terms to cc
     val terms = termGen(cc.groundTerms)
     terms.foreach(cc.repr) //lookup also add in cc
+    Logger("ReduceMaps", Debug, terms.mkString("addMapGroundTerms \n    ","\n    ",""))
   }
 
 }

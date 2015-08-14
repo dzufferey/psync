@@ -27,9 +27,12 @@ object InstGen {
                      cClasses: CC = new CongruenceClosure,
                      additionalTerms: Iterable[Formula] = Nil) = {
     val cc = cClasses.mutable
-    additionalTerms.foreach(cc.repr)  //push all the terms to be sure
-    FormulaUtils.collectGroundTerms(axioms).foreach(cc.repr) //push all the terms to be sure
-    cc.addConstraints(axioms) //make sure formula is taken into account
+    //push all the terms to be sure
+    additionalTerms.foreach(cc.repr)
+    FormulaUtils.collectGroundTerms(axioms).foreach(cc.repr)
+    //make sure formula is taken into account
+    cc.addConstraints(axioms)
+    //
     new IncrementalGenerator(axioms, cc)
   }
   
@@ -45,7 +48,6 @@ object InstGen {
                     depth: Option[Int] = None,
                     cClasses: CC = CongruenceClasses.empty,
                     additionalTerms: Set[Formula] = Set()): Formula = {
-    val (_, rest) = FormulaUtils.getConjuncts(formula).partition(Quantifiers.hasFAnotInComp)
     val gen = makeGenerator(formula, cClasses, mandatoryTerms ++ additionalTerms)
     val cc = gen.cc
     val mRepr = mandatoryTerms.map(cc.repr)
@@ -54,7 +56,7 @@ object InstGen {
 
     //saturate with the remaining terms
     val insts = gen.saturate(depth)
-    val res = And(rest ++ insts :_*)
+    val res = And(gen.leftOver ++ insts :_*)
     postprocess(res)
   }
 
@@ -68,11 +70,9 @@ object InstGen {
                 depth: Option[Int] = None,
                 cClasses: CC = new CongruenceClosure,
                 additionalTerms: Set[Formula] = Set()): Formula = {
-    val (_, rest) = FormulaUtils.getConjuncts(formula).partition(Quantifiers.hasFAnotInComp)
     val gen = makeGenerator(formula, cClasses, additionalTerms)
-    val cc = gen.cc
     val insts = gen.saturate(depth)
-    And(rest ++ insts :_*)
+    And(gen.leftOver ++ insts :_*)
   }
  
 }

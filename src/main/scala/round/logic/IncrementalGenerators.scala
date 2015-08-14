@@ -131,15 +131,16 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula]) extends Cloneable {
 }
 
 
-class IncrementalGenerator(f: Formula, val cc: CongruenceClosure = new CongruenceClosure) {
+class IncrementalGenerator(f: Formula, val cc: CongruenceClosure = new CongruenceClosure) extends Cloneable {
 
   //make sure the current equalities are in the cc
   cc.addConstraints(f)
 
-  val gen = {
-    val axioms = for( f <- FormulaUtils.getConjuncts(f) if Quantifiers.hasFAnotInComp(f) )
-                 yield Simplify.pnf(f)
-    new IncrementalFormulaGenerator(axioms)
+  var leftOver: List[Formula] = Nil
+  protected var gen = {
+    val (axioms, other) = FormulaUtils.getConjuncts(f).partition(Quantifiers.hasFAnotInComp)
+    leftOver = other
+    new IncrementalFormulaGenerator(axioms.map(Simplify.pnf))
   }
 
   def generate(term: Formula): List[Formula] = {
@@ -181,6 +182,12 @@ class IncrementalGenerator(f: Formula, val cc: CongruenceClosure = new Congruenc
     }
     Logger("IncrementalGenerator", Debug, "saturate generated " + buffer.size + " new clauses")
     buffer.result
+  }
+
+  override def clone = {
+    val ig = new IncrementalGenerator(f, cc.copy)
+    ig.gen = gen.clone
+    ig
   }
 
 }

@@ -17,7 +17,7 @@
 # implementation
 
 - make InstGen faster
-    * round number as its own time (value class) to reduce the instantiation between time and inst
+    * round number as its own type (value class) to reduce the instantiation between time and int
         -test in the LvExample and see what difference it makes
         -generalize typer for simple overloading
         -just before solving turn round back into Int

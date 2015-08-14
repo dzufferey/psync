@@ -9,6 +9,27 @@ import dzufferey.utils.Namer
 object VennRegions {
 
   //TODO a version where the univ are directly provided as an IncrementalFormulaGenerator
+  protected def mkUniv(generator: IncrementalGenerator)(f: Formula) = {
+    val newClauses = generator.generate(f)
+    //println(newClauses.mkString("newClauses\n    ","\n    ",""))
+    //val filtered = newClauses.filter(f => !CL.hasComp(f))
+    val filtered = newClauses.filter(CL.keepAsIt)
+    //println(filtered.mkString("filtered\n    ","\n    ",""))
+    And(filtered:_*)
+  }
+  
+  /** Generate the ILP for the given sets.
+   * @param tpe the type of the elements in the sets, e.g., ProcessID
+   * @param universeSize the size of the universe (if the universe is finite), e.g., 'n' for ProcessID
+   * @param sets the sets as pair (id, definition), where the definition is an optional Comprehension.
+   * @param generator (optional) an incremental generator to instantiate axioms on the new terms
+   */
+  def apply(tpe: Type,
+            universeSize: Option[Formula],
+            sets: Iterable[(Formula, Option[Binding])],
+            generator: IncrementalGenerator) = {
+    new VennRegions(tpe, universeSize, sets, mkUniv(generator)).constraints
+  }
 
   /** Generate the ILP for the given sets.
    * @param tpe the type of the elements in the sets, e.g., ProcessID
@@ -24,6 +45,22 @@ object VennRegions {
             univ: List[Formula] = Nil) = {
     def mkUniv(f: Formula) = InstGen.saturateWith(And(univ:_*), Set(f), Some(1), cc) //TODO try to avoid saturateWith, expensive when there are many terms
     new VennRegions(tpe, universeSize, sets, mkUniv).constraints
+  }
+  
+  /** Generate the ILP for the given sets considering only the intersection of at most bound sets.
+   * @param bound the maximal number of sets to consider at once for the Venn Regions
+   * @param tpe the type of the elements in the sets, e.g., ProcessID
+   * @param universeSize the size of the universe (if the universe is finite), e.g., 'n' for ProcessID
+   * @param sets the sets as pair (id, definition), where the definition is an optional Comprehension.
+   * @param cc (optional) congruence classes of ground terms in the original formula
+   * @param univ (optional) the set of universally quantified clauses in the original formula
+   */
+  def withBound(bound: Int,
+                tpe: Type,
+                universeSize: Option[Formula],
+                sets: Iterable[(Formula, Option[Binding])],
+                generator: IncrementalGenerator) = {
+    new VennRegionsWithBound(bound, tpe, universeSize, sets, mkUniv(generator)).constraints
   }
 
   /** Generate the ILP for the given sets considering only the intersection of at most bound sets.
@@ -270,7 +307,7 @@ class VennRegionsWithBound(bound: Int,
   def constraints = {
     val seq = if (bound >= sets.size) Seq(_sets)
               else mkSeq(0,0)
-    val cstrs = seq.par.map( s => new VennRegions(tpe, universeSize, s, mkUniv).constraints ).seq
+    val cstrs = seq/*.par*/.map( s => new VennRegions(tpe, universeSize, s, mkUniv).constraints )/*.seq*/
     And(cstrs:_*)
   }
 

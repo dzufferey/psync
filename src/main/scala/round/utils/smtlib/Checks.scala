@@ -18,7 +18,7 @@ object Checks {
             Logger("smtlib", Debug, fct + "(" + args.map(_.tpe).mkString(",") + "): " + a.tpe +
                                            " with " + fct.typeWithParams + ", " + fct.typeParams)
           case c @ Comprehension(_, _) =>
-            Logger.logAndThrow("smtlib", Error, "Checks, Comprehension should be reduces (see CL): " + c)
+            Logger.logAndThrow("smtlib", Error, "Checks, Comprehension should have been reduced (see CL): " + c)
           case _ => ()
         }
         f.tpe match {
