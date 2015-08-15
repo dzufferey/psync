@@ -171,7 +171,46 @@ class OtrExample extends FunSuite {
     assertUnsat(List(ForAll(List(i), Eq(data0(i), data(i))), Not(validity)))
   }
 
-//XXX already this blows up, also depth beyond 0 does not matter. something is wrong in the quantifier inst
+  test("mmor unsat, abstract payload") {
+    val pld = UnInterpreted("payload")
+    val data = UnInterpretedFct("data",Some(pid ~> pld))
+    val mmor = UnInterpretedFct("mmor", Some(pid ~> pld))
+    val leq = UnInterpretedFct("leq", Some(pld ~> pld ~> Bool))
+    val pld1 = Variable("pld1").setType(pld)
+    val pld2 = Variable("pld2").setType(pld)
+    val pld3 = Variable("pld3").setType(pld)
+    val mailboxM = UnInterpretedFct("mailbox", Some(pid ~> FMap(pid, pld)))
+    def valueIs(f: Formula) = Comprehension(List(j), And( IsDefinedAt(mailboxM(i), j),
+                                                          Eq(LookUp(mailboxM(i), j), f)))
+    val fs = List(
+      //leq is a total order
+      ForAll(List(pld1, pld2), And(
+        Or(leq(pld1, pld2), leq(pld2, pld1)),
+        Implies(leq(pld1, pld2) && leq(pld2, pld1), pld1 === pld2)
+      )),
+      ForAll(List(pld1, pld2, pld3),
+        Implies(leq(pld1, pld2) && leq(pld2, pld3), leq(pld1, pld3))
+      ),
+      //mmor def 
+      ForAll(List(i,pld1), And(
+        valueIs(pld1).card <= valueIs(mmor(i)).card,
+        Implies( valueIs(pld1).card === valueIs(mmor(i)).card, leq(mmor(i), pld1))
+      )),
+      //send
+      ForAll(List(i,j), And(
+        IsDefinedAt(mailboxM(i), j) === ho(i).contains(j),
+        LookUp(mailboxM(i), j) === data(j)
+      )),
+      //env assumptions
+      Comprehension(List(i), data(i) === pld1).card > ((n * 2) / 3),
+      ForAll(List(i), ho(i).card > ((n * 2) / 3) ),
+      //negated prop: ¬(∀ k. mmor(k) == pld1)
+      mmor(k) !== pld1
+    )
+    assertUnsat(fs, 10000, false, cl3_1)
+  }
+
+////XXX Venn regions 3 is expensive...
 //test("mmor unsat") {
 //  val fs = List(
 //    mmorDef,
@@ -183,7 +222,8 @@ class OtrExample extends FunSuite {
 //    ForAll(List(i), ho(i).card > ((n * 2) / 3) ),
 //    mmor(k) !== v
 //  )
-//  assertUnsat(fs, 60000, true, cl2_2, Some("test_mmor.smt2"))
+////assertUnsat(fs, 60000, true, cl3_1)
+//  assertUnsat(fs, 10000, true, cl3_1, Some("test_mmor.smt2"))
 //}
 
 //test("invariant is inductive") {
