@@ -1,6 +1,7 @@
 package round.logic
 
 import round.formula._
+import round.formula.InlineOps._
 import TestCommon._
 
 import org.scalatest._
@@ -10,15 +11,32 @@ import org.scalatest._
 class LvExample extends FunSuite {
 
   val pld = UnInterpreted("payload")
+  //a special type for the phase (try to reduce the blow-up)
+  val phase = UnInterpreted("phase")
+  val leq = UnInterpretedFct("leq", Some(phase ~> phase ~> Bool))
 
+  val leqDef = {
+    val ph1 = Variable("ph1").setType(phase)
+    val ph2 = Variable("ph2").setType(phase)
+    val ph3 = Variable("ph3").setType(phase)
+    And( //leq is a total order
+      ForAll(List(ph1, ph2), And(
+        Or(leq(ph1, ph2), leq(ph2, ph1)),
+        Implies(leq(ph1, ph2) && leq(ph2, ph1), ph1 === ph2)
+      )),
+      ForAll(List(ph1, ph2, ph3),
+        Implies(leq(ph1, ph2) && leq(ph2, ph3), leq(ph1, ph3))
+      )
+    )
+  }
 
-  val r = Variable("r").setType(Int)
-  val r1 = Variable("r1").setType(Int)
+  val r  = Variable("r").setType(phase)
+  val r1 = Variable("r1").setType(phase)
 
   val a = Variable("A").setType(FSet(pid))
 
   val v = Variable("v").setType(pld) 
-  val t = Variable("t").setType(Int) 
+  val t = Variable("t").setType(phase) 
 
   val coord = UnInterpretedFct("coord", Some(pid ~> pid))
 
@@ -38,8 +56,8 @@ class LvExample extends FunSuite {
   val ready = UnInterpretedFct("ready",Some(pid ~> Bool))
   val ready1 = UnInterpretedFct("ready1",Some(pid ~> Bool))
   
-  val timeStamp = UnInterpretedFct("timeStamp",Some(pid ~> Int))
-  val timeStamp1 = UnInterpretedFct("timeStamp1",Some(pid ~> Int))
+  val timeStamp = UnInterpretedFct("timeStamp",Some(pid ~> phase))
+  val timeStamp1 = UnInterpretedFct("timeStamp1",Some(pid ~> phase))
 
   val primeMap = Map[Symbol,Symbol](
     data -> data1,
@@ -172,40 +190,6 @@ class LvExample extends FunSuite {
     ))
   )
 
-//val mailbox4 = UnInterpretedFct("mailbox", Some(pid ~> FSet(Product(pld,pid))))
-//val round4 = And(
-//  //send, mailbox
-//  ForAll(List(i,j),
-//    Eq( In(Tuple(vote(i), i), mailbox4(j)),
-//        And(Eq(i, coord(i)),
-//            ready(i),
-//            In(i, ho(j))))
-//  ),
-//  //update
-//  ForAll(List(i), Exists(List(v),
-//    Implies(In(Tuple(v,coord(i)), mailbox4(i)),
-//      And(Eq(data1(i), v),
-//          Eq(decided1(i), True())))
-//  )),
-//  ForAll(List(i,v),
-//    Implies(Not(In(Tuple(v,coord(i)), mailbox4(i))),
-//      And(Eq(data1(i), data(i)),
-//          Eq(decided1(i), decided(i))))
-//  ),
-//  Eq(Plus(r, Literal(1)), r1),
-//  ForAll(List(i), And(
-//    //global update
-//    Eq(commit1(i), False()),
-//    Eq(ready1(i), False()),
-//    //frame
-//    Eq(decided(i), decided1(i)),
-//    Eq(data(i), data1(i)),
-//    Eq(vote(i), vote1(i)),
-//    Eq(timeStamp(i), timeStamp1(i))
-//  ))
-//)
-  
-  //using maps
   val mailbox4 = UnInterpretedFct("mailbox", Some(pid ~> FMap(pid,pld)))
   val round4 = And(
     //send, mailbox
@@ -224,7 +208,8 @@ class LvExample extends FunSuite {
       Implies(Not(IsDefinedAt(mailbox4(i), coord(i))),
         And(Eq(data1(i), data(i)),
             Eq(decided1(i), decided(i))))),
-    Eq(Plus(r, Literal(1)), r1),
+    //Eq(Plus(r, Literal(1)), r1),
+    And(leq(r, r1), r !== r1), //replacing round by a phase type
     ForAll(List(i), And(
       //global update
       Eq(commit1(i), False()),
@@ -247,9 +232,9 @@ class LvExample extends FunSuite {
     Or(
       ForAll(List(i), And(Not(decided(i)), Not(ready(i)))),
       Exists(List(v,t,a), And(
-        Eq(a, Comprehension(List(i), Leq(t, timeStamp(i)))),
+        Eq(a, Comprehension(List(i), leq(t, timeStamp(i)))),
         majority(a),
-        Leq(t, r),
+        leq(t, r),
         ForAll(List(i), And(Implies(In(i, a), Eq(data(i), v)),
                             Implies(decided(i), Eq(data(i), v)),
                             Implies(commit(i), Eq(vote(i), v)),
@@ -312,7 +297,8 @@ class LvExample extends FunSuite {
 //    round4,
 //    Not(prime(invariant1))
 //  )
-//  assertUnsat(fs)
+//  //assertUnsat(fs)
+//    assertUnsat(fs, 60000, true, cl2_1)
 //  //assertUnsat(fs, 60000, true, cl2_1, Some("test1.smt2"))
 //  //assertUnsat(fs, 60000, true, cl2_2, Some("test2.smt2"), true)
 //  //getModel(fs, 60000)

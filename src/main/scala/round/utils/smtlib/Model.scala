@@ -112,7 +112,6 @@ object Model {
     val toSym = declared.foldLeft(Map[String, Symbol]())( (acc, decl) => {
       acc + (Names.overloadedSymbol(decl._1, decl._2) -> decl._1)
     })
-    //println("toSym: " + toSym)
 
     def tryParseVal(f: Formula): Option[ValDef] = f match {
       case Literal(b: Boolean) => Some(ValB(b))
@@ -192,7 +191,7 @@ object Model {
 
     //first pass
     loop(tryParseFun)
-      
+
     def inline(symbol: Symbol, args: List[Option[Symbol]]): Def = {
       defs(symbol) match {
         case v: ValDef => v
@@ -223,7 +222,9 @@ object Model {
               case _ => sys.error("??")
             }
             Some(getSym(d.id) -> inline(getSym(s), args2))
-          case _ => sys.error(d.id + " body is " + d.body)
+          case _ =>
+            //sys.error(d.id + " body is " + d.body)
+            None
         }
       } catch {
         case e: Exception =>
@@ -244,7 +245,9 @@ object Model {
     def fEval(f: Formula, params: Map[String,ValDef]): ValDef = f match {
       case Literal(b: Boolean) => ValB(b)
       case Literal(l: Long) => ValI(l)
-      case Variable(id) => params(id)
+      case Variable(id) =>
+        if (values contains id) values(id)
+        else params(id)
       case Eq(e1, e2) =>
         val v1 = fEval(e1, params)
         val v2 = fEval(e2, params)
@@ -270,12 +273,14 @@ object Model {
         eCnd match {
           case ValB(b) =>
             if (b) eTr else eFa
-          case _ => sys.error("expected ValB: " + eCnd)
+          case _ =>
+            sys.error("expected ValB: " + eCnd)
         }
       case Application(UnInterpretedFct(s,_,_), args) =>
         val eArgs = args.map(fEval(_, params))
         symEval(getSym(s), eArgs)
-      case _ => sys.error("did not expect: " + f)
+      case _ =>
+        sys.error("did not expect: " + f)
     }
 
     def generateArgs(args: List[Variable]): List[Map[String,ValDef]] = args match {

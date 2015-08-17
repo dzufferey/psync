@@ -24,6 +24,24 @@ object TestCommon {
   //val cl = ClFull
   val cl = new CL(Some(2), None, Some(1))
 
+  val cl__0 = new CL(None, None, Some(0))
+  val cl__1 = new CL(None, None, Some(1))
+  val cl__2 = new CL(None, None, Some(2))
+  val cl__3 = new CL(None, None, Some(3))
+  val cl__4 = new CL(None, None, Some(4))
+  
+  val cl0_0 = new CL(Some(0), None, Some(0))
+  val cl0_1 = new CL(Some(0), None, Some(1))
+  val cl0_2 = new CL(Some(0), None, Some(2))
+  val cl0_3 = new CL(Some(0), None, Some(3))
+  val cl0_4 = new CL(Some(0), None, Some(4))
+  
+  val cl1_0 = new CL(Some(1), None, Some(0))
+  val cl1_1 = new CL(Some(1), None, Some(1))
+  val cl1_2 = new CL(Some(1), None, Some(2))
+  val cl1_3 = new CL(Some(1), None, Some(3))
+  val cl1_4 = new CL(Some(1), None, Some(4))
+
   val cl2_0 = new CL(Some(2), None, Some(0))
   val cl2_1 = new CL(Some(2), None, Some(1))
   val cl2_2 = new CL(Some(2), None, Some(2))

@@ -6,7 +6,6 @@ import dzufferey.utils.{Misc, Namer}
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
-//TODO test deep-copy
 
 class IncrementalFormulaGenerator(axioms: Iterable[Formula]) extends Cloneable {
 
@@ -272,12 +271,11 @@ object Gen {
   def apply(vs: List[Variable], f: Formula): Gen = {
     if (vs.isEmpty) {
       f match {
-        case Exists(vse, fe @ ForAll(_, _)) =>
+        case Exists(vse, fe) =>
           val renaming = vse.map( v => (v -> mkVar(v) ) ).toMap
           FormulaUtils.alpha(renaming, fe) match {
             case ForAll(va, fa) => apply(va, fa)
-            case other =>
-              Logger.logAndThrow("IncrementalGenerator", Error, "expected ∀: " + other)
+            case other => apply(Nil, other)
           }
         case other =>
           new Gen(Array.empty[Variable], other)

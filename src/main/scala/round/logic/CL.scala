@@ -155,10 +155,11 @@ class CL(bound: Option[Int],
   def reduceComprehension(conjuncts: List[Formula],
                           gen: IncrementalGenerator): List[Formula] = {
     //get the comprehensions definitions and normalize
-    val (_woComp, _c1) = collectComprehensionDefinitions(conjuncts)
+    val (woComp, _c1) = collectComprehensionDefinitions(conjuncts)
     val (c1, subst) = SetDef.normalize(_c1, gen.cc)
+    val newEqs = subst.map{ case (v1, v2) => Eq(v1, v2) }.toList
     Logger("CL", Debug, "similar: " + subst.mkString(", "))
-    val woComp = _woComp.map(FormulaUtils.map( f => subst.getOrElse(f, f), _))
+    newEqs.foreach(gen.cc.addConstraints)
     //get all the sets and merge the ones which are equal
     val _c2 = c1 ++ collectSetTerms(gen.cc.groundTerms)
     val c2 = SetDef.mergeEqual(_c2, gen.cc)
@@ -176,7 +177,7 @@ class CL(bound: Option[Int],
         val scope = fs.map(_.scope).flatten.toList
         ForAll(scope, cstrs) //TODO this needs skolemization
       }
-    Lt(Literal(0), n) :: woComp ::: ilps.toList
+    Lt(Literal(0), n) :: newEqs ::: woComp ::: ilps.toList
   }
 
   def reduceComprehension(conjuncts: List[Formula],

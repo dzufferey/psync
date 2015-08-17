@@ -16,14 +16,9 @@
 
 # implementation
 
-- make InstGen faster
-    * round number as its own type (value class) to reduce the instantiation between time and int
-        -test in the LvExample and see what difference it makes
-        -generalize typer for simple overloading
-        -just before solving turn round back into Int
 - ghost variables: make sure they are only read in the verification part and remove at compile time
 - accessing members of outer class inside an inner class
-    * check if fixed in 2.11.5 (with the right untypcheck) or report macro bug about it
+    * check if fixed in 2.11.6 (with the right untypcheck) or report macro bug about it
 - runtime 
     * reduce number of threads, improve pooling:
         - could we use ForkJoinTask as queue of thing to do (instead of the current queue of message)
@@ -46,10 +41,16 @@
 
 # verification
 
-- add temporal elements to spec/formula
-- better structure of the specification: which invariant we can use to prove what property.
+- InstGen
+    * round number as its own type (value class) to reduce the instantiation between time and int
+        - test in the LvExample and see what difference it makes
+        - generalize typer for simple overloading
+        - just before solving turn round back into Int
+- better structure of the specification:
+    * which invariant we can use to prove what property
+    * add temporal elements to spec/formula
+- reduce memory footprint of Simplify
 - extraction of initial state: if a variable is not initialized in the process, take the default value in the declaration
-- rewrite the TR so we get directly set of processes for mailbox (easier to handle cardinality cstr later)
 - extract the spec of aux fct from the type annotation
 - uses https://github.com/dzufferey/scala-smtlib-interface for the smtlib interface (code duplication)
 - parsing model:
