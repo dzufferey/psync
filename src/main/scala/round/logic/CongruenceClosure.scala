@@ -20,10 +20,10 @@ trait CC {
 
 class CongruenceClosure extends CC {
     
-  import scala.collection.mutable.{ArrayBuffer, Map => MMap}
+  import scala.collection.mutable.{ListBuffer, Map => MMap}
   protected var nbrNodes = 0
   protected val formulaToNode = MMap[Formula, CcNode]()
-  protected val symbolToNodes = MMap[Symbol, ArrayBuffer[CcNode]]()
+  protected val symbolToNodes = MMap[Symbol, ListBuffer[CcNode]]()
     
   protected def getNode(f: Formula): CcNode = {
     if (formulaToNode contains f) { 
@@ -35,9 +35,9 @@ class CongruenceClosure extends CC {
           val node = new CcSym(a, f, argsN)
           for (n <- argsN) n.find.ccParents += node //calling find here for inserting incrementally
           //check according to existing equalities
-          val existing = symbolToNodes.getOrElseUpdate(f, ArrayBuffer[CcNode]())
+          val existing = symbolToNodes.getOrElseUpdate(f, ListBuffer[CcNode]())
           existing.foreach( n => if (node.congruent(n)) node.merge(n) )
-          existing.append(node)
+          existing += node
           //return the newly inserted node
           node
         case v @ Variable(_) => new CcVar(v)
@@ -137,8 +137,8 @@ class CongruenceClosure extends CC {
       cp.formulaToNode += (f -> copyNode(n))
     }
     symbolToNodes.foreach{ case (sym, buffer) =>
-     val buffer2 = new ArrayBuffer[CcNode](buffer.size)
-     buffer.foreach( n => buffer2.append(copyNode(n)) )
+     val buffer2 = new ListBuffer[CcNode]()
+     buffer.foreach( n => buffer2 += copyNode(n) )
      cp.symbolToNodes += (sym -> buffer2)
     }
 
@@ -253,7 +253,8 @@ abstract class CcNode(val formula: Formula) {
   def getArgs: List[CcNode]
   def name: String
 
-  override def hashCode: Int = formula.hashCode
+  private val hc = formula.hashCode //do we gain from caching the hash ?
+  override def hashCode: Int = hc
 
   def find: CcNode = parent match {
     case Some(p) =>
@@ -333,11 +334,11 @@ abstract class CcNode(val formula: Formula) {
     sys.error("unreachable")
   }
 
-  def congruent(that: CcNode) = {
-    name == that.name &&
+  //the interalized name + arity for faster comparison
+  private val id = CcNode.internalize(name, arity)
+  final def congruent(that: CcNode) = {
+    id == that.id &&
     argsCongruent(getArgs, that.getArgs)
-    //arity == that.arity &&
-    //getArgs.zip(that.getArgs).forall{ case (a,b) => a.find == b.find }
   }
 
   def merge(that: CcNode) {
@@ -357,7 +358,6 @@ abstract class CcNode(val formula: Formula) {
     c.children = children.map(copyFct)
     c.seqNbr = seqNbr
   }
-
 
 }
 
@@ -382,4 +382,22 @@ class CcLit(l: Literal[_]) extends CcNode(l) {
   def arity = 0
   def getArgs: List[CcNode] = Nil
   def copyButNotVar(copyFct: CcNode => CcNode): CcNode = new CcLit(l)
+}
+
+object CcNode {
+
+  private var counter = 0l
+  private def getNewId = { counter += 1; counter }
+  private val known = scala.collection.mutable.Map[String,Long]()
+  def internalize(name: String, arity: Int): Long = {
+    assert(arity >= 0 && arity < 256)
+    val n = known.getOrElseUpdate(name, getNewId)
+    (n << 8) | arity
+  }
+  //only call that method if there is no CongruenceClasses around
+  def clear = {
+    counter = 0
+    known.clear
+  }
+
 }

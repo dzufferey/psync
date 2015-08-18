@@ -74,7 +74,8 @@ class ShazExample extends FunSuite {
 //    ),
 //    Not(invariant(numFreeAtOrAfter1, allocatingAtOrAfter, free1, freeSpace1))
 //  )
-//  assertUnsat(fs, 10000, true)
+//  //assertUnsat(fs, 10000, true)
+//  assertUnsat(fs, 20000, true, cl2_2, Some("test2_2.smt2"))
 //}
 
 
