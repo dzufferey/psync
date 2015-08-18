@@ -100,7 +100,7 @@ class OtrExample extends FunSuite {
         And(Eq(data1(i), mmor(i)),
             Exists(List(a), And(
               Eq(a, valueIs(mmor(i))),
-              Implies(twoThird(a), Eq(decided1(i), True())),
+              Implies(twoThird(a),      Eq(decided1(i), True())),
               Implies(Not(twoThird(a)), Eq(decided1(i), decided(i)))
         )))
       ),
@@ -111,7 +111,7 @@ class OtrExample extends FunSuite {
   )
 
   val magicRound = Exists(List(a), And(
-    Lt(Times(n, Literal(2)), Times(Cardinality(a), Literal(3))),
+    twoThird(a),
     ForAll(List(i), Eq(ho(i), a))
   ))
   
@@ -190,35 +190,34 @@ class OtrExample extends FunSuite {
 //  assertUnsat(fs)
 //}
 
-//test("invariant 2 is inductive") {
-//  val fs = List(
-//    invariantProgress2,
-//    tr,
-//    Not(prime(invariantProgress2))
-//  )
-//  //assertUnsat(fs, 30000, false, cl3_2)
-//}
-
-//test("integrity") {
-//  val fs = List(
-//    invariantAgreement,
-//    prime(invariantAgreement),
-//    tr,
-//    Not(integrity)
-//  )
-//  assertUnsat(fs, 30000, true, cl3_2)
-//}
-
-  test("validity is inductive") {
+  test("invariant 2 is inductive") {
     val fs = List(
-      //ForAll(List(i), Eq(Size(mailbox(i)),Literal(0))), //works with that (else branch)
-      validity,
+      invariantProgress2,
       tr,
-      Not(prime(validity))
+      Not(prime(invariantProgress2))
     )
-    assertUnsat(fs, 10000, false, cl__3) //TODO check why this can go through (problem with inst ?) ...
-    //assertUnsat(fs, 10000, true, cl__3, Some("test_validity.smt2"))
-    //getModel(fs, 30000, cl__3) 
+    assertUnsat(fs, 30000, false, cl1_2)
   }
+
+  test("integrity") {
+    val fs = List(
+      invariantAgreement,
+      prime(invariantAgreement),
+      tr,
+      Not(integrity)
+    )
+    assertUnsat(fs, 30000, false, cl__2)
+  }
+
+//test("validity is inductive") {
+//  val fs = List(
+//    validity,
+//    tr,
+//    Not(prime(validity))
+//  )
+//  //assertUnsat(fs, 20000, true, cl__2)
+//    assertUnsat(fs, 10000, true, cl3_3, Some("test_validity.smt2"))
+//  //getModel(fs, 30000, cl__2) 
+//}
 
 }

@@ -50,6 +50,7 @@ class CL(bound: Option[Int],
   }
  
   def keepAsIt(f: Formula): Boolean = {
+    //TODO this accepts formula that would be rejected if they were skolemized!!
     !hasComp(f) && TypeStratification.isStratified(f)
     //!hasComp && Quantifiers.isEPR(f)
   }
@@ -64,13 +65,6 @@ class CL(bound: Option[Int],
     }
     FormulaUtils.traverse(check, f)
     isForAll && !hasComp
-  }
-
-  //make sure we have a least one process
-  protected def getGrounTerms(fs: List[Formula]): Set[Formula] = {
-    val gts0 = FormulaUtils.collectGroundTerms(And(fs:_*))
-    if (gts0.exists( t => t.tpe == procType)) gts0
-    else gts0 + Variable(Namer("p")).setType(procType)
   }
 
   //TODO assumes positive occurance!!
@@ -167,7 +161,7 @@ class CL(bound: Option[Int],
     val byType = c2.groupBy(_.contentTpe)
     val ilps =
       for ( (tpe, sDefs) <- byType if onType.map(_ contains tpe).getOrElse(true)) yield {
-        Logger("CL", Info, sDefs.mkString("reduceComprehension "+tpe+"\n    ","\n    ",""))
+        Logger("CL", Info, sDefs.mkString("reduceComprehension "+tpe+" (nbr = " +sDefs.size+ ")\n    ","\n    ",""))
         val fs = sDefs.map(_.fresh)
         val sets = fs.map( sd => (sd.id, sd.body)) 
         val cstrs = bound match {
@@ -223,6 +217,10 @@ class CL(bound: Option[Int],
     //get rid on the ∀ quantifiers
     val cc = new CongruenceClosure //incremental CC
     cc.addConstraints(clauses)
+    //make sure we have a least one process
+    if (cc.groundTerms.forall(_.tpe != procType)) {
+      cc.repr(Variable(Namer("p")).setType(procType))
+    }
     val gen = InstGen.makeGenerator(And(rest:_*), cc)
     val inst = gen.leftOver ::: gen.saturate(instantiationBound) //leftOver contains things not processed by the generator
     Logger("CL", Debug, "after instantiation:\n  " + inst.mkString("\n  "))

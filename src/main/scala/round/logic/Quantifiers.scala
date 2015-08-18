@@ -97,7 +97,8 @@ object Quantifiers {
       case _ =>
         acc
     }
-    FormulaUtils.collectWithScope(true, check, axiom)
+    val sk = skolemize(axiom)
+    FormulaUtils.collectWithScope(true, check, sk)
   }
 
   protected def getQuantPrefix(f: Formula, exists: Boolean): (Formula, List[Variable]) = {
