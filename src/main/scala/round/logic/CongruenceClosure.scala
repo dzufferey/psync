@@ -25,6 +25,8 @@ class CongruenceClosure extends CC {
   protected val formulaToNode = MMap[Formula, CcNode]()
   protected val symbolToNodes = MMap[Symbol, ListBuffer[CcNode]]()
     
+  override def toString = immutable.toString //TODO the braindead version
+
   protected def getNode(f: Formula): CcNode = {
     if (formulaToNode contains f) { 
       formulaToNode(f)

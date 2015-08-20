@@ -45,7 +45,7 @@ class CL(bound: Option[Int],
     val f2 = Simplify.nnf(f1)
     val f3 = Simplify.boundVarUnique(f2)
     val f4 = Simplify.mergeExists(f3)
-    val f5 = Simplify.splitForall(f4)
+    val f5 = Simplify.splitTopLevelForall(f4)
     f5
   }
  
@@ -221,9 +221,11 @@ class CL(bound: Option[Int],
     if (cc.groundTerms.forall(_.tpe != procType)) {
       cc.repr(Variable(Namer("p")).setType(procType))
     }
+    //Logger("CL", Debug, "CC is\n" + cc)
     val gen = InstGen.makeGenerator(And(rest:_*), cc)
     val inst = gen.leftOver ::: gen.saturate(instantiationBound) //leftOver contains things not processed by the generator
     Logger("CL", Debug, "after instantiation:\n  " + inst.mkString("\n  "))
+    //gen.log(Debug)
 
     //generate keySet for Maps if they are not already there
     ReduceMaps.addMapGroundTerms(cc)

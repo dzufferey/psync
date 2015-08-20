@@ -78,7 +78,8 @@ class LvExample extends FunSuite {
   val termination = ForAll(List(i), decided(i))
   val validity = ForAll(List(i), Exists(List(j), Eq(data(i), data0(j))))
 
-  def majority(f: Formula) = Lt(n, Times(Literal(2), Cardinality(f)))
+  def majorityS(f: Formula) = Lt(n, Times(Literal(2), Cardinality(f)))
+  def majorityM(f: Formula) = Lt(n, Times(Literal(2), Size(f)))
 
   val initialState = ForAll(List(i), And(
     Eq(decided(i), False()),
@@ -89,40 +90,47 @@ class LvExample extends FunSuite {
 
   //transition relations
 
-  val mt = Variable("mt").setType(Int) 
-  val maxTS = UnInterpretedFct("maxTS", Some(FSet(Product(Product(pld,Int),pid)) ~> pld))
-  val b = Variable("B").setType(FSet(Product(Product(pld,Int),pid)))
-
-  val mailbox1 = UnInterpretedFct("mailbox", Some(pid ~> FSet(Product(Product(pld,Int),pid))))
-  val round1 = And(
-    //aux fun
-    ForAll(List(b), Exists(List(mt,j),
+  val maxTS = UnInterpretedFct("maxTS", Some(FMap(pid,Product(pld,phase)) ~> pld))
+  val maxTSdef = {
+    val b = Variable("B").setType(FMap(pid,Product(pld,phase)))
+    ForAll(List(b),
       Implies(
-        Eq(Cardinality(b), Literal(0)),
-        And(
-          In(Tuple(Tuple(maxTS(b),mt),j), b),
-          ForAll(List(i,v,t),
+        Neq(Size(b), Literal(0)),
+        Exists(List(j), And(
+          IsDefinedAt(b, j),
+          Eq(maxTS(b), Fst(LookUp(b, j))),
+          ForAll(List(i),
             Implies(
-              In(Tuple(Tuple(v,t),i), b),
-              Or(Eq(v, maxTS(b)), Lt(t, mt))
-    ))) ) ) ),
+              IsDefinedAt(b, i),
+              Or( Eq(Fst(LookUp(b, i)), maxTS(b)),
+                  Not(leq(Snd(LookUp(b, i)), Snd(LookUp(b, i))))
+              )
+            )
+          )
+        ))
+      )
+    )
+  }
+
+  val mailbox1 = UnInterpretedFct("mailbox", Some(pid ~> FMap(pid,Product(pld,phase))))
+  val round1 = And(
+    leqDef,
+    maxTSdef,
     //send, mailbox
-    ForAll(List(i,j),
-      Eq( In(Tuple(Tuple(data(i),timeStamp(i)), i), mailbox1(j)),
-          And(Eq(i, coord(i),
-              commit(i),
-              In(i, ho(j)))))
-    ),
+    ForAll(List(i,j), And(
+      Eq(IsDefinedAt(mailbox1(j), i), And(Eq(j, coord(i)), In(i, ho(j)))),
+      Eq(LookUp(mailbox1(j), i), Tuple(data(i),timeStamp(i)))
+    )),
     //update
     // then branch
     ForAll(List(i),
-      Implies(And(Eq(i, coord(i)), majority(mailbox1(i))),
+      Implies(And(Eq(i, coord(i)), majorityM(mailbox1(i))),
         And(Eq(vote1(i), maxTS(mailbox1(i))),
             commit1(i)))
     ),
     // else branch
     ForAll(List(i),
-      Implies(Not(And(Eq(i, coord(i)), majority(mailbox1(i)))),
+      Implies(Not(And(Eq(i, coord(i)), majorityM(mailbox1(i)))),
         Not(commit1(i)))
     ),
     // frame
@@ -135,24 +143,24 @@ class LvExample extends FunSuite {
     ))
   )
 
-  val mailbox2 = UnInterpretedFct("mailbox", Some(pid ~> FSet(Product(pld,pid))))
+  val mailbox2 = UnInterpretedFct("mailbox", Some(pid ~> FMap(pid,pld)))
   val round2 = And(
+    leqDef,
     //send, mailbox
-    ForAll(List(i,j),
-      Eq( In(Tuple(vote(i), i), mailbox2(j)),
-          And(Eq(i, coord(i)),
-              commit(i),
-              In(i, ho(j))))
-    ),
+    ForAll(List(i,j), And(
+      Eq( IsDefinedAt(mailbox2(j), i),
+          And(Eq(i, coord(i)), commit(i), In(i, ho(j))) ),
+      Eq( LookUp(mailbox2(j), i), vote(i) )
+    )),
     //update
     // then branch
-    ForAll(List(i), Exists(List(v),
-      Implies(In(Tuple(v,coord(i)), mailbox2(i)),
-        And(Eq(data1(i), v), Eq(timeStamp1(i), r)))
+    ForAll(List(i),
+      Implies(IsDefinedAt(mailbox2(i), coord(i)),
+        And(Eq(data1(i), LookUp(mailbox2(i), coord(i)), Eq(timeStamp1(i), r)))
     )),
     // else branch
-    ForAll(List(i,v),
-      Implies(Not(In(v,coord(i), mailbox2(i))),
+    ForAll(List(i),
+      Implies(Not(IsDefinedAt(mailbox2(i), coord(i))),
         And(Eq(data1(i), data(i)), Eq(timeStamp1(i), timeStamp(i))))
     ),
     // frame
@@ -167,6 +175,7 @@ class LvExample extends FunSuite {
 
   val mailbox3 = UnInterpretedFct("mailbox", Some(pid ~> FSet(pid)))
   val round3 = And(
+    leqDef,
     //send, mailbox
     ForAll(List(i,j),
       Eq( In(i, mailbox3(j)),
@@ -176,7 +185,7 @@ class LvExample extends FunSuite {
     ),
     //update
     ForAll(List(i),
-      Eq( And(Eq(i, coord(i)), majority(mailbox3(i))),
+      Eq( And(Eq(i, coord(i)), majorityS(mailbox3(i))),
           ready1(i) )
     ),
     // frame
@@ -192,10 +201,11 @@ class LvExample extends FunSuite {
 
   val mailbox4 = UnInterpretedFct("mailbox", Some(pid ~> FMap(pid,pld)))
   val round4 = And(
+    leqDef,
     //send, mailbox
+    ForAll(List(i), Eq(KeySet(mailbox4(i)), Comprehension(List(j), And(Eq(j, coord(j)), ready(j), In(j, ho(i)))))),
     ForAll(List(i,j), And(
-      Implies(IsDefinedAt(mailbox4(i), j), And(Eq(j, coord(j)), ready(j), In(j, ho(i)))),
-      Implies(And(Eq(j, coord(j)), ready(j), In(j, ho(i))), IsDefinedAt(mailbox4(i), j)),
+      //Eq(IsDefinedAt(mailbox4(i), j), And(Eq(j, coord(j)), ready(j), In(j, ho(i)))),
       Eq(LookUp(mailbox4(i), j), vote(j))
     )),
     //update
@@ -228,12 +238,31 @@ class LvExample extends FunSuite {
 
   //invariants
 
+  //TODO the pnf/quantifier manipulation of the positive invariant does not work great:
+  //is it because of the disj ???
+/**
+∀ i$46 i$47 i$59 i$60 i$61 i$62 i$63.
+    ∨(
+            ∧(
+                     <(n, ∙(card(A$1), 2)),
+                     =(A$1, { i$48. leq(t$1, timeStamp(i$48))}),
+                     ∨(=(v$1, data(i$61)), ¬(decided(i$61))),
+                     ∨(=(v$1, data(i$62)), ¬(∈(i$62, A$1))),
+                     ∨(=(v$1, vote(i$59)), ¬(ready(i$59))),
+                     ∨(=(v$1, vote(i$60)), ¬(commit(i$60))),
+                     ∨(¬(=(r, timeStamp(i$47))), commit(coord(i$47))),
+                     leq(t$1, r)),
+            ∧(
+                     ¬(decided(i$63)),
+                     ¬(ready(i$46))))
+*/
+
   val invariant1 = And(
     Or(
       ForAll(List(i), And(Not(decided(i)), Not(ready(i)))),
       Exists(List(v,t,a), And(
         Eq(a, Comprehension(List(i), leq(t, timeStamp(i)))),
-        majority(a),
+        majorityS(a),
         leq(t, r),
         ForAll(List(i), And(Implies(In(i, a), Eq(data(i), v)),
                             Implies(decided(i), Eq(data(i), v)),
@@ -262,7 +291,26 @@ class LvExample extends FunSuite {
     assertUnsat(List(initialState, Not(validity)))
   }
 
+  test("maxTS") {
+    val fs = List(
+      leqDef,
+      maxTSdef,
+      Eq(a, Comprehension(List(i), leq(t, timeStamp(i)))),
+      majorityS(a),
+      ForAll(List(i), And(Implies(In(i, a), Eq(data(i), v)))),
+      ForAll(List(i,j), And(
+        Eq(IsDefinedAt(mailbox1(j), i), In(i, ho(j))),
+        //Eq(KeySet(mailbox1(j)), ho(j)),
+        Eq(LookUp(mailbox1(j), i), Tuple(data(i),timeStamp(i)))
+      )),
+      majorityM(mailbox1(i)),
+      Neq(maxTS(mailbox1(i)), v)
+    )
+    assertUnsat(fs)
+  }
+
   //TODO those completely blow-up
+  //for round 4, which should be "easy", the instantiation blows-up at the local step
   
 //test("invariant 1 is inductive at round 1") {
 //  val fs = List(
@@ -270,7 +318,7 @@ class LvExample extends FunSuite {
 //    round1,
 //    Not(prime(invariant1))
 //  )
-//  assertUnsat(fs)//, 60000, true, Some("test.smt2"))
+//  assertUnsat(fs, 60000, true, cl2_2, Some("test.smt2"))
 //}
 
 //test("invariant 1 is inductive at round 2") {
@@ -298,11 +346,10 @@ class LvExample extends FunSuite {
 //    Not(prime(invariant1))
 //  )
 //  //assertUnsat(fs)
-//    assertUnsat(fs, 60000, true, cl2_1)
+//    assertUnsat(fs, 60000, true, cl2_2)
 //  //assertUnsat(fs, 60000, true, cl2_1, Some("test1.smt2"))
 //  //assertUnsat(fs, 60000, true, cl2_2, Some("test2.smt2"), true)
 //  //getModel(fs, 60000)
 //}
-
 
 }

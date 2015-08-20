@@ -230,24 +230,26 @@ object Simplify {
     }
     fixedPoint(f)
   }
-
-  def splitForall(f: Formula): Formula = {
-    def split(f: Formula): Formula = f match {
-      case ForAll(vars, And(conjs @ _*)) =>
-        And(conjs.map( c => {
-          val vars2 = vars.filter(c.freeVariables)
-          if (vars2.isEmpty) c
-          else ForAll(vars2, c)
-        }):_*)
-      case And(_*) =>
-        val conjs2 = FormulaUtils.getConjuncts(f)
-        Copier.Application(f, And, conjs2)
-      case other => other
-    }
-    FormulaUtils.map(split, f)
+  
+  def splitTopLevelForall(f: Formula): Formula = f match {
+    case ForAll(vars, And(conjs @ _*)) =>
+      And(conjs.map( c => {
+        val vars2 = vars.filter(c.freeVariables)
+        if (vars2.isEmpty) c
+        else ForAll(vars2, c)
+      }):_*)
+    case And(_*) =>
+      val conjs2 = FormulaUtils.getConjuncts(f)
+      Copier.Application(f, And, conjs2)
+    case other => other
   }
 
+  def splitForall(f: Formula): Formula = {
+    FormulaUtils.map(splitTopLevelForall, f)
+  }
+  
   //warning: this will pull up the ∃ to the top ∨
+  //assumes bound variables are unique (does not check for capture)
   def mergeExists(f: Formula): Formula = {
     def merge(f: Formula): Formula = f match {
       case Or(disjs @ _*) =>

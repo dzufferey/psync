@@ -11,8 +11,10 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula]) extends Cloneable {
 
   //the current generators
   import scala.collection.mutable.ArrayBuffer
+  import scala.collection.mutable.{Set => MSet}
   protected val idx  = scala.collection.mutable.Map[Type,ArrayBuffer[Int]]()
   protected val gens = ArrayBuffer[Gen]()
+  protected val done = scala.collection.mutable.Map[Type,MSet[Formula]]()
   
   //speed-up the findSimilar test by keeping the hashes of existing generators
   protected val hashFilter = scala.collection.mutable.Map[Int,ArrayBuffer[Int]]()
@@ -44,21 +46,44 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula]) extends Cloneable {
     case other => Logger("IncrementalGenerator", Warning, "(2) expect ∀, found: " + other)
   }
   
-  
+
   def generate(term: Formula): List[Formula] = {
-    val candidate = idx.getOrElseUpdate(term.tpe, ArrayBuffer[Int]())
-    var i = 0
-    var res = List.empty[Formula]
-    while(i < candidate.size) {
-      val newGens = gens(candidate(i))(term)
-      newGens.foreach( g => {
-        if (g.isResult) {
-          if (g.result != True()) res ::= g.result
-        } else addGen(g)
-      })
-      i += 1
+    val did = done.getOrElseUpdate(term.tpe, MSet[Formula]())
+    if (!did(term)) {
+      val candidate = idx.getOrElseUpdate(term.tpe, ArrayBuffer[Int]())
+      var i = 0
+      var res = List.empty[Formula]
+      val newGens = scala.collection.mutable.Stack[Gen]()
+      while(i < candidate.size) {
+        val c = candidate(i)
+        val s = gens(c).vs.size
+        newGens.pushAll( gens(c)(term) ) //this could be cut short by directly giving a ref to the stack
+        while(!newGens.isEmpty) {
+          val g = newGens.pop
+          if (g.isResult) {
+            if (g.result != True()) res ::= g.result
+          } else if (g.vs.size >= s) {
+            //for generator that just got an ∃ instantiated, we need to look for terms which have already been processed
+            val j = 0
+            val tpeDone = MSet[Type]()
+            while (j < g.vs.size && !tpeDone(g.vs(j).tpe)) {
+              val catchUP = done.getOrElseUpdate(g.vs(j).tpe, MSet[Formula]())
+              tpeDone += g.vs(j).tpe
+              for ( c <- catchUP ) newGens.pushAll( g(c) ) //this could be cut short by directly giving a ref to the stack
+            }
+            addGen(g)
+          } else {
+            assert(g.vs.size + 1 == s, "old: " + gens(c) + ", new: " + g)
+            addGen(g)
+          }
+        }
+        i += 1
+      }
+      did += term
+      res
+    } else {
+      Nil
     }
-    res
   }
   
   def generate(groundTerms: Iterable[Formula]): List[Formula] = {
@@ -67,7 +92,7 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula]) extends Cloneable {
 
   def locallySaturate(cc: CC): List[Formula] = {
     var i = 0
-    val done = scala.collection.mutable.BitSet()
+    val lDone = scala.collection.mutable.BitSet()
     val res = scala.collection.mutable.ListBuffer[Formula]()
     def checkDone(g: Gen, remaining: Iterable[Map[Variable,Formula]]) = {
       if (g.isResult) {
@@ -78,13 +103,21 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula]) extends Cloneable {
         false
       }
     }
+    def notDone(v: Variable, f: Formula) = {
+      if (done contains v.tpe) {
+        val dt = done(v.tpe)
+        !dt(f) && !dt(cc.repr(f))
+      } else {
+        true
+      }
+    }
     def instVar(g: Gen, matches: Iterable[Map[Variable,Formula]]) {
       if (!checkDone(g, matches)) {
         val v = g.vs.last
         //println(matches.mkString(g + "\n  ", "\n  ", ""))
         val byV = matches.filter(_ contains v).groupBy(_(v)) //matches without v are term generating due to existential quantifiers
-        for ( (candidate, maps) <- byV;
-              g2 <- g(v, candidate) ) {
+        for ( (candidate, maps) <- byV if notDone(v, candidate) ) {
+          val g2 = g(v, candidate)
           val renaming = g.vs.zip(g2.vs).toMap //g2 has renamed arguments ...
           val remaining = maps.map( m => {
             val m1 = m - v 
@@ -98,15 +131,15 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula]) extends Cloneable {
       if (!checkDone(g, remaining)) findSimilar(g) match {
         case Some(i) =>
           val g2 = gens(i)
-          done += i
+          lDone += i
           instVar(g2, remaining)
         case None =>
-          done += gens.size
+          lDone += gens.size
           addGen(g)
           instVar(g, remaining)
       }
     }
-    while(i < gens.size && !done(i)) {
+    while(i < gens.size && !lDone(i)) {
       val g = gens(i)
       instVar(g, g.localMatches(cc))
       i += 1
@@ -125,6 +158,45 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula]) extends Cloneable {
       g.hashFilter += (k -> v.clone)
     }
     g
+  }
+
+  def log(lvl: Level) {
+    Logger("IncrementalFormulaGenerator", lvl, {
+      val buffer = new scala.collection.mutable.StringBuilder(1024 * 1024)
+      buffer ++= "idx:\n"
+      for ( (t, is) <- idx) {
+        buffer ++= "  "
+        buffer ++= t.toString
+        buffer ++= " → "
+        buffer ++= is.mkString(", ")
+        buffer ++= "\n"
+      }
+      buffer ++= "gens:\n"
+      for (i <- 0 until gens.size) {
+        buffer ++= "  "
+        buffer ++= i.toString
+        buffer ++= ":  "
+        buffer ++= gens(i).toString
+        buffer ++= "\n"
+      }
+      buffer ++= "done:\n"
+      for ( (t, fs) <- done) {
+        buffer ++= "  "
+        buffer ++= t.toString
+        buffer ++= " → "
+        buffer ++= fs.mkString(", ")
+        buffer ++= "\n"
+      }
+      buffer ++= "hashFilter:\n"
+      for ( (i, is) <- hashFilter) {
+        buffer ++= "  "
+        buffer ++= i.toString
+        buffer ++= " → "
+        buffer ++= is.mkString(", ")
+        buffer ++= "\n"
+      }
+      buffer.toString
+    })
   }
 
 }
@@ -188,6 +260,15 @@ class IncrementalGenerator(f: Formula, val cc: CongruenceClosure = new Congruenc
     ig.gen = gen.clone
     ig
   }
+  
+  def log(lvl: Level) {
+    Logger("IncrementalGenerator", lvl,
+        "Incremental Generator:\n  " + 
+        FormulaUtils.getConjuncts(f).mkString("\n  ") + "\n" +
+        "leftOver:\n  " + leftOver.mkString("\n  ") + "\n" +
+        "CC\n" + cc + "\n")
+    gen.log(lvl)
+  }
 
 }
 
@@ -198,17 +279,7 @@ protected class Gen(val vs: Array[Variable], val f: Formula) extends Cloneable {
 
   override def hashCode = f.hashCode
 
-  override def clone = {
-    val g = new Gen(vs, f)
-    var i = 0
-    while (i < vs.size) {
-      g.done(i) = done(i).clone
-      i += 1
-    }
-    g
-  }
-
-  val done = Array.tabulate(vs.size)( _ => scala.collection.mutable.Set[Formula]() )
+  override def clone = this
 
   def similar(tg: Gen) = {
     tg.vs.size == vs.size &&
@@ -232,31 +303,22 @@ protected class Gen(val vs: Array[Variable], val f: Formula) extends Cloneable {
     var i = 0
     var res = List.empty[Gen]
     while(i < vs.size) {
-      if (term.tpe == vs(i).tpe && !done(i)(term)) {
+      if (term.tpe == vs(i).tpe) {
         res ::= newGen(i, term)
-        done(i) += term
       }
       i += 1
     }
     res
   }
   
-  def apply(v: Variable, term: Formula): Option[Gen] = {
+  def apply(v: Variable, term: Formula): Gen = {
     val i = vs.indexOf(v)
-    if (!done(i)(term)) {
-      done(i) += term
-      Some(newGen(i, term))
-    } else {
-      None
-    }
+    newGen(i, term)
   }
 
   def localMatches(cc: CC): Set[Map[Variable,Formula]] = {
     val toIdx = vs.zipWithIndex.toMap
-    def notDone(m: Map[Variable,Formula]): Boolean = {
-      m.forall{ case (v,f) => !done(toIdx(v))(f) }
-    }
-    Matching.findLocalSubterms(cc, vs.toSet, f).filter(notDone)
+    Matching.findLocalSubterms(cc, vs.toSet, f)
   }
 
 }

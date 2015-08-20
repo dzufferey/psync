@@ -22,11 +22,13 @@ class SimplifySuite extends FunSuite {
     //println(f4)
     assert(isPnf(f4))
   }
+    
+  val a = Variable("a").setType(Int)
+  val b = Variable("b").setType(Int)
+  val c = Variable("c").setType(Int)
+  val d = Variable("d").setType(Int)
 
   test("reverse pnf 1"){
-    val a = Variable("a").setType(Int)
-    val b = Variable("b").setType(Int)
-    val c = Variable("c").setType(Int)
     val f0 = Eq(a,b)
     val f1 = Eq(a,Plus(Literal(1),c))
     val f2 = Eq(a,c)
@@ -49,9 +51,6 @@ class SimplifySuite extends FunSuite {
   }
 
   test("de Bruijn 1") {
-    val a = Variable("a").setType(Int)
-    val b = Variable("b").setType(Int)
-    val c = Variable("c").setType(Int)
     val f = Exists(List(a), And(Exists(List(b), Eq(a, b)), Exists(List(c), Eq(a, c))))
     val f2 = Simplify.deBruijnIndex(f)
     val f3 = Simplify.simplify(f2)
@@ -61,21 +60,40 @@ class SimplifySuite extends FunSuite {
   }
   
   test("split ∀ 1") {
-    val a = Variable("a").setType(Int)
-    val b = Variable("b").setType(Int)
-    val c = Variable("c").setType(Int)
     val f = ForAll(List(a,b,c), And(Eq(a, b), Eq(a, c)))
     val expected = And(ForAll(List(a,b), Eq(a,b)), ForAll(List(a,c), Eq(a,c)))
     val f2 = Simplify.splitForall(f)
     assert(Simplify.simplify(f2) == Simplify.simplify(expected))
+    val f3 = Simplify.splitTopLevelForall(f)
+    assert(Simplify.simplify(f3) == Simplify.simplify(expected))
+  }
+  
+  test("split ∀ 2") {
+    val f = Or(
+        ForAll(List(a,b,c), And(Eq(a, b), Eq(a, c))),
+        ForAll(List(a,b,c), And(Leq(a, b), Leq(a, c)))
+      )
+    val expected = Or(
+        And(ForAll(List(a,b), Eq(a,b)), ForAll(List(a,c), Eq(a,c))),
+        And(ForAll(List(a,b), Leq(a,b)), ForAll(List(a,c), Leq(a,c)))
+      )
+    val f2 = Simplify.splitForall(f)
+    assert(Simplify.simplify(f2) == Simplify.simplify(expected))
+    val f3 = Simplify.splitTopLevelForall(f)
+    assert(Simplify.simplify(f3) == Simplify.simplify(f))
   }
 
+
   test("merge ∃ 1") {
-    val a = Variable("a").setType(Int)
-    val b = Variable("b").setType(Int)
-    val c = Variable("c").setType(Int)
     val f = Or(Exists(List(a,b), Eq(a,b)), Exists(List(a,c), Eq(a,c)))
     val expected = Exists(List(a,b), Eq(a,b))
+    val f2 = Simplify.mergeExists(f)
+    assert(Simplify.simplify(f2) == Simplify.simplify(expected))
+  }
+
+  test("merge ∃ 2") {
+    val f = Or(Eq(d,d), Exists(List(a,b), Eq(a,b)), Exists(List(a,c), Eq(a,c)))
+    val expected = Exists(List(a,b), Or(Eq(a,b), Eq(d,d)))
     val f2 = Simplify.mergeExists(f)
     assert(Simplify.simplify(f2) == Simplify.simplify(expected))
   }

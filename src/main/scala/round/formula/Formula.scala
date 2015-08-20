@@ -340,6 +340,10 @@ case object Tuple extends InterpretedFct("") {
   override def instanciateType(ts: List[Type]) =
     if (ts == Nil) Wildcard ~> Wildcard
     else Function(ts,Product(ts))
+  override def tpe(arity: Int): Type = {
+    val args = (0 until arity).map(_ => Type.freshTypeVar).toList
+    Function(args, Product(args))
+  }
 }
 case object Fst extends InterpretedFct("_1") {
   val typeWithParams = Wildcard ~> Wildcard

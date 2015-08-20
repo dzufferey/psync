@@ -47,12 +47,14 @@ class ShazExample extends FunSuite {
     def nfaoa(f: Formula) = LookUp(numFreeAtOrAfter, f)
     And(
       (aaoa(memLo).card + freeSpace) === nfaoa(memLo),
-      ForAll(List(loc), aaoa(loc).card <= nfaoa(loc) ),
       freeSpace <= 0,
       ForAll(List(l1, l2), Implies(And(l1 ∈ memAddr, l2 ∈ memAddr, l1 <= l2), aaoa(l1) ⊆ aaoa(l2))),
-      ForAll(List(loc), Or(loc ∈ memAddr, nfaoa(loc) === 0)),
-      ForAll(List(loc), Implies(And(loc ∈ memAddr,     loc ∈ free),  Eq(nfaoa(loc), nfaoa(loc + 1) + 1))),
-      ForAll(List(loc), Implies(And(loc ∈ memAddr, Not(loc ∈ free)), Eq(nfaoa(loc), nfaoa(loc + 1))))
+      ForAll(List(loc), And(
+        aaoa(loc).card <= nfaoa(loc),
+        Or(loc ∈ memAddr, nfaoa(loc) === 0),
+        Implies(And(loc ∈ memAddr,     loc ∈ free),  Eq(nfaoa(loc), nfaoa(loc + 1) + 1)),
+        Implies(And(loc ∈ memAddr, Not(loc ∈ free)), Eq(nfaoa(loc), nfaoa(loc + 1)))
+      ))
     )
   }
 
