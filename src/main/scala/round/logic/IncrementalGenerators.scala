@@ -90,6 +90,7 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula]) extends Cloneable {
     groundTerms.toList.flatMap(generate)
   }
 
+  //TODO that part should not change the internal state of the generator, nor add any new term in the CC (be careful about ∃)
   def locallySaturate(cc: CC): List[Formula] = {
     var i = 0
     val lDone = scala.collection.mutable.BitSet()
@@ -103,20 +104,12 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula]) extends Cloneable {
         false
       }
     }
-    def notDone(v: Variable, f: Formula) = {
-      if (done contains v.tpe) {
-        val dt = done(v.tpe)
-        !dt(f) && !dt(cc.repr(f))
-      } else {
-        true
-      }
-    }
     def instVar(g: Gen, matches: Iterable[Map[Variable,Formula]]) {
       if (!checkDone(g, matches)) {
         val v = g.vs.last
         //println(matches.mkString(g + "\n  ", "\n  ", ""))
         val byV = matches.filter(_ contains v).groupBy(_(v)) //matches without v are term generating due to existential quantifiers
-        for ( (candidate, maps) <- byV if notDone(v, candidate) ) {
+        for ( (candidate, maps) <- byV ) {
           val g2 = g(v, candidate)
           val renaming = g.vs.zip(g2.vs).toMap //g2 has renamed arguments ...
           val remaining = maps.map( m => {
@@ -139,9 +132,20 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula]) extends Cloneable {
           instVar(g, remaining)
       }
     }
+    def notDone(m: Map[Variable,Formula]) = {
+      m.forall{ case (v, f) =>
+        if (done contains v.tpe) {
+          val dt = done(v.tpe)
+          !dt(f) && !dt(cc.repr(f))
+        } else {
+          true
+        }
+      }
+    }
     while(i < gens.size && !lDone(i)) {
       val g = gens(i)
-      instVar(g, g.localMatches(cc))
+      val matches = g.localMatches(cc).filter(notDone)
+      instVar(g, matches)
       i += 1
     }
     res.result

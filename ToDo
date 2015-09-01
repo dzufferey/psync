@@ -41,10 +41,15 @@
 
 # verification
 
+- Formula:
+    * generalize typer for overloading: Int vs Real, map and sets have non-disjoint signature in the frontend
 - InstGen
+    * local step should not change the internal state of the generator
+    * generalise depth and integrate stratification
+        - different types may have different depth (local types have depth 0)
+        - not every type may be allowed to generate terms of other types
     * round number as its own type (value class) to reduce the instantiation between time and int
         - test in the LvExample and see what difference it makes
-        - generalize typer for simple overloading
         - just before solving turn round back into Int
 - better structure of the specification:
     * which invariant we can use to prove what property
