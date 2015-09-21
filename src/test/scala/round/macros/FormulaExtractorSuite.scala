@@ -62,6 +62,19 @@ class FormulaExtractorSuite extends FunSuite {
     }
   }
 
+  test("overloading") {
+    val s = Set(1)
+    val m = Map(1 -> 1)
+    Macros.asFormula( s.size ) match {
+      case Cardinality(Variable("s")) => ()
+      case other => sys.error("unexpected: " + other)
+    }
+    Macros.asFormula( m.size ) match {
+      case Size(Variable("m")) => ()
+      case other => sys.error("unexpected: " + other)
+    }
+  }
+
   //TODO maps extraction
 
 }

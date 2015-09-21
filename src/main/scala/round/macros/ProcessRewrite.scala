@@ -92,7 +92,11 @@ trait ProcessRewrite {
       case Some(ddef) =>
         try {
           //TODO capturing args
-          makeConstraints(ddef.rhs)
+          val f = makeConstraints(ddef.rhs)
+          FormulaUtils.map({
+            case v @ Variable(_) => removeProcTypeArg(v)
+            case other => other
+          }, f)
         } catch {
           case e: Exception =>
             c.warning(ddef.pos, "error while extracting the initial state, leaving it unconstrained.\n" + e)
@@ -144,7 +148,7 @@ trait ProcessRewrite {
         case Typer.TypingSuccess(f) =>
           f
         case Typer.TypingFailure(r) =>
-          c.abort(body.head.pos, "unable to type formula corresponding to initial state: " + r)
+          c.abort(body.head.pos, "unable to type formula corresponding to initial state: " + _f.toStringFull)
         case Typer.TypingError(r) =>
           c.abort(body.head.pos, "formula typer failed on formula corresponding to initial state: " + r)
       }

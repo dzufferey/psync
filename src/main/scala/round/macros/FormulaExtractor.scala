@@ -92,6 +92,8 @@ trait FormulaExtractor {
           else UnInterpreted(str)
         case SingleType(_, _) =>
           Wildcard
+        case NullaryMethodType(tpe) =>
+          extractType(tpe)
         case other =>
           //TODO
           println("TODO extractType:\n  " + other + "\n  " + showRaw(other))
@@ -156,15 +158,31 @@ trait FormulaExtractor {
     res
   }
 
+  def mkInit(v: Name, t: Type): round.formula.Symbol = {
+    UnInterpretedFct(round.verification.Utils.initPrefix + v.toString, Some(extractType(t))) //TODO type parameters ?!
+  }
+  def mkInit(v: Tree, t: Type): round.formula.Symbol = v match {
+    case q"$pkg.this.$name" => mkInit(name, t)
+    case other => sys.error("mkInit: " + showRaw(v))
+  }
+  
+  def mkOld(v: Name, t: Type): round.formula.Symbol = {
+    UnInterpretedFct(round.verification.Utils.oldPrefix + v.toString, Some(extractType(t))) //TODO type parameters ?!
+  }
+  def mkOld(v: Tree, t: Type): round.formula.Symbol = v match {
+    case q"$pkg.this.$name" => mkOld(name, t)
+    case other => sys.error("mkOld: " + showRaw(v))
+  }
+
   def extractSymbol(e: Tree): round.formula.Symbol = e match {
     case Select(
               Apply(TypeApply(Select(Select(This(_), TermName("VarHelper")), TermName("init")), List(TypeTree())),
               List(fct @ Select(This(_), v))), TermName("apply")) =>
-      UnInterpretedFct(round.verification.Utils.initPrefix + v.toString, Some(extractType(fct.tpe))) //TODO type parameters ?!
+      mkInit(v, fct.tpe)
     case Select(
               Apply(TypeApply(Select(Select(This(_), TermName("VarHelper")), TermName("old")), List(TypeTree())),
               List(fct @ Select(This(_), v))), TermName("apply")) =>
-      UnInterpretedFct(round.verification.Utils.oldPrefix + v.toString, Some(extractType(fct.tpe))) //TODO type parameters ?!
+      mkOld(v, fct.tpe)
     case TypeApply(Select(Select(Ident(scala), TermName("Some")), TermName("apply")), List(tpt)) =>
       FSome
     //TODO clean that part
@@ -210,22 +228,35 @@ trait FormulaExtractor {
     //println(op + " -> " + res)
     res
   }
+  
+  private def resolveOverloading(s: String, args: List[Formula]): Option[Formula] = {
+    val is = InterpretedFct(s)
+    val candidates = is.flatMap{ i => 
+      //in case of static fct, remove the first arg as it is a package/object, e.g., None
+      val args2 = if (i.arity == args.size - 1) args.tail else args
+      //check if it can be unified
+      val t = i.tpe(args2.length)
+      val app = Application(i, args2)
+      val ret = Type.freshTypeVar
+      val unifier = Typer.unify(t, round.formula.Function(args2.map(_.tpe).toList, ret))
+      if (unifier.isDefined) Some(i(args2:_*))
+      else None
+    }
+    assert(candidates.size <= 1, "cannot resolve overloading for " + s + ":\n  " +
+                                  args.map(_.toStringFull).mkString(", ") + "\n  " +
+                                  candidates.mkString(", "))
+    candidates.headOption
+  }
 
-  //TODO overloading to support Map and Set at the same time
-  def mkKnown(op: Name, args: List[Tree]): Formula = {
+  def mkKnown(op: Name, args: List[Tree]): Option[Formula] = {
     val s = op.toString
     if (InterpretedFct.knows(s)) {
-      val i = InterpretedFct(s).get
       val args2 = args map tree2Formula
-      //TODO in case of static fct, remove the first arg as it is a package/object, e.g., None
-      val res = if (i.arity == args2.size - 1) i(args2.tail:_*)
-                else i(args2:_*)
-      //println("mkKnown: " + res + " arity: " + i.arity)
-      res
+      resolveOverloading(s, args2)
     } else if (AxiomatizedFct.knows(s)) {
       val u = AxiomatizedFct.symbol(s).get
       val args2 = args map tree2Formula
-      Application(u, args2)
+      Some(Application(u, args2))
     } else {
       sys.error("unknown known ?!!: " + s)
     }
@@ -256,6 +287,11 @@ trait FormulaExtractor {
     res
   }
 
+  def removeProcTypeArg(f: Formula): Formula = f.tpe match {
+    case round.formula.Function(List(t), ret) if t == round.verification.Utils.procType => f.setType(ret)
+    case _ => f
+  }
+
   def tree2Formula(e: Tree): Formula = {
     val formula: Formula = e match {
       // quantifiers, comprehensions
@@ -282,11 +318,7 @@ trait FormulaExtractor {
         Implies(l2,r2)
       case Apply(TypeApply(Select(Select(This(_), TermName("VarHelper")), TermName("getter")), List(TypeTree())), List(expr)) =>
         val f = tree2Formula(expr)
-        //getter are called within a process, so need to remove the arg from the type.
-        f.tpe match {
-          case round.formula.Function(List(t), ret) if t == round.verification.Utils.procType => f.setType(ret)
-          case _ => f
-        }
+        removeProcTypeArg(f)
       case q"$pkg.this.broadcast($expr)" =>
         val payload = tree2Formula(expr)
         val tpe = Product(List(payload.tpe, round.verification.Utils.procType))
@@ -294,15 +326,7 @@ trait FormulaExtractor {
         val fst = Fst(msg)
         Comprehension(List(msg), Eq(fst, payload)).setType(FSet(tpe))
 
-      //interpreted/known symbols
-      case Apply(Select(l, op), args) if knows(op) => 
-        mkKnown(op, l :: args)
-      case Apply(TypeApply(Select(l, op), _), args) if knows(op) => 
-        mkKnown(op, l :: args)
-      case Select(l, op) if knows(op) =>
-        mkKnown(op, List(l))
-
-      // set operation, comparison, cardinality
+      // set construction
       //TODO generalize to Map
       case q"scala.this.Predef.Set.empty[$tpt]" =>
         val t = extractType(tpt)
@@ -314,6 +338,18 @@ trait FormulaExtractor {
         val args2 = args map tree2Formula
         val f = Or(args2.map(Eq(v,_)):_*)
         Comprehension(List(v), f).setType(FSet(t))
+
+      //interpreted/known symbols
+      //TODO improve 'apply' and avoid the mkKnown in pattern
+      case Apply(Select(l, op), args) if knows(op) && mkKnown(op, l :: args).isDefined => 
+        mkKnown(op, l :: args).get
+      case Apply(TypeApply(Select(l, op), _), args) if knows(op) && mkKnown(op, l :: args).isDefined => 
+        mkKnown(op, l :: args).get
+      case Select(l, op) if knows(op) && mkKnown(op, List(l)).isDefined =>
+        mkKnown(op, List(l)).get
+
+      // set operation, comparison, cardinality
+      //TODO generalize to Map
       //TODO more general support for ordering (non integer type)
       case q"$set.maxBy[$tpt]( $v => $expr )($ordering)" =>
         mkMinMaxBy(c.freshName("maxBy"), set, v, expr, Geq)
@@ -382,10 +418,15 @@ trait FormulaExtractor {
       
       case Typed(e, _) =>
         tree2Formula(e)
+
+      //init and old
+      case q"$scope.VarHelper.init[$tpt]($expr)" =>
+        mkInit(expr, tpt.tpe)(tree2Formula(expr))
+      case q"$scope.VarHelper.old[$tpt]($expr)" =>
+        mkOld(expr, tpt.tpe)(tree2Formula(expr))
      
       //(un)interpreted fct
       case t @ q"$expr(..$args)" =>
-        //println("t = " + showRaw(t))
         val fct = extractSymbol(expr)
         val args2 = args map tree2Formula
         Application(fct, args2)
@@ -408,7 +449,11 @@ trait FormulaExtractor {
       case Literal(Constant(v: scala.Byte)) => round.formula.Literal(v)
       case q"${ref: RefTree}" =>
         val n = ref.name.toString
-        Variable(n).setType(extractType(ref.tpe))
+        val t = extractType(ref.tpe) match {
+          case Wildcard => extractType(ref.symbol.typeSignature)
+          case other => other
+        }
+        Variable(n).setType(t)
 
       //defs
       case Block(defs, f) =>
@@ -423,8 +468,14 @@ trait FormulaExtractor {
       case other => sys.error("did not expect:\n" + other + "\n" + showRaw(other))
     }
 
-    val t = extractType(e.tpe)
-    formula.setType(t)
+    formula.tpe match {
+      case Wildcard =>
+        extractType(e.tpe) match {
+          case Wildcard => formula.setType(extractType(e.symbol.typeSignature))
+          case other => formula.setType(other)
+        }
+      case _ => formula
+    }
   }
   
   /* constraints for a loop-free block in SSA. */

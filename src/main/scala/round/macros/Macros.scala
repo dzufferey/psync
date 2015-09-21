@@ -26,7 +26,7 @@ class Impl(val c: Context) extends Lifting
     res2
   }
   
-  def any2Formula(any: c.Expr[Any]): c.Expr[Formula] = {
+  def any2Formula[T](any: c.Expr[T]): c.Expr[Formula] = {
     val res = tree2Formula(any.tree)
     val res2 = c.Expr[Formula](q"$res")
     //println(res2)
@@ -87,6 +87,6 @@ object Macros {
 
   def phase(e: Round*): Array[Round] = macro Impl.mkPhase
 
-  def asFormula(any: Any): Formula = macro Impl.any2Formula
+  def asFormula[T](any: Any): Formula = macro Impl.any2Formula[T]
 
 }

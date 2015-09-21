@@ -379,24 +379,21 @@ case object KeySet extends InterpretedFct("keySet") {
   val typeWithParams = FMap(fvA, fvB) ~> FSet(fvA)
   override val priority = 9
 }
-//TODO because of name, won't be parsed correctly by the scala macros
-case object LookUp extends InterpretedFct("lookUp") {
+case object LookUp extends InterpretedFct("lookUp", "apply") {
   private val fvA = Type.freshTypeVar
   private val fvB = Type.freshTypeVar
   override val typeParams = List(fvA, fvB)
   val typeWithParams = FMap(fvA, fvB) ~> fvA ~> fvB
   override val priority = 9
 }
-//TODO because of name, won't be parsed correctly by the scala macros: aliased with contains (also used for sets)
-case object IsDefinedAt extends InterpretedFct("isDefinedAt") {
+case object IsDefinedAt extends InterpretedFct("isDefinedAt", "contains") {
   private val fvA = Type.freshTypeVar
   private val fvB = Type.freshTypeVar
   override val typeParams = List(fvA, fvB)
   val typeWithParams = FMap(fvA, fvB) ~> fvA ~> Bool
   override val priority = 9
 }
-//TODO because of name, won't be parsed correctly by the scala macros
-case object Size extends InterpretedFct("mapCard") {
+case object Size extends InterpretedFct("mapCard", "size") {
   private val fvA = Type.freshTypeVar
   private val fvB = Type.freshTypeVar
   override val typeParams = List(fvA, fvB)
@@ -407,17 +404,19 @@ case object Size extends InterpretedFct("mapCard") {
 
 object InterpretedFct {
   private var symbols: List[InterpretedFct] = Nil
-  private var map: Map[String,InterpretedFct] = Map.empty
+  private var map: Map[String,Set[InterpretedFct]] = Map.empty
   def add(s: InterpretedFct) {
     symbols = s :: symbols
     map = s.allSymbols.foldLeft(map)( (m, sym) => {
-      assert(!(map contains sym), "symbol redefinition: " + sym)
-      m + (sym -> s)
+      //assert(!(map contains sym), "symbol redefinition: " + sym)
+      val old = m.getOrElse(sym, Set.empty)
+      m + (sym -> (old + s))
     })
     assert(s.allSymbols.forall(map contains _))
   }
-  def apply(s: String): Option[InterpretedFct] = {
-    map.get(s)
+  //TODO overloading!
+  def apply(s: String): Set[InterpretedFct] = {
+    map.getOrElse(s, Set.empty)
   }
   def knows(s: String) = {
     val res = map contains s

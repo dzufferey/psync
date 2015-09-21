@@ -7,6 +7,8 @@ import dzufferey.utils.LogLevel._
 
 //TODO replace the Symbol by normalized Formula.
 
+//overloading is not directly supported by the Typer. resolving overloading must be done a priori.
+
 object Typer {
 
   val level1 = Debug
