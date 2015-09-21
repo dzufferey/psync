@@ -25,6 +25,13 @@ class Impl(val c: Context) extends Lifting
     //println(res2)
     res2
   }
+  
+  def any2Formula(any: c.Expr[Any]): c.Expr[Formula] = {
+    val res = tree2Formula(any.tree)
+    val res2 = c.Expr[Formula](q"$res")
+    //println(res2)
+    res2
+  }
 
   //def process(e: c.Expr[Process]): c.Expr[Process] = {
   def process[T <: Process[_]](e: c.Expr[T]): c.Expr[T] = {
@@ -74,11 +81,12 @@ object Macros {
   def f(e: Boolean): Formula = macro Impl.formula
   implicit def booleanToFormula(e: Boolean): Formula = macro Impl.formula
 
-  //def p(e: Process): Process = macro Impl.process
   def p[T <: Process[_]](e: T): T = macro Impl.process[T]
   
   def rnd[T <: Round](e: T): T = macro Impl.postprocessRound[T]
 
   def phase(e: Round*): Array[Round] = macro Impl.mkPhase
+
+  def asFormula(any: Any): Formula = macro Impl.any2Formula
 
 }

@@ -30,6 +30,20 @@ trait FormulaExtractor {
     }
   }
 
+  object IsMap {
+    def unapply(t: Type): Option[(Type,Type)] = t match {
+      case TypeRef(_, tRef, List(key, value)) =>
+        val sr = showRaw(tRef)
+        if (sr.startsWith("scala.collection.immutable.Map") || 
+            sr == "TypeName(\"Map\")") {
+          Some(key -> value)
+        } else {
+          None
+        }
+      case _ => None
+    }
+  }
+
   object IsOption {
     def unapply(t: Type): Option[Type] = t match {
       case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "scala.Option" => Some(arg)
@@ -61,6 +75,7 @@ trait FormulaExtractor {
       t match {
         case IsTuple(args) => Product(args map extractType)
         case IsSet(arg) => FSet(extractType(arg))
+        case IsMap(k,v) => FMap(extractType(k),extractType(v))
         case IsOption(arg) =>  FOption(extractType(arg))
         case IsUnit() => UnitT()
         case MethodType(args, returnT) =>
@@ -99,6 +114,7 @@ trait FormulaExtractor {
           case Ident(TypeName("Boolean")) => Bool
           case AppliedTypeTree(Ident(TypeName("Option")), List(tpe)) => FOption(extractType(tpe))
           case AppliedTypeTree(Ident(TypeName("Set")), List(tpe)) => FSet(extractType(tpe))
+          case AppliedTypeTree(Ident(TypeName("Map")), List(k,v)) => FMap(extractType(k), extractType(v))
           case Ident(TypeName("ProcessID")) => round.verification.Utils.procType
           case Select(Ident(pkg), TypeName(tn)) => UnInterpreted(pkg.toString + "." + tn)
           case Ident(TypeName(tn)) => UnInterpreted(tn)
@@ -195,6 +211,7 @@ trait FormulaExtractor {
     res
   }
 
+  //TODO overloading to support Map and Set at the same time
   def mkKnown(op: Name, args: List[Tree]): Formula = {
     val s = op.toString
     if (InterpretedFct.knows(s)) {
@@ -242,9 +259,10 @@ trait FormulaExtractor {
   def tree2Formula(e: Tree): Formula = {
     val formula: Formula = e match {
       // quantifiers, comprehensions
+      //TODO generalize to Map
       case q"$domain.forall( ..$xs => $f )" => makeBinding(ForAll, domain, xs, f)
       case q"$domain.exists( ..$xs => $f )" => makeBinding(Exists, domain, xs, f)
-      case q"$domain.filter( ..$xs => $f )" => makeBinding(Comprehension, domain, xs, f)
+      case q"$domain.filter( ..$xs => $f )" => makeBinding(Comprehension, domain, xs, f) //TODO a map has two part lookUp and keySet
       case q"$domain.map[$tpt1,$tpt2]( $x => $f )(immutable.this.Set.canBuildFrom[$tpt3])" =>
         // { y | x ∈ domain ∧ y = f(x) }
         val y = Ident(TermName(c.freshName("y")))
@@ -255,6 +273,7 @@ trait FormulaExtractor {
         val fCstr2 = FormulaUtils.replace(vx, witness, fCstr)
         val dCstr = In(witness, tree2Formula(domain))
         Comprehension(List(yF), And(dCstr, fCstr2))
+      //TODO mapping Map
 
       //our stuff
       case q"$scope.SpecHelper.BoolOps($l).==>($r)" =>
@@ -284,6 +303,7 @@ trait FormulaExtractor {
         mkKnown(op, List(l))
 
       // set operation, comparison, cardinality
+      //TODO generalize to Map
       case q"scala.this.Predef.Set.empty[$tpt]" =>
         val t = extractType(tpt)
         val v = Variable(c.freshName("v")).setType(t)
@@ -292,8 +312,9 @@ trait FormulaExtractor {
         val t = extractType(tpt)
         val v = Variable(c.freshName("v")).setType(t)
         val args2 = args map tree2Formula
-        val f = args2.foldLeft(False(): Formula)( (acc, x) => Or(acc, Eq(v, x)))
+        val f = Or(args2.map(Eq(v,_)):_*)
         Comprehension(List(v), f).setType(FSet(t))
+      //TODO more general support for ordering (non integer type)
       case q"$set.maxBy[$tpt]( $v => $expr )($ordering)" =>
         mkMinMaxBy(c.freshName("maxBy"), set, v, expr, Geq)
       case q"$set.minBy[$tpt]( $v => $expr )($ordering)" =>
@@ -329,6 +350,7 @@ trait FormulaExtractor {
         val t = extractType(e.tpe)
         c.warning(e.pos, "TODO formula for $set.find")
         FNone().setType(t)
+      //TODO Map.apply( ... )
 
       // tuples
       case q"scala.Tuple2.apply[..$tpt](..$args)" =>
@@ -381,6 +403,9 @@ trait FormulaExtractor {
       //literals and vars
       case Literal(Constant(v: Boolean)) => round.formula.Literal(v)
       case Literal(Constant(v: scala.Int)) => round.formula.Literal(v)
+      case Literal(Constant(v: scala.Long)) => round.formula.Literal(v)
+      case Literal(Constant(v: scala.Short)) => round.formula.Literal(v)
+      case Literal(Constant(v: scala.Byte)) => round.formula.Literal(v)
       case q"${ref: RefTree}" =>
         val n = ref.name.toString
         Variable(n).setType(extractType(ref.tpe))
