@@ -71,7 +71,7 @@ trait Lifting {
     case Trd => q"round.formula.Trd"
     case KeySet => q"round.formula.KeySet"
     case LookUp => q"round.formula.LookUp"
-    case IsDefinedAt => q"round.formula.isDefinedAt"
+    case IsDefinedAt => q"round.formula.IsDefinedAt"
     case Size => q"round.formula.Size"
   }
 

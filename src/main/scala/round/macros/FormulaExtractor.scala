@@ -327,7 +327,6 @@ trait FormulaExtractor {
         Comprehension(List(msg), Eq(fst, payload)).setType(FSet(tpe))
 
       // set construction
-      //TODO generalize to Map
       case q"scala.this.Predef.Set.empty[$tpt]" =>
         val t = extractType(tpt)
         val v = Variable(c.freshName("v")).setType(t)
@@ -338,6 +337,14 @@ trait FormulaExtractor {
         val args2 = args map tree2Formula
         val f = Or(args2.map(Eq(v,_)):_*)
         Comprehension(List(v), f).setType(FSet(t))
+      
+      //TODO Map construction
+      case q"scala.this.Predef.Map.empty[$t1,$t2]" =>
+        c.error(e.pos, "TODO formula for Map.empty")
+        False()
+      case q"scala.this.Predef.Map.apply[$t1,$t2](..$args)" =>
+        c.error(e.pos, "TODO formula for Map.apply")
+        False()
 
       //interpreted/known symbols
       //TODO improve 'apply' and avoid the mkKnown in pattern
@@ -386,7 +393,6 @@ trait FormulaExtractor {
         val t = extractType(e.tpe)
         c.warning(e.pos, "TODO formula for $set.find")
         FNone().setType(t)
-      //TODO Map.apply( ... )
 
       // tuples
       case q"scala.Tuple2.apply[..$tpt](..$args)" =>
@@ -476,6 +482,12 @@ trait FormulaExtractor {
         }
       case _ => formula
     }
+  }
+  
+  def getConstraints(t: Tree): Formula = {
+    val c1 = tree2Formula(t)
+    val c2 = getCstr
+    c2.foldLeft(c1)(And(_,_))
   }
   
   /* constraints for a loop-free block in SSA. */

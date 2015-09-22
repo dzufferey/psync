@@ -33,8 +33,12 @@ class FormulaExtractorSuite extends FunSuite {
     }
   }
 
-  test("Set bindings") {
+  test("Set operations") {
     val s = Set(1,2,3)
+    Macros.asFormula( s contains 2 ) match {
+      case Contains(Variable("s"), IntLit(2)) => ()
+      case other => sys.error("unexpected: " + other)
+    }
     Macros.asFormula( s.forall(_ > 2) ) match {
       case ForAll(List(v1), Implies(In(v2,Variable("s")), Gt(v3, IntLit(2)))) if v1 == v2 && v2 == v3 => ()
       case other => sys.error("unexpected: " + other)
@@ -74,7 +78,31 @@ class FormulaExtractorSuite extends FunSuite {
       case other => sys.error("unexpected: " + other)
     }
   }
+  
+  test("Map apply, contains") {
+    val m = Map(1 -> 1)
+    Macros.asFormula( m(1) == 1 ) match {
+      case Eq(LookUp(Variable("m"), IntLit(1)), IntLit(1)) => ()
+      case other => sys.error("unexpected: " + other)
+    }
+    Macros.asFormula( m contains 1 ) match {
+      case IsDefinedAt(Variable("m"), IntLit(1)) => ()
+      case other => sys.error("unexpected: " + other)
+    }
+  }
 
-  //TODO maps extraction
+/*
+  test("Map construction") {
+    sys.error("TODO")
+  }
+
+  test("Map ∀/∃") {
+    sys.error("TODO")
+  }
+
+  test("Map map, filter") {
+    sys.error("TODO")
+  }
+*/
 
 }

@@ -20,14 +20,14 @@ class Impl(val c: Context) extends Lifting
   //http://docs.scala-lang.org/overviews/quasiquotes/syntax-summary.html
 
   def formula(e: c.Expr[Boolean]): c.Expr[Formula] = {
-    val res = tree2Formula(e.tree)
+    val res = getConstraints(e.tree)
     val res2 = c.Expr[Formula](q"$res")
     //println(res2)
     res2
   }
   
   def any2Formula[T](any: c.Expr[T]): c.Expr[Formula] = {
-    val res = tree2Formula(any.tree)
+    val res = getConstraints(any.tree)
     val res2 = c.Expr[Formula](q"$res")
     //println(res2)
     res2
