@@ -102,12 +102,12 @@ trait TrExtractor {
   protected def processSendUpdate(send: DefDef, update: DefDef): RoundTransitionRelation = {
     val mailboxValDef = update.vparamss.head.head
     val mailbox = extractVarFromValDef(mailboxValDef)
-    val mailboxIdent = Ident(TermName(mailboxValDef.name + "Snd"))
+    val mailboxSnd = Variable(mailboxValDef.name + "Snd").setType(mailbox.tpe)
     val (ssaSend, subst) = ssa(send.rhs)
 
     val _cstr1 =
       try {
-        makeConstraints(ssaSend, Some(mailboxIdent), Some(mailboxIdent))
+        makeConstraints(ssaSend, mailboxSnd, mailboxSnd)
       } catch {
         case e: Exception =>
           c.warning(send.pos, "error while extracting the TR, leaving it unconstrained.\n" + e)
@@ -117,7 +117,7 @@ trait TrExtractor {
     val (ssaUpdt, subst2) = ssa(update.rhs, subst)
     val _cstr2 =
       try {
-        makeConstraints(ssaUpdt, None, None)
+        makeConstraints(ssaUpdt)
       } catch {
         case e: Exception =>
           c.warning(update.pos, "error while extracting the TR, leaving it unconstrained.\n" + e)
@@ -146,16 +146,15 @@ trait TrExtractor {
       acc ++ vs
     }) 
     val local1 = allVars.filter( x => !(oldV.contains(x) || newV.contains(x)))
-    val local2 = tree2Formula(mailboxIdent).asInstanceOf[Variable].setType(mailbox.tpe)
     val local3 = getValDefs(send.rhs).map(extractVarFromValDef)
     val local4 = getValDefs(update.rhs).map(extractVarFromValDef)
-    val localC = local1 ::: local2 :: mailbox :: local3 ::: local4
+    val localC = local1 ::: mailboxSnd :: mailbox :: local3 ::: local4
     val localB = And(cstr1, cstr2).boundVariables
     val localF = And(cstr1, cstr2).freeVariables
     val localV = localC.filter(x => !localB(x)) //otherwise we capture var bound in comprehensions with the getValDefs
     //val localV = localC.filter(x => localF(x)) //otherwise we capture var bound in comprehensions with the getValDefs
 
-    new RoundTransitionRelation(cstr1, getVar(mailboxIdent).setType(mailbox.tpe),
+    new RoundTransitionRelation(cstr1, mailboxSnd,
                                 cstr2, mailbox, oldV, localV, newV)
   }
 

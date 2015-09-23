@@ -7,125 +7,6 @@ import dzufferey.utils.Namer
 trait FormulaExtractor {
   self: Impl =>
   import c.universe._
-
-  
-  object IsTuple {
-    def unapply(t: Type): Option[List[Type]] = t match {
-      case TypeRef(_, tRef, args) if showRaw(tRef) startsWith "scala.Tuple" => Some(args)
-      case _ => None
-    }
-  }
-
-  object IsSet {
-    def unapply(t: Type): Option[Type] = t match {
-      case TypeRef(_, tRef, List(arg)) =>
-        val sr = showRaw(tRef)
-        if (sr.startsWith("scala.collection.immutable.Set") || 
-            sr == "TypeName(\"Set\")") {
-          Some(arg)
-        } else {
-          None
-        }
-      case _ => None
-    }
-  }
-
-  object IsMap {
-    def unapply(t: Type): Option[(Type,Type)] = t match {
-      case TypeRef(_, tRef, List(key, value)) =>
-        val sr = showRaw(tRef)
-        if (sr.startsWith("scala.collection.immutable.Map") || 
-            sr == "TypeName(\"Map\")") {
-          Some(key -> value)
-        } else {
-          None
-        }
-      case _ => None
-    }
-  }
-
-  object IsOption {
-    def unapply(t: Type): Option[Type] = t match {
-      case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "scala.Option" => Some(arg)
-      case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "scala.Some" => Some(arg)
-      case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "scala.None" => Some(arg)
-      case _ => None
-    }
-  }
-
-  object IsUnit {
-    def unapply(t: Type): Boolean = t match {
-      case TypeRef(_, tRef, List()) if showRaw(tRef) == "scala.Unit" => true
-      case _ => false
-    }
-  }
-
-  //TODO clean version using mirror ....
-  def extractType(t: Type): round.formula.Type = {
-    import definitions._
-    if (t == null) {
-      Wildcard
-    } else if (t weak_<:< LongTpe) {
-      Int
-    } else if (t weak_<:< BooleanTpe) {
-      Bool
-    } else if (t == NoType) {
-      Wildcard
-    } else {
-      t match {
-        case IsTuple(args) => Product(args map extractType)
-        case IsSet(arg) => FSet(extractType(arg))
-        case IsMap(k,v) => FMap(extractType(k),extractType(v))
-        case IsOption(arg) =>  FOption(extractType(arg))
-        case IsUnit() => UnitT()
-        case MethodType(args, returnT) =>
-          round.formula.Function(args.map(arg => extractType(arg.typeSignature)), extractType(returnT))
-        case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "TypeName(\"LocalVariable\")" =>
-          round.formula.Function(List(round.verification.Utils.procType), (extractType(arg)))
-        case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "TypeName(\"GhostVariable\")" =>
-          round.formula.Function(List(round.verification.Utils.procType), (extractType(arg)))
-        case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "TypeName(\"GlobalVariable\")" =>
-          extractType(arg)
-        case t @ TypeRef(_, _, List()) =>
-          val str = t.toString
-          if (str == "round.ProcessID") round.verification.Utils.procType
-          else UnInterpreted(str)
-        case SingleType(_, _) =>
-          Wildcard
-        case NullaryMethodType(tpe) =>
-          extractType(tpe)
-        case other =>
-          //TODO
-          println("TODO extractType:\n  " + other + "\n  " + showRaw(other))
-          Wildcard
-      }
-    }
-  }
-  
-  // what about type alias ?
-  
-  //TODO
-  def extractType(t: Tree): round.formula.Type =
-    extractType(t.tpe) match {
-      case Wildcard =>
-        t match {
-          case TypeTree() => extractType(t.tpe)
-          case Ident(TypeName("Int"))
-             | Ident(TypeName("Long"))
-             | Ident(TypeName("Short")) => Int
-          case Ident(TypeName("Boolean")) => Bool
-          case AppliedTypeTree(Ident(TypeName("Option")), List(tpe)) => FOption(extractType(tpe))
-          case AppliedTypeTree(Ident(TypeName("Set")), List(tpe)) => FSet(extractType(tpe))
-          case AppliedTypeTree(Ident(TypeName("Map")), List(k,v)) => FMap(extractType(k), extractType(v))
-          case Ident(TypeName("ProcessID")) => round.verification.Utils.procType
-          case Select(Ident(pkg), TypeName(tn)) => UnInterpreted(pkg.toString + "." + tn)
-          case Ident(TypeName(tn)) => UnInterpreted(tn)
-          case _ =>
-            c.warning(t.pos, "TODO extractType from tree: " + showRaw(t) + " currently Wildcard")
-            Wildcard
-        }
-      case other => other
-    }
   
   def extractTypeVar(t: Tree): round.formula.TypeVariable = extractType(t) match{
     case tv @ TypeVariable(_) => tv
@@ -140,8 +21,7 @@ trait FormulaExtractor {
     }
   }
 
-
-  def makeBinding(b: BindingType, domain: Tree, params: List[ValDef], body: Tree): Binding = {
+  def makeBindingSet(b: BindingType, domain: Tree, params: List[ValDef], body: Tree): Binding = {
     assert(params.length == 1)
     val n = extractVarFromValDef(params.head)
     val f2 = tree2Formula(body)
@@ -152,10 +32,44 @@ trait FormulaExtractor {
       case ForAll =>
         Binding(b, List(n), d.map( d => Implies(In(n,d),f2)).getOrElse(f2))
     }
-    //println("x= " + params.head + ", " + n + ", " + n.tpe)
-    //println("d= " + domain + ", " + d + ", " + d.map(_.tpe))
-    //println("  " + res)
     res
+  }
+
+  def makeBindingMap(b: BindingType, domain: Tree, params: List[ValDef], body: Tree): Formula = {
+    assert(params.length == 1)
+    body match {
+      case q"$id match { case ($k, $v) => $expr }" =>
+        val d  = extractDomain(domain).get
+        val kv = extractVarFromPattern(k)
+        val vv = extractVarFromPattern(v)
+        val predRaw = tree2Formula(expr)
+        val pred = FormulaUtils.replace(vv, LookUp(d, kv), predRaw)
+        b match {
+          case Exists => Exists(List(kv), And(In(kv, KeySet(d)), pred))
+          case ForAll => ForAll(List(kv), Implies(In(kv, KeySet(d)), pred))
+          case Comprehension =>
+            val v = Variable(c.freshName("filteredMap"))
+            addCstr(Eq(KeySet(v), Comprehension(List(kv), And(In(kv, KeySet(d)), pred)) ))
+            addCstr(ForAll(List(kv), Eq(LookUp(d, kv), LookUp(v, kv))))
+            v
+        }
+      case _ =>
+        c.warning(domain.pos, "makeBindingMap: " + b + ", " + domain + " -> " + params + " => " + body)
+        val v = Variable(c.freshName("dummy"))
+        b match {
+          case Exists | ForAll => v.setType(Bool)
+          case Comprehension => v.setType(typeOfTree(domain))
+        }
+    }
+  }
+
+  def makeBinding(b: BindingType, domain: Tree, params: List[ValDef], body: Tree): Formula = typeOfTree(domain) match {
+    case FSet(_) =>
+      makeBindingSet(b, domain, params, body)
+    case FMap(_, _) =>
+      makeBindingMap(b, domain, params, body)
+    case other =>
+      sys.error("makeBinding: unknown domain type → " + other + " for " + domain + ", " + domain.tpe + ", " + domain.symbol.typeSignature)
   }
 
   def mkInit(v: Name, t: Type): round.formula.Symbol = {
@@ -205,16 +119,7 @@ trait FormulaExtractor {
     case _ => sys.error("extractSymbol: " + showRaw(e))
   }
 
-  def extractValDef(e: Tree): (Variable, Formula) = e match{
-    case q"$mods val $tname: $tpt = $expr" =>
-      val rhs = tree2Formula(expr)
-      val t = extractType(tpt.tpe)
-      val v = Variable(tname.toString).setType(t)
-      (v, Eq(v, rhs))
-    case _ => sys.error("expected ValDef: " + showRaw(e))
-  }
-  
-  def extractVarFromValDef(e: Tree): Variable = e match{
+  def extractVarFromValDef(e: Tree): Variable = e match {
     case q"$mods val $tname: $tpt = $expr" =>
       val v = tname.toString
       val t = extractType(tpt.tpe)
@@ -222,41 +127,57 @@ trait FormulaExtractor {
     case _ => sys.error("expected ValDef: " + showRaw(e))
   }
 
-  private def knows(op: Name) = {
+  def extractVarFromPattern(e: Tree): Variable = e match {
+    case Bind(TermName(n), Ident(termNames.WILDCARD)) => Variable(n).setType(typeOfTree(e))
+    case other => sys.error("extractVarFromPattern, did not expect: " + other)
+  }
+
+  private def knows(op: Name, args: List[Tree], pos: Position) = {
     val s = op.toString
-    val res = InterpretedFct.knows(s) || AxiomatizedFct.knows(s)
-    //println(op + " -> " + res)
-    res
+    if (InterpretedFct.knows(s)) {
+      val tpes = args.map(typeOfTree)
+      val res = resolveOverloading(s, tpes, pos)
+      res.isDefined
+    } else {
+      AxiomatizedFct.knows(s)
+    }
   }
   
-  private def resolveOverloading(s: String, args: List[Formula]): Option[Formula] = {
+  private def resolveOverloading(s: String, args: List[round.formula.Type], pos: Position): Option[InterpretedFct] = {
     val is = InterpretedFct(s)
     val candidates = is.flatMap{ i => 
       //in case of static fct, remove the first arg as it is a package/object, e.g., None
       val args2 = if (i.arity == args.size - 1) args.tail else args
       //check if it can be unified
       val t = i.tpe(args2.length)
-      val app = Application(i, args2)
       val ret = Type.freshTypeVar
-      val unifier = Typer.unify(t, round.formula.Function(args2.map(_.tpe).toList, ret))
-      if (unifier.isDefined) Some(i(args2:_*))
+      val unifier = Typer.unify(t, round.formula.Function(args2, ret))
+      if (unifier.isDefined) Some(i)
       else None
     }
-    assert(candidates.size <= 1, "cannot resolve overloading for " + s + ":\n  " +
-                                  args.map(_.toStringFull).mkString(", ") + "\n  " +
-                                  candidates.mkString(", "))
+    if (candidates.size > 1) {
+      c.warning(pos, "cannot resolve overloading for " + s + ":\n  " +
+                     args.mkString(", ") + "\n  " +
+                     candidates.mkString(", "))
+    }
     candidates.headOption
   }
-
-  def mkKnown(op: Name, args: List[Tree]): Option[Formula] = {
+  
+  def mkKnown(op: Name, args: List[Tree], pos: Position): Formula = {
     val s = op.toString
     if (InterpretedFct.knows(s)) {
       val args2 = args map tree2Formula
-      resolveOverloading(s, args2)
+      resolveOverloading(s, args2.map(_.tpe), pos) match {
+        case Some(i) =>
+          val args3 = if (i.arity == args2.size - 1) args2.tail else args2
+          i(args3:_*)
+        case None =>
+          sys.error("known but cannot find symbol: " + args.mkString(op.toString+"(",", ",") -> ") + args2.map(_.tpe))
+      }
     } else if (AxiomatizedFct.knows(s)) {
       val u = AxiomatizedFct.symbol(s).get
       val args2 = args map tree2Formula
-      Some(Application(u, args2))
+      Application(u, args2)
     } else {
       sys.error("unknown known ?!!: " + s)
     }
@@ -277,7 +198,7 @@ trait FormulaExtractor {
     res
   }
 
-  var auxCstr: List[Formula] = Nil
+  protected var auxCstr: List[Formula] = Nil
   def addCstr(f: Formula) {
     auxCstr = f :: auxCstr
   }
@@ -295,21 +216,43 @@ trait FormulaExtractor {
   def tree2Formula(e: Tree): Formula = {
     val formula: Formula = e match {
       // quantifiers, comprehensions
-      //TODO generalize to Map
       case q"$domain.forall( ..$xs => $f )" => makeBinding(ForAll, domain, xs, f)
       case q"$domain.exists( ..$xs => $f )" => makeBinding(Exists, domain, xs, f)
-      case q"$domain.filter( ..$xs => $f )" => makeBinding(Comprehension, domain, xs, f) //TODO a map has two part lookUp and keySet
+      case q"$domain.filter( ..$xs => $f )" => makeBinding(Comprehension, domain, xs, f)
       case q"$domain.map[$tpt1,$tpt2]( $x => $f )(immutable.this.Set.canBuildFrom[$tpt3])" =>
         // { y | x ∈ domain ∧ y = f(x) }
-        val y = Ident(TermName(c.freshName("y")))
-        val yF = Variable(y.toString).setType(extractType(tpt1))
-        val fCstr = makeConstraints(f, Some(y), Some(y))
+        val y = Variable(c.freshName("y")).setType(typeOfTree(tpt1))
+        val fCstr = makeConstraints(f, y, y)
         val vx = extractVarFromValDef(x)
-        val witness = Application(UnInterpretedFct(c.freshName("witness"), Some(yF.tpe ~> vx.tpe)), List(yF)).setType(vx.tpe)
+        val witness = Application(UnInterpretedFct(c.freshName("witness"), Some(y.tpe ~> vx.tpe)), List(y)).setType(vx.tpe)
         val fCstr2 = FormulaUtils.replace(vx, witness, fCstr)
         val dCstr = In(witness, tree2Formula(domain))
-        Comprehension(List(yF), And(dCstr, fCstr2))
-      //TODO mapping Map
+        Comprehension(List(y), And(dCstr, fCstr2))
+      case q"$domain.map[$tpt1,$tpt2]( $x => $f )(immutable.this.Map.canBuildFrom[$tpt3,$tpt4])" =>
+        extractType(tpt1) match {
+          case Product(List(tK, tV)) =>
+            f match {
+              case q"$id match { case ($k, $v) => $expr }" =>
+                val id = Variable(c.freshName("mappedMap")).setType(FMap(tK, tV))
+                val d = tree2Formula(domain)
+                val kv = extractVarFromPattern(k)
+                val vv = extractVarFromPattern(v)
+                val retVar = Variable(c.freshName("retV")).setType(Product(List(tK,tV)))
+                val body0 = makeConstraints(expr, retVar, retVar)
+                addCstr(Eq(KeySet(id), KeySet(d)))
+                body0 match {
+                  case Eq(`retVar`, Tuple(`kv`, value)) =>
+                    addCstr(ForAll(List(kv), Eq(LookUp(id, kv), FormulaUtils.replace(vv, LookUp(d, kv), value))))
+                  case other =>
+                    c.warning(expr.pos, "body too complicated, leaving it unconstrained: " + other)
+                }
+                id
+              case other =>
+                c.abort(domain.pos, "Map.map, expected pair function. found: " + other)
+            }
+          case other =>
+            c.abort(domain.pos, "Map.map, expected pairs of type. found: " + other)
+        }
 
       //our stuff
       case q"$scope.SpecHelper.BoolOps($l).==>($r)" =>
@@ -338,22 +281,29 @@ trait FormulaExtractor {
         val f = Or(args2.map(Eq(v,_)):_*)
         Comprehension(List(v), f).setType(FSet(t))
       
-      //TODO Map construction
       case q"scala.this.Predef.Map.empty[$t1,$t2]" =>
-        c.error(e.pos, "TODO formula for Map.empty")
-        False()
+        val t = typeOfTree(e)
+        val v = Variable(c.freshName("emptyMap")).setType(t)
+        val elt = Variable(c.freshName("v")).setType(extractType(t1))
+        addCstr(Eq(KeySet(v), Comprehension(List(elt), False())))
+        // LookUp is unconstrained
+        v
       case q"scala.this.Predef.Map.apply[$t1,$t2](..$args)" =>
-        c.error(e.pos, "TODO formula for Map.apply")
-        False()
-
-      //interpreted/known symbols
-      //TODO improve 'apply' and avoid the mkKnown in pattern
-      case Apply(Select(l, op), args) if knows(op) && mkKnown(op, l :: args).isDefined => 
-        mkKnown(op, l :: args).get
-      case Apply(TypeApply(Select(l, op), _), args) if knows(op) && mkKnown(op, l :: args).isDefined => 
-        mkKnown(op, l :: args).get
-      case Select(l, op) if knows(op) && mkKnown(op, List(l)).isDefined =>
-        mkKnown(op, List(l)).get
+        val t = typeOfTree(e)
+        val m = Variable(c.freshName("applyMap")).setType(t)
+        val elt = Variable(c.freshName("v")).setType(extractType(t1))
+        val args2 = args map tree2Formula
+        val (keys,values) = args2.map( x => x match {
+          case Tuple(k, v) =>  k -> v
+          case other => Fst(other) -> Snd(other)
+        }).unzip
+        // LookUp
+        (keys zip values) foreach { case (k, v) => addCstr(Eq(LookUp(m, k), v)) }
+        // KeySet
+        val elts = Or(keys.map( Eq(elt, _) ):_*)
+        addCstr(Eq(KeySet(m), Comprehension(List(elt), elts )))
+        //
+        m
 
       // set operation, comparison, cardinality
       //TODO generalize to Map
@@ -431,8 +381,14 @@ trait FormulaExtractor {
       case q"$scope.VarHelper.old[$tpt]($expr)" =>
         mkOld(expr, tpt.tpe)(tree2Formula(expr))
      
+      //interpreted/known symbols
+      case Apply(s @ Select(l, op), args) if knows(op, l :: args, s.pos) => mkKnown(op, l :: args, s.pos)
+      case Apply(TypeApply(s @ Select(l, op), _), args) if knows(op, l :: args, s.pos) => mkKnown(op, l :: args, s.pos)
+      case s @ Select(l, op) if knows(op, List(l), s.pos) => mkKnown(op, List(l), s.pos)
+
       //(un)interpreted fct
       case t @ q"$expr(..$args)" =>
+        //println("uninterpreted: " + expr + ": " + expr.tpe + " on " + args + ": " + args.map(_.tpe))
         val fct = extractSymbol(expr)
         val args2 = args map tree2Formula
         Application(fct, args2)
@@ -455,17 +411,17 @@ trait FormulaExtractor {
       case Literal(Constant(v: scala.Byte)) => round.formula.Literal(v)
       case q"${ref: RefTree}" =>
         val n = ref.name.toString
-        val t = extractType(ref.tpe) match {
-          case Wildcard => extractType(ref.symbol.typeSignature)
-          case other => other
-        }
+        val t = typeOfTree(ref)
         Variable(n).setType(t)
 
       //defs
       case Block(defs, f) =>
         val f2 = tree2Formula(f)
-        val (vs, d) = (defs map extractValDef).unzip
-        Exists(vs, d.foldLeft(f2)((x, y) => And(x, y)))
+        val (vs, d) = defs.map( x => makeConstraints(x) match {
+          case e @ Eq(v @ Variable(_), _) => (v -> e)
+          case other => sys.error("expected Eq, found: " + other)
+        }).unzip
+        Exists(vs, And( (d ::: List(f2)) :_*))
 
       case Literal(Constant(())) => UnitLit()
 
@@ -476,36 +432,67 @@ trait FormulaExtractor {
 
     formula.tpe match {
       case Wildcard =>
-        extractType(e.tpe) match {
-          case Wildcard => formula.setType(extractType(e.symbol.typeSignature))
-          case other => formula.setType(other)
-        }
+        formula.setType(typeOfTree(e))
       case _ => formula
     }
   }
   
   def getConstraints(t: Tree): Formula = {
+    val oldCstr = getCstr
     val c1 = tree2Formula(t)
     val c2 = getCstr
-    c2.foldLeft(c1)(And(_,_))
+    auxCstr = oldCstr
+    if (c2.isEmpty) c1
+    else And( c1::c2 :_*)
+  }
+  
+  /* constraints for a loop-free block in SSA. */
+  def makeConstraints(body: Tree): Formula =
+  {
+    val oldCstr = getCstr
+    val c1 = makeConstraints1(body, None, None)
+    val c2 = getCstr
+    auxCstr = oldCstr
+    if (c2.isEmpty) c1
+    else And( c1::c2 :_*)
+  }
+
+  /* constraints for a loop-free block in SSA. */
+  def makeConstraints(
+      body: Tree,
+      currRet: Tree,
+      globalRet: Tree
+    ): Formula =
+  {
+    val oldCstr = getCstr
+    val cr = tree2Formula(currRet)
+    val gr = tree2Formula(globalRet)
+    val c1 = makeConstraints1(body, Some(cr), Some(gr))
+    val c2 = getCstr
+    auxCstr = oldCstr
+    if (c2.isEmpty) c1
+    else And( c1::c2 :_*)
   }
   
   /* constraints for a loop-free block in SSA. */
   def makeConstraints(
       body: Tree,
-      currRet: Option[Tree] = None,
-      globalRet: Option[Tree] = None
+      currRet: Formula,
+      globalRet: Formula
     ): Formula =
   {
-    val c1 = makeConstraints1(body, currRet, globalRet)
+    val oldCstr = getCstr
+    val c1 = makeConstraints1(body, Some(currRet), Some(globalRet))
     val c2 = getCstr
-    c2.foldLeft(c1)(And(_,_))
+    auxCstr = oldCstr
+    if (c2.isEmpty) c1
+    else And( c1::c2 :_*)
   }
   
   def makeConstraints1(
       body: Tree,
-      currRet: Option[Tree] = None,
-      globalRet: Option[Tree] = None
+      currRet: Option[Formula] = None,
+      globalRet: Option[Formula] = None
     ): Formula =
   {
     body match {
@@ -513,9 +500,8 @@ trait FormulaExtractor {
       case If(cond, thenp, elsep) =>
         //TODO inline cond or not in the result (less readable, might work better?)
         val id = c.freshName("cond")
-        val cnd = Ident(TermName(id))
         val cvar = Variable(id).setType(Bool)
-        val condCstr = makeConstraints1(cond, Some(cnd), None)
+        val condCstr = makeConstraints1(cond, Some(cvar), None)
         val thenCstr = makeConstraints1(thenp, currRet, globalRet)
         val elseCstr = makeConstraints1(elsep, currRet, globalRet)
         And(condCstr, Or(And(cvar, thenCstr), And(Not(cvar), elseCstr)))
@@ -526,7 +512,7 @@ trait FormulaExtractor {
         statsCstr.foldRight(retCstr)(And(_,_))
      
       case Return(expr) =>
-        globalRet.map( ret => makeConstraints1(Assign(ret, expr))).getOrElse(True())
+        globalRet.map( ret => Eq(ret, tree2Formula(expr))).getOrElse(True())
       
       case Typed(e, _) =>
         makeConstraints1(e, currRet, globalRet)
@@ -536,29 +522,26 @@ trait FormulaExtractor {
       case Assign(lhs, rhs) =>
         Eq(tree2Formula(lhs), tree2Formula(rhs))
      
-      case ValDef(mods, name, tpe, rhs) =>
-        makeConstraints1(rhs, Some(Ident(name)), globalRet)
+      case vd @ ValDef(mods, name, tpe, rhs) =>
+        val v = extractVarFromValDef(vd)
+        makeConstraints1(rhs, Some(v), globalRet)
      
       case Literal(Constant(())) | EmptyTree =>
         True()
       
       case term: TermTree => 
         if (currRet.isDefined) {
-          makeConstraints1(Assign(currRet.get, term))
+          Eq(currRet.get, tree2Formula(term))
         } else {
           c.echo(term.pos, "makeConstraints ignoring (make sure it is not important for the verification)")
-          //Eq(tree2Formula(term), UnitLit())
-          //tree2Formula(term)
           True()
         }
      
       case term: RefTree =>
         if (currRet.isDefined) {
-          makeConstraints1(Assign(currRet.get, term))
+          Eq(currRet.get, tree2Formula(term))
         } else {
           c.echo(term.pos, "makeConstraints ignoring (make sure it is not important for the verification)")
-          //Eq(tree2Formula(term), UnitLit())
-          //tree2Formula(term)
           True()
         }
       

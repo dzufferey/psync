@@ -8,6 +8,7 @@ import scala.reflect.macros.whitebox.Context
 //import scala.reflect.macros.blackbox.Context
 
 class Impl(val c: Context) extends Lifting
+                           with TypeExtractor
                            with FormulaExtractor
                            with SSA
                            with TrExtractor

@@ -91,18 +91,64 @@ class FormulaExtractorSuite extends FunSuite {
     }
   }
 
-/*
+  test("Map ∀,∃,filter") {
+    val m = Map(1 -> 2)
+    Macros.asFormula( m.forall{ case (k, v) => k == v } ) match {
+      case ForAll(List(v1), Implies(In(v2, KeySet(Variable("m"))), Eq(v3, LookUp(Variable("m"), v4))))
+        if v1 == v2 && v2 == v3 && v3 == v4 => ()
+      case other => sys.error("unexpected: " + other)
+    }
+    Macros.asFormula( m.exists{ case (k, v) => k == v } ) match {
+      case Exists(List(v1), And(In(v2, KeySet(Variable("m"))), Eq(v3, LookUp(Variable("m"), v4))))
+        if v1 == v2 && v2 == v3 && v3 == v4 => ()
+      case other => sys.error("unexpected: " + other)
+    }
+    val m2 = Map(1 -> 2)
+    Macros.asFormula( m2 == m.filter{ case (k, v) => k == v } ) match {
+      case And(Eq(Variable("m2"), v1),
+               ForAll(List(f1), Eq(LookUp(Variable("m"), f2), LookUp(v3, f3))),
+               Eq(KeySet(v2), Comprehension(List(c1), And(In(c2, KeySet(Variable("m"))), Eq(c3, LookUp(Variable("m"), c4)))))
+           ) if v1 == v2 && v2 == v3 && 
+                c1 == c2 && c2 == c3 && c3 == c4 &&
+                f1 == f2 && f2 == f3 => ()
+      case other => sys.error("unexpected: " + other)
+    }
+  }
+  
+  test("Map map") {
+    val m = Map(1 -> 2)
+    val m2 = Map(1 -> 2)
+    Macros.asFormula( m2 == (m.map{ case (k, v) => k -> (v + 1) }: Map[Int, Int]) ) match {
+      case And(Eq(Variable("m2"), v1),
+               ForAll(List(f1), Eq(LookUp(v3, f2), Plus(LookUp(Variable("m"), f3), IntLit(1)))),
+               Eq(KeySet(v2), KeySet(Variable("m")))
+           ) if v1 == v2 && v2 == v3 && 
+                f1 == f2 && f2 == f3 => ()
+      case other => sys.error("unexpected: " + other)
+    }
+  }
+  
+  test("Map empty") {
+    val m = Map(1 -> 2)
+    Macros.asFormula( m == Map.empty[Int,Int] ) match {
+      case And(Eq(Variable("m"), v1),
+               Eq(KeySet(v2), Comprehension(List(_), False()))
+           ) if v1 == v2 => ()
+      case other => sys.error("unexpected: " + other)
+    }
+  }
+
   test("Map construction") {
-    sys.error("TODO")
+    val m = Map(1 -> 1)
+    Macros.asFormula( m == Map( 1 -> 2, 3 -> 4 ) ) match {
+      case And(Eq(Variable("m"), v1),
+               Eq(KeySet(v4), Comprehension(List(e1), Or(Eq(e2, IntLit(1)), Eq(e3, IntLit(3))))),
+               Eq(LookUp(v3, IntLit(3)), IntLit(4)),
+               Eq(LookUp(v2, IntLit(1)), IntLit(2))
+           ) if v1 == v2 && v2 == v3 && v3 == v4 &&
+                e1 == e2 && e2 == e3 => ()
+      case other => sys.error("unexpected: " + other)
+    }
   }
-
-  test("Map ∀/∃") {
-    sys.error("TODO")
-  }
-
-  test("Map map, filter") {
-    sys.error("TODO")
-  }
-*/
 
 }
