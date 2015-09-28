@@ -58,19 +58,19 @@ class LatticeAgreement extends Algorithm[LatticeIO] {
         
         type A = Lattice.T
 
-        def send(): Set[(Lattice.T, ProcessID)] = {
+        def send(): Map[ProcessID,Lattice.T] = {
           broadcast(proposed)
         }
 
-        def update(mailbox: Set[(Lattice.T, ProcessID)]) {
+        def update(mailbox: Map[ProcessID,Lattice.T]) {
           if (active) {
-            if (mailbox.filter(_._1 == (proposed: Lattice.T)).size > n/2) {
+            if (mailbox.filter(_._2 == (proposed: Lattice.T)).size > n/2) {
               callback.decide(proposed)
               decision <~ Some(proposed)
               active <~ false
               terminate()
             } else {
-              proposed <~ Lattice.join(proposed, mailbox.map(_._1).toSeq:_*)
+              proposed <~ Lattice.join(proposed, mailbox.map(_._2).toSeq:_*)
             }
           }
         }

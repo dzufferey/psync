@@ -67,24 +67,24 @@ class BenOr extends Algorithm[BinaryConsensusIO] {
       
         type A = (Boolean, Boolean)
 
-        def send: Set[((Boolean, Boolean),ProcessID)] = {
+        def send: Map[ProcessID,(Boolean, Boolean)] = {
           broadcast( (x: Boolean) -> (canDecide: Boolean) )
         }
 
-        def update(mailbox: Set[((Boolean, Boolean), ProcessID)]) {
+        def update(mailbox: Map[ProcessID,(Boolean, Boolean)]) {
           if (canDecide) {
             callback.decide(x)
             decided <~ true
             decision <~ x
             terminate
-          } else if (mailbox.filter(_._1._1).size > n/2 || mailbox.exists(m => m._1._1 && m._1._2)) {
+          } else if (mailbox.filter(_._2._1).size > n/2 || mailbox.exists(m => m._2._1 && m._2._2)) {
             vote <~ Some(true)
-          } else if (mailbox.filter(!_._1._1).size > n/2 || mailbox.exists(m => !m._1._1 && m._1._2)) {
+          } else if (mailbox.filter(!_._2._1).size > n/2 || mailbox.exists(m => !m._2._1 && m._2._2)) {
             vote <~ Some(false)
           } else {
             vote <~ None
           }
-          canDecide <~ mailbox.exists(_._1._2)
+          canDecide <~ mailbox.exists(_._2._2)
         }
 
       },
@@ -93,11 +93,11 @@ class BenOr extends Algorithm[BinaryConsensusIO] {
       
         type A = Option[Boolean]
 
-        def send: Set[(Option[Boolean],ProcessID)] = {
+        def send: Map[ProcessID,Option[Boolean]] = {
           broadcast( vote )
         }
 
-        def update(mailbox: Set[(Option[Boolean], ProcessID)]) {
+        def update(mailbox: Map[ProcessID,Option[Boolean]]) {
           val t = mailbox.filter(m => m._1.isDefined && m._1.get).size
           val f = mailbox.filter(m => m._1.isDefined && !m._1.get).size
           if (t > n/2) {

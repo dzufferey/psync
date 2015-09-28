@@ -62,12 +62,12 @@ class TwoPhaseCommit extends Algorithm[TpcIO] {
     val rounds = phase(
       new Round{
         type A = Boolean //place holder for PrepareCommit
-        def send(): Set[(Boolean, ProcessID)] = {
+        def send(): Map[ProcessID,Boolean] = {
           if (id == c(coord)) broadcast(true)
-          else Set.empty
+          else Map.empty
         }
         override def expectedNbrMessages = 1
-        def update(mailbox: Set[(Boolean, ProcessID)]) {
+        def update(mailbox: Map[ProcessID,Boolean]) {
           //nothing to do
         } 
       },
@@ -75,14 +75,14 @@ class TwoPhaseCommit extends Algorithm[TpcIO] {
       new Round{
         type A = Boolean
 
-        def send(): Set[(Boolean, ProcessID)] = {
-          Set( (vote: Boolean) -> c(coord) )
+        def send(): Map[ProcessID,Boolean] = {
+          Map( c(coord) -> (vote: Boolean) )
         }
 
-        def update(mailbox: Set[(Boolean, ProcessID)]) {
+        def update(mailbox: Map[ProcessID,Boolean]) {
           if (id == c(coord)) {
             if( mailbox.size == (n: Int) &&
-                mailbox.forall( _._1 ))
+                mailbox.forall( _._2 ))
             {
               decision <~ Some(true)
             } else {
@@ -95,15 +95,15 @@ class TwoPhaseCommit extends Algorithm[TpcIO] {
       new Round{
         type A = Boolean
 
-        def send(): Set[(Boolean, ProcessID)] = {
+        def send(): Map[ProcessID,Boolean] = {
           if (id == c(coord)) broadcast((decision: Option[Boolean]).get)
-          else Set.empty
+          else Map.empty
         }
 
         override def expectedNbrMessages = 1
-        def update(mailbox: Set[(Boolean, ProcessID)]) {
+        def update(mailbox: Map[ProcessID,Boolean]) {
           if (mailbox.size > 0) {
-            decision <~ Some(mailbox.head._1)
+            decision <~ Some(mailbox.head._2)
           }
           callback.decide(decision)
           terminate

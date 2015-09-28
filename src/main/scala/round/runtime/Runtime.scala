@@ -9,13 +9,13 @@ import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.atomic.AtomicInteger
 
 
-class RunTime[IO](val alg: Algorithm[IO],
+class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
                   options: RuntimeOptions,
                   defaultHandler: Message => Unit) {
 
   private var srv: Option[PacketServer] = None
 
-  private val processPool = new ArrayBlockingQueue[InstanceHandler[IO]](options.processPool)
+  private val processPool = new ArrayBlockingQueue[InstanceHandler[IO,P]](options.processPool)
 
   private val executor = options.workers match {
     case Factor(n) =>
@@ -33,7 +33,7 @@ class RunTime[IO](val alg: Algorithm[IO],
 
 
   private var channelIdx = new AtomicInteger
-  private def createProcess: InstanceHandler[IO] = {
+  private def createProcess: InstanceHandler[IO,P] = {
     assert(srv.isDefined)
     val p = alg.process
     p.setOptions(options)
@@ -45,17 +45,17 @@ class RunTime[IO](val alg: Algorithm[IO],
     new InstanceHandler(p, this, channel, dispatcher, defaultHandler, options)
   }
 
-  private def getProcess: InstanceHandler[IO] = {
+  private def getProcess: InstanceHandler[IO,P] = {
     val proc = processPool.poll
     if (proc == null) {
-      Logger("RunTime", Warning, "processPool is running low")
+      Logger("Runtime", Warning, "processPool is running low")
       createProcess
     } else {
       proc
     }
   }
 
-  def recycle(p: InstanceHandler[IO]) {
+  def recycle(p: InstanceHandler[IO,P]) {
     processPool.offer(p)
   }
 
@@ -65,7 +65,7 @@ class RunTime[IO](val alg: Algorithm[IO],
       io: IO,
       messages: Set[Message] = Set.empty)
   {
-    Logger("RunTime", Info, "starting instance " + instanceId)
+    Logger("Runtime", Info, "starting instance " + instanceId)
     srv match {
       case Some(s) =>
         //an instance is actually encapsulated by one process
@@ -88,7 +88,7 @@ class RunTime[IO](val alg: Algorithm[IO],
 
   /** Stop a running instance of the algorithm. */
   def stopInstance(instanceId: Short) {
-    Logger("RunTime", Info, "stopping instance " + instanceId)
+    Logger("Runtime", Info, "stopping instance " + instanceId)
     srv match {
       case Some(s) =>
         s.dispatcher.findInstance(instanceId).map(_.interrupt(instanceId))
@@ -112,7 +112,7 @@ class RunTime[IO](val alg: Algorithm[IO],
     val ports = 
       if (grp contains me) grp.get(me).ports
       else Set(options.port)
-    Logger("RunTime", Info, "starting service on ports: " + ports.mkString(", "))
+    Logger("Runtime", Info, "starting service on ports: " + ports.mkString(", "))
     val pktSrv = new PacketServer(executor, ports, grp, defaultHandler, options)
     srv = Some(pktSrv)
     pktSrv.start
@@ -122,7 +122,7 @@ class RunTime[IO](val alg: Algorithm[IO],
   def shutdown {
     srv match {
       case Some(s) =>
-        Logger("RunTime", Info, "stopping service")
+        Logger("Runtime", Info, "stopping service")
         s.close
         executor.shutdownNow
       case None =>

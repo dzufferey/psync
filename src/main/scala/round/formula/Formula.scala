@@ -237,19 +237,27 @@ case object Divides extends InterpretedFct("/", "$div") {
 }
 
 case object Leq extends InterpretedFct("≤", "<=", "$less$eq") {
-  val typeWithParams = Int ~> Int ~> Bool
+  private val fv = Type.freshTypeVar
+  override val typeParams = List(fv)
+  val typeWithParams = fv ~> fv ~> Bool // Int ~> Int ~> Bool
   override val priority = 9
 }
 case object Geq extends InterpretedFct("≥", ">=", "$greater$eq") {
-  val typeWithParams = Int ~> Int ~> Bool
+  private val fv = Type.freshTypeVar
+  override val typeParams = List(fv)
+  val typeWithParams = fv ~> fv ~> Bool // Int ~> Int ~> Bool
   override val priority = 9
 }
 case object Lt extends InterpretedFct("<", "$less") {
-  val typeWithParams = Int ~> Int ~> Bool
+  private val fv = Type.freshTypeVar
+  override val typeParams = List(fv)
+  val typeWithParams = fv ~> fv ~> Bool // Int ~> Int ~> Bool
   override val priority = 9
 }
 case object Gt extends InterpretedFct(">", "$greater") {
-  val typeWithParams = Int ~> Int ~> Bool
+  private val fv = Type.freshTypeVar
+  override val typeParams = List(fv)
+  val typeWithParams = fv ~> fv ~> Bool // Int ~> Int ~> Bool
   override val priority = 9
 }
 

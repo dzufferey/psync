@@ -33,12 +33,12 @@ class ConwayGameOfLife extends Algorithm[CgolIO] {
       
         type A = Boolean
 
-        def send: Set[(Boolean,ProcessID)] = {
-          neighbours.map( (alive: Boolean) -> _ )
+        def send: Map[ProcessID,Boolean] = {
+          neighbours.map( _ -> (alive: Boolean) ).toMap
         }
 
-        def update(mailbox: Set[(Boolean, ProcessID)]) {
-          val aliveNeighbours = mailbox.filter(_._1).size
+        def update(mailbox: Map[ProcessID,Boolean]) {
+          val aliveNeighbours = mailbox.filter(_._2).size
           if (alive) {
             if (aliveNeighbours != 2 && aliveNeighbours != 3) {
               alive <~ false

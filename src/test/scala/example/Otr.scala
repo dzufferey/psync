@@ -3,107 +3,123 @@ package example
 import round._
 import round.formula._
 import round.macros.Macros._
+import round.verification.{requires,ensures}
 
 //like OTR but uses a boolean flag instead of an option for the decision
-class OTR(afterDecision: Int = 2) extends Algorithm[ConsensusIO] {
 
 
-  import VarHelper._
+class OtrProcess(afterDecision: Int) extends Process[ConsensusIO]{
+
+  var x = 0
+  var decision = -1 //as ghost
+  var decided = false
+  var after = afterDecision
+  var callback: ConsensusIO = null
+    
+  def init(io: ConsensusIO) = i{
+    callback = io
+    x = io.initialValue
+    decided = false
+    after = afterDecision
+  }
+
+  //min most often received
+  @requires(True())
+  //@ensures("v1", True() )
+  def mmor(mailbox: Map[ProcessID,Int]): Int = {
+    val byValue = mailbox.groupBy(_._2)
+    import scala.math.Ordered._
+    val m = byValue.minBy{ case (v, procs) => (-procs.size, v) }
+    m._1
+  } /*ensuring { v1 =>
+    mailbox.forall{ case (k, v2) =>
+      mailbox.filter(_._2 == v1).size > mailbox.filter(_._2 == v2).size || v1 <= v2
+    }
+  }*/
+
+  val rounds = phase(
+    new Round[Int]{
+
+      def send(): Map[ProcessID,Int] = {
+        broadcast(x) //macro for (x, All)
+      }
+
+      def update(mailbox: Map[ProcessID,Int]) {
+        if (mailbox.size > 2*n/3) {
+          val v = mmor(mailbox)
+          x = v
+          if (mailbox.filter{ case (k, msg) => msg == v }.size > 2*n/3) {
+            if (!decided) {
+              callback.decide(v)
+            }
+            decided = true
+            decision = v
+          }
+        }
+        if (decided) {
+          after = after - 1
+          if(after <= 0) {
+            //terminate()
+            exitAtEndOfRound
+          }
+        }
+      }
+
+      protected def serialize(payload: Int, out: _root_.io.netty.buffer.ByteBuf) = {
+        out.writerIndex(out.writerIndex().$plus(_root_.round.runtime.Tag.size));
+        out.writeInt(payload)
+      }
+
+      protected def deserialize(in: _root_.io.netty.buffer.ByteBuf): Int = try {
+        in.readerIndex(in.readerIndex().$plus(_root_.round.runtime.Tag.size));
+        in.readInt()
+      } catch {
+        case (e @ (_: Throwable)) => {
+          Console.err.println("error while deserializing Int");
+          throw e
+        }
+      }
+
+
+    }
+  )
+
+}
+
+
+class OTR(afterDecision: Int = 2) extends Algorithm[ConsensusIO, OtrProcess] {
+
   import SpecHelper._
 
   val V = new Domain[Int]
 
-  //variables
-  val x = new LocalVariable[Int](0)
-  val decision = new LocalVariable[Int](-1) //TODO as ghost
-  val decided = new LocalVariable[Boolean](false)
-  val after = new LocalVariable[Int](afterDecision)
-  //
-  val callback = new LocalVariable[ConsensusIO](null)
-
-
   val spec = new Spec {
-      val goodRound: Formula = S.exists( s => P.forall( p => HO(p) == s && s.size > 2*n/3 ))
-      val livenessPredicate = List( goodRound, goodRound )
-      val invariants = List[Formula](
-        (    P.forall( i => !decided(i) )
-          || V.exists( v => {
-               val A = P.filter( i => x(i) == v);
-               A.size > 2*n/3 && P.forall( i => decided(i) ==> (decision(i) == v))
-             })
-        ) && P.forall( i => P.exists( j1 => x(i) == init(x)(j1) )),
-           V.exists( v => {
-              val A = P.filter( i => x(i) == v);
-              A.size == (n: Int) && P.forall( i => decided(i) ==> (decision(i) == v))
+    val goodRound: Formula = S.exists( s => P.forall( p => p.HO == s && s.size > 2*n/3 ))
+    val livenessPredicate = List( goodRound, goodRound )
+    val invariants = List[Formula](
+      (    P.forall( i => !i.decided )
+        || V.exists( v => {
+             val A = P.filter( i => i.x == v);
+             A.size > 2*n/3 && P.forall( i => i.decided ==> (i.decision == v))
            })
-        && P.forall( i => P.exists( j1 => x(i) == init(x)(j1) )),
-        P.exists( j => P.forall( i => decided(i) && decision(i) == init(x)(j)) )
-      )
-
-      val properties = List[(String,Formula)](
-        ("Termination",    P.forall( i => decided(i)) ),
-        ("Agreement",      P.forall( i => P.forall( j => (decided(i) && decided(j)) ==> (decision(i) == decision(j)) ))),
-        ("Validity",       P.forall( i => decided(i) ==> P.exists( j => init(x)(j) == decision(i) ))),
-        ("Integrity",      P.exists( j => P.forall( i => decided(i) ==> (decision(i) == init(x)(j)) ))),
-        ("Irrevocability", P.forall( i => old(decided)(i) ==> (decided(i) && old(decision)(i) == decision(i)) ))
-      )
-  }
-  
-  
-  def process = p(new Process[ConsensusIO]{
-      
-    def init(io: ConsensusIO) {
-      callback <~ io
-      x <~ io.initialValue
-      decided <~ false
-      after <~ afterDecision
-    }
-
-    val rounds = phase(
-      new Round{
-
-        type A = Int
-
-        //min most often received
-        def mmor(mailbox: Set[(Int, ProcessID)]): Int = {
-          val byValue = mailbox.groupBy(_._1)
-          import scala.math.Ordered._
-          val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong, v) }
-          m._1
-        } ensuring { v1 =>
-          mailbox.map(_._1).forall( v2 =>
-            mailbox.filter(_._1 == v1).size > mailbox.filter(_._1 == v2).size || v1 <= v2
-          )
-        }
-
-        def send(): Set[(Int, ProcessID)] = {
-          broadcast(x) //macro for (x, All)
-        }
-
-        def update(mailbox: Set[(Int, ProcessID)]) {
-          if (mailbox.size > 2*n/3) {
-            val v = mmor(mailbox)
-            x <~ v
-            if (mailbox.filter(msg => msg._1 == v).size > 2*n/3) {
-              if (!decided) {
-                callback.decide(v)
-              }
-              decided <~ true
-              decision <~ v
-            }
-          }
-          if ((decided: Boolean)) {
-            after <~ after - 1
-            if(after <= 0) {
-              //terminate()
-              exitAtEndOfRound
-            }
-          }
-        }
-
-      }
+      ) && P.forall( i => P.exists( j1 => i.x == init(j1.x) )),
+         V.exists( v => {
+            val A = P.filter( i => i.x == v);
+            A.size == (n: Int) && P.forall( i => i.decided ==> (i.decision == v))
+         })
+      && P.forall( i => P.exists( j1 => i.x == init(j1.x) )),
+      P.exists( j => P.forall( i => i.decided && i.decision == init(j.x)) )
     )
 
-  })
+    val properties = List[(String,Formula)](
+      ("Termination",    P.forall( i => i.decided) ),
+      ("Agreement",      P.forall( i => P.forall( j => (i.decided && j.decided) ==> (i.decision == j.decision) ))),
+      ("Validity",       P.forall( i => i.decided ==> P.exists( j => init(j.x) == i.decision ))),
+      ("Integrity",      P.exists( j => P.forall( i => i.decided ==> (i.decision == init(j.x)) ))),
+      ("Irrevocability", P.forall( i => old(i.decided) ==> (i.decided && old(i.decision) == i.decision) ))
+    )
+  }
+  
+  def process = new OtrProcess(afterDecision)
 
 }

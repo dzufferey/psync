@@ -11,14 +11,15 @@ import dzufferey.utils.LogLevel._
 
 import dzufferey.report._
 
-class Verifier[IO](val alg: Algorithm[IO]) {
+class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P]) {
 
   val spec = alg.spec 
 
   val process = alg.process
-  val procLocalVars: Set[Variable] = process.localVariables.toSet
-  val procGhostVars: Set[Variable] = process.ghostVariables.toSet
-  val procAllVars = procLocalVars ++ procGhostVars ++ process.globalVariables
+  val procLocalVars: Set[Variable] = Set.empty //TODO process.localVariables.toSet
+  val procGhostVars: Set[Variable] = Set.empty //TODO process.ghostVariables.toSet
+  val procGlobalVars: Set[Variable] = Set.empty //TODO process.globalVariables.toSet
+  val procAllVars = procLocalVars ++ procGhostVars ++ procGlobalVars
 
   assert(procAllVars.forall(_.tpe != Wildcard))
 
@@ -35,7 +36,7 @@ class Verifier[IO](val alg: Algorithm[IO]) {
     spec.livenessPredicate.foreach(w)
     spec.invariants.foreach(w)
     spec.properties.map(_._2).foreach(w)
-    w(process.initState)
+    process.initState.map(w)
     for(r <- process.rounds) {
       val t = r.rawTR
       w(t.send)
@@ -62,6 +63,8 @@ class Verifier[IO](val alg: Algorithm[IO]) {
   warmup
 
   val procInitState: Formula = {
+    //TODO new format!
+    assert(process.initState.isDefined)
     //fix the types!
     def fillType(f: Formula) = f match {
       case v: Variable if procAllVars contains v =>
@@ -70,8 +73,8 @@ class Verifier[IO](val alg: Algorithm[IO]) {
         v.setType(v2.tpe)
       case _ => ()
     }
-    FormulaUtils.traverse( fillType, process.initState)
-    val f2 = Typer(process.initState).get
+    FormulaUtils.traverse( fillType, process.initState.get)
+    val f2 = Typer(process.initState.get).get
     def guessType1(f: Formula) {
       f.tpe match {
         case TypeVariable(v) =>
@@ -296,9 +299,9 @@ class Verifier[IO](val alg: Algorithm[IO]) {
     val lst = new Sequence("Process")
 
     val vars = new List("Variables")
-    vars.add(new Text("Global", process.globalVariables.map(v => v.name+": " +v.tpe).mkString(", ")))
-    vars.add(new Text("Local", process.localVariables.map(v => v.name+": " +v.tpe).mkString(", ")))
-    vars.add(new Text("Ghost", process.ghostVariables.map(v => v.name+": " +v.tpe).mkString(", ")))
+    vars.add(new Text("Global", procGhostVars.map(v => v.name+": " +v.tpe).mkString(", ")))
+    vars.add(new Text("Local", procLocalVars.map(v => v.name+": " +v.tpe).mkString(", ")))
+    vars.add(new Text("Ghost", procGhostVars.map(v => v.name+": " +v.tpe).mkString(", ")))
     lst.add(vars)
     
     lst.add(itemForFormula("Initial state", procInitState))
@@ -337,7 +340,7 @@ class Verifier[IO](val alg: Algorithm[IO]) {
     val report = new Report("Verification of " + alg.getClass.toString + status)
 
     //report.add(new Code("Code Before Processing", process.beforeProcessing))
-    report.add(new Code("Code After Processing", process.afterProcessing))
+    //report.add(new Code("Code After Processing", process.afterProcessing))
     report.add(reportSpec)
     report.add(reportProcess)
 
@@ -357,14 +360,14 @@ class Verifier[IO](val alg: Algorithm[IO]) {
 
 object Verifier {
 
-  def apply(className: String): Verifier[_] = {
+  def apply(className: String): Verifier[_, _] = {
     val str = "new round.verification.Verifier(new " + className + ")"
     import scala.reflect.runtime.universe._
     import scala.tools.reflect.ToolBox
     val tb = runtimeMirror(scala.reflect.runtime.universe.getClass.getClassLoader).mkToolBox()
     val tree = tb.parse(str)
     Logger("Verifier", Info, "executing: " + tree)
-    tb.compile(tree)().asInstanceOf[Verifier[_]]
+    tb.compile(tree)().asInstanceOf[Verifier[_, _]]
   }
 
 }

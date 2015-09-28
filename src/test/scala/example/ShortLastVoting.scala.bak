@@ -5,6 +5,7 @@
 package example
 
 import round._
+import round.Time._
 import round.macros.Macros._
 
 class ShortLastVoting extends Algorithm[ConsensusIO] {
@@ -16,7 +17,7 @@ class ShortLastVoting extends Algorithm[ConsensusIO] {
 
   //variables
   val x = new LocalVariable[Int](0)
-  val ts = new LocalVariable[Int](-1)
+  val ts = new LocalVariable[Time](-1)
   val commit = new LocalVariable[Boolean](false)
   val vote = new LocalVariable[Int](0)
   val decision = new LocalVariable[Int](-1) //TODO as ghost
@@ -44,23 +45,23 @@ class ShortLastVoting extends Algorithm[ConsensusIO] {
     val rounds = Array[Round](
       rnd(new Round{
 
-        type A = (Int, Int)
+        type A = (Int, Time)
 
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         //rotating coordinator
         def coord(phi: Int): ProcessID = new ProcessID((phi % n).toShort)
 
-        def send(): Set[((Int, Int), ProcessID)] = {
-          Set((x: Int, ts: Int) -> coord(r / 4))
+        def send(): Map[ProcessID,(Int, Time)] = {
+          Map( coord(r/4) -> (x: Int, ts: Time) )
         }
 
         override def expectedNbrMessages = if (id == coord(r/4)) n/2 + 1 else 0
 
-        def update(mailbox: Set[((Int, Int), ProcessID)]) {
+        def update(mailbox: Map[ProcessID,(Int, Time)]) {
           if (id == coord(r/4) && mailbox.size > n/2) {
             // let θ be one of the largest θ from 〈ν, θ〉received
             // vote(p) := one ν such that 〈ν, θ〉 is received
-            vote <~ mailbox.maxBy(_._1._2)._1._1
+            vote <~ mailbox.maxBy(_._2._2)._2._1
             commit <~ true
           }
         }
@@ -75,20 +76,19 @@ class ShortLastVoting extends Algorithm[ConsensusIO] {
         //rotating coordinator
         def coord(phi: Int): ProcessID = new ProcessID((phi % n).toShort)
 
-        def send(): Set[(Int, ProcessID)] = {
+        def send(): Map[ProcessID,Int] = {
           if (id == coord(r/4) && commit) {
             broadcast(vote)
           } else {
-            Set.empty
+            Map.empty
           }
         }
 
         override def expectedNbrMessages = 1
 
-        def update(mailbox: Set[(Int, ProcessID)]) {
-          val mb2 = mailbox.filter( _._2 == coord(r/4) )
-          if (mb2.size > 0) {
-            x <~ mb2.head._1
+        def update(mailbox: Map[ProcessID,Int]) {
+          if (mailbox contains coord(r/4)) {
+            x <~ mailbox(coord(r/4))
             ts <~ r/4
           }
         }
@@ -99,17 +99,17 @@ class ShortLastVoting extends Algorithm[ConsensusIO] {
 
         type A = Int
 
-        def send(): Set[(Int, ProcessID)] = {
+        def send(): Map[ProcessID,Int] = {
           if ( ts == (r/4) ) {
             broadcast(x)
           } else {
-            Set.empty
+            Map.empty
           }
         }
 
         override def expectedNbrMessages = n/2 + 1
 
-        def update(mailbox: Set[(Int, ProcessID)]) {
+        def update(mailbox: Map[ProcessID,Int]) {
           if (mailbox.size > n/2) {
             val v = mailbox.head._1
             if (!decided) {

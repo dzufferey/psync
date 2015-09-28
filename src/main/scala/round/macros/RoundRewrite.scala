@@ -32,13 +32,14 @@ trait RoundRewrite {
   }
 
   def extendsRound(t: Tree) = t match {
-    case tq"round.Round" => true
+    case tq"round.Round[$tpt]" => true
     case _ => false
   }
   
 
-  def findTypeParam(body: List[Tree]) = {
-    body.collectFirst{ case td @ TypeDef(_, TypeName("A"), _, tpt) => tpt }.get
+  def findTypeParam(parents: List[Tree]) = {
+    parents.collectFirst{ case tq"round.Round[$tpt]" => tpt }.get
+    //body.collectFirst{ case td @ TypeDef(_, TypeName("A"), _, tpt) => tpt }.get
   }
 
   object insideRound extends Transformer {
@@ -49,13 +50,16 @@ trait RoundRewrite {
           val tr = processSendUpdate(snd, upd)
           val sndS = snd.toString
           val updS = upd.toString
-          val s = q"val sendStr: String = $sndS"
-          val u = q"val updtStr: String = $updS"
-          val valTR = q"val rawTR: round.verification.RoundTransitionRelation = $tr"
+          val s = q"override def sendStr: String = $sndS"
+          val u = q"override def updtStr: String = $updS"
+          val valTR = q"override def rawTR: round.verification.RoundTransitionRelation = $tr"
           val treeAuxMap = mkAuxMap(aux)
-          val valAuxMap = q"val auxSpec: Map[String, round.verification.AuxiliaryMethod] = $treeAuxMap"
-          val tpt = findTypeParam(body)
-          val body2 = s :: u :: valTR :: valAuxMap :: body ::: serializationMethods(tpt)
+          val valAuxMap = q"override def auxSpec: Map[String, round.verification.AuxiliaryMethod] = $treeAuxMap"
+          //val tpt = findTypeParam(body)
+          val tpt = findTypeParam(parents)
+          val serialization = serializationMethods(tpt)
+          serialization.foreach(c.typecheck(_))
+          val body2 = /*s :: u :: valTR :: valAuxMap ::*/ body /*::: serialization*/
           val tmpl2 = treeCopy.Template(tmpl, parents, self, body2)
           treeCopy.ClassDef(cd, mods, name, tparams, tmpl2)
         case other => other
@@ -65,8 +69,9 @@ trait RoundRewrite {
 
   protected def processRound(t: Tree) = {// t match {
       val tree = insideRound.transform(t)
-      tree
+      println("generated round: " + show(tree))
       //c.typecheck(tree)
+      tree
   }
 
 }

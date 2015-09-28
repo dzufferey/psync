@@ -14,7 +14,7 @@ trait FormulaExtractor {
   }
 
   def extractDomain(e: Tree): Option[Formula] = {
-    if (e.tpe.typeConstructor.toString contains "Domain") { //TODO
+    if (e.tpe.typeConstructor.toString contains "Domain") {
       None
     } else {
       Some(tree2Formula(e))
@@ -69,9 +69,10 @@ trait FormulaExtractor {
     case FMap(_, _) =>
       makeBindingMap(b, domain, params, body)
     case other =>
-      sys.error("makeBinding: unknown domain type → " + other + " for " + domain + ", " + domain.tpe + ", " + domain.symbol.typeSignature)
+      c.abort(domain.pos, "makeBinding: unknown domain type → " + other + " for " + domain + ", " + domain.tpe + ", " + domain.symbol.typeSignature)
   }
 
+  /*
   def mkInit(v: Name, t: Type): round.formula.Symbol = {
     UnInterpretedFct(round.verification.Utils.initPrefix + v.toString, Some(extractType(t))) //TODO type parameters ?!
   }
@@ -87,8 +88,10 @@ trait FormulaExtractor {
     case q"$pkg.this.$name" => mkOld(name, t)
     case other => sys.error("mkOld: " + showRaw(v))
   }
+  */
 
   def extractSymbol(e: Tree): round.formula.Symbol = e match {
+    /*
     case Select(
               Apply(TypeApply(Select(Select(This(_), TermName("VarHelper")), TermName("init")), List(TypeTree())),
               List(fct @ Select(This(_), v))), TermName("apply")) =>
@@ -97,6 +100,7 @@ trait FormulaExtractor {
               Apply(TypeApply(Select(Select(This(_), TermName("VarHelper")), TermName("old")), List(TypeTree())),
               List(fct @ Select(This(_), v))), TermName("apply")) =>
       mkOld(v, fct.tpe)
+    */
     case TypeApply(Select(Select(Ident(scala), TermName("Some")), TermName("apply")), List(tpt)) =>
       FSome
     //TODO clean that part
@@ -253,21 +257,35 @@ trait FormulaExtractor {
           case other =>
             c.abort(domain.pos, "Map.map, expected pairs of type. found: " + other)
         }
+      
+      case q"$scope.SpecHelper.init[$tpt]($expr)" =>
+        tree2Formula(expr) match {
+          case a @ Application(UnInterpretedFct(f, t, p), args) =>
+            val f2 = UnInterpretedFct(round.verification.Utils.initPrefix + f, t, p)
+            Application(f2, args).setType(a.tpe)
+          case other => c.abort(expr.pos, "expected var access, found: " + other)
+        }
+      case q"$scope.SpecHelper.old[$tpt]($expr)" =>
+        tree2Formula(expr) match {
+          case a @ Application(UnInterpretedFct(f, t, p), args) =>
+            val f2 = UnInterpretedFct(round.verification.Utils.oldPrefix + f, t, p)
+            Application(f2, args).setType(a.tpe)
+          case other => c.abort(expr.pos, "expected var access, found: " + other)
+        }
 
       //our stuff
       case q"$scope.SpecHelper.BoolOps($l).==>($r)" =>
         val l2 = tree2Formula(l)
         val r2 = tree2Formula(r)
         Implies(l2,r2)
-      case Apply(TypeApply(Select(Select(This(_), TermName("VarHelper")), TermName("getter")), List(TypeTree())), List(expr)) =>
-        val f = tree2Formula(expr)
-        removeProcTypeArg(f)
-      case q"$pkg.this.broadcast($expr)" =>
+      case q"$pkg.this.broadcast[$tpt]($expr)" =>
         val payload = tree2Formula(expr)
-        val tpe = Product(List(payload.tpe, round.verification.Utils.procType))
-        val msg = Variable(Namer("__msg")).setType(tpe)
-        val fst = Fst(msg)
-        Comprehension(List(msg), Eq(fst, payload)).setType(FSet(tpe))
+        val tpe = FMap(round.verification.Utils.procType, payload.tpe)
+        val mapName = Variable(c.freshName("bcast")).setType(tpe)
+        val p = Variable(c.freshName("p")).setType(round.verification.Utils.procType)
+        addCstr(Eq(KeySet(mapName), Comprehension(List(p), True())))
+        addCstr(ForAll(List(p), Eq(LookUp(mapName, p), payload)))
+        mapName
 
       // set construction
       case q"scala.this.Predef.Set.empty[$tpt]" =>
@@ -375,11 +393,27 @@ trait FormulaExtractor {
       case Typed(e, _) =>
         tree2Formula(e)
 
+      //Time
+      case q"$expr1 / $expr2" if typeOfTree(expr1) == round.verification.Utils.timeType =>
+        val t = tree2Formula(expr1)
+        val n = tree2Formula(expr2)
+        round.logic.ReduceTime.fromInt(Divides(round.logic.ReduceTime.toInt(t), n))
+      case q"round.Time.fromInt($expr)" =>
+        round.logic.ReduceTime.fromInt(tree2Formula(expr))
+      case q"new round.Time($expr)" =>
+        round.logic.ReduceTime.fromInt(tree2Formula(expr))
+      case q"round.Time.toInt($expr)" if typeOfTree(expr) == round.verification.Utils.timeType =>
+        round.logic.ReduceTime.toInt(tree2Formula(expr))
+      case q"$expr.toInt" if typeOfTree(expr) == round.verification.Utils.timeType =>
+        round.logic.ReduceTime.toInt(tree2Formula(expr))
+
       //init and old
+      /*
       case q"$scope.VarHelper.init[$tpt]($expr)" =>
         mkInit(expr, tpt.tpe)(tree2Formula(expr))
       case q"$scope.VarHelper.old[$tpt]($expr)" =>
         mkOld(expr, tpt.tpe)(tree2Formula(expr))
+      */
      
       //interpreted/known symbols
       case Apply(s @ Select(l, op), args) if knows(op, l :: args, s.pos) => mkKnown(op, l :: args, s.pos)
@@ -517,8 +551,9 @@ trait FormulaExtractor {
       case Typed(e, _) =>
         makeConstraints1(e, currRet, globalRet)
       
-      case Apply(Select(lhs, TermName("$less$tilde")), List(rhs)) =>
-        Eq(tree2Formula(lhs), tree2Formula(rhs))
+      //TODO better way of identifying setters and get the type from the setter signature ...
+      case Apply(Select(This(TypeName(_)), TermName(setter)), List(rhs)) if setter.endsWith("_$eq") =>
+        Eq(Variable(setter.substring(0, setter.length - 4)).setType(typeOfTree(rhs)), tree2Formula(rhs))
       case Assign(lhs, rhs) =>
         Eq(tree2Formula(lhs), tree2Formula(rhs))
      
@@ -533,7 +568,7 @@ trait FormulaExtractor {
         if (currRet.isDefined) {
           Eq(currRet.get, tree2Formula(term))
         } else {
-          c.echo(term.pos, "makeConstraints ignoring (make sure it is not important for the verification)")
+          c.echo(term.pos, "makeConstraints ignoring (make sure it is not important for the verification)" + showRaw(term))
           True()
         }
      
@@ -541,7 +576,7 @@ trait FormulaExtractor {
         if (currRet.isDefined) {
           Eq(currRet.get, tree2Formula(term))
         } else {
-          c.echo(term.pos, "makeConstraints ignoring (make sure it is not important for the verification)")
+          c.echo(term.pos, "makeConstraints ignoring (make sure it is not important for the verification)" + showRaw(term))
           True()
         }
       

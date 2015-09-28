@@ -33,18 +33,18 @@ class KSetEarlyStopping(t: Int, k: Int) extends Algorithm[ConsensusIO] {
       
         type A = (Int, Boolean)
 
-        def send: Set[((Int, Boolean),ProcessID)] = {
+        def send: Map[ProcessID,(Int, Boolean)] = {
           broadcast( (est: Int) -> (canDecide: Boolean) )
         }
 
-        def update(mailbox: Set[((Int, Boolean), ProcessID)]) {
+        def update(mailbox: Map[ProcessID,(Int, Boolean)]) {
           val currNb = mailbox.size
           if (r > t/k || canDecide) {
             callback.decide(est)
             terminate
           } else {
-            est <~ mailbox.map(_._1._1).min
-            canDecide <~ (mailbox.exists(_._1._2) || lastNb - currNb < k)
+            est <~ mailbox.map(_._2._1).min
+            canDecide <~ (mailbox.exists(_._2._2) || lastNb - currNb < k)
             lastNb <~ currNb
           }
         }

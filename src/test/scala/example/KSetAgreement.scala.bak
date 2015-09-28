@@ -45,12 +45,12 @@ class KSetAgreement(i: ProcessID, k: Int) extends Algorithm[ConsensusIO] {
 
         def pick(a: Map[ProcessID,Int]) = a.values.min
 
-        def send: Set[((Boolean, Map[ProcessID,Int]),ProcessID)] = {
+        def send: Map[ProcessID,(Boolean, Map[ProcessID,Int])] = {
           broadcast( (decider: Boolean) -> (t: Map[ProcessID,Int]) )
         }
 
-        def update(mailbox: Set[((Boolean, Map[ProcessID,Int]), ProcessID)]) {
-          val content = mailbox.map(_._1)
+        def update(mailbox: Map[ProcessID,(Boolean, Map[ProcessID,Int])]) {
+          val content = mailbox.map(_._2)
           if (decider) {
             callback.decide(pick(t))
             terminate()

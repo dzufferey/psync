@@ -27,11 +27,11 @@ class FloodMin(f: Int) extends Algorithm[ConsensusIO] {
       
         type A = Int
 
-        def send: Set[(Int,ProcessID)] = {
+        def send: Map[ProcessID,Int] = {
           broadcast( x )
         }
 
-        def update(mailbox: Set[(Int, ProcessID)]) {
+        def update(mailbox: Map[ProcessID,Int]) {
           x <~ mailbox.foldLeft(x: Int)( (acc, v) => math.min(acc, v._1) )
           if (r > f) {
             callback.decide(x)

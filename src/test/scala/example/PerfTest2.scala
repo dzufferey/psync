@@ -37,8 +37,7 @@ class PerfTest2(options: RuntimeOptions,
     log.newLine()
   }
 
-  val alg = ConsensusSelector(algorithm, additionalOptions)
-  val rt = new RunTime(alg, options, defaultHandler(_))
+  val rt = ConsensusSelector(algorithm, options, defaultHandler, additionalOptions)
   rt.startService
 
   val values   = Array.ofDim[Short](nbrValues)

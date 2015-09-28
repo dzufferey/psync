@@ -34,8 +34,8 @@ trait InstHandler {
   def interrupt(inst: Int): Unit
 }
 
-class InstanceHandler[IO](proc: Process[IO],
-                          rt: round.runtime.RunTime[IO],
+class InstanceHandler[IO,P <: Process[IO]](proc: P,
+                          rt: round.runtime.Runtime[IO,P],
                           channel: Channel,
                           dispatcher: InstanceDispatcher,
                           defaultHandler: DatagramPacket => Unit,
@@ -229,8 +229,7 @@ class InstanceHandler[IO](proc: Process[IO],
     clear
     //push to the layer above
     //actual delivery
-    val mset = msgs.toSet
-    if (proc.update(mset)) {
+    if (proc.update(msgs)) {
       //start the next round (if has not exited)
       send
     } else {
@@ -253,7 +252,7 @@ class InstanceHandler[IO](proc: Process[IO],
   protected def send {
     //Logger("Predicate", Debug, "sending for round " + currentRound)
     val myAddress = grp.idToInet(grp.self)
-    val pkts = toPkts(proc.send.toSeq)
+    val pkts = toPkts(proc.send)
     expected = proc.expectedNbrMessages
     //println(grp.self.id + ", " + instance + " round: " + currentRound + ", expected " + expected)
     for (pkt <- pkts) {
@@ -290,7 +289,7 @@ class InstanceHandler[IO](proc: Process[IO],
     }
   }
     
-  protected def toPkts(msgs: Seq[(ProcessID, ByteBuf)]): Seq[DatagramPacket] = {
+  protected def toPkts(msgs: Map[ProcessID, ByteBuf]): Iterable[DatagramPacket] = {
     val src = grp.idToInet(grp.self)
     val tag = Tag(instance, currentRound)
     val pkts = msgs.map{ case (dst,buf) =>
@@ -301,11 +300,11 @@ class InstanceHandler[IO](proc: Process[IO],
     pkts
   }
 
-  protected def fromPkts(pkts: Seq[DatagramPacket]): Seq[(ProcessID, ByteBuf)] = {
-    val msgs = pkts.map( pkt => {
+  protected def fromPkts(pkts: Seq[DatagramPacket]): Map[ProcessID, ByteBuf] = {
+    val msgs = pkts.foldLeft(Map.empty[ProcessID, ByteBuf])( (acc, pkt) => {
       val src = grp.inetToId(pkt.sender)
       val buf = pkt.content
-      (src, buf)
+      acc + (src -> buf)
     })
     msgs
   }

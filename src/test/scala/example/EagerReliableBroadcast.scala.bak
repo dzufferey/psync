@@ -32,17 +32,17 @@ class EagerReliableBroadcast extends Algorithm[BroadcastIO] {
       
         type A = Int
 
-        def send: Set[(Int,ProcessID)] = {
+        def send: Map[ProcessID,Int] = {
           if (x.isDefined) broadcast(x.get) else Set.empty
         }
 
-        def update(mailbox: Set[(Int, ProcessID)]) {
+        def update(mailbox: Map[ProcessID,Int]) {
           if (x.isDefined) {
             callback.deliver(x.get)
             terminate
           } else {
             if (!mailbox.isEmpty) {
-              x <~ Some(mailbox.head._1)
+              x <~ Some(mailbox.head._2)
             } else if (r > 10) { //crash before delivering
               terminate
             }

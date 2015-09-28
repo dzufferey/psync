@@ -1,6 +1,7 @@
 package example
 
 import round._
+import round.Time._
 import round.runtime._
 import round.macros.Macros._
 
@@ -16,7 +17,7 @@ class EpsilonConsensus(f: Int, epsilon: Double) extends Algorithm[RealConsensusI
   import SpecHelper._
 
   val x = new LocalVariable[Double](0.0)
-  val maxR = new LocalVariable[Int](0)
+  val maxR = new LocalVariable[Time](new Time(0))
   val halted = new LocalVariable[Map[ProcessID, Double]](Map())
   val callback = new LocalVariable[RealConsensusIO](null)
 
@@ -48,7 +49,7 @@ class EpsilonConsensus(f: Int, epsilon: Double) extends Algorithm[RealConsensusI
           sel.reduce(_ + _) / sel.size
         }
        
-        def send: Set[((Double, Boolean),ProcessID)] = {
+        def send: Map[Process,(Double, Boolean)] = {
           if (r <= maxR) {
             broadcast( (x: Double) -> false )
           } else {
@@ -56,9 +57,9 @@ class EpsilonConsensus(f: Int, epsilon: Double) extends Algorithm[RealConsensusI
           }
         }
        
-        def update(mailbox: Set[((Double, Boolean), ProcessID)]) {
-          val V = mailbox.toSeq.map(_._1._1) ++ halted.values
-          halted <~ halted ++ mailbox.filter(_._1._2).map( m => m._2 -> m._1._1 )
+        def update(mailbox: Map[Process,(Double, Boolean)]) {
+          val V = mailbox.toSeq.map(_._2._1) ++ halted.values
+          halted <~ halted ++ mailbox.filter(_._2._2).map( m => m._2 -> m._2._1 )
           if (r == 0) {
             //assert(mailbox.size >= n - f, mailbox.size)
             val r1 = math.log(diff(V) / epsilon) / math.log(c(n-3*f, 2*f))

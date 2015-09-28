@@ -1,6 +1,7 @@
 package example
 
 import round._
+import round.Time._
 import round.macros.Macros._
 
 abstract class BConsensusIO {
@@ -17,7 +18,7 @@ class LastVoting2B extends Algorithm[BConsensusIO] {
   //variables
   val phase = new LocalVariable[Int](0)
   val x = new LocalVariable[Array[Byte]](Array())
-  val ts = new LocalVariable[Int](-1)
+  val ts = new LocalVariable[Time](-1)
   val ready = new LocalVariable[Boolean](false)
   val commit = new LocalVariable[Boolean](false)
   val vote = new LocalVariable[Array[Byte]](null)
@@ -40,26 +41,26 @@ class LastVoting2B extends Algorithm[BConsensusIO] {
     val rounds = Array[Round](
       rnd(new Round{
 
-        type A = (Array[Byte], Int)
+        type A = (Array[Byte], Time)
 
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         def coord(phi: Int): ProcessID = new ProcessID(((phi + phase) % n).toShort)
 
-        def send(): Set[((Array[Byte], Int), ProcessID)] = {
-          Set((x: Array[Byte], ts: Int) -> coord(r / 4))
+        def send(): Map[ProcessID,(Array[Byte], Time)] = {
+          Map( coord(r/4) -> (x: Array[Byte], ts: Time) )
         }
 
         override def expectedNbrMessages = if (id == coord(r/4)) n/2 + 1 else 0
 
-        def update(mailbox: Set[((Array[Byte], Int), ProcessID)]) {
+        def update(mailbox: Map[ProcessID,(Array[Byte], Time)]) {
           if (id == coord(r/4) && mailbox.size > n/2) {
             // let θ be one of the largest θ from 〈ν, θ〉received
             // vote(p) := one ν such that 〈ν, θ〉 is received
-            val nemp = mailbox.filter(!_._1._1.isEmpty)
+            val nemp = mailbox.filter(!_._2._1.isEmpty)
             if (nemp.isEmpty) {
               vote <~ Array[Byte]()
             } else {
-              vote <~ nemp.maxBy(_._1._2)._1._1
+              vote <~ nemp.maxBy(_._2._2)._2._1
             }
             commit <~ true
           }
@@ -74,20 +75,19 @@ class LastVoting2B extends Algorithm[BConsensusIO] {
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         def coord(phi: Int): ProcessID = new ProcessID(((phi + phase) % n).toShort)
 
-        def send(): Set[(Array[Byte], ProcessID)] = {
+        def send(): Map[ProcessID,Array[Byte]] = {
           if (id == coord(r/4) && commit) {
             broadcast(vote)
           } else {
-            Set.empty
+            Map.empty
           }
         }
 
         override def expectedNbrMessages = 1
 
-        def update(mailbox: Set[(Array[Byte], ProcessID)]) {
-          val mb2 = mailbox.filter( _._2 == coord(r/4) )
-          if (mb2.size > 0) {
-            x <~ mb2.head._1
+        def update(mailbox: Map[ProcessID,Array[Byte]]) {
+          if (mailbox contains coord(r/4)) {
+            x <~ mailbox(coord(r/4))
             ts <~ r/4
           }
         }
@@ -102,17 +102,17 @@ class LastVoting2B extends Algorithm[BConsensusIO] {
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         def coord(phi: Int): ProcessID = new ProcessID(((phi + phase) % n).toShort)
 
-        def send(): Set[(Int, ProcessID)] = {
+        def send(): Map[ProcessID,Int] = {
           if ( ts == (r/4) ) {
-            Set( 0 -> coord(r/4) )
+            Map( coord(r/4) -> 0 )
           } else {
-            Set.empty
+            Map.empty
           }
         }
 
         override def expectedNbrMessages = if (id == coord(r/4)) n/2 + 1 else 0
 
-        def update(mailbox: Set[(Int, ProcessID)]) {
+        def update(mailbox: Map[ProcessID,Int]) {
           if (id == coord(r/4) && mailbox.size > n/2) {
             ready <~ true
           }
@@ -127,21 +127,19 @@ class LastVoting2B extends Algorithm[BConsensusIO] {
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
         def coord(phi: Int): ProcessID = new ProcessID(((phi + phase) % n).toShort)
 
-        def send(): Set[(Array[Byte], ProcessID)] = {
+        def send(): Map[ProcessID,Array[Byte]] = {
           if (id == coord(r/4) && ready) {
             broadcast(vote)
           } else {
-            Set.empty
+            Map.empty
           }
         }
 
         override def expectedNbrMessages = 1 
 
-        def update(mailbox: Set[(Array[Byte], ProcessID)]) {
-          val mb2 = mailbox.filter( _._2 == coord(r/4) )
-          if (mb2.size > 0) {
-            val v = mb2.head._1
-            assert(mb2.size == 1)
+        def update(mailbox: Map[ProcessID,Array[Byte]]) {
+          if (mailbox contains coord(r/4)) {
+            val v = mailbox(coord(r/4))
             callback.decide(v)
             exitAtEndOfRound()
           }

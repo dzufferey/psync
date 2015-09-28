@@ -91,7 +91,7 @@ class FormulaExtractorSuite extends FunSuite {
     }
   }
 
-  test("Map ∀,∃,filter") {
+  test("Map ∀,∃") {
     val m = Map(1 -> 2)
     Macros.asFormula( m.forall{ case (k, v) => k == v } ) match {
       case ForAll(List(v1), Implies(In(v2, KeySet(Variable("m"))), Eq(v3, LookUp(Variable("m"), v4))))
@@ -103,6 +103,10 @@ class FormulaExtractorSuite extends FunSuite {
         if v1 == v2 && v2 == v3 && v3 == v4 => ()
       case other => sys.error("unexpected: " + other)
     }
+  }
+
+  test("Map filter") {
+    val m = Map(1 -> 2)
     val m2 = Map(1 -> 2)
     Macros.asFormula( m2 == m.filter{ case (k, v) => k == v } ) match {
       case And(Eq(Variable("m2"), v1),
@@ -147,6 +151,15 @@ class FormulaExtractorSuite extends FunSuite {
                Eq(LookUp(v2, IntLit(1)), IntLit(2))
            ) if v1 == v2 && v2 == v3 && v3 == v4 &&
                 e1 == e2 && e2 == e3 => ()
+      case other => sys.error("unexpected: " + other)
+    }
+  }
+
+  test("Time") {
+    Macros.asFormula( new round.Time( 42 ).toInt ) match {
+      case a1 @ Application(t1, List(a2 @ Application(t2, List(IntLit(42)))))
+        if t1 == round.logic.ReduceTime.toInt && t2 == round.logic.ReduceTime.fromInt &&
+           a1.tpe == Int && a2.tpe == round.logic.CL.timeType => ()
       case other => sys.error("unexpected: " + other)
     }
   }

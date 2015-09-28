@@ -34,6 +34,7 @@ class Impl(val c: Context) extends Lifting
     res2
   }
 
+  /*
   //def process(e: c.Expr[Process]): c.Expr[Process] = {
   def process[T <: Process[_]](e: c.Expr[T]): c.Expr[T] = {
     try {
@@ -47,11 +48,26 @@ class Impl(val c: Context) extends Lifting
         c.abort(c.enclosingPosition, e.toString)
     }
   }
+  */
   
-  def postprocessRound[T <: Round](e: c.Expr[T]): c.Expr[T] = {
+  def init/*[IO](io: c.Expr[IO])*/(e: c.Expr[Unit]): c.Expr[Unit] = {
+    try {
+      val res = extractInit(/*io.tree,*/ e.tree)
+      val res2 = c.Expr[Unit](q"$res")
+      //println(res2)
+      res2
+    } catch {
+      case t: Throwable =>
+        t.printStackTrace
+        c.warning(c.enclosingPosition, "when extracting initial state formula: " + t.toString)
+        e
+    }
+  }
+
+  def postprocessRound[A](e: c.Expr[Round[A]]): c.Expr[RtRound] = {
     try {
       val res = processRound(e.tree)
-      val res2 = c.Expr[T](q"$res")
+      val res2 = c.Expr[RtRound](q"$res")
       //println(res2)
       res2
     } catch {
@@ -61,11 +77,11 @@ class Impl(val c: Context) extends Lifting
     }
   }
 
-  def mkPhase(e: c.Expr[Round]*): c.Expr[Array[Round]] = {
+  def mkPhase(e: c.Expr[Round[_]]*): c.Expr[Array[RtRound]] = {
     try {
       val rounds = e.map( expr => processRound(expr.tree) )
-      val array = q"Array[Round](..$rounds)"
-      val res = c.Expr[Array[Round]](array)
+      val array = q"Array[RtRound](..$rounds)"
+      val res = c.Expr[Array[RtRound]](array)
       //println(res)
       res
     } catch {
@@ -82,11 +98,14 @@ object Macros {
   def f(e: Boolean): Formula = macro Impl.formula
   implicit def booleanToFormula(e: Boolean): Formula = macro Impl.formula
 
-  def p[T <: Process[_]](e: T): T = macro Impl.process[T]
+  //def p[T <: Process[_]](e: T): T = macro Impl.process[T]
   
-  def rnd[T <: Round](e: T): T = macro Impl.postprocessRound[T]
+  def i/*[IO](io: IO)*/(e: Unit): Unit = macro Impl.init//[IO]
+  
+  //def rnd[T <: Round](e: T): T = macro Impl.postprocessRound[T]
+  def rnd[A](e: Round[A]): RtRound = macro Impl.postprocessRound[A]
 
-  def phase(e: Round*): Array[Round] = macro Impl.mkPhase
+  def phase(e: Round[_]*): Array[RtRound] = macro Impl.mkPhase
 
   def asFormula[T](any: Any): Formula = macro Impl.any2Formula[T]
 

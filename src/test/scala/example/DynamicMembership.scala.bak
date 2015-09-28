@@ -66,26 +66,26 @@ class BasicConsensus extends Algorithm[MembershipIO] {
         type A = MembershipOp
         
         //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros?)
-        def mmor(mailbox: Set[(MembershipOp, ProcessID)]): MembershipOp = {
+        def mmor(mailbox: Map[ProcessID,MembershipOp]): MembershipOp = {
           //TODO requires not empty
-          val byValue = mailbox.groupBy(_._1)
+          val byValue = mailbox.groupBy(_._2)
           val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong, v) }
           m._1
         } ensuring { v1 =>
-          mailbox.map(_._1).forall( v2 =>
-            mailbox.filter(_._1 == v1).size > mailbox.filter(_._1 == v2).size || v1.compare(v2) <= 0
+          mailbox.map(_._2).forall( v2 =>
+            mailbox.filter(_._2 == v1).size > mailbox.filter(_._2 == v2).size || v1.compare(v2) <= 0
           )
         }
         
-        def send(): Set[(MembershipOp, ProcessID)] = {
+        def send(): Map[ProcessID,MembershipOp] = {
           broadcast(x) //macro for (x, All)
         }
 
-        def update(mailbox: Set[(MembershipOp, ProcessID)]) {
+        def update(mailbox: Map[ProcessID,MembershipOp]) {
           if (mailbox.size > 2*n/3) {
             val v = mmor(mailbox)
             x <~ v
-            if (mailbox.filter(msg => msg._1 == v).size > 2*n/3) {
+            if (mailbox.filter(msg => msg._2 == v).size > 2*n/3) {
               if (decision.isEmpty) {
                 callback.decide(v)
               }
