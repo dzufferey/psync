@@ -32,7 +32,8 @@ object ReduceOrdered {
 
 
   def apply(f: Formula): Formula = {
-    ???
+    Logger("ReduceOrdered", Warning, "TODO ReduceOrdered not yet implemented.")
+    f
   }
 
   def apply(fs: List[Formula]): List[Formula] = fs.map(apply)
