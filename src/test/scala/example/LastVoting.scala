@@ -5,13 +5,13 @@ import round.Time._
 import round.formula._
 import round.macros.Macros._
 
-class LastVoting2 extends Algorithm[ConsensusIO, LV2Process] {
+class LastVoting extends Algorithm[ConsensusIO, LVProcess] {
 
   import SpecHelper._
 
   val V = new Domain[Int]
   
-  def coord(phi: Int): LV2Process = sys.error("for spec only")
+  def coord(phi: Int): LVProcess = sys.error("for spec only")
 
   val spec = new Spec {
     val livenessPredicate = List[Formula](
@@ -65,10 +65,10 @@ class LastVoting2 extends Algorithm[ConsensusIO, LV2Process] {
     )
   }
   
-  def process = new LV2Process()
+  def process = new LVProcess()
 }
   
-class LV2Process extends Process[ConsensusIO]{
+class LVProcess extends Process[ConsensusIO]{
 
   //variables
   var x = 0
@@ -94,13 +94,7 @@ class LV2Process extends Process[ConsensusIO]{
   }
 
   val rounds = phase(
-    new Round{
-
-      type A = (Int, Time)
-
-      //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
-      //rotating coordinator
-      //def coord(phi: Int): ProcessID = new ProcessID((phi % n).toShort)
+    new Round[(Int,Time)]{
 
       def send(): Map[ProcessID,(Int, Time)] = {
         Map(coord(r/4) -> (x, ts))
@@ -121,13 +115,7 @@ class LV2Process extends Process[ConsensusIO]{
 
     },
 
-    new Round{
-
-      type A = Int
-
-      //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
-      //rotating coordinator
-      //def coord(phi: Int): ProcessID = new ProcessID((phi % n).toShort)
+    new Round[Int]{
 
       def send(): Map[ProcessID,Int] = {
         if (id == coord(r/4) && commit) {
@@ -149,14 +137,7 @@ class LV2Process extends Process[ConsensusIO]{
 
     },
 
-    new Round{
-
-      //place holder for ACK
-      type A = Int
-
-      //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
-      //rotating coordinator
-      //def coord(phi: Int): ProcessID = new ProcessID((phi % n).toShort)
+    new Round[Int]{
 
       def send(): Map[ProcessID,Int] = {
         if ( ts == (r/4) ) {
@@ -176,13 +157,7 @@ class LV2Process extends Process[ConsensusIO]{
 
     },
 
-    new Round{
-
-      type A = Int
-
-      //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
-      //rotating coordinator
-      //def coord(phi: Int): ProcessID = new ProcessID((phi % n).toShort)
+    new Round[Int]{
 
       def send(): Map[ProcessID, Int] = {
         if (id == coord(r/4) && ready) {

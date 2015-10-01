@@ -20,6 +20,7 @@
 - accessing members of outer class inside an inner class
     * check if fixed in 2.11.6 (with the right untypcheck) or report macro bug about it
 - runtime 
+    * limit the scope of TerminateInstance in the Runtime: should noe escape the Round
     * reduce number of threads, improve pooling:
         - could we use ForkJoinTask as queue of thing to do (instead of the current queue of message)
           a new task join on the previous task (do we need locking to avoid weak memory model problem, TODO make some test)

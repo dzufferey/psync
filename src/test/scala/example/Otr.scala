@@ -65,22 +65,6 @@ class OtrProcess(afterDecision: Int) extends Process[ConsensusIO]{
         }
       }
 
-      protected def serialize(payload: Int, out: _root_.io.netty.buffer.ByteBuf) = {
-        out.writerIndex(out.writerIndex().$plus(_root_.round.runtime.Tag.size));
-        out.writeInt(payload)
-      }
-
-      protected def deserialize(in: _root_.io.netty.buffer.ByteBuf): Int = try {
-        in.readerIndex(in.readerIndex().$plus(_root_.round.runtime.Tag.size));
-        in.readInt()
-      } catch {
-        case (e @ (_: Throwable)) => {
-          Console.err.println("error while deserializing Int");
-          throw e
-        }
-      }
-
-
     }
   )
 
