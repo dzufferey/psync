@@ -6,55 +6,55 @@ import round.macros.Macros._
 
 class CgolIO(val id: Int, val rows: Int, val cols: Int, val init: Boolean) { }
 
-class ConwayGameOfLife extends Algorithm[CgolIO] {
+class CgolProcess extends Process[CgolIO] {
   
-  import VarHelper._
-  import SpecHelper._
   import ConwayGameOfLife._
 
-  val alive = new LocalVariable[Boolean](false)
-  val row = new LocalVariable[Int](0)
-  val col = new LocalVariable[Int](0)
-  val neighbours = new LocalVariable[Set[ProcessID]](Set.empty)
+  var alive = false
+  var row = 0
+  var col = 0
+  var neighbours = Set.empty[ProcessID]
+
+  def init(io: CgolIO) = i{
+    alive = io.init
+    row = io.id / io.cols
+    col = io.id % io.cols
+    neighbours = getNeighbours(io.rows, io.cols, io.id)
+  }
+
+  val rounds = phase(
+    new Round[Boolean]{
+    
+      def send: Map[ProcessID,Boolean] = {
+        neighbours.map( _ -> (alive: Boolean) ).toMap
+      }
+
+      def update(mailbox: Map[ProcessID,Boolean]) {
+        val aliveNeighbours = mailbox.filter(_._2).size
+        if (alive) {
+          if (aliveNeighbours != 2 && aliveNeighbours != 3) {
+            alive = false
+          }
+        } else {
+          if (aliveNeighbours == 3) {
+            alive = true
+          }
+        }
+        println("replica: "+id.id+","+r+" ("+(row:Int)+","+(col: Int)+") is " + (if(alive) "alive" else "dead"))
+        Thread.sleep(1000)
+      }
+
+    }
+  )
+
+}
+
+class ConwayGameOfLife extends Algorithm[CgolIO,CgolProcess] {
+  
   val spec = TrivialSpec
 
+  def process = new CgolProcess()
 
-  def process = p(new Process[CgolIO]{
-
-    def init(io: CgolIO) {
-      alive <~ io.init
-      row <~ io.id / io.cols
-      col <~ io.id % io.cols
-      neighbours <~ getNeighbours(io.rows, io.cols, io.id)
-    }
-
-    val rounds = phase(
-      new Round{
-      
-        type A = Boolean
-
-        def send: Map[ProcessID,Boolean] = {
-          neighbours.map( _ -> (alive: Boolean) ).toMap
-        }
-
-        def update(mailbox: Map[ProcessID,Boolean]) {
-          val aliveNeighbours = mailbox.filter(_._2).size
-          if (alive) {
-            if (aliveNeighbours != 2 && aliveNeighbours != 3) {
-              alive <~ false
-            }
-          } else {
-            if (aliveNeighbours == 3) {
-              alive <~ true
-            }
-          }
-          println("replica: "+id.id+","+r+" ("+(row:Int)+","+(col: Int)+") is " + (if(alive) "alive" else "dead"))
-          Thread.sleep(1000)
-        }
-
-      }
-    )
-  })
 }
 
 //utils about neighbours overlay
@@ -103,7 +103,7 @@ object CgolRunner extends RTOptions {
   
   val usage = "..."
   
-  var rt: RunTime[CgolIO] = null
+  var rt: Runtime[CgolIO,CgolProcess] = null
 
   def defaultHandler(msg: Message) {
     msg.release
@@ -114,7 +114,7 @@ object CgolRunner extends RTOptions {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
     val alg = new ConwayGameOfLife
-    rt = new RunTime(alg, this, defaultHandler(_))
+    rt = new Runtime(alg, this, defaultHandler(_))
     rt.startService
 
     val io = new CgolIO(id, rows, cols, scala.util.Random.nextBoolean)
@@ -133,4 +133,5 @@ object CgolRunner extends RTOptions {
       }
     }
   )
+
 }

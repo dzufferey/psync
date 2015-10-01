@@ -39,70 +39,67 @@ abstract class MembershipIO {
   def decide(value: MembershipOp): Unit
 }
 
-//this is the OTR but for MembershipOp
-class BasicConsensus extends Algorithm[MembershipIO] {
+class MConsensusProcess extends Process[MembershipIO] {
 
-  import VarHelper._
-  import SpecHelper._
+  var x: MembershipOp = null
+  var decision: Option[MembershipOp] = None //TODO as ghost
+  var after = 1
+  var callback: MembershipIO = null
+    
+  def init(io: MembershipIO) = i{
+    callback = io
+    x = io.initialValue
+  }
 
-  val x = new LocalVariable[MembershipOp](null)
-  val decision = new LocalVariable[Option[MembershipOp]](None) //TODO as ghost
-  val after = new LocalVariable[Int](1)
-  //
-  val callback = new LocalVariable[MembershipIO](null)
-  
-  val spec = TrivialSpec //TODO
-  
-  def process = p(new Process[MembershipIO] {
+  val rounds = phase(
+    new Round[MembershipOp]{
 
-    def init(io: MembershipIO) {
-      callback <~ io
-      x <~ io.initialValue
-    }
-
-    val rounds = phase(
-      new Round{
-
-        type A = MembershipOp
-        
-        //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros?)
-        def mmor(mailbox: Map[ProcessID,MembershipOp]): MembershipOp = {
-          //TODO requires not empty
-          val byValue = mailbox.groupBy(_._2)
-          val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong, v) }
-          m._1
-        } ensuring { v1 =>
-          mailbox.map(_._2).forall( v2 =>
-            mailbox.filter(_._2 == v1).size > mailbox.filter(_._2 == v2).size || v1.compare(v2) <= 0
-          )
-        }
-        
-        def send(): Map[ProcessID,MembershipOp] = {
-          broadcast(x) //macro for (x, All)
-        }
-
-        def update(mailbox: Map[ProcessID,MembershipOp]) {
-          if (mailbox.size > 2*n/3) {
-            val v = mmor(mailbox)
-            x <~ v
-            if (mailbox.filter(msg => msg._2 == v).size > 2*n/3) {
-              if (decision.isEmpty) {
-                callback.decide(v)
-              }
-              decision <~ Some(v);
-            }
-            //terminate after decision
-            if (decision.isDefined) {
-              after <~ after -1
-              if (after < 0)
-                terminate()
-            }
-          }
-
+      //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros?)
+      def mmor(mailbox: Map[ProcessID,MembershipOp]): MembershipOp = {
+        //TODO requires not empty
+        val byValue = mailbox.groupBy(_._2)
+        val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong, v) }
+        m._1
+      } ensuring { v1 =>
+        mailbox.forall{ case (k, v2) =>
+          mailbox.filter(_._2 == v1).size > mailbox.filter(_._2 == v2).size || v1.compare(v2) <= 0
         }
       }
-    )
-  })
+      
+      def send(): Map[ProcessID,MembershipOp] = {
+        broadcast(x) //macro for (x, All)
+      }
+
+      def update(mailbox: Map[ProcessID,MembershipOp]) {
+        if (mailbox.size > 2*n/3) {
+          val v = mmor(mailbox)
+          x = v
+          if (mailbox.filter{ case (p,v2) => v == v2 }.size > 2*n/3) {
+            if (decision.isEmpty) {
+              callback.decide(v)
+            }
+            decision = Some(v);
+          }
+          //terminate after decision
+          if (decision.isDefined) {
+            after = after -1
+            if (after < 0)
+              terminate()
+          }
+        }
+
+      }
+    }
+  )
+  
+}
+
+//this is the OTR but for MembershipOp
+class MConsensus extends Algorithm[MembershipIO,MConsensusProcess] {
+
+  val spec = TrivialSpec //TODO
+  
+  def process = new MConsensusProcess()
 
 }
 
@@ -392,7 +389,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
   // setup //
   ///////////
 
-  private var rt: round.runtime.RunTime[MembershipIO] = null
+  private var rt: round.runtime.Runtime[MembershipIO,MConsensusProcess] = null
 
   def setup() {
     val isMaster = masterPort.isEmpty && masterAddress.isEmpty
@@ -404,7 +401,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
       } else {
         List(Replica(new ProcessID(0), masterAddress.get, Set(masterPort.get)))
       }
-    rt = new round.runtime.RunTime[MembershipIO](new BasicConsensus, this, defaultHandler(_))
+    rt = new round.runtime.Runtime(new MConsensus, this, defaultHandler(_))
     rt.startService
     view = rt.directory
     if (isMaster) {

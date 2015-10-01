@@ -34,9 +34,9 @@ class LockManager(self: Short,
   
   private val semaphore = new Semaphore(1, true) //at most one consensus at the time
 
-  private val consensus = {
-    if (Main.lv) new RunTime(new LastVoting2, Main, defaultHandler(_))
-    else new RunTime(new OTR2, Main, defaultHandler(_))
+  private val consensus: Runtime[ConsensusIO,_] = {
+    if (Main.lv) new Runtime(new LastVoting, Main, defaultHandler(_))
+    else new Runtime(new OTR, Main, defaultHandler(_))
   }
 
   private def onDecideOther(decision: Option[ProcessID]) {

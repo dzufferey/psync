@@ -29,32 +29,78 @@ abstract class IO {
   def decide(value: Int): Unit
 }
 
-class OTR extends Algorithm[IO] {
+class OtrProcess extends Process[IO]{
 
-  val x = new LocalVariable[Int](0)
+  var x = 0
+  var callback: IO = null
+    
+  def init(io: IO) = i{
+    callback = io
+    x = io.initialValue
+  }
 
-  def process(id: ProcessID, io: IO) = p(new Process(id) {
-            
-    def init(io: IO) {
-      x <~ io.initialValue
+  val rounds = phase(
+    new Round[Int]{
+
+      def send(): Map[ProcessID,Int] = {
+        broadcast(x) //macro for (x, All)
+      }
+
+      def update(mailbox: Map[ProcessID,Int]) {
+        if (mailbox.size > 2*n/3) {
+          x = minMostOftenReceived(mailbox)
+          if (mailbox.filter{ case (k, msg) => msg == x }.size > 2*n/3) {
+            callback.decide(v)
+            terminate()
+          }
+        }
+      }
+
     }
+  )
 
-    val rounds = phase(new Round{
+}
+```
 
-        type A = Int
-       
-        def send(): Set[(Int, ProcessID)] =
-          broadcast(x)
-       
-        def update(mailbox: Set[(Int, ProcessID)]) {
-          if (mailbox.size > 2*n/3) {
-            val v = minMostOftenReceived(mailbox)
-            x <~ v
-            if (mailbox.filter(msg => msg._1 == v).size > 2*n/3)
-              io.decide(v)
-        } }
+The Process are then wrapped in an `Algorithm` which may also contain a specification.
+For the one third rule algorithm that solves the consensus problem, it may look like:
+```scala
+class OTR extends Algorithm[IO, OtrProcess] {
 
-})})}
+  import SpecHelper._
+
+  val V = new Domain[Int]
+
+  val spec = new Spec {
+    val goodRound: Formula = S.exists( s => P.forall( p => p.HO == s && s.size > 2*n/3 ))
+    val livenessPredicate = List( goodRound, goodRound )
+    val invariants = List[Formula](
+      (    P.forall( i => !i.decided )
+        || V.exists( v => {
+             val A = P.filter( i => i.x == v);
+             A.size > 2*n/3 && P.forall( i => i.decided ==> (i.decision == v))
+           })
+      ) && P.forall( i => P.exists( j1 => i.x == init(j1.x) )),
+         V.exists( v => {
+            val A = P.filter( i => i.x == v);
+            A.size == (n: Int) && P.forall( i => i.decided ==> (i.decision == v))
+         })
+      && P.forall( i => P.exists( j1 => i.x == init(j1.x) )),
+      P.exists( j => P.forall( i => i.decided && i.decision == init(j.x)) )
+    )
+
+    val properties = List[(String,Formula)](
+      ("Termination",    P.forall( i => i.decided) ),
+      ("Agreement",      P.forall( i => P.forall( j => (i.decided && j.decided) ==> (i.decision == j.decision) ))),
+      ("Validity",       P.forall( i => i.decided ==> P.exists( j => init(j.x) == i.decision ))),
+      ("Integrity",      P.exists( j => P.forall( i => i.decided ==> (i.decision == init(j.x)) ))),
+      ("Irrevocability", P.forall( i => old(i.decided) ==> (i.decided && old(i.decision) == i.decision) ))
+    )
+  }
+  
+  def process = new OtrProcess
+
+}
 ```
 
 The client code that uses a such algorithm is:
@@ -95,7 +141,7 @@ Complete working examples are located in `src/test/scala/example`.
 Round is in development.
 
 Currently the runtime is fairly stable.
-However, we are still woking to improve the performance,
+However, we are still woking to improve the performance.
 
 The verfication part is in an early stages and currently only works on a small set of examples.
 Currently broken (while we move toward a more robust encoding of the mailbox w.r.t the cardinality constraints).

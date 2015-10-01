@@ -14,7 +14,7 @@ object ConsensusSelector {
         new OTR(after)
       } else new OTR()
     case "lv" => new LastVoting()
-    //case "slv" => new ShortLastVoting()
+    case "slv" => new ShortLastVoting()
     case other =>
       Logger.logAndThrow("ConsensusSelector", Error, "unknown algorithm: " + other)
   }
@@ -29,7 +29,7 @@ object ConsensusSelector {
         new Runtime(new OTR(after), ops, defaultHandler)
       } else new Runtime(new OTR(), ops, defaultHandler)
     case "lv" => new Runtime(new LastVoting(), ops, defaultHandler)
-    //case "slv" => new Runtime(new ShortLastVoting() ops, defaultHandler)
+    case "slv" => new Runtime(new ShortLastVoting(), ops, defaultHandler)
     case other =>
       Logger.logAndThrow("ConsensusSelector", Error, "unknown algorithm: " + other)
   }
