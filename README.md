@@ -32,6 +32,8 @@ abstract class IO {
 class OtrProcess extends Process[IO]{
 
   var x = 0
+  var decision = -1     // for the specification
+  var decided = false   // for the specification
   var callback: IO = null
     
   def init(io: IO) = i{
@@ -51,15 +53,10 @@ class OtrProcess extends Process[IO]{
           x = minMostOftenReceived(mailbox)
           if (mailbox.filter{ case (k, msg) => msg == x }.size > 2*n/3) {
             callback.decide(v)
+            decided = true
+            decision = v
             terminate()
-          }
-        }
-      }
-
-    }
-  )
-
-}
+} ) } } } }
 ```
 
 The Process are then wrapped in an `Algorithm` which may also contain a specification.
