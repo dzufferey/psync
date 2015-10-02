@@ -5,53 +5,50 @@ import round.runtime._
 import round.macros.Macros._
 
 //http://link.springer.com/chapter/10.1007%2F11535294_5
-class KSetEarlyStopping(t: Int, k: Int) extends Algorithm[ConsensusIO] {
-  
-  import VarHelper._
-  import SpecHelper._
+class KSetESProcess(t: Int, k: Int) extends Process[ConsensusIO] {
 
-  
-  val est = new LocalVariable[Int](0)
-  val canDecide = new LocalVariable[Boolean](false)
-  val lastNb = new LocalVariable[Int](0)
-  //
-  val callback = new LocalVariable[ConsensusIO](null)
+  var est = 0
+  var canDecide = false
+  var lastNb = 0
+  var callback: ConsensusIO = null
 
+  def init(io: ConsensusIO) = i{
+    canDecide = false
+    lastNb = n
+    est = io.initialValue
+    callback = io
+  }
+
+  val rounds = phase(
+    new Round[(Int, Boolean)]{
+    
+      def send: Map[ProcessID,(Int, Boolean)] = {
+        broadcast( (est: Int) -> (canDecide: Boolean) )
+      }
+
+      def update(mailbox: Map[ProcessID,(Int, Boolean)]) {
+        val currNb = mailbox.size
+        if (r > t/k || canDecide) {
+          callback.decide(est)
+          terminate
+        } else {
+          est = mailbox.map(_._2._1).min
+          canDecide = (mailbox.exists(_._2._2) || lastNb - currNb < k)
+          lastNb = currNb
+        }
+      }
+
+    }
+  )
+}
+
+
+class KSetEarlyStopping(t: Int, k: Int) extends Algorithm[ConsensusIO,KSetESProcess] {
+  
   val spec = TrivialSpec
 
-  def process = p(new Process[ConsensusIO]{
+  def process = new KSetESProcess(t, k)
 
-    def init(io: ConsensusIO) {
-      canDecide <~ false
-      lastNb <~ n
-      est <~ io.initialValue
-      callback <~ io
-    }
-
-    val rounds = phase(
-      new Round{
-      
-        type A = (Int, Boolean)
-
-        def send: Set[((Int, Boolean),ProcessID)] = {
-          broadcast( (est: Int) -> (canDecide: Boolean) )
-        }
-
-        def update(mailbox: Set[((Int, Boolean), ProcessID)]) {
-          val currNb = mailbox.size
-          if (r > t/k || canDecide) {
-            callback.decide(est)
-            terminate
-          } else {
-            est <~ mailbox.map(_._1._1).min
-            canDecide <~ (mailbox.exists(_._1._2) || lastNb - currNb < k)
-            lastNb <~ currNb
-          }
-        }
-
-      }
-    )
-  })
 }
 
 object KSetESRunner extends RTOptions {
@@ -66,7 +63,7 @@ object KSetESRunner extends RTOptions {
   
   val usage = "..."
   
-  var rt: RunTime[ConsensusIO] = null
+  var rt: Runtime[ConsensusIO,KSetESProcess] = null
 
   def defaultHandler(msg: Message) {
     msg.release
@@ -76,7 +73,7 @@ object KSetESRunner extends RTOptions {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
     val alg = new KSetEarlyStopping(t, k)
-    rt = new RunTime(alg, this, defaultHandler(_))
+    rt = new Runtime(alg, this, defaultHandler(_))
     rt.startService
 
     import scala.util.Random

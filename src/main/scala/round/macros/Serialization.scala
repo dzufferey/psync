@@ -50,7 +50,7 @@ trait Serialization {
   
   
   def picklingIO(tpt: Tree) = List(
-      q"""protected def serialize(payload: $tpt, out: _root_.io.netty.buffer.ByteBuf) {
+      q"""protected def serialize(payload: $tpt, out: _root_.io.netty.buffer.ByteBuf): Unit = {
         import scala.pickling._
         import scala.pickling.Defaults._
         import binary._

@@ -20,18 +20,47 @@ abstract class LatticeIO {
   def decide(value: Lattice.T): Unit
 }
 
-class LatticeAgreement extends Algorithm[LatticeIO] {
+class LatticeAgreementProcess extends Process[LatticeIO]{
+  
+  var active = true
+  var proposed = Lattice.bottom
+  var decision: Option[Lattice.T] = None //TODO as ghost
+  var callback: LatticeIO = null
+    
+  def init(io: LatticeIO) = i{
+    callback = io
+    active = true
+    proposed = io.initialValue
+  }
 
-  import VarHelper._
-  import SpecHelper._
+  val rounds = phase(
+    new Round[Lattice.T] {
+      
+      def send(): Map[ProcessID,Lattice.T] = {
+        broadcast(proposed)
+      }
+
+      def update(mailbox: Map[ProcessID,Lattice.T]) {
+        if (active) {
+          if (mailbox.filter{ case (k,v) => v == proposed}.size > n/2) {
+            callback.decide(proposed)
+            decision = Some(proposed)
+            active = false
+            terminate()
+          } else {
+            proposed = Lattice.join(proposed, mailbox.map(_._2).toSeq:_*)
+          }
+        }
+      }
+
+    }
+  )
+
+}
+
+class LatticeAgreement extends Algorithm[LatticeIO,LatticeAgreementProcess] {
 
   val AD  = new Domain[Lattice.T]
-
-  val active = new LocalVariable[Boolean](true)
-  val proposed = new LocalVariable[Lattice.T](Lattice.bottom)
-  val decision = new LocalVariable[Option[Lattice.T]](None) //TODO as ghost
-  //
-  val callback = new LocalVariable[LatticeIO](null)
 
   val spec = TrivialSpec //TODO
 
@@ -45,40 +74,7 @@ class LatticeAgreement extends Algorithm[LatticeIO] {
   Axiom("join-singleton", f( AD.forall( x => Lattice.join(x) == x) ))
   //TODO can we have a local axiomatization of join ? after all there is some idempotence property.
   
-  def process = p(new Process[LatticeIO] {
-
-    def init(io: LatticeIO) {
-      callback <~ io
-      active <~ true
-      proposed <~ io.initialValue
-    }
-    
-    val rounds = Array[Round](
-      rnd(new Round {
-        
-        type A = Lattice.T
-
-        def send(): Set[(Lattice.T, ProcessID)] = {
-          broadcast(proposed)
-        }
-
-        def update(mailbox: Set[(Lattice.T, ProcessID)]) {
-          if (active) {
-            if (mailbox.filter(_._1 == (proposed: Lattice.T)).size > n/2) {
-              callback.decide(proposed)
-              decision <~ Some(proposed)
-              active <~ false
-              terminate()
-            } else {
-              proposed <~ Lattice.join(proposed, mailbox.map(_._1).toSeq:_*)
-            }
-          }
-        }
-
-      })
-    )
-
-  })
+  def process = new LatticeAgreementProcess
 
 }
 
@@ -88,7 +84,7 @@ object LatticeRunner extends RTOptions {
   
   val usage = "..."
   
-  var rt: RunTime[LatticeIO] = null
+  var rt: Runtime[LatticeIO,LatticeAgreementProcess] = null
 
   def defaultHandler(msg: Message) {
     msg.release
@@ -98,7 +94,7 @@ object LatticeRunner extends RTOptions {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
     val alg = new LatticeAgreement()
-    rt = new RunTime(alg, this, defaultHandler(_))
+    rt = new Runtime(alg, this, defaultHandler(_))
     rt.startService
 
     import scala.util.Random

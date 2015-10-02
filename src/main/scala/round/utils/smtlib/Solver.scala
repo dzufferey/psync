@@ -189,6 +189,8 @@ class Solver( th: Theory,
     s match {
       case Eq => //has a special status
         ()
+      case Lt | Leq | Gt | Geq if params == List(Int) => //has a special status
+        ()
       case UnInterpretedFct(f, t, p) =>
         Logger.assert(t.isDefined, "smtlib", "declaring sym with unknown type: " + f)
         val name = Names.overloadedSymbol(s, params)

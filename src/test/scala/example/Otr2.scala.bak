@@ -60,26 +60,26 @@ class OTR2(afterDecision: Int = 2) extends Algorithm[ConsensusIO] {
         type A = Int
 
         //min most often received
-        def mmor(mailbox: Set[(Int, ProcessID)]): Int = {
-          val byValue = mailbox.groupBy(_._1)
+        def mmor(mailbox: Map[Process,Int]): Int = {
+          val byValue = mailbox.groupBy(_._2)
           import scala.math.Ordered._
           val m = byValue.minBy{ case (v, procs) => (-procs.size.toLong, v) }
           m._1
         } ensuring { v1 =>
-          mailbox.map(_._1).forall( v2 =>
-            mailbox.filter(_._1 == v1).size > mailbox.filter(_._1 == v2).size || v1 <= v2
+          mailbox.map(_._2).forall( v2 =>
+            mailbox.filter(_._2 == v1).size > mailbox.filter(_._2 == v2).size || v1 <= v2
           )
         }
 
-        def send(): Set[(Int, ProcessID)] = {
+        def send(): Map[ProcessID,Int] = {
           broadcast(x) //macro for (x, All)
         }
 
-        def update(mailbox: Set[(Int, ProcessID)]) {
+        def update(mailbox: Map[ProcessID,Int]) {
           if (mailbox.size > 2*n/3) {
             val v = mmor(mailbox)
             x <~ v
-            if (mailbox.filter(msg => msg._1 == v).size > 2*n/3) {
+            if (mailbox.filter(msg => msg._2 == v).size > 2*n/3) {
               if (decision.isEmpty) {
                 callback.decide(v)
               }

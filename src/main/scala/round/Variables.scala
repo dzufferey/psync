@@ -1,14 +1,7 @@
 package round
 
-trait Variables[IO] {
-  self: Algorithm[IO] =>
-
-  //placeholder for quantifying over some domain
-  class Domain[A] {
-    def forall(fct: A => Boolean): Boolean = sys.error("only for verification purpose, removed by macros")
-    def exists(fct: A => Boolean): Boolean = sys.error("only for verification purpose, removed by macros")
-    def filter(fct: A => Boolean): Set[A] =  sys.error("only for verification purpose, removed by macros")
-  }
+trait Variables[IO, P <: Process[IO]] {
+  self: Algorithm[IO, P] =>
 
   abstract class Variable[A] {
     def value: A
@@ -17,7 +10,6 @@ trait Variables[IO] {
   class GlobalVariable[A](val init: A) extends Variable[A] {
     def value = init
   }
-
 
   class LocalVariable[A](val default: A) extends Variable[A] {
   //private var value = default
@@ -36,15 +28,6 @@ trait Variables[IO] {
     def value: A = sys.error("only for verification purpose, removed by macros")
     override def equals(any: Any) = sys.error("only for verification purpose, removed by macros")
     def apply(p: ProcessID): A = sys.error("only for verification purpose, removed by macros")
-  }
-
-
-  object VarHelper {
-
-    implicit def getter[A](v: Variable[A]): A = v.value
-    def init[T <: Variable[_]](v: T): T = sys.error("only for verification purpose, removed by macros")
-    def old[T <: Variable[_]](v: T): T = sys.error("only for verification purpose, removed by macros")
-
   }
 
 }

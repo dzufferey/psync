@@ -9,129 +9,116 @@ abstract class MlvIO{
   def decide(value: Option[Int]): Unit
 }
 
-class MultiLastVoting extends Algorithm[MlvIO] {
+class MlvProcess extends Process[MlvIO] {
+  
+  var x: Option[Int] = None
+  var ready = false
+  var coord: Option[ProcessID] = None
+  var callback: MlvIO = null
 
-  import VarHelper._
-  import SpecHelper._
+  def init(io: MlvIO) = i{
+    callback = io
+    if (io.initialValue.isLeft) {
+      coord = Some(io.initialValue.left.get)
+      x = None
+    } else {
+      x = Some(io.initialValue.right.get)
+    }
+    ready = false
+  }
 
-  val V = new Domain[Int]
+  val rounds = phase(
+    new Round[Int]{
 
-  //variables
-  val x = new LocalVariable[Option[Int]](None)
-  val ready = new LocalVariable[Boolean](false)
-  val coord = new LocalVariable[Option[ProcessID]](None)
-  //
-  val callback = new LocalVariable[MlvIO](null)
+      def send(): Map[ProcessID,Int] = {
+        if (x.isDefined) {
+          broadcast(x.get)
+        } else {
+          Map.empty
+        }
+      }
+
+      override def expectedNbrMessages = if (r.toInt == 0) 1 else n
+
+      def pickCoord(mailbox: Map[ProcessID, Int]): (ProcessID, Int) = {
+        if (coord.isDefined && mailbox.contains(coord.get)) {
+          coord.get -> mailbox(coord.get)
+        } else {
+          mailbox.minBy(_._1.id)
+        }
+      }
+
+      def update(mailbox: Map[ProcessID,Int]) {
+        //select by given coord
+        if (mailbox.size > 0) {
+          val vp = pickCoord(mailbox)
+          coord = Some(vp._1)
+          val v = vp._2
+          assert(x.getOrElse(v) == v, "x = " + x + ", v = " + v)
+          x = Some(v)
+        }
+      }
+
+    },
+
+    new Round[Int]{
+
+      def send(): Map[ProcessID,Int] = {
+        if ( x.isDefined && coord.isDefined ) {
+          Map( coord.get -> x.get )
+        } else {
+          Map.empty
+        }
+      }
+
+      override def expectedNbrMessages =
+        if (Some(id) == coord) n/2 + 1
+        else 0
+
+      def update(mailbox: Map[ProcessID,Int]) {
+        if (mailbox.size > n/2) {
+          ready = true
+        }
+      }
+
+    },
+
+    new Round[Int]{
+
+      def send(): Map[ProcessID,Int] = {
+        if (ready) {
+          broadcast(x.get)
+        } else {
+          Map.empty
+        }
+      }
+
+      override def expectedNbrMessages = 1 
+
+      def update(mailbox: Map[ProcessID,Int]) {
+        if (mailbox.size > 0) {
+          assert(mailbox.size == 1)
+          val v = mailbox.head._2
+          callback.decide(Some(v))
+          exitAtEndOfRound()
+        } else if (r > 30) {
+          callback.decide(None) //leader probably crashed, need to start an election
+          exitAtEndOfRound()
+        }
+        ready = false
+        coord = None
+      }
+
+    }
+
+  )
+
+}
+
+class MultiLastVoting extends Algorithm[MlvIO,MlvProcess] {
 
   val spec = TrivialSpec
   
-  def process = p(new Process[MlvIO]{
-      
-    def init(io: MlvIO) {
-      callback <~ io
-      if (io.initialValue.isLeft) {
-        coord <~ Some(io.initialValue.left.get)
-        x <~ None
-      } else {
-//      coord <~ Some(id)
-        x <~ Some(io.initialValue.right.get)
-      }
-      ready <~ false
-    }
-
-    val rounds = Array[Round](
-      rnd(new Round{
-
-        type A = Int
-
-        def send(): Set[(Int, ProcessID)] = {
-          if (x.isDefined) {
-            broadcast(x.get)
-          } else {
-            Set.empty
-          }
-        }
-
-        override def expectedNbrMessages = if (r == 0) 1 else n
-
-        def pickCoord(mailbox: Set[(Int, ProcessID)]): (Int, ProcessID) = {
-          if (coord.isDefined && mailbox.exists(_._2 == coord.get)) {
-            mailbox.find(_._2 == coord.get).get
-          } else {
-            mailbox.minBy(_._2.id)
-          }
-        }
-
-        def update(mailbox: Set[(Int, ProcessID)]) {
-          //select by given coord
-          if (mailbox.size > 0) {
-            val vp = pickCoord(mailbox)
-            coord <~ Some(vp._2)
-            val v = vp._1
-            assert(x.getOrElse(v) == v, "x = " + (x: Option[Int]) + ", v = " + v)
-            x <~ Some(v)
-          }
-        }
-
-      }),
-
-      rnd(new Round{
-
-        //place holder for ACK
-        type A = Int
-
-        def send(): Set[(Int, ProcessID)] = {
-          if ( x.isDefined && coord.isDefined ) {
-            Set( x.get -> coord.get )
-          } else {
-            Set.empty
-          }
-        }
-
-        override def expectedNbrMessages =
-          if (Some(id) == (coord: Option[ProcessID])) n/2 + 1
-          else 0
-
-        def update(mailbox: Set[(Int, ProcessID)]) {
-          if (mailbox.size > n/2) {
-            ready <~ true
-          }
-        }
-
-      }),
-
-      rnd(new Round{
-
-        type A = Int
-
-        def send(): Set[(Int, ProcessID)] = {
-          if (ready) {
-            broadcast(x.get)
-          } else {
-            Set.empty
-          }
-        }
-
-        override def expectedNbrMessages = 1 
-
-        def update(mailbox: Set[(Int, ProcessID)]) {
-          if (mailbox.size > 0) {
-            assert(mailbox.size == 1)
-            val v = mailbox.head._1
-            callback.decide(Some(v))
-            exitAtEndOfRound()
-          } else if (r > 30) {
-            callback.decide(None) //leader probably crashed, need to start an election
-            exitAtEndOfRound()
-          }
-          ready <~ false
-          coord <~ None
-        }
-
-      })
-
-    )
-
-  })
+  def process = new MlvProcess
 
 }

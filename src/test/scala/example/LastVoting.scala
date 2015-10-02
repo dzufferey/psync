@@ -1,200 +1,193 @@
 package example
 
 import round._
+import round.Time._
 import round.formula._
 import round.macros.Macros._
 
-class LastVoting extends Algorithm[ConsensusIO] {
+class LastVoting extends Algorithm[ConsensusIO, LVProcess] {
 
-  import VarHelper._
   import SpecHelper._
 
   val V = new Domain[Int]
-
-  //variables
-  val x = new LocalVariable[Int](0)
-  val ts = new LocalVariable[Int](-1)
-  val ready = new LocalVariable[Boolean](false)
-  val commit = new LocalVariable[Boolean](false)
-  val vote = new LocalVariable[Int](0)
-  val decision = new LocalVariable[Int](-1) //TODO as ghost
-  val decided = new LocalVariable[Boolean](false)
-  //
-  val callback = new LocalVariable[ConsensusIO](null)
-
-
-  //FIXME once the macro issue is sorted out ...
-  //rotating coordinator
-  def coord(phi: Int): ProcessID = new ProcessID((phi % n).toShort)
+  
+  def coord(phi: Int): LVProcess = sys.error("for spec only")
 
   val spec = new Spec {
-      val livenessPredicate = List[Formula](
-        P.exists( p => P.forall( q => p == coord(r/4) && HO(p).contains(q) && HO(p).size > n/2 ) )
-      )
-
-      val noDecision: Formula = P.forall( i => !decided(i) && !ready(i))
-
-      val majority: Formula =
-        V.exists( v => V.exists( t => {
-            val A = P.filter( i => ts(i) >= t )
-            A.size > n/2 &&
-            t <= r/4 &&
-            P.forall( i => (A.contains(i) ==> (x(i) == v) ) &&
-                           (decided(i) ==> (decision(i) == v) ) &&
-                           (commit(i) ==> (vote(i) == v) ) &&
-                           (ready(i) ==> (vote(i) == v) ) &&
-                           ((ts(i) == r/4) ==> commit(coord(r/4)) ))
-        }) )
-
-      val keepInit: Formula = P.forall( i => P.exists( j1 => x(i) == init(x)(j1) ))
-
-      val safetyInv = And(keepInit, Or(noDecision, majority))
-
-      val invariants = List[Formula](
-        safetyInv,
-        P.exists( j => P.forall( i => decided(i) && decision(i) == init(x)(j)) )
-      )
-      
-      override val roundInvariants = List(
-        List[Formula](
-          true,
-          P.exists( i => commit(i) )
-        ),
-        List[Formula](
-          true,
-          P.exists( i => commit(i) && P.forall( j => ts(j) == r/4 && x(j) == vote(i) ))
-        ),
-        List[Formula](
-          true,
-          P.exists( i => commit(i) && ready(i) && P.forall( j => ts(j) == r/4 && x(j) == vote(i) ))
-        )
-      )
-
-      val properties = List[(String,Formula)](
-        ("Termination",    P.forall( i => decided(i)) ),
-        ("Agreement",      P.forall( i => P.forall( j => (decided(i) && decided(j)) ==> (decision(i) == decision(j)) ))),
-        ("Validity",       P.forall( i => decided(i) ==> P.exists( j => init(x)(j) == decision(i) ))),
-        ("Integrity",      P.exists( j => P.forall( i => decided(i) ==> (decision(i) == init(x)(j)) ))),
-        ("Irrevocability", P.forall( i => old(decided)(i) ==> (decided(i) && old(decision)(i) == decision(i)) ))
-      )
-  }
-  
-  def process = p(new Process[ConsensusIO]{
-      
-    def init(io: ConsensusIO) {
-      callback <~ io
-      x <~ io.initialValue
-      ts <~ -1
-      decided <~ false 
-      ready <~ false
-      commit <~ false
-    }
-
-    val rounds = phase(
-      new Round{
-
-        type A = (Int, Int)
-
-        def send(): Set[((Int, Int), ProcessID)] = {
-          Set((x: Int, ts: Int) -> coord(r / 4))
-        }
-
-        override def expectedNbrMessages = if (id == coord(r/4)) n/2 + 1 else 0
-
-        def update(mailbox: Set[((Int, Int), ProcessID)]) {
-          if (id == coord(r/4) && mailbox.size > n/2) {
-            // let θ be one of the largest θ from 〈ν, θ〉received
-            // vote(p) := one ν such that 〈ν, θ〉 is received
-            vote <~ mailbox.maxBy(_._1._2)._1._1
-            commit <~ true
-          }
-        }
-
-      },
-
-      new Round{
-
-        type A = Int
-
-        def send(): Set[(Int, ProcessID)] = {
-          if (id == coord(r/4) && commit) {
-            broadcast(vote)
-          } else {
-            Set.empty
-          }
-        }
-
-        override def expectedNbrMessages = 1
-
-        def update(mailbox: Set[(Int, ProcessID)]) {
-          val mb2 = mailbox.filter( _._2 == coord(r/4) )
-          if (mb2.size > 0) {
-            x <~ mb2.head._1
-            ts <~ r/4
-          }
-        }
-
-      },
-
-      new Round{
-
-        //place holder for ACK
-        type A = Int
-
-        def send(): Set[(Int, ProcessID)] = {
-          if ( ts == (r/4) ) {
-            Set( (x: Int) -> coord(r/4) )
-          } else {
-            Set.empty
-          }
-        }
-
-        override def expectedNbrMessages = if (id == coord(r/4)) n/2 + 1 else 0
-
-        def update(mailbox: Set[(Int, ProcessID)]) {
-          if (id == coord(r/4) && mailbox.size > n/2) {
-            ready <~ true
-          }
-        }
-
-      },
-
-      new Round{
-
-        type A = Int
-
-        def send(): Set[(Int, ProcessID)] = {
-          if (id == coord(r/4) && ready) {
-            broadcast(vote)
-          } else {
-            Set.empty
-          }
-        }
-
-        override def expectedNbrMessages = 1 
-
-        def update(mailbox: Set[(Int, ProcessID)]) {
-          val mb2 = mailbox.filter( _._2 == coord(r/4) )
-          if (mb2.size > 0) {
-            val v = mb2.head._1
-            if (!decided) {
-              callback.decide(v)
-              decision <~ v
-              decided <~ true
-            }
-          }
-          ready <~ false
-          commit <~ false
-          if ((decided: Boolean)) {
-            //terminate()
-            exitAtEndOfRound()
-          }
-        }
-
-      }
-
+    val livenessPredicate = List[Formula](
+      P.exists( p => P.forall( q => p == coord(r/4) && p.HO.contains(q) && p.HO.size > n/2 ) )
     )
 
-  })
+    val noDecision: Formula = P.forall( i => !i.decided && !i.ready)
+
+    val majority: Formula =
+      V.exists( v => V.exists( t => {
+          val A = P.filter( i => i.ts >= t )
+          A.size > n/2 &&
+          t <= r/4 &&
+          P.forall( i => (A.contains(i) ==> (i.x == v) ) &&
+                         (i.decided ==> (i.decision == v) ) &&
+                         (i.commit ==> (i.vote == v) ) &&
+                         (i.ready ==> (i.vote == v) ) &&
+                         ((i.ts == r/4) ==> coord(r/4).commit ))
+      }) )
+
+    val keepInit: Formula = P.forall( i => P.exists( j1 => i.x == init(j1.x) ))
+
+    val safetyInv = And(keepInit, Or(noDecision, majority))
+
+    val invariants = List[Formula](
+      safetyInv,
+      P.exists( j => P.forall( i => i.decided && i.decision == init(j.x)) )
+    )
+    
+    override val roundInvariants = List(
+      List[Formula](
+        true,
+        P.exists( i => i.commit )
+      ),
+      List[Formula](
+        true,
+        P.exists( i => i.commit && P.forall( j => j.ts == r/4 && j.x == i.vote ))
+      ),
+      List[Formula](
+        true,
+        P.exists( i => i.commit && i.ready && P.forall( j => j.ts == r/4 && j.x == i.vote ))
+      )
+    )
+
+    val properties = List[(String,Formula)](
+      ("Termination",    P.forall( i => i.decided) ),
+      ("Agreement",      P.forall( i => P.forall( j => (i.decided && j.decided) ==> (i.decision == j.decision) ))),
+      ("Validity",       P.forall( i => i.decided ==> P.exists( j => init(j.x) == i.decision ))),
+      ("Integrity",      P.exists( j => P.forall( i => i.decided ==> (i.decision == init(j.x)) ))),
+      ("Irrevocability", P.forall( i => old(i.decided) ==> (i.decided && old(i.decision) == i.decision) ))
+    )
+  }
+  
+  def process = new LVProcess()
+}
+  
+class LVProcess extends Process[ConsensusIO]{
+
+  //variables
+  var x = 0
+  var ts = new Time(-1)
+  var ready = false
+  var commit = false
+  var vote = 0
+  var decision = -1 //TODO as ghost
+  var decided = false
+  //
+  var callback: ConsensusIO = null
+
+      
+  def coord(phi: Int): ProcessID = new ProcessID((phi % n).toShort)
+    
+  def init(io: ConsensusIO) {
+    callback = io
+    x = io.initialValue
+    ts = -1
+    decided = false 
+    ready = false
+    commit = false
+  }
+
+  val rounds = phase(
+    //FIXME use Int until PerfTest2 is fixed
+    //new Round[(Int,Time)]{
+    new Round[(Int,Int)]{
+
+      //def send(): Map[ProcessID,(Int, Time)] = {
+      def send(): Map[ProcessID,(Int, Int)] = {
+        Map(coord(r/4) -> (x, ts.toInt))
+      }
+
+      override def expectedNbrMessages = if (id == coord(r/4)) n/2 + 1 else 0
+
+      //def update(mailbox: Map[ProcessID,(Int, Time)]) {
+      def update(mailbox: Map[ProcessID,(Int, Int)]) {
+        assert(r.toInt % 4 == 0)
+        if (id == coord(r/4) && mailbox.size > n/2) {
+          // let θ be one of the largest θ from 〈ν, θ〉received
+          // vote(p) := one ν such that 〈ν, θ〉 is received
+          vote = mailbox.maxBy(_._2._2)._2._1
+          commit = true
+          assert(vote != 0, mailbox.mkString(", "))
+        }
+      }
+
+    },
+
+    new Round[Int]{
+
+      def send(): Map[ProcessID,Int] = {
+        if (id == coord(r/4) && commit) {
+          broadcast(vote)
+        } else {
+          Map.empty
+        }
+      }
+
+      override def expectedNbrMessages = 1
+
+      def update(mailbox: Map[ProcessID,Int]) {
+        if (mailbox contains coord(r/4)) {
+          x = mailbox(coord(r/4))
+          ts = r/4
+          assert(x != 0)
+        }
+      }
+
+    },
+
+    new Round[Int]{
+
+      def send(): Map[ProcessID,Int] = {
+        if ( ts == (r/4) ) {
+          Map( coord(r/4) -> x )
+        } else {
+          Map.empty
+        }
+      }
+
+      override def expectedNbrMessages = if (id == coord(r/4)) n/2 + 1 else 0
+
+      def update(mailbox: Map[ProcessID,Int]) {
+        if (id == coord(r/4) && mailbox.size > n/2) {
+          ready = true
+        }
+      }
+
+    },
+
+    new Round[Int]{
+
+      def send(): Map[ProcessID, Int] = {
+        if (id == coord(r/4) && ready) {
+          broadcast(vote)
+        } else {
+          Map.empty
+        }
+      }
+
+      override def expectedNbrMessages = 1 
+
+      def update(mailbox: Map[ProcessID,Int]) {
+        if (mailbox contains coord(r/4)) {
+          val v = mailbox(coord(r/4))
+          assert(v != 0)
+          callback.decide(v)
+          decision = v
+          decided = true
+          exitAtEndOfRound()
+        }
+        ready = false
+        commit = false
+      }
+
+    }
+
+  )
 
 }

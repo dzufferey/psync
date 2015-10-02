@@ -7,110 +7,107 @@ import round.macros.Macros._
 
 
 abstract class TpcIO {
-  val coord: Short
+  val coord: ProcessID
   val canCommit: Boolean
   def decide(value: Option[Boolean]): Unit //deciding None means that we suspect the coordinator of crash!
 }
 
-class TwoPhaseCommit extends Algorithm[TpcIO] {
+class TpcProcess extends Process[TpcIO] {
+  
+  var coord = new ProcessID(0)
+  var vote = false
+  var decision: Option[Boolean] = None //TODO as ghost
+  var callback: TpcIO = null
 
-  import VarHelper._
+  def init(io: TpcIO) = i{
+    callback = io
+    coord = io.coord
+    vote = io.canCommit
+    decision = None
+  }
+    
+  val rounds = phase(
+    new Round[Boolean]{ //place holder for PrepareCommit
+      def send(): Map[ProcessID,Boolean] = {
+        if (id == coord) broadcast(true)
+        else Map.empty
+      }
+      override def expectedNbrMessages = 1
+      def update(mailbox: Map[ProcessID,Boolean]) {
+        //nothing to do
+      } 
+    },
+
+    new Round[Boolean]{
+
+      def send(): Map[ProcessID,Boolean] = {
+        Map( coord -> vote )
+      }
+      
+      override def expectedNbrMessages = if (id == coord) n else 0
+
+      def update(mailbox: Map[ProcessID,Boolean]) {
+        if (id == coord) {
+          if( mailbox.size == n && mailbox.forall{ case (k,v) => v }) {
+            decision = Some(true)
+          } else {
+            decision = Some(false)
+          }
+        }
+      }
+    },
+
+    new Round[Boolean]{
+
+      def send(): Map[ProcessID,Boolean] = {
+        if (id == coord) broadcast((decision: Option[Boolean]).get)
+        else Map.empty
+      }
+
+      override def expectedNbrMessages = 1
+
+      def update(mailbox: Map[ProcessID,Boolean]) {
+        if (mailbox.size > 0) {
+          decision = Some(mailbox.head._2)
+        }
+        callback.decide(decision)
+        terminate
+      }
+    }
+  )
+
+}
+
+class TwoPhaseCommit extends Algorithm[TpcIO,TpcProcess] {
+
   import SpecHelper._
-
-  //cannot have ProcessID:  Result type in structural refinement may not refer to a user-defined value class
-  //TODO look into this, probably abug in the compiler
-  val coord = new LocalVariable[Short](0)
-  val vote = new LocalVariable[Boolean](false)
-  val decision = new LocalVariable[Option[Boolean]](None) //TODO as ghost
-  //
-  val callback = new LocalVariable[TpcIO](null)
 
   def c(pid: Short) = new ProcessID(pid)
 
-  Axiom("well-coordinated", P.exists( p => P.forall( q => (p: ProcessID) == c(coord(q))) ))
+  Axiom("well-coordinated", P.exists( p => P.forall( q => p == q.coord)) )
 
   val spec = new Spec {
     val livenessPredicate = List[Formula](
-      P.exists( p => P.forall( q => (p: ProcessID) == c(coord(q)) && HO(p).size == n && (HO(q) contains p) ) )
+      P.exists( p => P.forall( q => p == q.coord && p.HO.size == n && (q.HO contains p) ) )
     )
     val invariants = List[Formula](
-      P.forall( p => decision(p) == Some(true) ==> P.forall( q => vote(q) )) && 
-      P.forall( p => P.forall( q => (decision(p).isDefined && decision(q).isDefined) ==> (decision(p) == decision(q)) ))
+      P.forall( p => p.decision == Some(true) ==> P.forall( q => q.vote )) && 
+      P.forall( p => P.forall( q => (p.decision.isDefined && q.decision.isDefined) ==> (p.decision == q.decision) ))
     )
 //  override val roundInvariants = List(
 //    List(f(true)),
 //    List(f(true))
 //  )
     val properties = List[(String,Formula)](
-      "Uniform Agreement" -> P.forall( p => P.forall( q => (decision(p).isDefined && decision(q).isDefined) ==> (decision(p) == decision(q)) )),
+      "Uniform Agreement" -> P.forall( p => P.forall( q => (p.decision.isDefined && q.decision.isDefined) ==> (p.decision == q.decision) )),
       //"Irrevocable" -> A site cannot reverse its decision after it has reached one. TODO need better handling of termination
-      "Validity" -> P.forall( p => (decision(p) == Some(true)) ==> P.forall( q => vote(q) ) )
+      "Validity" -> P.forall( p => (p.decision == Some(true)) ==> P.forall( q => q.vote ) )
       //"Non-Triviality" -> If there are no fault and all sites voted Yes, then the decision will be to commit. TODO need to reason about HO in the whole run
       //"Termination" -> At any point in the execution of the protocol, if all existing failures are repaired and no new failures occur for sufficiently long, then all sites will eventually reach a decision. TODO we have a different fault model
     )
   }
 
-  def process = p(new Process[TpcIO]{
-
-    def init(io: TpcIO) {
-      callback <~ io
-      coord <~ io.coord
-      vote <~ io.canCommit
-      decision <~ None
-    }
-
-    val rounds = phase(
-      new Round{
-        type A = Boolean //place holder for PrepareCommit
-        def send(): Set[(Boolean, ProcessID)] = {
-          if (id == c(coord)) broadcast(true)
-          else Set.empty
-        }
-        override def expectedNbrMessages = 1
-        def update(mailbox: Set[(Boolean, ProcessID)]) {
-          //nothing to do
-        } 
-      },
-
-      new Round{
-        type A = Boolean
-
-        def send(): Set[(Boolean, ProcessID)] = {
-          Set( (vote: Boolean) -> c(coord) )
-        }
-
-        def update(mailbox: Set[(Boolean, ProcessID)]) {
-          if (id == c(coord)) {
-            if( mailbox.size == (n: Int) &&
-                mailbox.forall( _._1 ))
-            {
-              decision <~ Some(true)
-            } else {
-              decision <~ Some(false)
-            }
-          }
-        }
-      },
-
-      new Round{
-        type A = Boolean
-
-        def send(): Set[(Boolean, ProcessID)] = {
-          if (id == c(coord)) broadcast((decision: Option[Boolean]).get)
-          else Set.empty
-        }
-
-        override def expectedNbrMessages = 1
-        def update(mailbox: Set[(Boolean, ProcessID)]) {
-          if (mailbox.size > 0) {
-            decision <~ Some(mailbox.head._1)
-          }
-          callback.decide(decision)
-          terminate
-        }
-      }
-    )
-  })
+  def process = new TpcProcess
 
 }
 
@@ -122,7 +119,7 @@ object TpcRunner extends RTOptions {
   
   val usage = "..."
   
-  var rt: RunTime[TpcIO] = null
+  var rt: Runtime[TpcIO,TpcProcess] = null
 
   def defaultHandler(msg: Message) {
     msg.release
@@ -132,13 +129,13 @@ object TpcRunner extends RTOptions {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
     val alg = new TwoPhaseCommit()
-    rt = new RunTime(alg, this, defaultHandler(_))
+    rt = new Runtime(alg, this, defaultHandler(_))
     rt.startService
 
     import scala.util.Random
     val init = Random.nextBoolean
     val io = new TpcIO {
-      val coord: Short = 0
+      val coord = new ProcessID(0)
       val canCommit = init
       val initialValue = init
       def decide(value: Option[Boolean]) {

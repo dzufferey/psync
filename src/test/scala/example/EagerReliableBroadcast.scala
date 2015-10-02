@@ -9,49 +9,47 @@ abstract class BroadcastIO {
   def deliver(value: Int): Unit
 }
 
-//http://link.springer.com/chapter/10.1007%2F978-3-642-15260-3_3
-class EagerReliableBroadcast extends Algorithm[BroadcastIO] {
-
-  import VarHelper._
-  import SpecHelper._
-
-  val x = new LocalVariable[Option[Int]](None)
-  val callback = new LocalVariable[BroadcastIO](null)
+class ErbProcess extends Process[BroadcastIO] {
   
-  val spec = TrivialSpec
+  var x: Option[Int] = None
+  var callback: BroadcastIO = null
+    
+  def init(io: BroadcastIO) = i{
+    callback = io
+    x = io.initialValue
+  }
 
-  def process = p(new Process[BroadcastIO]{
-      
-    def init(io: BroadcastIO) {
-      callback <~ io
-      x <~ io.initialValue
-    }
+  val rounds = phase(
+    new Round[Int]{
+    
+      def send: Map[ProcessID,Int] = {
+        if (x.isDefined) broadcast(x.get) else Map.empty
+      }
 
-    val rounds = phase(
-      new Round{
-      
-        type A = Int
-
-        def send: Set[(Int,ProcessID)] = {
-          if (x.isDefined) broadcast(x.get) else Set.empty
-        }
-
-        def update(mailbox: Set[(Int, ProcessID)]) {
-          if (x.isDefined) {
-            callback.deliver(x.get)
+      def update(mailbox: Map[ProcessID,Int]) {
+        if (x.isDefined) {
+          callback.deliver(x.get)
+          terminate
+        } else {
+          if (!mailbox.isEmpty) {
+            x = Some(mailbox.head._2)
+          } else if (r > 10) { //crash before delivering
             terminate
-          } else {
-            if (!mailbox.isEmpty) {
-              x <~ Some(mailbox.head._1)
-            } else if (r > 10) { //crash before delivering
-              terminate
-            }
           }
         }
-
       }
-    )
-  })
+
+    }
+  )
+  
+}
+
+//http://link.springer.com/chapter/10.1007%2F978-3-642-15260-3_3
+class EagerReliableBroadcast extends Algorithm[BroadcastIO,ErbProcess] {
+
+  val spec = TrivialSpec
+
+  def process = new ErbProcess()
 
 }
 
@@ -61,7 +59,7 @@ object ERBRunner extends RTOptions {
   
   val usage = "..."
   
-  var rt: RunTime[BroadcastIO] = null
+  var rt: Runtime[BroadcastIO,ErbProcess] = null
 
   val delivered = new java.util.concurrent.ConcurrentHashMap[Short, Boolean]
 
@@ -86,7 +84,7 @@ object ERBRunner extends RTOptions {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
     val alg = new EagerReliableBroadcast
-    rt = new RunTime(alg, this, defaultHandler(_))
+    rt = new Runtime(alg, this, defaultHandler(_))
     rt.startService
 
     import scala.util.Random

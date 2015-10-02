@@ -5,11 +5,12 @@ import round.formula._
 object Utils {
 
   def procType = round.logic.CL.procType
+  def timeType = round.logic.CL.timeType
 
   val procI = Variable("i_").setType(procType)
   val procJ = Variable("j_").setType(procType)
-  val r = Variable("r").setType(Int)
-  val rp = Variable("rpre").setType(Int)
+  val r = Variable("r").setType(timeType)
+  val rp = Variable("rpre").setType(timeType)
 
   //x → x(i)
   def skolemify(x: Variable): UnInterpretedFct = {

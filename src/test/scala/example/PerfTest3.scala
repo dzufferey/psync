@@ -38,8 +38,8 @@ class PerfTest3(options: RuntimeOptions,
     log.newLine()
   }
   
-  val alg = new LastVoting2B
-  val rt = new RunTime(alg, options, defaultHandler(_))
+  val alg = new LastVotingB
+  val rt = new Runtime(alg, options, defaultHandler(_))
   rt.startService
 
   val lck = new ReentrantLock 

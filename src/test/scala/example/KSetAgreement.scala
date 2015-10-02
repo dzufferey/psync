@@ -4,17 +4,57 @@ import round._
 import round.runtime._
 import round.macros.Macros._
 
-class KSetAgreement(i: ProcessID, k: Int) extends Algorithm[ConsensusIO] {
+class KSetProcess(k: Int) extends Process[ConsensusIO] {
   
-  import VarHelper._
-  import SpecHelper._
+  var t = Map.empty[ProcessID,Int]
+  var decider = false
+  var callback: ConsensusIO = null
 
+  def init(io: ConsensusIO) {
+    callback = io
+    decider = false
+    t = Map(id -> io.initialValue)
+  }
+    
+  val rounds = phase(
+    new Round[(Boolean, Map[ProcessID,Int])]{
+    
+      def merge(a: Map[ProcessID,Int], b: Map[ProcessID,Int]) = {
+        a ++ b
+      }
+
+      def pick(a: Map[ProcessID,Int]) = a.values.min
+
+      def send: Map[ProcessID,(Boolean, Map[ProcessID,Int])] = {
+        broadcast( decider -> t )
+      }
+
+      def update(mailbox: Map[ProcessID,(Boolean, Map[ProcessID,Int])]) {
+        val content = mailbox.map{ case (k,v) => v }
+        if (decider) {
+          callback.decide(pick(t))
+          terminate()
+        } else if (content.exists(_._1)) {
+          decider = true
+          t = content.find(_._1).get._2
+        } else {
+          val same = mailbox.filter(_._2._2 == t)
+          if (same.size > n - k) {
+            decider = true
+          } else {
+            for ((_,(_,v)) <- mailbox)
+              t = merge(t, v)
+          }
+        }
+      }
+
+    }
+  )
+
+}
+
+class KSetAgreement(k: Int) extends Algorithm[ConsensusIO,KSetProcess] {
   
-  val t = new LocalVariable[Map[ProcessID,Int]](Map.empty[ProcessID,Int])
-  val decider = new LocalVariable[Boolean](false)
-  //
-  val callback = new LocalVariable[ConsensusIO](null)
-
   val spec = TrivialSpec
   //k-agreement: the set Y of decision values is such that Y ⊆ V₀ ∧ |Y| ≤ k
   //uncertainty: there exists a (k+1)-valent initial configuration
@@ -24,53 +64,8 @@ class KSetAgreement(i: ProcessID, k: Int) extends Algorithm[ConsensusIO] {
   // crash-fault, f < k
   // completely async (no termination requirement)
 
-  def process = p(new Process[ConsensusIO]{
+  def process = new KSetProcess(k)
 
-    def init(io: ConsensusIO) {
-      callback <~ io
-      decider <~ false
-      //FIXME: crash in the scala compiler (because of id)
-      //t <~ Map(id -> io.initialValue)
-      t <~ Map(i -> io.initialValue)
-    }
-
-    val rounds = phase(
-      new Round{
-      
-        type A = (Boolean, Map[ProcessID,Int])
-
-        def merge(a: Map[ProcessID,Int], b: Map[ProcessID,Int]) = {
-          a ++ b
-        }
-
-        def pick(a: Map[ProcessID,Int]) = a.values.min
-
-        def send: Set[((Boolean, Map[ProcessID,Int]),ProcessID)] = {
-          broadcast( (decider: Boolean) -> (t: Map[ProcessID,Int]) )
-        }
-
-        def update(mailbox: Set[((Boolean, Map[ProcessID,Int]), ProcessID)]) {
-          val content = mailbox.map(_._1)
-          if (decider) {
-            callback.decide(pick(t))
-            terminate()
-          } else if (content.exists(_._1)) {
-            decider <~ true
-            t <~ content.find(_._1).get._2
-          } else {
-            val same = mailbox.filter(_._1._2 == (t: Map[ProcessID, Int]))
-            if (same.size > n - k) {
-              decider <~ true
-            } else {
-              for (((_,v),_) <- mailbox)
-                t <~ merge(t, v)
-            }
-          }
-        }
-
-      }
-    )
-  })
 }
 
 object KSetRunner extends RTOptions {
@@ -82,7 +77,7 @@ object KSetRunner extends RTOptions {
   
   val usage = "..."
   
-  var rt: RunTime[ConsensusIO] = null
+  var rt: Runtime[ConsensusIO,KSetProcess] = null
 
   def defaultHandler(msg: Message) {
     msg.release
@@ -91,8 +86,8 @@ object KSetRunner extends RTOptions {
   def main(args: Array[java.lang.String]) {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    val alg = new KSetAgreement(new ProcessID(id.toShort), k)
-    rt = new RunTime(alg, this, defaultHandler(_))
+    val alg = new KSetAgreement(k)
+    rt = new Runtime(alg, this, defaultHandler(_))
     rt.startService
 
     import scala.util.Random

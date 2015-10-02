@@ -31,6 +31,7 @@ object Names {
 
   def overloadedSymbol(i: Symbol, ts: List[Type]) = i match {
     case Eq => "=" //already overloaded in the theory definition
+    case Lt | Gt | Leq | Geq if ts == List(Int) => symbol(i)
     case normal => symbol(normal) + ts.map(tpe).mkString("","","")
   }
 

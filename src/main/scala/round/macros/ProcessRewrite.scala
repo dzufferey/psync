@@ -6,14 +6,12 @@ trait ProcessRewrite {
   self: Impl =>
   import c.universe._
 
-  //TODO in the long run we want to make the process extends or contains a SimpleChannelInboundHandler
-
   //look into c.enclosingClass
 
   private case class MyVarDef(name: String, tpe: Tree, default: Tree, local: Boolean, ghost: Boolean)
 
   private def defaultVariables = List(
-    MyVarDef("r", tq"Int", q"-1", false, false),
+    MyVarDef("r", tq"round.Time", q"new Time(-1)", false, false),
     MyVarDef("_r", tq"Int", q"-1", false, false),
     MyVarDef("n", tq"Int", q"0", false, false),
     MyVarDef("HO", tq"Set[ProcessID]", q"Set[ProcessID]()", true, true)
@@ -42,11 +40,13 @@ trait ProcessRewrite {
     (decl, ident)
   }
   
+  /*
   private val defaultMethods = List(
-    q"protected def incrementRound: Unit = { r = (r + 1); _r = r % rounds.length }",
+    q"protected def incrementRound: Unit = { r = r.tick; _r = r.toInt % rounds.length }",
     q"protected def currentRound: Round = { rounds(_r) }",
-    q"def setGroup(g: round.runtime.Group): Unit = { r = -1; _r = -1; id = g.self; rounds.foreach(_.setGroup(g)); n = g.size }"
+    q"def setGroup(g: round.runtime.Group): Unit = { r = new Time(-1); _r = -1; id = g.self; rounds.foreach(_.setGroup(g)); n = g.size }"
   )
+  */
 
 
   //on decl check for name clash
@@ -122,7 +122,7 @@ trait ProcessRewrite {
     if (s.length < 60000) {
       q"$s"
     } else {
-      val chuncks = s.grouped(10000).toList.map(s => q"builder.append($s)")
+      val chuncks = s.grouped(50000).toList.map(s => q"builder.append($s)")
       q"""{ val builder = new StringBuilder
             ..$chuncks
             builder.toString
@@ -130,6 +130,7 @@ trait ProcessRewrite {
     }
   }
 
+  /*
   def processRewrite(t: Tree): Tree = t match {
     //TODO make sure it is a Process
     //TODO can we add type parameters to allow generic consensus
@@ -148,7 +149,8 @@ trait ProcessRewrite {
         case Typer.TypingSuccess(f) =>
           f
         case Typer.TypingFailure(r) =>
-          c.abort(body.head.pos, "unable to type formula corresponding to initial state: " + _f.toStringFull)
+          c.warning(body.head.pos, "unable to type formula corresponding to initial state (leaving it unconstrained): " + _f.toStringFull)
+          True()
         case Typer.TypingError(r) =>
           c.abort(body.head.pos, "formula typer failed on formula corresponding to initial state: " + r)
       }
@@ -173,6 +175,27 @@ trait ProcessRewrite {
       c.untypecheck(tree2)
     case _ =>
       c.abort(c.enclosingPosition, "'p' should be applied to class definition: p(new Process{ ... })")
+  }
+  */
+
+  def extractInit(/*arg: Tree,*/ body: Tree): Tree = {
+    /*
+    val initArg = tree2Formula(arg) match {
+      case v @ Variable(_) => v
+      case other => c.abort(arg.pos, "expected variable, found: " + other)
+    }
+    */
+    val _f = makeConstraints(body)
+    val f = Typer(_f) match {
+      case Typer.TypingSuccess(f) =>
+        f
+      case Typer.TypingFailure(r) =>
+        c.warning(body.pos, "unable to type formula corresponding to initial state (leaving it unconstrained): " + _f.toStringFull)
+        True()
+      case Typer.TypingError(r) =>
+        c.abort(body.pos, "formula typer failed on formula corresponding to initial state: " + r)
+    }
+    q"{ $body; if (round.Process.fillInitState) initState = Some($f) }"
   }
 
 }

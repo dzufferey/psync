@@ -11,113 +11,112 @@ abstract class BinaryConsensusIO {
 }
 
 //http://www.cs.utexas.edu/~lorenzo/corsi/cs380d/papers/p27-ben-or.pdf
-class BenOr extends Algorithm[BinaryConsensusIO] {
 
-  import VarHelper._
-  import SpecHelper._
-
-  val x = new LocalVariable[Boolean](false)
-  val callback = new LocalVariable[BinaryConsensusIO](null)
+class BenOrProcess extends Process[BinaryConsensusIO] {
+  
+  var x = false
+  var callback: BinaryConsensusIO = null
   //to make the algorithm terminates as suggested in
   //http://www.cs.toronto.edu/~samvas/teaching/2221/handouts/benor-paper.pdf
-  val canDecide = new LocalVariable[Boolean](false)
-  val vote = new LocalVariable[Option[Boolean]](None)
+  var canDecide = false
+  var vote: Option[Boolean] = None
   
-  val decision = new LocalVariable[Boolean](false) //TODO as ghost
-  val decided = new LocalVariable[Boolean](false) //TODO as ghost
+  var decision = false //TODO as ghost
+  var decided =  false //TODO as ghost
+
+  def init(io: BinaryConsensusIO) = i{
+    callback = io
+    x = io.initialValue
+    canDecide = false
+    decided = false
+  }
+  
+  val rounds = phase(
+    new Round[(Boolean,Boolean)]{
+    
+      def send: Map[ProcessID,(Boolean, Boolean)] = {
+        broadcast( (x: Boolean) -> (canDecide: Boolean) )
+      }
+
+      def update(mailbox: Map[ProcessID,(Boolean, Boolean)]) {
+        if (canDecide) {
+          callback.decide(x)
+          decided = true
+          decision = x
+          terminate
+        } else if (mailbox.filter(_._2._1).size > n/2 || mailbox.exists(m => m._2._1 && m._2._2)) {
+          vote = Some(true)
+        } else if (mailbox.filter(!_._2._1).size > n/2 || mailbox.exists(m => !m._2._1 && m._2._2)) {
+          vote = Some(false)
+        } else {
+          vote = None
+        }
+        canDecide = mailbox.exists(_._2._2)
+      }
+
+    },
+    
+    new Round[Option[Boolean]]{
+    
+      def send: Map[ProcessID,Option[Boolean]] = {
+        broadcast( vote )
+      }
+
+      def update(mailbox: Map[ProcessID,Option[Boolean]]) {
+        val t = mailbox.filter{ case (p,v) => v == Some(true) }.size
+        val f = mailbox.filter{ case (p,v) => v == Some(false) }.size
+        if (t > n/2) {
+          x = true
+          canDecide = true
+        } else if (f > n/2) {
+          x = true
+          canDecide = true
+        } else if (t > 1){
+          x = true
+        } else if (f > 1){
+          x = false
+        } else {
+          x = util.Random.nextBoolean
+        }
+      }
+
+    }
+  )
+
+}
+
+class BenOr extends Algorithm[BinaryConsensusIO,BenOrProcess] {
+
+  import SpecHelper._
 
   val V = new Domain[Boolean]
   val spec = new Spec {
-    override val safetyPredicate: Formula = P.forall( p => HO(p).size > n/2 ) //TODO might need something stronger like crash-fault
+    override val safetyPredicate: Formula = P.forall( p => p.HO.size > n/2 ) //TODO might need something stronger like crash-fault
     val livenessPredicate = List( )
     val invariants = List[Formula](
-        P.forall( i => !decided(i) && !canDecide(i) )
+        P.forall( i => !i.decided && !i.canDecide )
       ||
         V.exists( v => {
-          val A = P.filter( i => x(i) == v )
+          val A = P.filter( i => i.x == v )
           A.size > n/2 &&
-          P.forall( i => (decided(i) ==> (decision(i) == v) ) &&
-                         (vote(i).isDefined ==> (vote(i) == Some(v))) )
+          P.forall( i => (i.decided ==> (i.decision == v) ) &&
+                         (i.vote.isDefined ==> (i.vote == Some(v))) )
         })
     ) //TODO about canDecide ...
     override val roundInvariants = List(
       List[Formula](
-        P.forall( p => vote(p).isDefined ==> P.filter( i => x(i) == vote(p).get ).size > n/2 )
+        P.forall( p => p.vote.isDefined ==> P.filter( i => i.x == p.vote.get ).size > n/2 )
       )
     )
     val properties = List[(String,Formula)](
-      ("Agreement",      P.forall( i => P.forall( j => (decided(i) && decided(j)) ==> (decision(i) == decision(j)) ))),
-      ("Irrevocability", P.forall( i => old(decided)(i) ==> (decided(i) && old(decision)(i) == decision(i)) ))
+      ("Agreement",      P.forall( i => P.forall( j => (i.decided && j.decided) ==> (i.decision == j.decision) ))),
+      ("Irrevocability", P.forall( i => old(i.decided) ==> (i.decided && old(i.decision) == i.decision) ))
       //TODO how to do non-triviality with random choice
       //no termination since we deal don't deal with probabilities
     )
   }
 
-  def process = p(new Process[BinaryConsensusIO]{
-      
-    def init(io: BinaryConsensusIO) {
-      callback <~ io
-      x <~ io.initialValue
-      canDecide <~ false
-      decided <~ false
-    }
-
-    val rounds = phase(
-      new Round{
-      
-        type A = (Boolean, Boolean)
-
-        def send: Set[((Boolean, Boolean),ProcessID)] = {
-          broadcast( (x: Boolean) -> (canDecide: Boolean) )
-        }
-
-        def update(mailbox: Set[((Boolean, Boolean), ProcessID)]) {
-          if (canDecide) {
-            callback.decide(x)
-            decided <~ true
-            decision <~ x
-            terminate
-          } else if (mailbox.filter(_._1._1).size > n/2 || mailbox.exists(m => m._1._1 && m._1._2)) {
-            vote <~ Some(true)
-          } else if (mailbox.filter(!_._1._1).size > n/2 || mailbox.exists(m => !m._1._1 && m._1._2)) {
-            vote <~ Some(false)
-          } else {
-            vote <~ None
-          }
-          canDecide <~ mailbox.exists(_._1._2)
-        }
-
-      },
-      
-      new Round{
-      
-        type A = Option[Boolean]
-
-        def send: Set[(Option[Boolean],ProcessID)] = {
-          broadcast( vote )
-        }
-
-        def update(mailbox: Set[(Option[Boolean], ProcessID)]) {
-          val t = mailbox.filter(m => m._1.isDefined && m._1.get).size
-          val f = mailbox.filter(m => m._1.isDefined && !m._1.get).size
-          if (t > n/2) {
-            x <~ true
-            canDecide <~ true
-          } else if (f > n/2) {
-            x <~ true
-            canDecide <~ true
-          } else if (t > 1){
-            x <~ true
-          } else if (f > 1){
-            x <~ false
-          } else {
-            x <~ util.Random.nextBoolean
-          }
-        }
-
-      }
-    )
-  })
+  def process = new BenOrProcess
 
 }
 
@@ -127,7 +126,7 @@ object BenOrRunner extends RTOptions {
 
   val usage = "..."
   
-  var rt: RunTime[BinaryConsensusIO] = null
+  var rt: Runtime[BinaryConsensusIO,BenOrProcess] = null
 
   def defaultHandler(msg: Message) {
     msg.release
@@ -137,7 +136,7 @@ object BenOrRunner extends RTOptions {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
     val alg = new BenOr
-    rt = new RunTime(alg, this, defaultHandler(_))
+    rt = new Runtime(alg, this, defaultHandler(_))
     rt.startService
 
     import scala.util.Random

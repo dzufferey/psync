@@ -2,8 +2,8 @@ package round
 
 import round.formula._
 
-trait Specs[IO] {
-  self: Algorithm[IO] =>
+trait Specs[IO, P <: Process[IO]] {
+  self: Algorithm[IO, P] =>
 
   abstract class Spec {
     val safetyPredicate: Formula = True()
@@ -19,6 +19,9 @@ trait Specs[IO] {
     implicit class BoolOps(lhs: Boolean) {
       def ==>(rhs: Boolean): Boolean =  !lhs || rhs
     }
+    def init[T](v: T): T = sys.error("only for specification purpose, removed by macros")
+    def old[T](v: T): T =  sys.error("only for specification purpose, removed by macros")
+    def idToP(p: ProcessID): P =  sys.error("only for specification purpose, removed by macros")
   }
 
   var axiomList: List[Axiom] = Nil

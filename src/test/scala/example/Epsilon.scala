@@ -1,6 +1,7 @@
 package example
 
 import round._
+import round.Time._
 import round.runtime._
 import round.macros.Macros._
 
@@ -10,70 +11,68 @@ abstract class RealConsensusIO {
 }
 
 //http://www.cambridge.org/us/download_file/175769/
-class EpsilonConsensus(f: Int, epsilon: Double) extends Algorithm[RealConsensusIO] {
+class EpsilonProcess(f: Int, epsilon: Double) extends Process[RealConsensusIO] {
 
-  import VarHelper._
-  import SpecHelper._
+  var x = 0.0
+  var maxR = new Time(0)
+  var halted = Map[ProcessID, Double]()
+  var callback: RealConsensusIO = null
 
-  val x = new LocalVariable[Double](0.0)
-  val maxR = new LocalVariable[Int](0)
-  val halted = new LocalVariable[Map[ProcessID, Double]](Map())
-  val callback = new LocalVariable[RealConsensusIO](null)
+  def init(io: RealConsensusIO) = i{
+    callback = io
+    x = io.initialValue
+  }
+
+  val rounds = phase(
+
+    new Round[(Double,Boolean)]{
+     
+      def diff(s: Iterable[Double]) = s.max - s.min //this is never defined in the slides. double check that this is the right thing...
+      def c(m: Int, k: Int) = (m-1) / k + 1
+      def reduce(f: Int, collection: Seq[Double]) = {
+        collection.sorted.drop(f).dropRight(f)
+      }
+      def select(k: Int, collection: Seq[Double]) = {
+        collection.grouped(k).map(_.head).toSeq
+      }
+      def _new(k: Int, f: Int, collection: Seq[Double]) = {
+        val red = reduce(f, collection)
+        val sel = select(k, red)
+        sel.reduce(_ + _) / sel.size
+      }
+     
+      def send: Map[ProcessID,(Double, Boolean)] = {
+        if (r <= maxR) {
+          broadcast( x -> false )
+        } else {
+          broadcast( x -> true )
+        }
+      }
+     
+      def update(mailbox: Map[ProcessID,(Double, Boolean)]) {
+        val V = mailbox.toSeq.map(_._2._1) ++ halted.values
+        halted = halted ++ mailbox.filter(_._2._2).map{ case (p,v) => p -> v._1 }
+        if (r.toInt == 0) {
+          //assert(mailbox.size >= n - f, mailbox.size)
+          val r1 = math.log(diff(V) / epsilon) / math.log(c(n-3*f, 2*f))
+          maxR = math.ceil(r1).toInt
+          x = reduce(2*f, V).head
+        } else if (r <= maxR) {
+          x = _new(2*f, f, V)
+        } else {
+          callback.decide(x)
+          terminate
+        }
+      }
+    }
+  )
+}
+
+class EpsilonConsensus(f: Int, epsilon: Double) extends Algorithm[RealConsensusIO,EpsilonProcess] {
 
   val spec = TrivialSpec //TODO we need to add support for Real numbers
 
-  def process = p(new Process[RealConsensusIO]{
-
-    def init(io: RealConsensusIO) {
-      callback <~ io
-      x <~ io.initialValue
-    }
-
-    val rounds = phase(
-
-      new Round{
-        type A = (Double, Boolean)
-       
-        def diff(s: Iterable[Double]) = s.max - s.min //this is never defined in the slides. double check that this is the right thing...
-        def c(m: Int, k: Int) = (m-1) / k + 1
-        def reduce(f: Int, collection: Seq[Double]) = {
-          collection.sorted.drop(f).dropRight(f)
-        }
-        def select(k: Int, collection: Seq[Double]) = {
-          collection.grouped(k).map(_.head).toSeq
-        }
-        def _new(k: Int, f: Int, collection: Seq[Double]) = {
-          val red = reduce(f, collection)
-          val sel = select(k, red)
-          sel.reduce(_ + _) / sel.size
-        }
-       
-        def send: Set[((Double, Boolean),ProcessID)] = {
-          if (r <= maxR) {
-            broadcast( (x: Double) -> false )
-          } else {
-            broadcast( (x: Double) -> true )
-          }
-        }
-       
-        def update(mailbox: Set[((Double, Boolean), ProcessID)]) {
-          val V = mailbox.toSeq.map(_._1._1) ++ halted.values
-          halted <~ halted ++ mailbox.filter(_._1._2).map( m => m._2 -> m._1._1 )
-          if (r == 0) {
-            //assert(mailbox.size >= n - f, mailbox.size)
-            val r1 = math.log(diff(V) / epsilon) / math.log(c(n-3*f, 2*f))
-            maxR <~ math.ceil(r1).toInt
-            x <~ reduce(2*f, V).head
-          } else if (r <= maxR) {
-            x <~ _new(2*f, f, V)
-          } else {
-            callback.decide(x)
-            terminate
-          }
-        }
-      }
-    )
-  })
+  def process = new EpsilonProcess(f, epsilon)
 
 }
 
@@ -89,7 +88,7 @@ object EpsilonRunner extends RTOptions {
   
   val usage = "..."
   
-  var rt: RunTime[RealConsensusIO] = null
+  var rt: Runtime[RealConsensusIO,EpsilonProcess] = null
 
   def defaultHandler(msg: Message) {
     msg.release
@@ -100,7 +99,7 @@ object EpsilonRunner extends RTOptions {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
     val alg = new EpsilonConsensus(f, e)
-    rt = new RunTime(alg, this, defaultHandler(_))
+    rt = new Runtime(alg, this, defaultHandler(_))
     rt.startService
 
     import scala.util.Random

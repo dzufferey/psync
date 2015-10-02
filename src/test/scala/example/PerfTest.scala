@@ -33,7 +33,7 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
   var begin = 0l
   var versionNbr = 0l
 
-  var rt: RunTime[ConsensusIO] = null
+  var rt: Runtime[ConsensusIO,_] = null
 
   final val Decision = 3
   final val TooLate = 4
@@ -107,8 +107,7 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
       val fw = new java.io.FileWriter(logFile + "_" + id + ".log")
       log = new java.io.BufferedWriter(fw)
     } 
-    val alg = ConsensusSelector(algorithm, Map())
-    rt = new RunTime(alg, this, defaultHandler)
+    rt = ConsensusSelector(algorithm, this, defaultHandler, Map())
     rt.startService
     Thread.sleep(1000)
     begin = java.lang.System.currentTimeMillis()

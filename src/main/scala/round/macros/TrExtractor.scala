@@ -71,8 +71,7 @@ trait TrExtractor {
         c.warning(t.pos, err +", leaving it unconstrained:\n" + r + "\n" + f)
         True()
       case Typer.TypingError(r) =>
-        c.warning(t.pos, err +", leaving it unconstrained:\n" + r + "\n" + f)
-        True()
+        c.abort(t.pos, err +":\n" + r + "\n" + f)
     }
   }
 
@@ -88,7 +87,7 @@ trait TrExtractor {
 
     val (body2, _pre) = getPreCondition(d.rhs).getOrElse((d.rhs, True()))
     val pre = tryType(_pre, d.rhs, "unable to type precondition of " + d.name)
-    getPostCondition(body2) match { //.getOrElse(body2, Variable(Namer("__return")).setType(tpe), True())
+    getPostCondition(body2) match {
       case Some((body3, vRet, _post)) =>
         val body = None //TODO Option[TransitionRelation],
         val post = tryType(_post, body2, "unable to type postcondition of " + d.name)
@@ -105,12 +104,14 @@ trait TrExtractor {
     val mailboxSnd = Variable(mailboxValDef.name + "Snd").setType(mailbox.tpe)
     val (ssaSend, subst) = ssa(send.rhs)
 
+    //TODO should try to 'transpose' mailboxSnd and only keep one mailbox
+
     val _cstr1 =
       try {
         makeConstraints(ssaSend, mailboxSnd, mailboxSnd)
       } catch {
         case e: Exception =>
-          c.warning(send.pos, "error while extracting the TR, leaving it unconstrained.\n" + e)
+          c.warning(send.pos, "error while extracting the send TR, leaving it unconstrained.\n" + e)
           True()
       }
 
@@ -120,12 +121,12 @@ trait TrExtractor {
         makeConstraints(ssaUpdt)
       } catch {
         case e: Exception =>
-          c.warning(update.pos, "error while extracting the TR, leaving it unconstrained.\n" + e)
+          c.warning(update.pos, "error while extracting the update TR, leaving it unconstrained.\n" + e)
           True()
       }
 
-    val cstr1 = tryType(_cstr1, send, "unable to type formula corresponding to send method")
-    val cstr2 = tryType(_cstr2, update, "unable to type formula corresponding to update method")
+    val cstr1 = tryType(_cstr1, send,   "unable to type the 'send' formula")
+    val cstr2 = tryType(_cstr2, update, "unable to type the 'update' formula")
 
     def getVar(t: Tree): Variable = tree2Formula(t) match {
       case v @ Variable(_) => v

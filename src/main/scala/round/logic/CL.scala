@@ -18,6 +18,7 @@ class CL(bound: Option[Int],
          instantiationBound: Option[Int]) {
 
   val procType = UnInterpreted("ProcessID")
+  val timeType = UnInterpreted("Time")
   val HO = UnInterpretedFct("HO",Some(procType ~> FSet(procType)))
   val n = Variable("n").setType(Int)
 
@@ -239,10 +240,12 @@ class CL(bound: Option[Int],
     val withSetAx = SetOperationsAxioms.addAxioms(withILP)
     val withOpt = OptionAxioms.addAxioms(withSetAx)
     val withTpl = TupleAxioms.addAxioms(withOpt)
+    val withoutTime = ReduceTime(withTpl)
+    val expendedLt = ReduceOrdered(withoutTime)
 
 
     //clean-up and skolemization
-    val last = cleanUp(withTpl)
+    val last = cleanUp(expendedLt)
     //assert(Typer(last).success, "CL.reduce, not well typed")
     last
   }

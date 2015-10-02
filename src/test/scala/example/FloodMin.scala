@@ -4,44 +4,42 @@ import round._
 import round.runtime._
 import round.macros.Macros._
 
-class FloodMin(f: Int) extends Algorithm[ConsensusIO] {
+class FloodMinProcess(f: Int) extends Process[ConsensusIO] {
+  
+  var x = 0
+  var callback: ConsensusIO = null
 
-  import VarHelper._
-  import SpecHelper._
+  def init(io: ConsensusIO) {
+    callback = io
+    x = io.initialValue
+  }
 
-  val x = new LocalVariable[Int](0)
-  //
-  val callback = new LocalVariable[ConsensusIO](null)
+  val rounds = phase(
+    new Round[Int]{
+    
+      def send: Map[ProcessID,Int] = {
+        broadcast( x )
+      }
+
+      def update(mailbox: Map[ProcessID,Int]) {
+        x = mailbox.foldLeft(x)( (acc, v) => math.min(acc, v._2) )
+        if (r > f) {
+          callback.decide(x)
+          terminate()
+        }
+      }
+
+    }
+  )
+
+}
+
+class FloodMin(f: Int) extends Algorithm[ConsensusIO,FloodMinProcess] {
 
   val spec = TrivialSpec //TODO we need safety predicates on transition to account for synchronous crash-stop
 
-  def process = p(new Process[ConsensusIO]{
+  def process = new FloodMinProcess(f)
 
-    def init(io: ConsensusIO) {
-      callback <~ io
-      x <~ io.initialValue
-    }
-
-    val rounds = phase(
-      new Round{
-      
-        type A = Int
-
-        def send: Set[(Int,ProcessID)] = {
-          broadcast( x )
-        }
-
-        def update(mailbox: Set[(Int, ProcessID)]) {
-          x <~ mailbox.foldLeft(x: Int)( (acc, v) => math.min(acc, v._1) )
-          if (r > f) {
-            callback.decide(x)
-            terminate()
-          }
-        }
-
-      }
-    )
-  })
 }
 
 object FloodMinRunner extends RTOptions {
@@ -53,7 +51,7 @@ object FloodMinRunner extends RTOptions {
   
   val usage = "..."
   
-  var rt: RunTime[ConsensusIO] = null
+  var rt: Runtime[ConsensusIO,FloodMinProcess] = null
 
   def defaultHandler(msg: Message) {
     msg.release
@@ -63,7 +61,7 @@ object FloodMinRunner extends RTOptions {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
     val alg = new FloodMin(f)
-    rt = new RunTime(alg, this, defaultHandler(_))
+    rt = new Runtime(alg, this, defaultHandler(_))
     rt.startService
 
     import scala.util.Random

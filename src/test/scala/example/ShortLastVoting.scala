@@ -5,130 +5,109 @@
 package example
 
 import round._
+import round.Time._
 import round.macros.Macros._
 
-class ShortLastVoting extends Algorithm[ConsensusIO] {
+class SlvProcess extends Process[ConsensusIO] {
 
-  import VarHelper._
-  import SpecHelper._
+  var x = 0
+  var ts = new Time(-1)
+  var commit = false
+  var vote = 0
+  var decision = -1 //TODO as ghost
+  var decided = false
+  var callback: ConsensusIO = null
 
-  val V = new Domain[Int]
-
-  //variables
-  val x = new LocalVariable[Int](0)
-  val ts = new LocalVariable[Int](-1)
-  val commit = new LocalVariable[Boolean](false)
-  val vote = new LocalVariable[Int](0)
-  val decision = new LocalVariable[Int](-1) //TODO as ghost
-  val decided = new LocalVariable[Boolean](false)
-  //
-  val callback = new LocalVariable[ConsensusIO](null)
-
-
-  //FIXME once the macro issue is sorted out ...
   //rotating coordinator
   def coord(phi: Int): ProcessID = new ProcessID((phi % n).toShort)
 
-  val spec = TrivialSpec
-  
-  def process = p(new Process[ConsensusIO]{
-      
-    def init(io: ConsensusIO) {
-      callback <~ io
-      x <~ io.initialValue
-      ts <~ -1
-      decided <~ false 
-      commit <~ false
+  def init(io: ConsensusIO) = i{
+    callback = io
+    x = io.initialValue
+    ts = -1
+    decided = false 
+    commit = false
+  }
+
+  val rounds = phase(
+    new Round[(Int,Time)]{
+
+      def send(): Map[ProcessID,(Int, Time)] = {
+        Map( coord(r/4) -> (x, ts) )
+      }
+
+      override def expectedNbrMessages = if (id == coord(r/4)) n/2 + 1 else 0
+
+      def update(mailbox: Map[ProcessID,(Int, Time)]) {
+        if (id == coord(r/4) && mailbox.size > n/2) {
+          // let θ be one of the largest θ from 〈ν, θ〉received
+          // vote(p) := one ν such that 〈ν, θ〉 is received
+          vote = mailbox.maxBy(_._2._2)._2._1
+          commit = true
+        }
+      }
+
+    },
+
+    new Round[Int]{
+
+      def send(): Map[ProcessID,Int] = {
+        if (id == coord(r/4) && commit) {
+          broadcast(vote)
+        } else {
+          Map.empty
+        }
+      }
+
+      override def expectedNbrMessages = 1
+
+      def update(mailbox: Map[ProcessID,Int]) {
+        if (mailbox contains coord(r/4)) {
+          x = mailbox(coord(r/4))
+          ts = r/4
+        }
+      }
+
+    },
+
+    new Round[Int]{
+
+      def send(): Map[ProcessID,Int] = {
+        if ( ts == (r/4) ) {
+          broadcast(x)
+        } else {
+          Map.empty
+        }
+      }
+
+      override def expectedNbrMessages = n/2 + 1
+
+      def update(mailbox: Map[ProcessID,Int]) {
+        if (mailbox.size > n/2) {
+          val v = mailbox.head._2
+          if (!decided) {
+            callback.decide(v)
+            decision = v
+            decided = true
+          }
+        }
+        commit = false
+        if ((decided: Boolean)) {
+          //terminate()
+          exitAtEndOfRound()
+        }
+      }
+
     }
 
-    val rounds = Array[Round](
-      rnd(new Round{
+  )
 
-        type A = (Int, Int)
+}
 
-        //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
-        //rotating coordinator
-        def coord(phi: Int): ProcessID = new ProcessID((phi % n).toShort)
+class ShortLastVoting extends Algorithm[ConsensusIO,SlvProcess] {
 
-        def send(): Set[((Int, Int), ProcessID)] = {
-          Set((x: Int, ts: Int) -> coord(r / 4))
-        }
-
-        override def expectedNbrMessages = if (id == coord(r/4)) n/2 + 1 else 0
-
-        def update(mailbox: Set[((Int, Int), ProcessID)]) {
-          if (id == coord(r/4) && mailbox.size > n/2) {
-            // let θ be one of the largest θ from 〈ν, θ〉received
-            // vote(p) := one ν such that 〈ν, θ〉 is received
-            vote <~ mailbox.maxBy(_._1._2)._1._1
-            commit <~ true
-          }
-        }
-
-      }),
-
-      rnd(new Round{
-
-        type A = Int
-
-        //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros)
-        //rotating coordinator
-        def coord(phi: Int): ProcessID = new ProcessID((phi % n).toShort)
-
-        def send(): Set[(Int, ProcessID)] = {
-          if (id == coord(r/4) && commit) {
-            broadcast(vote)
-          } else {
-            Set.empty
-          }
-        }
-
-        override def expectedNbrMessages = 1
-
-        def update(mailbox: Set[(Int, ProcessID)]) {
-          val mb2 = mailbox.filter( _._2 == coord(r/4) )
-          if (mb2.size > 0) {
-            x <~ mb2.head._1
-            ts <~ r/4
-          }
-        }
-
-      }),
-
-      rnd(new Round{
-
-        type A = Int
-
-        def send(): Set[(Int, ProcessID)] = {
-          if ( ts == (r/4) ) {
-            broadcast(x)
-          } else {
-            Set.empty
-          }
-        }
-
-        override def expectedNbrMessages = n/2 + 1
-
-        def update(mailbox: Set[(Int, ProcessID)]) {
-          if (mailbox.size > n/2) {
-            val v = mailbox.head._1
-            if (!decided) {
-              callback.decide(v)
-              decision <~ v
-              decided <~ true
-            }
-          }
-          commit <~ false
-          if ((decided: Boolean)) {
-            //terminate()
-            exitAtEndOfRound()
-          }
-        }
-
-      })
-
-    )
-
-  })
+  val spec = TrivialSpec
+  
+  def process = new SlvProcess
 
 }

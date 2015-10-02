@@ -79,18 +79,24 @@ trait TypeExtractor {
         case IsUnit() => UnitT()
         case MethodType(args, returnT) =>
           round.formula.Function(args.map(arg => extractType(arg.typeSignature)), extractType(returnT))
+        /*
         case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "TypeName(\"LocalVariable\")" =>
           round.formula.Function(List(round.verification.Utils.procType), (extractType(arg)))
         case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "TypeName(\"GhostVariable\")" =>
           round.formula.Function(List(round.verification.Utils.procType), (extractType(arg)))
         case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "TypeName(\"GlobalVariable\")" =>
           extractType(arg)
-        case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "TypeName(\"Domain\")" =>
+        */
+        //case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "TypeName(\"Domain\")" =>
+        case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "round.Domain" =>
           FSet(extractType(arg)) //Domain are Set
         case t @ TypeRef(_, _, List()) =>
           val str = t.toString
-          if (str == "round.ProcessID") round.verification.Utils.procType
+          if (str == "round.ProcessID" || str.endsWith("this.P")) round.verification.Utils.procType
+          else if (str == "round.Time") round.verification.Utils.timeType
           else UnInterpreted(str)
+        case t @ TypeRef(a, b, List(_)) if t.toString.startsWith("round.Process[") =>
+          round.verification.Utils.procType
         case SingleType(_, _) =>
           Wildcard
         case NullaryMethodType(tpe) =>
