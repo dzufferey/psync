@@ -231,6 +231,7 @@ class PerfTest2(options: RuntimeOptions,
             m.release
             msg = Set()
           } else {
+            assert((inst - instanceNbr).toShort % nbrValues == 0, "idx = " + idx + ", inst = " + inst + ", instanceNbr = " + instanceNbr)
             instanceNbr = Instance.max(instanceNbr, inst)
             canGo = true
           }
