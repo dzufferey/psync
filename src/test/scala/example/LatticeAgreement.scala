@@ -76,6 +76,10 @@ class LatticeAgreement extends Algorithm[LatticeIO,LatticeAgreementProcess] {
   
   def process = new LatticeAgreementProcess
 
+  def dummyIO = new LatticeIO{
+    val initialValue = Lattice.bottom
+    def decide(value: Lattice.T) { }
+  }
 }
 
 object LatticeRunner extends RTOptions {

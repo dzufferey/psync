@@ -110,4 +110,8 @@ class ShortLastVoting extends Algorithm[ConsensusIO,SlvProcess] {
   
   def process = new SlvProcess
 
+  def dummyIO = new ConsensusIO{
+    val initialValue = 0
+    def decide(value: Int) { }
+  }
 }

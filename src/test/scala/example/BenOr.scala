@@ -118,6 +118,11 @@ class BenOr extends Algorithm[BinaryConsensusIO,BenOrProcess] {
 
   def process = new BenOrProcess
 
+  def dummyIO = new BinaryConsensusIO{
+    val initialValue = false
+    def decide(value: Boolean) { }
+  }
+
 }
 
 object BenOrRunner extends RTOptions {

@@ -55,6 +55,7 @@ class ConwayGameOfLife extends Algorithm[CgolIO,CgolProcess] {
 
   def process = new CgolProcess()
 
+  def dummyIO = new CgolIO(0,0,0,false)
 }
 
 //utils about neighbours overlay

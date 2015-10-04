@@ -131,4 +131,9 @@ class LastVotingB extends Algorithm[BConsensusIO,LVBProcess] {
   
   def process = new LVBProcess
 
+  def dummyIO = new BConsensusIO{
+    val phase = 0
+    val initialValue = Array[Byte]()
+    def decide(value: Array[Byte]) { }
+  }
 }

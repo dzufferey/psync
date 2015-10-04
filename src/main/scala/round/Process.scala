@@ -7,7 +7,6 @@ abstract class Process[IO] extends RtProcess {
   
   lazy val HO: Set[Process[IO]] = sys.error("used only for specification!")
 
-
   // for the runtime
   def setOptions(options: runtime.RuntimeOptions) {
     rounds.foreach(_.setOptions(options))

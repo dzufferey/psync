@@ -109,6 +109,11 @@ class TwoPhaseCommit extends Algorithm[TpcIO,TpcProcess] {
 
   def process = new TpcProcess
 
+  def dummyIO = new TpcIO{
+    val coord = new ProcessID(0)
+    val canCommit = false
+    def decide(value: Option[Boolean]) { }
+  }
 }
 
 

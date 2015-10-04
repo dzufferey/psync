@@ -66,6 +66,10 @@ class KSetAgreement(k: Int) extends Algorithm[ConsensusIO,KSetProcess] {
 
   def process = new KSetProcess(k)
 
+  def dummyIO = new ConsensusIO{
+    val initialValue = 0
+    def decide(value: Int) { }
+  }
 }
 
 object KSetRunner extends RTOptions {

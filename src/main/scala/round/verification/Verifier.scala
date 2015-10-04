@@ -9,18 +9,26 @@ import dzufferey.utils.Namer
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
+import scala.reflect.runtime.universe.TypeTag
+
 import dzufferey.report._
 
-class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P]) {
+class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P])(implicit tag: TypeTag[P]) {
 
   val spec = alg.spec 
+  VC.cl = spec.cl //set-up the reducer for the VCs
 
   val process = alg.process
-  val procLocalVars: Set[Variable] = Set.empty //TODO process.localVariables.toSet
-  val procGhostVars: Set[Variable] = Set.empty //TODO process.ghostVariables.toSet
-  val procGlobalVars: Set[Variable] = Set.empty //TODO process.globalVariables.toSet
-  val procAllVars = procLocalVars ++ procGhostVars ++ procGlobalVars
+  //generate the initial state
+  Process.fillInitState = true 
+  process.init(alg.dummyIO)
+  
+  val procGlobalVars: Set[Variable] = ProcessUtils.globalVariables
+  //val procGhostVars: Set[Variable] = Set.empty
+  val procLocalVars: Set[Variable] = ProcessUtils.localVariables[P]
+  val procAllVars = procLocalVars /*++ procGhostVars*/ ++ procGlobalVars
 
+  //TODO the local vars need to be typed (using the init and TR)
   assert(procAllVars.forall(_.tpe != Wildcard))
 
   //to avoid capture during later renaming
@@ -150,7 +158,7 @@ class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P]) {
     val normal =
       And( And( Eq(r, Plus(Literal(1),rp)),
                 spec.safetyPredicate ),
-           tr.makeFullTr(procLocalVars ++ procGhostVars, aux) )
+           tr.makeFullTr(procLocalVars /*++ procGhostVars*/, aux) )
     env match {
       case Some(f) => And(f, normal)
       case None => normal
@@ -186,7 +194,7 @@ class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P]) {
           new SingleVC(
             descr + " preserved at round " + r,
             f,//TODO this might still contains old terms, they are harmless
-            tr.makeFullTr(procLocalVars ++ procGhostVars, aux),
+            tr.makeFullTr(procLocalVars /*++ procGhostVars*/, aux),
             tr.primeFormula(f),
             additionalAxioms
           )
@@ -196,7 +204,7 @@ class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P]) {
       new CompositeVC(descr, true,
         new SingleVC(
           descr + " holds initially",
-          ForAll(List(procI), localize(procLocalVars ++ procGhostVars, procI, procInitState)),
+          ForAll(List(procI), localize(procLocalVars /*++ procGhostVars*/, procI, procInitState)),
           Eq(r, Literal(0)),
           removeInitPrefix(property),
           additionalAxioms
@@ -207,7 +215,7 @@ class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P]) {
           new SingleVC(
             descr + " preserved at round " + r,
             f,
-            tr.makeFullTr(procLocalVars ++ procGhostVars, aux),
+            tr.makeFullTr(procLocalVars /*++ procGhostVars*/, aux),
             tr.primeFormula(f),
             additionalAxioms
           )
@@ -226,7 +234,7 @@ class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P]) {
     //1st invariant is implied by initial state
     val initVC = new SingleVC(
       "Initial state implies invariant 0",
-      ForAll(List(procI), localize(procLocalVars ++ procGhostVars, procI, procInitState)),
+      ForAll(List(procI), localize(procLocalVars /*++ procGhostVars*/, procI, procInitState)),
       Eq(r, Literal(0)),
       removeInitPrefix(removeOldPrefix(spec.invariants(0))),
       additionalAxioms
@@ -299,9 +307,9 @@ class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P]) {
     val lst = new Sequence("Process")
 
     val vars = new List("Variables")
-    vars.add(new Text("Global", procGhostVars.map(v => v.name+": " +v.tpe).mkString(", ")))
+    vars.add(new Text("Global", procGlobalVars.map(v => v.name+": " +v.tpe).mkString(", ")))
     vars.add(new Text("Local", procLocalVars.map(v => v.name+": " +v.tpe).mkString(", ")))
-    vars.add(new Text("Ghost", procGhostVars.map(v => v.name+": " +v.tpe).mkString(", ")))
+    //vars.add(new Text("Ghost", procGhostVars.map(v => v.name+": " +v.tpe).mkString(", ")))
     lst.add(vars)
     
     lst.add(itemForFormula("Initial state", procInitState))
@@ -313,7 +321,7 @@ class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P]) {
       lst.add(new Code("Update", process.rounds(i).updtStr))
       val tr = roundsTR(i)._1
       val aux = roundsTR(i)._2
-      val f = tr.makeFullTr(procLocalVars ++ procGhostVars, aux)
+      val f = tr.makeFullTr(procLocalVars /*++ procGhostVars*/, aux)
       val fs = FormulaUtils.getConjuncts(f)
       lst.add(itemForFormula("Transition Relation", fs))
       //TR variables

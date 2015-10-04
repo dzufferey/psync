@@ -49,6 +49,10 @@ class KSetEarlyStopping(t: Int, k: Int) extends Algorithm[ConsensusIO,KSetESProc
 
   def process = new KSetESProcess(t, k)
 
+  def dummyIO = new ConsensusIO{
+    val initialValue = 0
+    def decide(value: Int) { }
+  }
 }
 
 object KSetESRunner extends RTOptions {

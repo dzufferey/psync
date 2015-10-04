@@ -101,6 +101,10 @@ class MConsensus extends Algorithm[MembershipIO,MConsensusProcess] {
   
   def process = new MConsensusProcess()
 
+  def dummyIO = new MembershipIO {
+    val initialValue = AddReplica("", 0)
+    def decide(value: MembershipOp) { }
+  }
 }
 
 object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {

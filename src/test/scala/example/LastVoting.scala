@@ -66,6 +66,11 @@ class LastVoting extends Algorithm[ConsensusIO, LVProcess] {
   }
   
   def process = new LVProcess()
+  
+  def dummyIO = new ConsensusIO{
+    val initialValue = 0
+    def decide(value: Int) { }
+  }
 }
   
 class LVProcess extends Process[ConsensusIO]{

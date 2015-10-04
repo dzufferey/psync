@@ -40,6 +40,10 @@ class FloodMin(f: Int) extends Algorithm[ConsensusIO,FloodMinProcess] {
 
   def process = new FloodMinProcess(f)
 
+  def dummyIO = new ConsensusIO{
+    val initialValue = 0
+    def decide(value: Int) { }
+  }
 }
 
 object FloodMinRunner extends RTOptions {

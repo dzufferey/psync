@@ -74,6 +74,10 @@ class EpsilonConsensus(f: Int, epsilon: Double) extends Algorithm[RealConsensusI
 
   def process = new EpsilonProcess(f, epsilon)
 
+  def dummyIO = new RealConsensusIO{
+    val initialValue = 0.0
+    def decide(value: Double) { }
+  }
 }
 
 object EpsilonRunner extends RTOptions {

@@ -6,7 +6,6 @@ class ProcessID(val id: Short) extends AnyVal
 //IO is a type parameter to communicate the initial value, parameter, and callbacks
 //the use of mixing composition forces elements (like variables) to be used only with the algorithm
 abstract class Algorithm[IO, P <: Process[IO]] extends Specs[IO, P]
-    //with Variables[IO]
 {
 
   //round number
@@ -24,11 +23,10 @@ abstract class Algorithm[IO, P <: Process[IO]] extends Specs[IO, P]
   //specification of the consensus
   val spec: Spec
 
-  def process: P//rocess[IO]
+  def process: P
 
-  //////////////////
-  // util methods //
-  //////////////////
+  /** A sample IO object. This is currently needed for the verification. */
+  def dummyIO: IO
 
 }
 

@@ -28,15 +28,22 @@ abstract class VC {
   def report: Item
 }
 
-class SingleVC(description: String, hypothesis: Formula, transition: Formula, conclusion: Formula, additionalAxioms: scala.List[Formula] = Nil) extends VC {
+object VC {
+  var cl: CL = CL
+}
+
+class SingleVC( description: String,
+                hypothesis: Formula,
+                transition: Formula,
+                conclusion: Formula,
+                additionalAxioms: scala.List[Formula] = Nil
+              ) extends VC {
 
   protected lazy val fName = {
     Namer(description.replaceAll(" ", "_")) + ".smt2"
   }
 
   protected var reduced: Formula = False()
-
-  protected val cl = CL //TODO bound according to the options
 
   def solve {
     if (!solved) { 
@@ -47,7 +54,7 @@ class SingleVC(description: String, hypothesis: Formula, transition: Formula, co
         Logger("vC", Debug, "transition:\n  " + FormulaUtils.getConjuncts(transition).mkString("\n  "))
         Logger("VC", Debug, "conclusion:\n  " + FormulaUtils.getConjuncts(conclusion).mkString("\n  "))
         Logger("VC", Debug, "additionalAxioms:\n  " + additionalAxioms.mkString("\n  "))
-        reduced = cl.entailment(And(hypothesis, transition), conclusion)
+        reduced = VC.cl.entailment(And(hypothesis, transition), conclusion)
         reduced = Application(And, FormulaUtils.getConjuncts(reduced) ::: additionalAxioms).setType(Bool)
         reduced = Simplify.simplify(reduced)
         solver = if (round.utils.Options.dumpVcs) Solver(UFLIA, fName)

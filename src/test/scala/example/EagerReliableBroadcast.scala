@@ -51,6 +51,10 @@ class EagerReliableBroadcast extends Algorithm[BroadcastIO,ErbProcess] {
 
   def process = new ErbProcess()
 
+  def dummyIO = new BroadcastIO{
+    val initialValue = None
+    def deliver(value: Int) { }
+  }
 }
 
 object ERBRunner extends RTOptions {
