@@ -1,9 +1,9 @@
 package example
 
-import round._
-import round.runtime._
-import round.macros.Macros._
-import round.utils.Timer
+import psync._
+import psync.runtime._
+import psync.macros.Macros._
+import psync.utils.Timer
 import io.netty.buffer.PooledByteBufAllocator
 
 import dzufferey.utils.Logger
@@ -393,7 +393,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
   // setup //
   ///////////
 
-  private var rt: round.runtime.Runtime[MembershipIO,MConsensusProcess] = null
+  private var rt: psync.runtime.Runtime[MembershipIO,MConsensusProcess] = null
 
   def setup() {
     val isMaster = masterPort.isEmpty && masterAddress.isEmpty
@@ -405,7 +405,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
       } else {
         List(Replica(new ProcessID(0), masterAddress.get, Set(masterPort.get)))
       }
-    rt = new round.runtime.Runtime(new MConsensus, this, defaultHandler(_))
+    rt = new psync.runtime.Runtime(new MConsensus, this, defaultHandler(_))
     rt.startService
     view = rt.directory
     if (isMaster) {

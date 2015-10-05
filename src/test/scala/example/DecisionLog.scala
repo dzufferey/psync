@@ -1,7 +1,7 @@
 package example
 
 import java.util.concurrent.locks.ReentrantLock
-import round.runtime.Instance
+import psync.runtime.Instance
 
 /** some utils to easily store and access previous decision */
 trait DecisionLog[T] {

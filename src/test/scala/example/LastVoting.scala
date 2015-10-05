@@ -1,9 +1,9 @@
 package example
 
-import round._
-import round.Time._
-import round.formula._
-import round.macros.Macros._
+import psync._
+import psync.Time._
+import psync.formula._
+import psync.macros.Macros._
 
 class LastVoting extends Algorithm[ConsensusIO, LVProcess] {
 

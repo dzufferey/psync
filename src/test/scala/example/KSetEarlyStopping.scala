@@ -1,8 +1,8 @@
 package example
 
-import round._
-import round.runtime._
-import round.macros.Macros._
+import psync._
+import psync.runtime._
+import psync.macros.Macros._
 
 //http://link.springer.com/chapter/10.1007%2F11535294_5
 class KSetESProcess(t: Int, k: Int) extends Process[ConsensusIO] {

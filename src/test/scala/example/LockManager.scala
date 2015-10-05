@@ -1,7 +1,7 @@
 package example
 
-import round._
-import round.runtime._
+import psync._
+import psync.runtime._
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 import java.net.InetSocketAddress

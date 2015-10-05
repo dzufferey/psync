@@ -1,9 +1,9 @@
 package example
 
-import round._
-import round.formula._
-import round.macros.Macros._
-import round.verification.{requires,ensures}
+import psync._
+import psync.formula._
+import psync.macros.Macros._
+import psync.verification.{requires,ensures}
 
 //like OTR but uses a boolean flag instead of an option for the decision
 
@@ -26,7 +26,7 @@ class OtrProcess(afterDecision: Int) extends Process[ConsensusIO]{
   //min most often received
   @requires(True())
 //@ensures("v1", {
-//  import round.logic.CL.procType
+//  import psync.logic.CL.procType
 //  import InlineOps._
 //  val v1 = Variable("v1").setType(Int)
 //  val v2 = Variable("v2").setType(Int)

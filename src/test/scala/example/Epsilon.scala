@@ -1,9 +1,9 @@
 package example
 
-import round._
-import round.Time._
-import round.runtime._
-import round.macros.Macros._
+import psync._
+import psync.Time._
+import psync.runtime._
+import psync.macros.Macros._
 
 abstract class RealConsensusIO {
   val initialValue: Double

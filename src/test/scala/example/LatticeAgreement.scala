@@ -1,8 +1,8 @@
 package example
 
-import round._
-import round.runtime._
-import round.macros.Macros._
+import psync._
+import psync.runtime._
+import psync.macros.Macros._
 
 /* A simple example of lattice.
  * Due to the way the serializatino code is generated, we need a concrete type

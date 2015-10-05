@@ -1,4 +1,4 @@
-name := "round"
+name := "psync"
 
 version := "0.2-SNAPSHOT"
 

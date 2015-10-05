@@ -1,8 +1,8 @@
 package example
 
-import round._
-import round.formula._
-import round.macros.Macros._
+import psync._
+import psync.formula._
+import psync.macros.Macros._
 
 class Otr2Process(afterDecision: Int) extends Process[ConsensusIO]{
   

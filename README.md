@@ -1,9 +1,11 @@
-# Round
+# PSync
 
 Fault-tolerant distributed systems play an important role in many critical applications.
 However, concurrency, uncertain message delays, and the occurrence of faults make those systems hard to design, implement, and verify.
-Round is a framework for writing and verifying high-level implementations of fault-tolerant distributed algorithms.
-Round provides communication-closed rounds as primitive, which both simplifies the implementation of the fault-tolerant systems, and makes them more amenable to automated verification.
+PSync is a framework for writing and verifying high-level implementations of fault-tolerant distributed algorithms.
+PSync is based on the Heard-Of model and provides communication-closed rounds as primitive, which both simplifies the implementation of the fault-tolerant systems, and makes them more amenable to automated verification.
+
+The name PSync comes from [partial synchrony](http://groups.csail.mit.edu/tds/papers/Lynch/jacm88.pdf) a model for distributed system that makes it possible to provide an illusion of synchrony even though the underlying system may not be always/fully synchronous.
 
 ## Example
 
@@ -21,8 +23,8 @@ Starting with an algorithm from the literature which usually looks like that [Ch
 10:             decide( x )
 ```
 
-For the cost of turning the algorithm it into a sightly different syntax, Round provide a distributed runtime and tools to automatically check the correctness of the algorithm.
-The same consensus algorithm that runs in Round looks like:
+For the cost of turning the algorithm it into a sightly different syntax, PSync provide a distributed runtime and tools to automatically check the correctness of the algorithm.
+The same consensus algorithm that runs in PSync looks like:
 ```scala
 abstract class IO {
   val initialValue: Int
@@ -103,7 +105,7 @@ class OTR extends Algorithm[IO, OtrProcess] {
 The client code that uses a such algorithm is:
 ```scala
   //setup the service
-  val option: round.runtime.RuntimeOptions = ??? //the list of peers and other parameters
+  val option: psync.runtime.RuntimeOptions = ??? //the list of peers and other parameters
   val algorithm = new OTR
   val rt = new RunTime(alg, options, defaultHandler(_))
   rt.startService
@@ -135,7 +137,7 @@ Complete working examples are located in `src/test/scala/example`.
 
 ## Status
 
-Round is in development.
+PSync is in development.
 
 Currently the runtime is fairly stable.
 However, we are still woking to improve the performance.

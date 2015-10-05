@@ -1,8 +1,8 @@
 package example
 
-import round._
-import round.Time._
-import round.macros.Macros._
+import psync._
+import psync.Time._
+import psync.macros.Macros._
 
 abstract class BConsensusIO {
   val phase: Int
@@ -32,7 +32,7 @@ class LVBProcess extends Process[BConsensusIO] {
       
   def coord(phi: Int): ProcessID = new ProcessID(((phi + phase) % n).toShort)
 
-  val rounds = round.macros.Macros.phase(
+  val rounds = psync.macros.Macros.phase(
     new Round[(Array[Byte], Time)]{
 
       def send(): Map[ProcessID,(Array[Byte], Time)] = {

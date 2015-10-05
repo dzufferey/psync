@@ -1,11 +1,11 @@
 package example
 
-import round._
+import psync._
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 import dzufferey.arg._
 
-object Verifier extends round.utils.VerificationOptions {
+object Verifier extends psync.utils.VerificationOptions {
   
   var v = 1
   newOption("-n", Int( i => v = i), "1/2")
@@ -26,7 +26,7 @@ object Verifier extends round.utils.VerificationOptions {
       case x :: _ => x
       case Nil => "example." + (if (lv) "LastVoting" else "OTR") + (if (v == 1) "" else v)
     }
-    val verifer = round.verification.Verifier(alg)
+    val verifer = psync.verification.Verifier(alg)
 
     Logger("ConsensusVerifier", Notice, "verifying ...")
     val report = verifer.check

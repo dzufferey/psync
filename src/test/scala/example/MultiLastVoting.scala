@@ -1,7 +1,7 @@
 package example
 
-import round._
-import round.macros.Macros._
+import psync._
+import psync.macros.Macros._
 
 abstract class MlvIO{
   // Left(p) = acceptor, Right(v) = proposer+acceptor

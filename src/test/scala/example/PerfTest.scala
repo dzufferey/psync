@@ -1,8 +1,8 @@
 package example
 
-import round._
-import round.runtime._
-import round.utils.ByteBufAllocator
+import psync._
+import psync.runtime._
+import psync.utils.ByteBufAllocator
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 import dzufferey.arg._
