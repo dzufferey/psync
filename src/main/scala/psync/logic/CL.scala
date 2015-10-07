@@ -44,10 +44,11 @@ class CL(bound: Option[Int],
     //TODO de Bruijn then bound var unique ?
     val f1 = Simplify.normalize(f)
     val f2 = Simplify.nnf(f1)
-    val f3 = Simplify.boundVarUnique(f2)
-    val f4 = Simplify.mergeExists(f3)
-    val f5 = Simplify.splitTopLevelForall(f4)
-    f5
+    val f3 = FormulaUtils.flatten(f2)
+    val f4 = Simplify.boundVarUnique(f3)
+    val f5 = Simplify.mergeExists(f4)
+    val f6 = Simplify.splitTopLevelForall(f5)
+    f6
   }
  
   def keepAsIt(f: Formula): Boolean = {

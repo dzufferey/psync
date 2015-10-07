@@ -132,13 +132,13 @@ object FormulaUtils {
 
   protected def flatten1(i: InterpretedFct, f: Formula): List[Formula] = f match {
     case Application(`i`, lst) => lst.flatMap(flatten1(i, _))
-    case Application(other, lst) => List(Copier.Application(f, other, lst map flatten))
+    case Application(_, _) => List(flatten(f))
     case Binding(b, v, f) => List(Copier.Binding(f, b, v, flatten(f)))
     case other => List(other)
   }
 
   def flatten(f: Formula): Formula = f match {
-    case Application(Plus, lst) => Copier.Application(f, Plus, lst.flatMap(flatten1(Plus, _)))
+    case Application(Plus, lst) => Copier.Application(f, Plus,   lst.flatMap(flatten1(Plus, _)))
     case Application(Times, lst) => Copier.Application(f, Times, lst.flatMap(flatten1(Times, _)))
     case Application(Union, lst) => Copier.Application(f, Union, lst.flatMap(flatten1(Union, _)))
     case Application(Intersection, lst) => Copier.Application(f, Intersection, lst.flatMap(flatten1(Intersection, _)))

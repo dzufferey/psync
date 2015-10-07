@@ -238,25 +238,6 @@ class LvExample extends FunSuite {
 
   //invariants
 
-  //TODO the pnf/quantifier manipulation of the positive invariant does not work great:
-  //is it because of the disj ???
-/**
-∀ i$46 i$47 i$59 i$60 i$61 i$62 i$63.
-    ∨(
-            ∧(
-                     <(n, ∙(card(A$1), 2)),
-                     =(A$1, { i$48. leq(t$1, timeStamp(i$48))}),
-                     ∨(=(v$1, data(i$61)), ¬(decided(i$61))),
-                     ∨(=(v$1, data(i$62)), ¬(∈(i$62, A$1))),
-                     ∨(=(v$1, vote(i$59)), ¬(ready(i$59))),
-                     ∨(=(v$1, vote(i$60)), ¬(commit(i$60))),
-                     ∨(¬(=(r, timeStamp(i$47))), commit(coord(i$47))),
-                     leq(t$1, r)),
-            ∧(
-                     ¬(decided(i$63)),
-                     ¬(ready(i$46))))
-*/
-
   val invariant1 = And(
     Or(
       ForAll(List(i), And(Not(decided(i)), Not(ready(i)))),

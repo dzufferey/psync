@@ -13,7 +13,7 @@ class IncrementalGeneratorSuite extends FunSuite {
       ForAll(List(p2), Eq(rp2, IntLit(0))),
       ForAll(List(p1,p2), Eq(pp1, pp2))
     )
-    val itg = new IncrementalFormulaGenerator(axs)
+    val itg = new IncrementalFormulaGenerator(axs, new CongruenceClosure)
     val g1 = itg.generate(p1)
     assert(g1.size == 2)
     assert(g1 contains Eq(IntLit(0), rp1))
@@ -88,6 +88,23 @@ class IncrementalGeneratorSuite extends FunSuite {
     assert(g4 contains Eq(pp2, pp2))
     val g5 = itg2.generate(p2)
     assert(g5.isEmpty)
+  }
+
+  test("compdef caching"){
+    val s = Variable("s").setType(FSet(pid))
+    val axs = And(
+      ForAll(List(p1,p2),
+        Exists(List(s),
+          And(
+            Eq(s, Comprehension(List(p2), Eq(p1, p2))),
+            Eq(p1,p2)
+          )
+        )
+      )
+    )
+    val itg = new IncrementalGenerator(axs)
+    val g1 = itg.generate(Set[Formula](p1,p2))
+    assert(g1.size == 4)
   }
 
 }

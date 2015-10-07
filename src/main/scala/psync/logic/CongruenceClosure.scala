@@ -5,6 +5,7 @@ import psync.formula._
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
+//TODO should we consider a comprehension a ground term ? (if the body does not have refer to quantified variables)
 
 //congruence closure to reduce the number of terms in the instanciation
 trait CC {
@@ -12,6 +13,7 @@ trait CC {
   def allRepr: Set[Formula]
   def normalize(f: Formula): Formula
   def groundTerms: Set[Formula]
+  def contains(f: Formula): Boolean
   def withSymbol(s: Symbol): Seq[Formula]
   def copy: CC
   def mutable: CongruenceClosure
@@ -94,6 +96,8 @@ class CongruenceClosure extends CC {
   }
 
   def groundTerms = formulaToNode.keysIterator.toSet
+
+  def contains(f: Formula) = formulaToNode contains f
 
   def withSymbol(s: Symbol) = {
     val builder = new scala.collection.immutable.VectorBuilder[Formula]()
@@ -203,6 +207,7 @@ class CongruenceClasses(cls: Iterable[CongruenceClass], map: Map[Formula, Congru
 
   protected lazy val gts: Set[Formula] = cls.foldLeft(Set[Formula]())( _ ++ _.terms)
   def groundTerms = gts
+  def contains(f: Formula) = gts contains f
 
   protected lazy val s2t = gts.toSeq.collect{ case a @ Application(_, _) => a }.groupBy(_.fct)
   def withSymbol(s: Symbol) = s2t(s)

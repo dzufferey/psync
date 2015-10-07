@@ -98,4 +98,15 @@ class SimplifySuite extends FunSuite {
     assert(Simplify.simplify(f2) == Simplify.simplify(expected))
   }
 
+  test("flatten 1") {
+    val f = Or(
+      Or(
+        Eq(a,c),
+        Eq(a,d)
+      ),
+      Eq(a,b)
+    )
+    val expected = Or( Eq(a,c), Eq(a,d), Eq(a,b) )
+    assert(Simplify.simplify(f) == Simplify.simplify(expected))
+  }
 }

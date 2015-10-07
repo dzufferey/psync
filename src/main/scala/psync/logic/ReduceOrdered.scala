@@ -32,7 +32,7 @@ object ReduceOrdered {
 
 
   def apply(f: Formula): Formula = {
-    Logger("ReduceOrdered", Warning, "TODO ReduceOrdered not yet implemented.")
+    Logger("ReduceOrdered", Info, "TODO ReduceOrdered not yet implemented.")
     f
   }
 
