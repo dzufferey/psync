@@ -242,9 +242,10 @@ class IncrementalGenerator(f: Formula, val cc: CongruenceClosure = new Congruenc
 
   /** saturate starting with the groundTerms (representative in cc), up to a certain depth.
    * @param depth (optional) bound on the recursion depth
+   * @param local (optional) at the end staturate without generating new terms
    * @return applications of the axioms
    */
-  def saturate(depth: Option[Int] = None) = {
+  def saturate(depth: Option[Int] = None, local: Boolean = true) = {
     val buffer = scala.collection.mutable.ListBuffer[Formula]()
     var d = depth
     var processed = scala.collection.mutable.Set[Formula]()
@@ -258,8 +259,8 @@ class IncrementalGenerator(f: Formula, val cc: CongruenceClosure = new Congruenc
       toProcess = newGts.map(cc.repr).filter(f => !processed.contains(f)).toSet
       d = d.map(_ - 1)
     }
-    Logger("IncrementalGenerator", Debug, "saturate before local: " + buffer.size + " new clauses")
-    if (d.getOrElse(1) == 0) {
+    if (local && d.getOrElse(1) == 0) {
+      Logger("IncrementalGenerator", Debug, "saturate before local: " + buffer.size + " new clauses")
       buffer ++= gen.locallySaturate
     }
     Logger("IncrementalGenerator", Debug, "saturate generated " + buffer.size + " new clauses")

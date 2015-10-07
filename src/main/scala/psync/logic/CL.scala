@@ -6,16 +6,18 @@ import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 import dzufferey.utils.Namer
 
-object CL extends CL( Some(2), //pairwise Venn regions
+object CL extends CL( Some(2),                               //pairwise Venn regions
                       Some(Set(UnInterpreted("ProcessID"))), //only on set of type ProcessID
-                      Some(1)) //one step quantifier instantiation
+                      Some(1),                               //one step quantifier instantiation
+                      true)                                  //saturate at the end without generating new terms
 
-object ClFull extends CL(None, None, Some(10)) 
+object ClFull extends CL(None, None, Some(10), true)
 
 
 class CL(bound: Option[Int],
          onType: Option[Set[Type]],
-         instantiationBound: Option[Int]) {
+         instantiationBound: Option[Int],
+         localSaturation: Boolean = true) {
 
   val procType = UnInterpreted("ProcessID")
   val timeType = UnInterpreted("Time")
@@ -225,7 +227,7 @@ class CL(bound: Option[Int],
     }
     //Logger("CL", Debug, "CC is\n" + cc)
     val gen = InstGen.makeGenerator(And(rest:_*), cc)
-    val inst = gen.leftOver ::: gen.saturate(instantiationBound) //leftOver contains things not processed by the generator
+    val inst = gen.leftOver ::: gen.saturate(instantiationBound, localSaturation) //leftOver contains things not processed by the generator
     Logger("CL", Debug, "after instantiation:\n  " + inst.mkString("\n  "))
     //gen.log(Debug)
 
