@@ -292,7 +292,21 @@ class VennRegionsWithBound(bound: Int,
                            _sets: Iterable[(Formula, Option[Binding])],
                            mkUniv: Formula => Formula) {
 
-  protected def sets = _sets.toArray
+  protected val sets = _sets.toArray
+
+  protected def choose(n: Int, k: Int): Long = {
+    var c = 1l
+    for (i <- (math.max(k, n-k) + 1) to n) c *= i
+    for (i <- 1 to math.min(k, n-k)) c /= i
+    c
+  }
+
+  protected def costWithBound: Long = {
+    val regions = math.pow(2, math.min(sets.length,bound)).toLong
+    val combinations = choose(sets.length, bound)
+    regions * combinations
+  }
+  protected def costFull: Long = math.pow(2, sets.length).toLong
 
   protected def mkSeq(idx: Int, pos: Int): Seq[List[(Formula, Option[Binding])]] = {
     if (idx >= bound) {
@@ -305,10 +319,17 @@ class VennRegionsWithBound(bound: Int,
   }
 
   def constraints = {
-    val seq = if (bound >= sets.size) Seq(_sets)
-              else mkSeq(0,0)
-    val cstrs = seq/*.par*/.map( s => new VennRegions(tpe, universeSize, s, mkUniv).constraints )/*.seq*/
-    And(cstrs:_*)
+    val cb = costWithBound
+    val cf = costFull
+    if (cb >= cf || bound >= sets.size) {
+      Logger("VennRegions", Info, "doing the full construction because it is cheaper: " + cf + " instead of " + cb + " regions.")
+      val vr = new VennRegions(tpe, universeSize, sets, mkUniv)
+      vr.constraints
+    } else {
+      val seq = mkSeq(0,0)
+      val cstrs = seq/*.par*/.map( s => new VennRegions(tpe, universeSize, s, mkUniv).constraints )/*.seq*/
+      And(cstrs:_*)
+    }
   }
 
 }

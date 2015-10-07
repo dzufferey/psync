@@ -72,11 +72,11 @@ class VennRegionsSuite extends FunSuite {
       FormulaUtils.getConjuncts(vr)
     }
     assert(mk(1, c1).size == 1)
-    assert(mk(1, c2).size == 2)
+    assert(mk(1, c2).size == 1) //instead of 2 because cheaper that way
     assert(mk(1, c3).size == 3)
     assert(mk(2, c1).size == 1)
     assert(mk(2, c2).size == 1)
-    assert(mk(2, c3).size == 3)
+    assert(mk(2, c3).size == 1) //instead of 3 because cheaper that way
     assert(mk(3, c1).size == 1)
     assert(mk(3, c2).size == 1)
     assert(mk(3, c3).size == 1)
