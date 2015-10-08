@@ -12,8 +12,7 @@ class LvExample extends FunSuite {
 
   val pld = UnInterpreted("payload")
   //a special type for the phase (try to reduce the blow-up)
-  val phase = UnInterpreted("phase") //TODO replace by Time
-  //val phase = CL.timeType //TODO bug in ReduceTime
+  val phase = CL.timeType
 
   val r  = Variable("r").setType(phase)
   val r1 = Variable("r1").setType(phase)
