@@ -4,6 +4,8 @@ import org.scalatest._
 
 class SimplifySuite extends FunSuite {
 
+  //TODO test idempotence of boundVarUnique
+
   test("pnf 1") {
     import Simplify._
     val pid = UnInterpreted("ProcessID")

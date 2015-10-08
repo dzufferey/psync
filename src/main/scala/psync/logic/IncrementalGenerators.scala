@@ -10,7 +10,7 @@ import scala.collection.mutable.{Set => MSet}
 import scala.collection.mutable.ArrayBuffer
 
 
-class IncrementalFormulaGenerator(axioms: Iterable[Formula], cc: CongruenceClosure) extends Cloneable {
+class IncrementalFormulaGenerator(axioms: Iterable[Formula], cc: CongruenceClosure) {
 
   //the current generators
   protected val idx  = scala.collection.mutable.Map[Type,ArrayBuffer[Int]]()
@@ -336,14 +336,14 @@ protected class Gen(val vs: Array[Variable], val f: Formula) extends Cloneable {
 
 }
 
-object Gen {
+protected object Gen {
 
-  protected def mkVar(v: Variable) = {
+  def mkVar(v: Variable) = {
     val suffix = psync.utils.smtlib.Names.tpe(v.tpe)
     Variable(Namer("_genExt_"+suffix)).setType(v.tpe)
   }
 
-  protected def getDefinitions(v: Variable, f: Formula): Seq[Formula] = f match {
+  def getDefinitions(v: Variable, f: Formula): Seq[Formula] = f match {
     case ForAll(fa, f2) =>
       val lst = getDefinitions(v, f2)
       val fas = fa.toSet
@@ -354,7 +354,7 @@ object Gen {
     case _ => Seq()
   }
 
-  protected def findCandidate(v: Variable, bvs: Set[Variable], defs: Seq[Formula], cc: CC, compDef: MMap[Binding, Variable]): Formula = {
+  def findCandidate(v: Variable, bvs: Set[Variable], defs: Seq[Formula], cc: CC, compDef: MMap[Binding, Variable]): Formula = {
     //check if there is an existing ground term
     val defs1 = defs.filter( d => d.freeVariables.forall( fv => !bvs(fv)))
     val defs2 = defs1.filter( d => cc.contains(d) )

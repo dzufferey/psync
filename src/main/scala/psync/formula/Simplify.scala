@@ -54,11 +54,12 @@ object Simplify {
     ???
   }
 
+  protected def mkDeBruijnVar(tpe: Type, idx: Int) = {
+    val prefix = psync.utils.smtlib.Names.tpe(tpe)
+    Variable(prefix + "_" + idx).setType(tpe)
+  }
+
   def deBruijnIndex(f0: Formula, renameFreeVars: Boolean = false): Formula = {
-    def mkVar(tpe: Type, idx: Int) = {
-      val prefix = psync.utils.smtlib.Names.tpe(tpe)
-      Variable(prefix + "_" + idx).setType(tpe)
-    }
 
     //generic renaming of variables _XXX
     val f = boundVarUnique(f0)
@@ -82,7 +83,7 @@ object Simplify {
         val (vs2, map2) = dzufferey.utils.Misc.mapFold(vs, map, (v: Variable, acc: Map[Type, Int]) => {
           val idx = 1 + acc.getOrElse(v.tpe, 0)
           val acc2 = acc + (v.tpe -> idx)
-          (mkVar(v.tpe, idx), acc2)
+          (mkDeBruijnVar(v.tpe, idx), acc2)
         })
         val subst = vs.zip(vs2).toMap
         val f4 = FormulaUtils.alpha(subst, f3)
@@ -90,6 +91,53 @@ object Simplify {
     }
 
     assignNames(cleanNames)._2
+  }
+
+  //TODO return the subst
+  def deBruijnIndexWithRenaming(f: Formula, renameFreeVars: Boolean = false): (Formula, Map[Variable,Variable]) = {
+
+    //generic renaming of variables _XXX
+    val f0 = boundVarUnique(f)
+    assert(f0 == f, "deBruijnIndexWithRenaming only makes sense if bound variables have an unique name")
+    val allVars = if (renameFreeVars) f.freeVariables ++ f.boundVariables else f.boundVariables
+    val startToDummy = allVars.foldLeft(Map[Variable,Variable]())( (acc, v) => acc + (v -> Variable(Namer("_")).setType(v.tpe)) )
+    val cleanNames = FormulaUtils.alphaAll(startToDummy, f)
+
+    def merge(m1: Map[Type, Int], m2: Map[Type, Int]): Map[Type, Int] = {
+      m2.foldLeft(m1)( (acc, k) => acc + (k._1 -> math.max(k._2, acc.getOrElse(k._1, 0))) )
+    }
+
+    def unzip3[A,B,C](lst: List[(A,B,C)]): (List[A], List[B], List[C]) = lst match {
+      case (a,b,c) :: xs =>
+      val (as,bs,cs) = unzip3(xs)
+      (a::as,b::bs,c::cs)
+      case Nil => (Nil, Nil, Nil)
+    }
+
+    //renaming
+    def assignNames(f: Formula): (Map[Type, Int], Map[Variable, Variable], Formula) = f match {
+      case Literal(_) | Variable(_) => (Map(), Map(), f)
+      case Application(fct, args) =>
+        val (maps, alphaList, args2) = unzip3(args.map(assignNames))
+        val alpha = alphaList.foldLeft(Map.empty[Variable,Variable])(_ ++ _)
+        val map = maps.foldLeft(Map[Type,Int]())(merge(_, _))
+        (map, alpha, Copier.Application(f, fct, args2).setType(f.tpe))
+      case Binding(bt, vs, f2) =>
+        val (map, alpha, f3) = assignNames(f2)
+        val (vs2, map2) = dzufferey.utils.Misc.mapFold(vs, map, (v: Variable, acc: Map[Type, Int]) => {
+          val idx = 1 + acc.getOrElse(v.tpe, 0)
+          val acc2 = acc + (v.tpe -> idx)
+          val v2 = mkDeBruijnVar(v.tpe, idx)
+          (v2, acc2)
+        })
+        val subst = vs.zip(vs2).toMap
+        val f4 = FormulaUtils.alpha(subst, f3)
+        (map2, alpha ++ subst, Copier.Binding(f, bt, vs2, f4).setType(f.tpe))
+    }
+
+    val (_, dummyToFinal, f2) = assignNames(cleanNames)
+    val startToFinal = startToDummy.map{ case (k,v) => k -> dummyToFinal(v) }
+    (f2, startToFinal)
   }
   
 
