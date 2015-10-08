@@ -276,6 +276,19 @@ class CLSuite extends FunSuite {
     )
     assertUnsat(fs)
   }
+  
+  test("ordered") {
+    val t = UnInterpreted("T")
+    val t1 = Variable("t1").setType(t)
+    val t2 = Variable("t2").setType(t)
+    val t3 = Variable("t3").setType(t)
+    assertUnsat(List(Leq(t1, t2), Leq(t2, t1), Not(Eq(t1, t2))))
+    assertUnsat(List(Leq(t1, t2), Leq(t2, t3), Not(Leq(t1, t3))))
+    assertUnsat(List(Lt(t1, t2), Lt(t2, t1)))
+    assertSat(List(Leq(t1, t2), Leq(t2, t1)))
+    assertSat(List(Leq(t1, t2), Leq(t2, t3), Leq(t3, t1)))
+    assertUnsat(List(Leq(t1, t2), Leq(t2, t3), Leq(t3, t1), Not(Eq(t1, t3))))
+  }
 
   //TODO tuples
   //test("pairs 0") {

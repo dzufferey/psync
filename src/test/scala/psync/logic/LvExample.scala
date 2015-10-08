@@ -12,23 +12,8 @@ class LvExample extends FunSuite {
 
   val pld = UnInterpreted("payload")
   //a special type for the phase (try to reduce the blow-up)
-  val phase = UnInterpreted("phase")
-  val leq = UnInterpretedFct("leq", Some(phase ~> phase ~> Bool))
-
-  val leqDef = {
-    val ph1 = Variable("ph1").setType(phase)
-    val ph2 = Variable("ph2").setType(phase)
-    val ph3 = Variable("ph3").setType(phase)
-    And( //leq is a total order
-      ForAll(List(ph1, ph2), And(
-        Or(leq(ph1, ph2), leq(ph2, ph1)),
-        Implies(leq(ph1, ph2) && leq(ph2, ph1), ph1 === ph2)
-      )),
-      ForAll(List(ph1, ph2, ph3),
-        Implies(leq(ph1, ph2) && leq(ph2, ph3), leq(ph1, ph3))
-      )
-    )
-  }
+  val phase = UnInterpreted("phase") //TODO replace by Time
+  //val phase = CL.timeType //TODO bug in ReduceTime
 
   val r  = Variable("r").setType(phase)
   val r1 = Variable("r1").setType(phase)
@@ -103,7 +88,7 @@ class LvExample extends FunSuite {
             Implies(
               IsDefinedAt(b, i),
               Or( Eq(Fst(LookUp(b, i)), maxTS(b)),
-                  Not(leq(Snd(LookUp(b, i)), Snd(LookUp(b, i))))
+                  Not(Leq(Snd(LookUp(b, i)), Snd(LookUp(b, i))))
               )
             )
           )
@@ -114,7 +99,6 @@ class LvExample extends FunSuite {
 
   val mailbox1 = UnInterpretedFct("mailbox", Some(pid ~> FMap(pid,Product(pld,phase))))
   val round1 = And(
-    leqDef,
     maxTSdef,
     //send, mailbox
     ForAll(List(i,j), And(
@@ -145,7 +129,6 @@ class LvExample extends FunSuite {
 
   val mailbox2 = UnInterpretedFct("mailbox", Some(pid ~> FMap(pid,pld)))
   val round2 = And(
-    leqDef,
     //send, mailbox
     ForAll(List(i,j), And(
       Eq( IsDefinedAt(mailbox2(j), i),
@@ -156,7 +139,7 @@ class LvExample extends FunSuite {
     // then branch
     ForAll(List(i),
       Implies(IsDefinedAt(mailbox2(i), coord(i)),
-        And(Eq(data1(i), LookUp(mailbox2(i), coord(i)), Eq(timeStamp1(i), r)))
+        And(Eq(data1(i), LookUp(mailbox2(i), coord(i))), Eq(timeStamp1(i), r))
     )),
     // else branch
     ForAll(List(i),
@@ -175,7 +158,6 @@ class LvExample extends FunSuite {
 
   val mailbox3 = UnInterpretedFct("mailbox", Some(pid ~> FSet(pid)))
   val round3 = And(
-    leqDef,
     //send, mailbox
     ForAll(List(i,j),
       Eq( In(i, mailbox3(j)),
@@ -201,7 +183,6 @@ class LvExample extends FunSuite {
 
   val mailbox4 = UnInterpretedFct("mailbox", Some(pid ~> FMap(pid,pld)))
   val round4 = And(
-    leqDef,
     //send, mailbox
     ForAll(List(i), Eq(KeySet(mailbox4(i)), Comprehension(List(j), And(Eq(j, coord(j)), ready(j), In(j, ho(i)))))),
     ForAll(List(i,j), And(
@@ -219,7 +200,7 @@ class LvExample extends FunSuite {
         And(Eq(data1(i), data(i)),
             Eq(decided1(i), decided(i))))),
     //Eq(Plus(r, Literal(1)), r1),
-    And(leq(r, r1), r !== r1), //replacing round by a phase type
+    Lt(r, r1), //replacing round by a phase type
     ForAll(List(i), And(
       //global update
       Eq(commit1(i), False()),
@@ -242,9 +223,9 @@ class LvExample extends FunSuite {
     Or(
       ForAll(List(i), And(Not(decided(i)), Not(ready(i)))),
       Exists(List(v,t,a), And(
-        Eq(a, Comprehension(List(i), leq(t, timeStamp(i)))),
+        Eq(a, Comprehension(List(i), Leq(t, timeStamp(i)))),
         majorityS(a),
-        leq(t, r),
+        Leq(t, r),
         ForAll(List(i), And(Implies(In(i, a), Eq(data(i), v)),
                             Implies(decided(i), Eq(data(i), v)),
                             Implies(commit(i), Eq(vote(i), v)),
@@ -274,9 +255,8 @@ class LvExample extends FunSuite {
 
   test("maxTS") {
     val fs = List(
-      leqDef,
       maxTSdef,
-      Eq(a, Comprehension(List(i), leq(t, timeStamp(i)))),
+      Eq(a, Comprehension(List(i), Leq(t, timeStamp(i)))),
       majorityS(a),
       ForAll(List(i), And(Implies(In(i, a), Eq(data(i), v)))),
       ForAll(List(i,j), And(

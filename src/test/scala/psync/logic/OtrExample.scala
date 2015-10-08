@@ -10,9 +10,7 @@ import org.scalatest._
 //they are more readable than dumping the VCs from the code
 class OtrExample extends FunSuite {
     
-  //for a more expensive version we can replace payload by Int and leq by Leq
   val pld = UnInterpreted("payload")
-  val leq = UnInterpretedFct("leq", Some(pld ~> pld ~> Bool))
 
   val a = Variable("A").setType(FSet(pid))
 
@@ -70,21 +68,11 @@ class OtrExample extends FunSuite {
 
   val defs = {
     val pld1 = Variable("pld1").setType(pld)
-    val pld2 = Variable("pld2").setType(pld)
-    val pld3 = Variable("pld3").setType(pld)
     And(
-      //leq is a total order
-      ForAll(List(pld1, pld2), And(
-        Or(leq(pld1, pld2), leq(pld2, pld1)),
-        Implies(leq(pld1, pld2) && leq(pld2, pld1), pld1 === pld2)
-      )),
-      ForAll(List(pld1, pld2, pld3),
-        Implies(leq(pld1, pld2) && leq(pld2, pld3), leq(pld1, pld3))
-      ),
       //mmor def 
       ForAll(List(i,pld1), And(
         valueIs(pld1).card <= valueIs(mmor(i)).card,
-        Implies( valueIs(pld1).card === valueIs(mmor(i)).card, leq(mmor(i), pld1))
+        Implies( valueIs(pld1).card === valueIs(mmor(i)).card, Leq(mmor(i), pld1))
       ))
     )
   }
@@ -154,9 +142,7 @@ class OtrExample extends FunSuite {
       mmor(k) !== v
     )
     assertUnsat(fs, cle(3,1))
-  //assertUnsat(fs, clg(3,1))
-  //assertUnsat(fs, 10000, true, cle(2, 2))
-  //assertUnsat(fs, 10000, true, clg(3, 1))
+  //assertUnsat(fs, clg(3,1)) //FIXME ...
   }
   
 //test("invariant is inductive") {
@@ -167,8 +153,6 @@ class OtrExample extends FunSuite {
 //    Not(prime(invariantAgreement))
 //  )
 //  //assertUnsat(fs, 10000, false, cl3_2)
-//  assertUnsat(fs, 60000, true, cl3_3, Some("test3_3.smt2"))
-//  //assertUnsat(fs, 60000, true, cl3_2, Some("test_mf.smt2"), true)
 //}
 
 //test("1st magic round") {
@@ -208,6 +192,7 @@ class OtrExample extends FunSuite {
       Not(prime(invariantProgress2))
     )
     assertUnsat(fs, cle(1,2))
+    //assertUnsat(fs, clg(1,2))
   }
 
   test("integrity") {
@@ -217,7 +202,10 @@ class OtrExample extends FunSuite {
       tr,
       Not(integrity)
     )
-    assertUnsat(fs, cl__2)
+    assertUnsat(fs, cle(10,2))
+    //assertUnsat(fs, clg(10,2))
+  //assertUnsat(fs, 10000, true, cle(4, 2))
+  //assertUnsat(fs, 10000, true, clg(10, 4))
   }
 
 //test("validity is inductive") {

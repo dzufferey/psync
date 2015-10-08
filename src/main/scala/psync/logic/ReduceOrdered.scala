@@ -30,12 +30,53 @@ import dzufferey.utils.LogLevel._
 
 object ReduceOrdered {
 
-
-  def apply(f: Formula): Formula = {
-    Logger("ReduceOrdered", Info, "TODO ReduceOrdered not yet implemented.")
-    f
+  def sym(t: Type) = {
+    val suffix = psync.utils.smtlib.Names.tpe(t)
+    UnInterpretedFct("_lt_" + suffix, Some(t ~> t ~> Bool), Nil)
   }
 
-  def apply(fs: List[Formula]): List[Formula] = fs.map(apply)
+  protected def mkAxioms(t: Type) = t match {
+    case Int =>
+      Nil
+    case FSet(_) | FMap(_, _) | Product(_) | FOption(_) | Bool | Wildcard =>
+      Logger.logAndThrow("ReduceOrdered", Error, "not yet supported: " + t)
+    case Function(_, _) =>
+      Logger.logAndThrow("ReduceOrdered", Error, "order on " + t + " is not defined.")
+    case t =>
+      val lt = sym(t)
+      val pld1 = Variable("pld1").setType(t)
+      val pld2 = Variable("pld2").setType(t)
+      val pld3 = Variable("pld3").setType(t)
+      List(
+        ForAll(List(pld1, pld2), Or( And(    lt(pld1, pld2) , Not(lt(pld2, pld1)), Not(Eq(pld1, pld2))),
+                                     And(Not(lt(pld1, pld2)),     lt(pld2, pld1) , Not(Eq(pld1, pld2))),
+                                     And(Not(lt(pld1, pld2)), Not(lt(pld2, pld1)),     Eq(pld1, pld2) ))),
+        ForAll(List(pld1, pld2, pld3), Implies(And(lt(pld1, pld2), lt(pld2, pld3)), lt(pld1, pld3)))
+      )
+  }
+
+  protected def replaceLt(f: Formula): Formula = f match {
+    case l @ Lt(a,b) =>
+      if (a.tpe == Int) l
+      else sym(a.tpe)(a, b)
+    case Application(Lt | Leq | Geq | Gt, x :: _) if (x.tpe != Int) =>
+      Logger.logAndThrow("ReduceOrdered", Error, "not normalized: " + f)
+    case other => other
+  }
+  
+  protected def collectType(f: Formula): Set[Type] = {
+    FormulaUtils.collect[Set[Type]](Set.empty, (acc, t) => t match {
+      case Application(Lt | Leq | Geq | Gt, x :: _) => acc + x.tpe
+      case _ => acc
+    }, f)
+  }
+
+
+  def apply(fs: List[Formula]): List[Formula] = {
+    val tpes = collectType(And(fs:_*))
+    val axioms = tpes.toList.flatMap(mkAxioms)
+    val replaced = fs.map(FormulaUtils.map(replaceLt, _))
+    axioms ::: replaced
+  }
 
 }

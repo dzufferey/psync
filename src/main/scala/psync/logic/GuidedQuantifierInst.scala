@@ -295,7 +295,7 @@ protected object GGen {
             apply(Array[Variable](), other, Array[Seq[Formula]](), Array[Set[Formula]](), cc)
         }
       } else {
-        //TODO is that correct
+        //regenerate the generated terms due to the renaming
         val nts = findGeneratedTerms(vs, f0)
         apply(vs, f0, nts, done, cc)
       }
