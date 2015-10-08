@@ -9,7 +9,7 @@ import dzufferey.utils.Namer
 object VennRegions {
 
   //TODO a version where the univ are directly provided as an IncrementalFormulaGenerator
-  protected def mkUniv(generator: IncrementalGenerator)(f: Formula) = {
+  protected def mkUniv(generator: Generator)(f: Formula) = {
     val newClauses = generator.generate(f)
     //println(newClauses.mkString("newClauses\n    ","\n    ",""))
     //val filtered = newClauses.filter(f => !CL.hasComp(f))
@@ -22,12 +22,12 @@ object VennRegions {
    * @param tpe the type of the elements in the sets, e.g., ProcessID
    * @param universeSize the size of the universe (if the universe is finite), e.g., 'n' for ProcessID
    * @param sets the sets as pair (id, definition), where the definition is an optional Comprehension.
-   * @param generator (optional) an incremental generator to instantiate axioms on the new terms
+   * @param generator an incremental generator to instantiate axioms on the new terms
    */
   def apply(tpe: Type,
             universeSize: Option[Formula],
             sets: Iterable[(Formula, Option[Binding])],
-            generator: IncrementalGenerator) = {
+            generator: Generator) = {
     new VennRegions(tpe, universeSize, sets, mkUniv(generator)).constraints
   }
 
@@ -52,15 +52,39 @@ object VennRegions {
    * @param tpe the type of the elements in the sets, e.g., ProcessID
    * @param universeSize the size of the universe (if the universe is finite), e.g., 'n' for ProcessID
    * @param sets the sets as pair (id, definition), where the definition is an optional Comprehension.
-   * @param cc (optional) congruence classes of ground terms in the original formula
-   * @param univ (optional) the set of universally quantified clauses in the original formula
+   * @param generator an incremental generator to instantiate axioms on the new terms
+   * @param preserveGenerator set to true if you plan to use the generator afterward
    */
   def withBound(bound: Int,
                 tpe: Type,
                 universeSize: Option[Formula],
                 sets: Iterable[(Formula, Option[Binding])],
-                generator: IncrementalGenerator) = {
-    new VennRegionsWithBound(bound, tpe, universeSize, sets, mkUniv(generator)).constraints
+                generator: Generator,
+                preserveGenerator: Boolean): Formula = {
+    val fct: Formula => Formula =
+      if (preserveGenerator) {
+        mkUniv(generator)
+      } else {
+        val elt = Variable(Namer("elt")).setType(tpe)
+        val clauses = mkUniv(generator)(elt)
+        ( (f: Formula) => FormulaUtils.replace(elt, f, clauses) )
+      }
+    new VennRegionsWithBound(bound, tpe, universeSize, sets, fct).constraints
+  }
+  
+  /** Generate the ILP for the given sets considering only the intersection of at most bound sets.
+   * @param bound the maximal number of sets to consider at once for the Venn Regions
+   * @param tpe the type of the elements in the sets, e.g., ProcessID
+   * @param universeSize the size of the universe (if the universe is finite), e.g., 'n' for ProcessID
+   * @param sets the sets as pair (id, definition), where the definition is an optional Comprehension.
+   * @param generator an incremental generator to instantiate axioms on the new terms
+   */
+  def withBound(bound: Int,
+                tpe: Type,
+                universeSize: Option[Formula],
+                sets: Iterable[(Formula, Option[Binding])],
+                generator: Generator): Formula = {
+    withBound(bound, tpe, universeSize, sets, generator, true)
   }
 
   /** Generate the ILP for the given sets considering only the intersection of at most bound sets.
@@ -76,7 +100,7 @@ object VennRegions {
                 universeSize: Option[Formula],
                 sets: Iterable[(Formula, Option[Binding])],
                 cc: CC = CongruenceClasses.empty,
-                univ: List[Formula] = Nil) = {
+                univ: List[Formula] = Nil): Formula  = {
     val cc2 = cc.copy //avoids feeding new terms (because it will be replace)
     val template = Variable(Namer("__template")).setType(tpe)
     val generated = InstGen.saturateWith(And(univ:_*), Set(template), Some(1), cc2) //TODO even better this could be shared across sets of different types
@@ -106,6 +130,7 @@ class VennRegions(tpe: Type,
   protected val prefix = Namer("venn_" + sanitize(tpe.toString)) + "_"
   
   protected val elt = Variable(Namer("elt")).setType(tpe)
+  protected val univCstr = mkUniv(elt)
 
   protected var counter = 0
 
@@ -203,7 +228,6 @@ class VennRegions(tpe: Type,
 
   //c: |p| ≥ 1 ⇒ ∃ i. i ∈ p
   def nonZeroCardNonEmpty: Seq[Formula] = {
-    val univCstr = mkUniv(elt)
     for(i <- 0 until nbrVennRegions) yield {
       Exists(List(elt), Implies(Leq(Literal(1), mkVar(i)), And(mkMembership(elt, i), univCstr)))
     }

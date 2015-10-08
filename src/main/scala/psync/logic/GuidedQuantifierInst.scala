@@ -25,6 +25,8 @@ class GuidedQuantifierInst(axioms: Iterable[Formula], cc: CongruenceClosure) {
     val potentialConflict = hashFilter.getOrElseUpdate(g.hashCode, ArrayBuffer[Int]())
     potentialConflict.find( i => gens(i).similar(g))
   }
+
+  def nbrGenerators = gens.size
   
   protected def addGen(g: GGen) {
     if (findSimilar(g).isEmpty) {
@@ -92,7 +94,7 @@ class GuidedQuantifierInst(axioms: Iterable[Formula], cc: CongruenceClosure) {
 }
 
 //TODO share the same interface as IncrementalGenerator
-class GuidedGenerator(f: Formula, val cc: CongruenceClosure = new CongruenceClosure) extends Cloneable {
+class GuidedGenerator(f: Formula, val cc: CongruenceClosure = new CongruenceClosure) extends Cloneable with Generator {
   
   //make sure the current equalities are in the cc
   cc.addConstraints(f)
@@ -121,17 +123,14 @@ class GuidedGenerator(f: Formula, val cc: CongruenceClosure = new CongruenceClos
 
   def generateWithExistingGTS = generate(cc.groundTerms)
 
-  /** saturate starting with the groundTerms (representative in cc), up to a certain depth.
-   * @param depth (optional) bound on the recursion depth
-   * @param local (optional) at the end staturate without generating new terms
-   * @return applications of the axioms
-   */
-  def saturate(depth: Option[Int] = None, local: Boolean = true) = {
+  def saturate(depth: Option[Int], local: Boolean) = {
     val buffer = scala.collection.mutable.ListBuffer[Formula]()
     var d = depth
-    var old = -1
-    while (d.getOrElse(1) > 0 && buffer.size > old) {
-      old = buffer.size
+    var oldG = -1
+    var oldB = -1
+    while (d.getOrElse(1) > 0 && (gen.nbrGenerators > oldG || buffer.size > oldB)) {
+      oldG = gen.nbrGenerators
+      oldB = buffer.size
       Logger("GuidedGenerator", Debug, "saturate at depth = " + d)
       buffer ++= generateWithExistingGTS
       d = d.map(_ - 1)
@@ -186,6 +185,7 @@ protected class GGen(val vs: Array[Variable],
   }
 
   protected def newGen(idx: Int, term: Formula, cc: CC): GGen = {
+    Logger("GGen", Debug, "applying " + term + " @ " + idx + " to " + this)
     assert(!done(idx)(term), "already done: " + idx + " → " + term)
     done(idx) = done(idx) + term
     def newIdx(i: Int): Int = if (i < idx) i else i + 1

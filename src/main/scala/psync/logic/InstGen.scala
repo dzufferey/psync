@@ -6,6 +6,25 @@ import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 import dzufferey.utils.Namer
 
+trait Generator {
+
+  def cc: CongruenceClosure
+
+  def generate(term: Formula): List[Formula]
+
+  def generate(terms: Set[Formula]): List[Formula]
+
+  /** saturate starting with the groundTerms (representative in cc), up to a certain depth.
+   * @param depth bound on the recursion depth
+   * @param local at the end staturate without generating new terms
+   * @return applications of the axioms */
+  def saturate(depth: Option[Int], local: Boolean): List[Formula]
+  
+  def saturate(depth: Option[Int]): List[Formula] = saturate(depth, true)
+
+  def saturate: List[Formula] = saturate(None, true)
+
+}
 
 /** Instance generation: methods to instanciate the quantifiers */
 object InstGen {

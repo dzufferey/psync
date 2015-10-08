@@ -213,7 +213,7 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula], cc: CongruenceClosu
 }
 
 
-class IncrementalGenerator(f: Formula, val cc: CongruenceClosure = new CongruenceClosure) extends Cloneable {
+class IncrementalGenerator(f: Formula, val cc: CongruenceClosure = new CongruenceClosure) extends Cloneable with Generator {
 
   //make sure the current equalities are in the cc
   cc.addConstraints(f)
@@ -240,12 +240,7 @@ class IncrementalGenerator(f: Formula, val cc: CongruenceClosure = new Congruenc
 
   def generateWithExistingGTS = generate(cc.groundTerms)
 
-  /** saturate starting with the groundTerms (representative in cc), up to a certain depth.
-   * @param depth (optional) bound on the recursion depth
-   * @param local (optional) at the end staturate without generating new terms
-   * @return applications of the axioms
-   */
-  def saturate(depth: Option[Int] = None, local: Boolean = true) = {
+  def saturate(depth: Option[Int], local: Boolean) = {
     val buffer = scala.collection.mutable.ListBuffer[Formula]()
     var d = depth
     var processed = scala.collection.mutable.Set[Formula]()

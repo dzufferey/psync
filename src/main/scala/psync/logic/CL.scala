@@ -150,7 +150,7 @@ class CL(config: ClConfig) {
   
   //assumes that conjuncts is already added to gen.cc
   def reduceComprehension(conjuncts: List[Formula],
-                          gen: IncrementalGenerator): List[Formula] = {
+                          gen: Generator): List[Formula] = {
     //get the comprehensions definitions and normalize
     val (woComp, _c1) = collectComprehensionDefinitions(conjuncts)
     val (c1, subst) = SetDef.normalize(_c1, gen.cc)
@@ -169,7 +169,7 @@ class CL(config: ClConfig) {
         val fs = sDefs.map(_.fresh)
         val sets = fs.map( sd => (sd.id, sd.body)) 
         val cstrs = bound match {
-          case Some(b) => VennRegions.withBound(b, tpe, sizeOfUniverse(tpe), sets, gen)
+          case Some(b) => VennRegions.withBound(b, tpe, sizeOfUniverse(tpe), sets, gen, false)
           case None => VennRegions(tpe, sizeOfUniverse(tpe), sets, gen)
         }
         val scope = fs.map(_.scope).flatten.toList
@@ -194,7 +194,7 @@ class CL(config: ClConfig) {
     Simplify.simplify(renamed)
   }
 
-  protected def quantifierInstantiation(fs: List[Formula], cc: CongruenceClosure): List[Formula] = {
+  protected def quantifierInstantiation(fs: List[Formula], cc: CongruenceClosure): (List[Formula], Generator) = {
     Logger("CL", Debug, "instantiation strategy: " + config.instantiationStrategy)
     config.instantiationStrategy match {
       case Eager(bnd, local) =>
@@ -204,13 +204,13 @@ class CL(config: ClConfig) {
         val gen = InstGen.makeGenerator(And(rest:_*), cc)
         val res = epr ::: gen.leftOver ::: gen.saturate(bnd, local) //leftOver contains things not processed by the generator
         //gen.log(Debug)
-        res
+        (res, gen)
       case Guided(bnd, local) =>
         Logger("CL", Debug, "clauses to process:\n  " + fs.mkString("\n  "))
         val gen = InstGen.makeGuidedGenerator(And(fs:_*), cc)
         val res = gen.leftOver ::: gen.saturate(bnd, local) //leftOver contains things not processed by the generator
         //gen.log(Debug)
-        res
+        (res, gen)
     }
   }
   
@@ -241,16 +241,14 @@ class CL(config: ClConfig) {
     }
     //Logger("CL", Debug, "CC is\n" + cc)
 
-    val inst = quantifierInstantiation(clauses, cc)
+    val (inst, gen) = quantifierInstantiation(clauses, cc)
     Logger("CL", Debug, "after instantiation:\n  " + inst.mkString("\n  "))
 
     //generate keySet for Maps if they are not already there
     ReduceMaps.addMapGroundTerms(cc)
 	
-    //TODO reuse the same generator as "quantifierInstantiation"
-    val (_, univ) = clauses.partition(keepAsIt)
     //the venn regions
-    val withILP = reduceComprehension(inst, cc, univ) //TODO this generate quite a bit more terms!
+    val withILP = reduceComprehension(inst, gen) //TODO this generate quite a bit more terms!
     
     //add axioms for the other theories
     val withSetAx = SetOperationsAxioms.addAxioms(withILP)

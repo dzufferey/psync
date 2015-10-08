@@ -242,7 +242,8 @@ class LvExample extends FunSuite {
   test("initial state implies invariant") {
     val fs = List(initialState, Not(invariant1))
     assertUnsat(fs, cle(2, 1))
-    //assertUnsat(fs, clg(2, 2)) //FIXME this works with testOnly but not with test ?!?!?
+    assertUnsat(fs, clg(2, 3))
+    //assertUnsat(fs, 10000, true, clg(2, 3))
   }
 
   test("invariant implies agreement") {
