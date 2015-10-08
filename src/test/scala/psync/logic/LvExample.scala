@@ -241,15 +241,20 @@ class LvExample extends FunSuite {
 
   test("initial state implies invariant") {
     val fs = List(initialState, Not(invariant1))
-    assertUnsat(fs)
+    assertUnsat(fs, cle(2, 1))
+    //assertUnsat(fs, clg(2, 2)) //FIXME this works with testOnly but not with test ?!?!?
   }
 
   test("invariant implies agreement") {
-    assertUnsat(List(invariant1, Not(agreement)))
+    val fs = List(invariant1, Not(agreement))
+    assertUnsat(fs, cle(2, 1))
+    assertUnsat(fs, clg(2, 2))
   }
   
   test("validity holds initially") {
-    assertUnsat(List(initialState, Not(validity)))
+    val fs = List(initialState, Not(validity))
+    assertUnsat(fs, cle(2, 1))
+    assertUnsat(fs, clg(2, 2))
   }
 
   test("maxTS") {
@@ -260,13 +265,13 @@ class LvExample extends FunSuite {
       ForAll(List(i), And(Implies(In(i, a), Eq(data(i), v)))),
       ForAll(List(i,j), And(
         Eq(IsDefinedAt(mailbox1(j), i), In(i, ho(j))),
-        //Eq(KeySet(mailbox1(j)), ho(j)),
         Eq(LookUp(mailbox1(j), i), Tuple(data(i),timeStamp(i)))
       )),
       majorityM(mailbox1(i)),
       Neq(maxTS(mailbox1(i)), v)
     )
-    assertUnsat(fs)
+    assertUnsat(fs, cle(2, 1))
+    //assertUnsat(fs, clg(2, 2))
   }
 
   //TODO those completely blow-up
@@ -305,8 +310,9 @@ class LvExample extends FunSuite {
 //    round4,
 //    Not(prime(invariant1))
 //  )
+//  assertUnsat(fs, clg(2, 3))
 //  //assertUnsat(fs)
-//    assertUnsat(fs, 60000, true, cl2_2)
+//  //assertUnsat(fs, 60000, true, cl2_2)
 //  //assertUnsat(fs, 60000, true, cl2_1, Some("test1.smt2"))
 //  //assertUnsat(fs, 60000, true, cl2_2, Some("test2.smt2"), true)
 //  //getModel(fs, 60000)

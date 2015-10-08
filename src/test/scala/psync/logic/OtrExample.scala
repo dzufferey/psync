@@ -68,13 +68,11 @@ class OtrExample extends FunSuite {
 
   val defs = {
     val pld1 = Variable("pld1").setType(pld)
-    And(
-      //mmor def 
-      ForAll(List(i,pld1), And(
-        valueIs(pld1).card <= valueIs(mmor(i)).card,
-        Implies( valueIs(pld1).card === valueIs(mmor(i)).card, Leq(mmor(i), pld1))
-      ))
-    )
+    //mmor def 
+    ForAll(List(i,pld1), And(
+      valueIs(pld1).card <= valueIs(mmor(i)).card,
+      Implies( valueIs(pld1).card === valueIs(mmor(i)).card, Leq(mmor(i), pld1))
+    ))
   }
 
   val tr = And(
@@ -205,7 +203,7 @@ class OtrExample extends FunSuite {
     assertUnsat(fs, cle(10,2))
     //assertUnsat(fs, clg(10,2))
   //assertUnsat(fs, 10000, true, cle(4, 2))
-  //assertUnsat(fs, 10000, true, clg(10, 4))
+  //assertUnsat(fs, 10000, true, clg(10, 5))
   }
 
 //test("validity is inductive") {

@@ -158,7 +158,8 @@ class CL(config: ClConfig) {
     Logger("CL", Debug, "similar: " + subst.mkString(", "))
     newEqs.foreach(gen.cc.addConstraints)
     //get all the sets and merge the ones which are equal
-    val _c2 = c1 ++ collectSetTerms(gen.cc.groundTerms)
+    val gts = FormulaUtils.collectGroundTerms(And(conjuncts:_*))
+    val _c2 = c1 ++ collectSetTerms(gts)
     val c2 = SetDef.mergeEqual(_c2, gen.cc)
     //generate the ILP
     val byType = c2.groupBy(_.contentTpe)
@@ -172,7 +173,7 @@ class CL(config: ClConfig) {
           case None => VennRegions(tpe, sizeOfUniverse(tpe), sets, gen)
         }
         val scope = fs.map(_.scope).flatten.toList
-        ForAll(scope, cstrs) //TODO this needs skolemization
+        ForAll(scope, cstrs)
       }
     Lt(Literal(0), n) :: newEqs ::: woComp ::: ilps.toList
   }
