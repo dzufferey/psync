@@ -116,19 +116,27 @@ class OtrExample extends FunSuite {
   ))
   
   test("initial state implies invariant") {
-    assertUnsat(List(initialState, Not(invariantAgreement)))
+    val fs = List(initialState, Not(invariantAgreement))
+    assertUnsat(fs, cle(2, 2))
+    assertUnsat(fs, clg(2, 2))
   }
 
   test("invariant implies agreement") {
-    assertUnsat(List(invariantAgreement, Not(agreement)))
+    val fs = List(invariantAgreement, Not(agreement))
+    assertUnsat(fs, cle(2, 2))
+    assertUnsat(fs, clg(2, 2))
   }
   
   test("invariant implies termination") {
-    assertUnsat(List(invariantProgress2, Not(termination)))
+    val fs = List(invariantProgress2, Not(termination))
+    assertUnsat(fs, cle(2, 2))
+    assertUnsat(fs, clg(2, 2))
   }
 
   test("validity holds initially") {
-    assertUnsat(List(ForAll(List(i), Eq(data0(i), data(i))), Not(validity)))
+    val fs = List(ForAll(List(i), Eq(data0(i), data(i))), Not(validity))
+    assertUnsat(fs, cle(2, 2))
+    assertUnsat(fs, clg(2, 2))
   }
 
   test("mmor unsat") {
@@ -145,7 +153,10 @@ class OtrExample extends FunSuite {
       //negated prop: ¬(∀ k. mmor(k) == v)
       mmor(k) !== v
     )
-    assertUnsat(fs, 10000, false, cle(3,1))
+    assertUnsat(fs, cle(3,1))
+  //assertUnsat(fs, clg(3,1))
+  //assertUnsat(fs, 10000, true, cle(2, 2))
+  //assertUnsat(fs, 10000, true, clg(3, 1))
   }
   
 //test("invariant is inductive") {
@@ -196,7 +207,7 @@ class OtrExample extends FunSuite {
       tr,
       Not(prime(invariantProgress2))
     )
-    assertUnsat(fs, 30000, false, cle(1,2))
+    assertUnsat(fs, cle(1,2))
   }
 
   test("integrity") {
@@ -206,7 +217,7 @@ class OtrExample extends FunSuite {
       tr,
       Not(integrity)
     )
-    assertUnsat(fs, 30000, false, cl__2)
+    assertUnsat(fs, cl__2)
   }
 
 //test("validity is inductive") {

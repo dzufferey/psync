@@ -40,22 +40,27 @@ object TestCommon {
       Logger.moreVerbose
       Logger.disallow("Typer")
     }
-    val c0 = conjuncts.flatMap(FormulaUtils.getConjuncts(_))
-    val c1 = c0.map(Simplify.simplify)
-    if(debug) {
-      println("=======before reduce ")
-      c1.foreach( f => println("  " + f) )
+    try {
+      val c0 = conjuncts.flatMap(FormulaUtils.getConjuncts(_))
+      val c1 = c0.map(Simplify.simplify)
+      if(debug) {
+        println("=======before reduce ")
+        c1.foreach( f => println("  " + f) )
+      }
+      val f0 = And(c1 :_*)
+      val f1 = cl.reduce(f0)
+      if(debug) {
+        println("======= send to solver")
+        FormulaUtils.getConjuncts(f1).foreach( f => println("  " + f) )
+      }
+      f1
+    } finally {
+      if(debug) {
+        Logger.lessVerbose
+        Logger.lessVerbose
+        Logger.allow("Typer")
+      }
     }
-    val f0 = And(c1 :_*)
-    val f1 = cl.reduce(f0)
-    if(debug) {
-      Logger.lessVerbose
-      Logger.lessVerbose
-      Logger.allow("Typer")
-      println("======= send to solver")
-      FormulaUtils.getConjuncts(f1).foreach( f => println("  " + f) )
-    }
-    f1
   }
 
   def assertUnsat(conjuncts: List[Formula],

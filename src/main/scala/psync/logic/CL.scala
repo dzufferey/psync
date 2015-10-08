@@ -48,7 +48,6 @@ class CL(config: ClConfig) {
   protected def normalize(f: Formula) = {
     //TODO some (lazy) CNF conversion ?
     //TODO purification before or after instantiation ?
-    //TODO de Bruijn then bound var unique ?
     val f1 = Simplify.normalize(f)
     val f2 = Simplify.nnf(f1)
     val f3 = FormulaUtils.flatten(f2)
@@ -195,6 +194,7 @@ class CL(config: ClConfig) {
   }
 
   protected def quantifierInstantiation(fs: List[Formula], cc: CongruenceClosure): List[Formula] = {
+    Logger("CL", Debug, "instantiation strategy: " + config.instantiationStrategy)
     config.instantiationStrategy match {
       case Eager(bnd, local) =>
         val (epr, rest) = fs.partition(keepAsIt)
@@ -205,6 +205,7 @@ class CL(config: ClConfig) {
         //gen.log(Debug)
         res
       case Guided(bnd, local) =>
+        Logger("CL", Debug, "clauses to process:\n  " + fs.mkString("\n  "))
         val gen = InstGen.makeGuidedGenerator(And(fs:_*), cc)
         val res = gen.leftOver ::: gen.saturate(bnd, local) //leftOver contains things not processed by the generator
         //gen.log(Debug)

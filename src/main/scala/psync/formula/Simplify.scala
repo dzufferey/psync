@@ -98,7 +98,7 @@ object Simplify {
 
     //generic renaming of variables _XXX
     val f0 = boundVarUnique(f)
-    assert(f0 == f, "deBruijnIndexWithRenaming only makes sense if bound variables have an unique name")
+    assert(f0 == f, "deBruijnIndexWithRenaming only makes sense if bound variables have an unique name:\n  " + f + "\n  " + f0)
     val allVars = if (renameFreeVars) f.freeVariables ++ f.boundVariables else f.boundVariables
     val startToDummy = allVars.foldLeft(Map[Variable,Variable]())( (acc, v) => acc + (v -> Variable(Namer("_")).setType(v.tpe)) )
     val cleanNames = FormulaUtils.alphaAll(startToDummy, f)

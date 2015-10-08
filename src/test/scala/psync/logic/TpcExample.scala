@@ -34,7 +34,7 @@ class TpcExample extends FunSuite {
   def prime(f: Formula) = FormulaUtils.mapSymbol( x => primeMap.getOrElse(x, x), f)
   
   val agreement = ForAll(List(i,j), Implies(decided(i) && decided(j), data(i) === data(j)))
-  val validity = Exists(List(i), ForAll(List(j), Implies(decided(i) && data(i), data0(j))))
+  val validity = ForAll(List(i), Exists(List(j), Implies(decided(i) && data(i), data0(j))))
 
   val initialState = ForAll(List(i), Not(vote(i)) && Not(decided(i)))
 
@@ -123,11 +123,15 @@ class TpcExample extends FunSuite {
   ))
 
   test("invariant implies agreement") {
-    assertUnsat(List(invariant1, Not(agreement)))
+    val fs = List(invariant1, Not(agreement))
+    assertUnsat(fs, cle(2, 2))
+    assertUnsat(fs, clg(2, 2))
   }
 
   test("invariant implies validity") {
-    assertUnsat(List(invariant1, Not(validity)))
+    val fs = List(invariant1, Not(validity))
+    assertUnsat(fs, cle(2, 2))
+    assertUnsat(fs, clg(2, 2))
   }
 
   test("initialState and round 1a implies invariant 1") {
@@ -136,7 +140,8 @@ class TpcExample extends FunSuite {
       round1a,
       Not(prime(invariant1))
     )
-    assertUnsat(fs)
+    assertUnsat(fs, cle(2, 2))
+    assertUnsat(fs, clg(2, 2))
   }
 
   test("invariant 1 is inductive at round 2a") {
@@ -145,7 +150,8 @@ class TpcExample extends FunSuite {
       round2a,
       Not(prime(invariant1))
     )
-    assertUnsat(fs)
+    assertUnsat(fs, cle(2, 2))
+    assertUnsat(fs, clg(2, 2))
   }
 
 
@@ -155,7 +161,8 @@ class TpcExample extends FunSuite {
       round1b,
       Not(prime(invariant1))
     )
-    assertUnsat(fs)
+    assertUnsat(fs, cle(2, 2))
+    assertUnsat(fs, clg(2, 2))
   }
 
   test("invariant 1 is inductive at round 2b") {
@@ -164,7 +171,8 @@ class TpcExample extends FunSuite {
       round2b,
       Not(prime(invariant1))
     )
-    assertUnsat(fs)
+    assertUnsat(fs, cle(2, 2))
+    assertUnsat(fs, clg(2, 2))
   }
 
 }
