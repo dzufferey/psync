@@ -29,7 +29,7 @@ abstract class VC {
 }
 
 object VC {
-  var cl: CL = CL
+  var cl: CL = new CL(ClDefault)
 }
 
 class SingleVC( description: String,

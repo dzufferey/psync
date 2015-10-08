@@ -14,7 +14,7 @@ trait Specs[IO, P <: Process[IO]] {
     val roundInvariants: List[List[Formula]] = Nil
     val properties: List[(String, Formula)]
     /** Options for reducing Comprehension */
-    val cl: logic.CL = new logic.CL( Some(2), None, Some(1))
+    val cl: logic.ClConfig = logic.ClDefault
   }
 
   object SpecHelper {

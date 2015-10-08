@@ -4,6 +4,7 @@ import Utils._
 
 import psync._
 import psync.formula._
+import psync.logic.CL
 
 import dzufferey.utils.Namer
 import dzufferey.utils.Logger
@@ -16,7 +17,7 @@ import dzufferey.report._
 class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P])(implicit tag: TypeTag[P]) {
 
   val spec = alg.spec 
-  VC.cl = spec.cl //set-up the reducer for the VCs
+  VC.cl = new CL(spec.cl) //set-up the reducer for the VCs
 
   val process = alg.process
   //generate the initial state

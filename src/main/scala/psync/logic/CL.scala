@@ -6,18 +6,7 @@ import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 import dzufferey.utils.Namer
 
-object CL extends CL( Some(2),                               //pairwise Venn regions
-                      Some(Set(UnInterpreted("ProcessID"))), //only on set of type ProcessID
-                      Some(1),                               //one step quantifier instantiation
-                      true)                                  //saturate at the end without generating new terms
-
-object ClFull extends CL(None, None, Some(10), true)
-
-
-class CL(bound: Option[Int],
-         onType: Option[Set[Type]],
-         instantiationBound: Option[Int],
-         localSaturation: Boolean = true) {
+object CL {
 
   val procType = UnInterpreted("ProcessID")
   val timeType = UnInterpreted("Time")
@@ -39,6 +28,22 @@ class CL(bound: Option[Int],
     }
     FormulaUtils.exists(check, f)
   }
+ 
+  def keepAsIt(f: Formula): Boolean = {
+    //TODO this accepts formula that would be rejected if they were skolemized!!
+    !hasComp(f) && TypeStratification.isStratified(f)
+    //!hasComp && Quantifiers.isEPR(f)
+  }
+
+}
+
+
+class CL(config: ClConfig) {
+
+  import CL._
+
+  protected def bound = config.vennBound
+  protected def onType = config.onType
 
   protected def normalize(f: Formula) = {
     //TODO some (lazy) CNF conversion ?
@@ -51,12 +56,6 @@ class CL(bound: Option[Int],
     val f5 = Simplify.mergeExists(f4)
     val f6 = Simplify.splitTopLevelForall(f5)
     f6
-  }
- 
-  def keepAsIt(f: Formula): Boolean = {
-    //TODO this accepts formula that would be rejected if they were skolemized!!
-    !hasComp(f) && TypeStratification.isStratified(f)
-    //!hasComp && Quantifiers.isEPR(f)
   }
 
   protected def forallOnly(f: Formula): Boolean = {
@@ -126,6 +125,7 @@ class CL(bound: Option[Int],
     val (f1, defs1) = namedComprehensions(conjuncts)
     val (f2, defs2) = anonymComprehensions(f1)
     val allDefs = (defs1 ++ defs2).map(_.normalize)
+    assert(allDefs.forall(_.scope.isEmpty), "non-empty scope")
     (f2, allDefs)
   }
   
@@ -193,6 +193,24 @@ class CL(bound: Option[Int],
     val renamed = Simplify.deBruijnIndex(qf)
     Simplify.simplify(renamed)
   }
+
+  protected def quantifierInstantiation(fs: List[Formula], cc: CongruenceClosure): List[Formula] = {
+    config.instantiationStrategy match {
+      case Eager(bnd, local) =>
+        val (epr, rest) = fs.partition(keepAsIt)
+        Logger("CL", Debug, "epr/stratified clauses:\n  " + epr.mkString("\n  "))
+        Logger("CL", Debug, "clauses to process:\n  " + rest.mkString("\n  "))
+        val gen = InstGen.makeGenerator(And(rest:_*), cc)
+        val res = epr ::: gen.leftOver ::: gen.saturate(bnd, local) //leftOver contains things not processed by the generator
+        //gen.log(Debug)
+        res
+      case Guided(bnd, local) =>
+        val gen = InstGen.makeGuidedGenerator(And(fs:_*), cc)
+        val res = gen.leftOver ::: gen.saturate(bnd, local) //leftOver contains things not processed by the generator
+        //gen.log(Debug)
+        res
+    }
+  }
   
   def reduce(formula: Formula): Formula = {
     //TODO make that part more modular:
@@ -212,13 +230,7 @@ class CL(bound: Option[Int],
       val f2 = Simplify.pnf(f)
       Quantifiers.fixUniquelyDefinedUniversal(f2)
     })
-
-    val (epr, rest) = clauses.partition(keepAsIt)
-  
-    Logger("CL", Debug, "epr/stratified clauses:\n  " + epr.mkString("\n  "))
-    Logger("CL", Debug, "clauses to process:\n  " + rest.mkString("\n  "))
-    //CD add neprUniv 	
-    //get rid on the ∀ quantifiers
+    
     val cc = new CongruenceClosure //incremental CC
     cc.addConstraints(clauses)
     //make sure we have a least one process
@@ -226,18 +238,17 @@ class CL(bound: Option[Int],
       cc.repr(Variable(Namer("p")).setType(procType))
     }
     //Logger("CL", Debug, "CC is\n" + cc)
-    val gen = InstGen.makeGenerator(And(rest:_*), cc)
-    val inst = gen.leftOver ::: gen.saturate(instantiationBound, localSaturation) //leftOver contains things not processed by the generator
+
+    val inst = quantifierInstantiation(clauses, cc)
     Logger("CL", Debug, "after instantiation:\n  " + inst.mkString("\n  "))
-    //gen.log(Debug)
 
     //generate keySet for Maps if they are not already there
     ReduceMaps.addMapGroundTerms(cc)
-	    
+	
+    //TODO reuse the same generator as "quantifierInstantiation"
+    val (_, univ) = clauses.partition(keepAsIt)
     //the venn regions
-    val withILP = epr ::: reduceComprehension(inst, gen) //TODO this generate quite a bit more terms!
-    //val (univ, rest1) = rest.partition(forallOnly)
-    //val withILP = epr ::: reduceComprehension(inst, cc, univ)
+    val withILP = reduceComprehension(inst, cc, univ) //TODO this generate quite a bit more terms!
     
     //add axioms for the other theories
     val withSetAx = SetOperationsAxioms.addAxioms(withILP)

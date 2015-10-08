@@ -74,5 +74,18 @@ object InstGen {
     val insts = gen.saturate(depth)
     And(gen.leftOver ++ insts :_*)
   }
+  
+  def makeGuidedGenerator( axioms: Formula,
+                           cClasses: CC = new CongruenceClosure,
+                           additionalTerms: Iterable[Formula] = Nil) = {
+    val cc = cClasses.mutable
+    //push all the terms to be sure
+    additionalTerms.foreach(cc.repr)
+    FormulaUtils.collectGroundTerms(axioms).foreach(cc.repr)
+    //make sure formula is taken into account
+    cc.addConstraints(axioms)
+    //
+    new GuidedGenerator(axioms, cc)
+  }
  
 }

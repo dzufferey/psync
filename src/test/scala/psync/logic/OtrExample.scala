@@ -145,7 +145,7 @@ class OtrExample extends FunSuite {
       //negated prop: ¬(∀ k. mmor(k) == v)
       mmor(k) !== v
     )
-    assertUnsat(fs, 10000, false, cl3_1)
+    assertUnsat(fs, 10000, false, cle(3,1))
   }
   
 //test("invariant is inductive") {
@@ -196,7 +196,7 @@ class OtrExample extends FunSuite {
       tr,
       Not(prime(invariantProgress2))
     )
-    assertUnsat(fs, 30000, false, cl1_2)
+    assertUnsat(fs, 30000, false, cle(1,2))
   }
 
   test("integrity") {

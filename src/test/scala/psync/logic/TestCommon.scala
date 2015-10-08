@@ -20,41 +20,21 @@ object TestCommon {
   // solving //
   /////////////
 
-  //val cl = CL
-  //val cl = ClFull
-  val cl = new CL(Some(2), None, Some(1))
+  val cl = ClDefault
 
-  val cl__0 = new CL(None, None, Some(0))
-  val cl__1 = new CL(None, None, Some(1))
-  val cl__2 = new CL(None, None, Some(2))
-  val cl__3 = new CL(None, None, Some(3))
-  val cl__4 = new CL(None, None, Some(4))
+  val cl__0 = ClConfig(None, None, Eager(Some(0), true))
+  val cl__1 = ClConfig(None, None, Eager(Some(1), true))
+  val cl__2 = ClConfig(None, None, Eager(Some(2), true))
+  val cl__3 = ClConfig(None, None, Eager(Some(3), true))
+  val cl__4 = ClConfig(None, None, Eager(Some(4), true))
   
-  val cl0_0 = new CL(Some(0), None, Some(0))
-  val cl0_1 = new CL(Some(0), None, Some(1))
-  val cl0_2 = new CL(Some(0), None, Some(2))
-  val cl0_3 = new CL(Some(0), None, Some(3))
-  val cl0_4 = new CL(Some(0), None, Some(4))
-  
-  val cl1_0 = new CL(Some(1), None, Some(0))
-  val cl1_1 = new CL(Some(1), None, Some(1))
-  val cl1_2 = new CL(Some(1), None, Some(2))
-  val cl1_3 = new CL(Some(1), None, Some(3))
-  val cl1_4 = new CL(Some(1), None, Some(4))
+  //corresponds to previous clv_q
+  def cle(v: Int, q: Int) = ClConfig(Some(v), None, Eager(Some(q), true))
 
-  val cl2_0 = new CL(Some(2), None, Some(0))
-  val cl2_1 = new CL(Some(2), None, Some(1))
-  val cl2_2 = new CL(Some(2), None, Some(2))
-  val cl2_3 = new CL(Some(2), None, Some(3))
-  val cl2_4 = new CL(Some(2), None, Some(4))
+  def clg(v: Int, q: Int) = ClConfig(Some(v), None, Guided(Some(q), false))
 
-  val cl3_0 = new CL(Some(3), None, Some(0))
-  val cl3_1 = new CL(Some(3), None, Some(1))
-  val cl3_2 = new CL(Some(3), None, Some(2))
-  val cl3_3 = new CL(Some(3), None, Some(3))
-  val cl3_4 = new CL(Some(3), None, Some(4))
-
-  def reduce(cl: CL, conjuncts: List[Formula], debug: Boolean): Formula = {
+  def reduce(clc: ClConfig, conjuncts: List[Formula], debug: Boolean): Formula = {
+    val cl = new CL(clc)
     if(debug) {
       Logger.moreVerbose
       Logger.moreVerbose
@@ -81,7 +61,7 @@ object TestCommon {
   def assertUnsat(conjuncts: List[Formula],
                   to: Long = 10000,
                   debug: Boolean = false,
-                  reducer: CL = cl,
+                  reducer: ClConfig = cl,
                   fname: Option[String] = None, 
                   useCvcMf: Boolean = false) {
     val f1 = reduce(reducer, conjuncts, debug)
@@ -89,11 +69,16 @@ object TestCommon {
                  else Solver(UFLIA, fname, to)
     assert(!solver.testB(f1), "unsat formula")
   }
+  
+  def assertUnsat(conjuncts: List[Formula],
+                  reducer: ClConfig) {
+    assertUnsat(conjuncts, 10000, false, reducer)
+  }
 
   def assertSat(conjuncts: List[Formula],
                 to: Long = 10000,
                 debug: Boolean = false,
-                reducer: CL = cl,
+                reducer: ClConfig = cl,
                 fname: Option[String] = None,
                 useCvcMf: Boolean = false) {
     val f1 = reduce(cl, conjuncts, debug)
@@ -101,10 +86,16 @@ object TestCommon {
                  else Solver(UFLIA, fname, to)
     assert( solver.testB(f1), "sat formula")
   }
+  
+  def assertSat(conjuncts: List[Formula],
+                reducer: ClConfig) {
+    assertSat(conjuncts, 10000, false, reducer)
+  }
+
 
   def getModel(conjuncts: List[Formula],
                to: Long = 10000,
-               reducer: CL = cl,
+               reducer: ClConfig = cl,
                fname: Option[String] = None) {
     val f1 = reduce(reducer, conjuncts, true)
     val solver = Solver(UFLIA, fname, to)
