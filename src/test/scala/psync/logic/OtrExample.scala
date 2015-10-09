@@ -148,12 +148,12 @@ class OtrExample extends FunSuite {
   
 //test("invariant is inductive") {
 //  val fs = List(
-//    //ForAll(List(i), Eq(Size(mailbox(i)),Literal(0))), //try the else branch
 //    invariantAgreement,
 //    tr,
 //    Not(prime(invariantAgreement))
 //  )
-//  //assertUnsat(fs, 10000, false, cl3_2)
+//  assertUnsat(fs, 30000, true, clh(3,1,2))
+//  //assertUnsat(fs, 10000, false, cle(3,2))
 //}
 
 //test("1st magic round") {
@@ -173,8 +173,8 @@ class OtrExample extends FunSuite {
 //    tr,
 //    Not(prime(invariantProgress1))
 //  )
-//  //assertUnsat(fs, 30000, false, cl3_2)
-//  getModel(fs, 30000, cl3_2)
+//  //assertUnsat(fs, 30000, true, cle(3,2))
+//  assertUnsat(fs, 30000, true, clh(3,1,2))
 //}
 
 //test("2nd magic round") {
@@ -184,8 +184,8 @@ class OtrExample extends FunSuite {
 //    tr,
 //    Not(prime(invariantProgress2))
 //  )
+//  assertUnsat(fs, 10000, true, clh(3,1,1))
 //  //assertUnsat(fs, 10000, true, cle(3,2))
-//  //assertUnsat(fs, 10000, true, clh(3,1,2))
 //}
 
   test("invariant 2 is inductive") {

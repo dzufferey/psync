@@ -317,7 +317,8 @@ class LvExample extends FunSuite {
 //    round4,
 //    Not(prime(invariant1))
 //  )
-//  assertUnsat(fs, clh(2, 1, 2))
+//  assertUnsat(fs, 30000, true, clg(3, 3))
+//  //assertUnsat(fs, 30000, true, clh(2, 1, 1))
 //  //assertUnsat(fs, 60000, true, clg(2, 3))
 //  //assertUnsat(fs, 60000, true, cle(2,2))
 //}
