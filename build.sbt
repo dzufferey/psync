@@ -2,7 +2,7 @@ name := "round"
 
 version := "0.1-SNAPSHOT"
 
-scalaVersion := "2.11.4"
+scalaVersion := "2.11.7"
 
 scalacOptions in Compile ++= Seq(
     "-unchecked",
@@ -32,4 +32,6 @@ libraryDependencies ++=  Seq(
 )
 
 resolvers += Resolver.sonatypeRepo("snapshots")
+
+resolvers +=  "dzufferey maven repo" at "https://github.com/dzufferey/my_mvn_repo/raw/master/repository"
 

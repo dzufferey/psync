@@ -22,7 +22,7 @@ class Solver( th: Theory,
 
   protected var stackCounter = 0
 
-  SysCmd.acquire
+  //SysCmd.acquire
   protected var released = false
 
   //////////////
@@ -78,7 +78,7 @@ class Solver( th: Theory,
         solver.destroy
     } finally {
       if (!released) {
-        SysCmd.release
+        //SysCmd.release
         released = true
       }
     }
@@ -153,7 +153,7 @@ class Solver( th: Theory,
       for (f <- fileDump) f.close
     } finally {
       if (!released) {
-        SysCmd.release
+        //SysCmd.release
         released = true
       }
     }
@@ -169,7 +169,7 @@ class Solver( th: Theory,
       for (f <- fileDump) f.close
     } finally {
       if (!released) {
-        SysCmd.release
+        //SysCmd.release
         released = true
       }
     }
