@@ -272,8 +272,8 @@ class LvExample extends FunSuite {
       Neq(maxTS(mailbox1(i)), v)
     )
     assertUnsat(fs, cle(2, 1))
-    //TODO for the Venn regions, we might need Eager instantiation
-    //assertUnsat(fs, clg(2, 2))
+    assertUnsat(fs, clh(2, 1, 1))
+    //assertUnsat(fs, clg(3, 3)) //TODO 
   }
 
   //TODO those completely blow-up
@@ -285,7 +285,10 @@ class LvExample extends FunSuite {
 //    round1,
 //    Not(prime(invariant1))
 //  )
-//  assertUnsat(fs, 60000, true, cl2_2, Some("test.smt2"))
+//  assertUnsat(fs, 60000, true, clg(2,3))
+//  //getModel(fs, 60000, clg(2,3))
+//  //assertUnsat(fs, 60000, true, clh(2,1,1))
+//  //assertUnsat(fs, 60000, true, cl2_2, Some("test.smt2"))
 //}
 
 //test("invariant 1 is inductive at round 2") {
@@ -294,6 +297,8 @@ class LvExample extends FunSuite {
 //    round2,
 //    Not(prime(invariant1))
 //  )
+//  //getModel(fs, 60000, clg(2,3))
+//  assertUnsat(fs, 60000, true, clh(2,1,1))
 //  assertUnsat(fs)
 //}
 
@@ -312,8 +317,8 @@ class LvExample extends FunSuite {
 //    round4,
 //    Not(prime(invariant1))
 //  )
-//  assertUnsat(fs, clg(2, 3))
-//  //assertUnsat(fs)
+//  assertUnsat(fs, clh(2, 1, 2))
+//  //assertUnsat(fs, 60000, true, clg(2, 3))
 //  //assertUnsat(fs, 60000, true, cle(2,2))
 //}
 

@@ -34,7 +34,6 @@ class OtrExample extends FunSuite {
   val integrity = ForAll(List(i), Implies(decided(i), And(decided1(i), Eq(data(i), data1(i)))))
   val termination = ForAll(List(i), decided(i))
   val validity = ForAll(List(i), Exists(List(j), Eq(data(i), data0(j))))
-  val validityPrimed = ForAll(List(i), Exists(List(j), Eq(data1(i), data0(j))))
 
   def twoThird(f: Formula)    = Gt(Cardinality(f), Divides(Times(IntLit(2), n), IntLit(3)))
   def twoThirdMap(f: Formula) = Gt(Size(f),        Divides(Times(IntLit(2), n), IntLit(3)))
@@ -70,6 +69,7 @@ class OtrExample extends FunSuite {
     val pld1 = Variable("pld1").setType(pld)
     //mmor def 
     ForAll(List(i,pld1), And(
+      valueIs(mmor(i)).card >= 1, //required for validity
       valueIs(pld1).card <= valueIs(mmor(i)).card,
       Implies( valueIs(pld1).card === valueIs(mmor(i)).card, Leq(mmor(i), pld1))
     ))
@@ -140,7 +140,10 @@ class OtrExample extends FunSuite {
       mmor(k) !== v
     )
     assertUnsat(fs, cle(3,1))
-  //assertUnsat(fs, clg(3,1)) //FIXME ...
+    assertUnsat(fs, clh(3,1,1))
+    //assertUnsat(fs, clg(3,2))
+    //assertUnsat(fs, 10000, true, cle(3,1))
+    //assertUnsat(fs, 10000, true, clg(3,2))
   }
   
 //test("invariant is inductive") {
@@ -156,11 +159,12 @@ class OtrExample extends FunSuite {
 //test("1st magic round") {
 //  val fs = List(
 //    invariantAgreement,
-//    magicRound
+//    magicRound,
 //    tr,
 //    Not(prime(invariantProgress1))
 //  )
-//  assertUnsat(fs)
+//  assertUnsat(fs, 10000, true, clh(3,1,2), Some("test.smt2"))
+//  //assertUnsat(fs, 60000, true, cle(3,2))
 //}
 
 //test("invariant 1 is inductive") {
@@ -176,11 +180,12 @@ class OtrExample extends FunSuite {
 //test("2nd magic round") {
 //  val fs = List(
 //    invariantProgress1,
-//    magicRound
+//    magicRound,
 //    tr,
 //    Not(prime(invariantProgress2))
 //  )
-//  assertUnsat(fs)
+//  //assertUnsat(fs, 10000, true, cle(3,2))
+//  //assertUnsat(fs, 10000, true, clh(3,1,2))
 //}
 
   test("invariant 2 is inductive") {
@@ -190,7 +195,10 @@ class OtrExample extends FunSuite {
       Not(prime(invariantProgress2))
     )
     assertUnsat(fs, cle(1,2))
+    assertUnsat(fs, clh(1,2,1))
     //assertUnsat(fs, clg(1,2))
+    //assertUnsat(fs, 10000, true, cle(1,2))
+    //assertUnsat(fs, 10000, true, clg(1,2))
   }
 
   test("integrity") {
@@ -201,20 +209,23 @@ class OtrExample extends FunSuite {
       Not(integrity)
     )
     assertUnsat(fs, cle(10,2))
+    assertUnsat(fs, clh(10,1,1))
     //assertUnsat(fs, clg(10,2))
   //assertUnsat(fs, 10000, true, cle(4, 2))
   //assertUnsat(fs, 10000, true, clg(10, 5))
   }
 
-//test("validity is inductive") {
-//  val fs = List(
-//    validity,
-//    tr,
-//    Not(prime(validity))
-//  )
-//  //assertUnsat(fs, 20000, true, cl__2)
-//    assertUnsat(fs, 10000, true, cl3_3, Some("test_validity.smt2"))
-//  //getModel(fs, 30000, cl__2) 
-//}
+  test("validity is inductive") {
+    val fs = List(
+      invariantAgreement,
+      prime(invariantAgreement),
+      validity,
+      tr,
+      Not(prime(validity))
+    )
+    assertUnsat(fs, cle(10,1))
+    assertUnsat(fs, clh(10,1,1))
+    //assertUnsat(fs, clg(10,3))
+  }
 
 }

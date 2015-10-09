@@ -33,6 +33,8 @@ object TestCommon {
 
   def clg(v: Int, q: Int) = ClConfig(Some(v), None, Guided(Some(q), false))
 
+  def clh(v: Int, q1: Int, q2: Int) = ClConfig(Some(v), None, QSeq(Eager(Some(q1), false), Guided(Some(q2), false)))
+
   def reduce(clc: ClConfig, conjuncts: List[Formula], debug: Boolean): Formula = {
     val cl = new CL(clc)
     if(debug) {

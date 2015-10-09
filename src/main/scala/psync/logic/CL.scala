@@ -160,7 +160,8 @@ class CL(config: ClConfig) {
     newEqs.foreach(gen.cc.addConstraints)
     //get all the sets and merge the ones which are equal
     val gts = FormulaUtils.collectGroundTerms(And(conjuncts:_*))
-    val _c2 = c1 ++ collectSetTerms(gts)
+    val keySets = ReduceMaps.newTerms(gen.cc) //generate keySet for Maps if they are not already there
+    val _c2 = c1 ++ collectSetTerms(gts ++ keySets)
     val c2 = SetDef.mergeEqual(_c2, gen.cc)
     //generate the ILP
     val byType = c2.groupBy(_.contentTpe)
@@ -194,10 +195,10 @@ class CL(config: ClConfig) {
     val renamed = Simplify.deBruijnIndex(qf)
     Simplify.simplify(renamed)
   }
-
-  protected def quantifierInstantiation(fs: List[Formula], cc: CongruenceClosure): (List[Formula], Generator) = {
-    Logger("CL", Debug, "instantiation strategy: " + config.instantiationStrategy)
-    config.instantiationStrategy match {
+  
+  protected def quantifierInstantiation(strat: QStrategy, fs: List[Formula], cc: CongruenceClosure): (List[Formula], Generator) = {
+    Logger("CL", Debug, "instantiation strategy: " + strat)
+    strat match {
       case Eager(bnd, local) =>
         val (epr, rest) = fs.partition(keepAsIt)
         Logger("CL", Debug, "epr/stratified clauses:\n  " + epr.mkString("\n  "))
@@ -212,7 +213,15 @@ class CL(config: ClConfig) {
         val res = gen.leftOver ::: gen.saturate(bnd, local) //leftOver contains things not processed by the generator
         //gen.log(Debug)
         (res, gen)
+      case QSeq(fst, snd) =>
+        val (fs1, _) = quantifierInstantiation(fst, fs, cc)
+        val (fs2, g) = quantifierInstantiation(snd, fs, cc)
+        ((fs1.toSet ++ fs2.toSet).toList, g)
     }
+  }
+
+  protected def quantifierInstantiation(fs: List[Formula], cc: CongruenceClosure): (List[Formula], Generator) = {
+    quantifierInstantiation(config.instantiationStrategy, fs, cc)
   }
   
   def reduce(formula: Formula): Formula = {
@@ -245,9 +254,6 @@ class CL(config: ClConfig) {
     val (inst, gen) = quantifierInstantiation(clauses, cc)
     Logger("CL", Debug, "after instantiation:\n  " + inst.mkString("\n  "))
 
-    //generate keySet for Maps if they are not already there
-    ReduceMaps.addMapGroundTerms(cc)
-    
     //the venn regions
     val withILP = reduceComprehension(inst, gen) //TODO this generate quite a bit more terms!
     

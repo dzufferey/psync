@@ -10,5 +10,5 @@ echo '"' >> $file
 echo  >> $file
 
 echo "#with assembly we need only the following two jars:" >> $file
-echo "#cp=\"target/scala-2.11/psync-assembly-0.1-SNAPSHOT.jar:target/scala-2.11/psync_2.11-0.1-SNAPSHOT-tests.jar\"" >> $file
+echo "#cp=\"target/scala-2.11/psync-assembly-0.2-SNAPSHOT.jar:target/scala-2.11/psync_2.11-0.2-SNAPSHOT-tests.jar\"" >> $file
 
