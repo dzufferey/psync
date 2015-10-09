@@ -1,6 +1,7 @@
 package psync.logic
 
 import psync.formula._
+import psync.logic.quantifiers._
 
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
@@ -8,8 +9,8 @@ import dzufferey.utils.Namer
 
 object VennRegions {
 
-  //TODO a version where the univ are directly provided as an IncrementalFormulaGenerator
-  protected def mkUniv(generator: Generator)(f: Formula) = {
+  //since we generate fresh variable names we need an eager generator
+  protected def mkUniv(generator: EagerGenerator)(f: Formula) = {
     val newClauses = generator.generate(f)
     //println(newClauses.mkString("newClauses\n    ","\n    ",""))
     //val filtered = newClauses.filter(f => !CL.hasComp(f))
@@ -28,7 +29,7 @@ object VennRegions {
             universeSize: Option[Formula],
             sets: Iterable[(Formula, Option[Binding])],
             generator: Generator) = {
-    new VennRegions(tpe, universeSize, sets, mkUniv(generator)).constraints
+    new VennRegions(tpe, universeSize, sets, mkUniv(generator.toEager)).constraints
   }
 
   /** Generate the ILP for the given sets.
@@ -63,10 +64,10 @@ object VennRegions {
                 preserveGenerator: Boolean): Formula = {
     val fct: Formula => Formula =
       if (preserveGenerator) {
-        mkUniv(generator)
+        mkUniv(generator.toEager)
       } else {
         val elt = Variable(Namer("elt")).setType(tpe)
-        val clauses = mkUniv(generator)(elt)
+        val clauses = mkUniv(generator.toEager)(elt)
         ( (f: Formula) => FormulaUtils.replace(elt, f, clauses) )
       }
     new VennRegionsWithBound(bound, tpe, universeSize, sets, fct).constraints

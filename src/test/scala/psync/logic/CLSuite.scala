@@ -104,8 +104,7 @@ class CLSuite extends FunSuite {
       ForAll(List(i), Implies(In(i,ho(p2)), Lt(data(p2), data(i))))
     )
     assertUnsat(fs)
-    //this example seems to require Eager instantiaton
-    //  assertUnsat(fs, clg(2, 3))
+    assertUnsat(fs, clg(2, 2))
   }
 
   test("Comprehension introduces new nodes"){
@@ -158,8 +157,7 @@ class CLSuite extends FunSuite {
       ForAll(List(i), Eq(data(i), Literal(0)))
     )
     assertUnsat(fs)
-    //this example requires Eager instantiaton
-    //  assertUnsat(fs, clg(2, 10))
+    assertUnsat(fs, clg(2, 10))
   }
 
   test("universe cardinality ⇒ ∀ (2)") {
@@ -209,8 +207,7 @@ class CLSuite extends FunSuite {
       ForAll(List(i), Lt(Cardinality(ho(i)), Literal(1)))
     )      
     assertUnsat(fs)
-    //this example seems to require Eager instantiaton
-    //  assertUnsat(fs, clg(2, 2))
+    assertUnsat(fs, clg(2, 2))
   }
 
   test("In Kernel and not in its HO"){
@@ -232,8 +229,7 @@ class CLSuite extends FunSuite {
       ForAll(List(i), Not(Eq(data(i), Literal(2))))
     )
     assertUnsat(fs)
-    //this example requires Eager instantiaton
-    //  assertUnsat(fs, clg(2, 10))
+    assertUnsat(fs, clg(2, 2))
   } 
 
   test("n = 0") {

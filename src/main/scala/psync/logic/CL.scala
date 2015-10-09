@@ -1,6 +1,7 @@
 package psync.logic
 
 import psync.formula._
+import psync.logic.quantifiers._
 
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
@@ -246,7 +247,7 @@ class CL(config: ClConfig) {
 
     //generate keySet for Maps if they are not already there
     ReduceMaps.addMapGroundTerms(cc)
-	
+    
     //the venn regions
     val withILP = reduceComprehension(inst, gen) //TODO this generate quite a bit more terms!
     

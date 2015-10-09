@@ -1,6 +1,7 @@
-package psync.logic
+package psync.logic.quantifiers
 
 import psync.formula._
+import psync.logic._
 
 import dzufferey.utils.{Misc, Namer}
 import dzufferey.utils.Logger
@@ -85,6 +86,13 @@ class GuidedQuantifierInst(axioms: Iterable[Formula], cc: CongruenceClosure) {
     ???
   }
 
+  def buildingBlock = {
+    val i = idx.toMap.mapValues(_.toIterable)
+    val g = gens.toIndexedSeq.map(_.toGen)
+    val h = hashFilter.toMap.mapValues(_.toIterable)
+    (i, g, h)
+  }
+  
   def log(lvl: Level) {
     Logger("GuidedQuantifierInst", lvl, {
       "TODO"
@@ -141,6 +149,12 @@ class GuidedGenerator(f: Formula, val cc: CongruenceClosure = new CongruenceClos
     }
     Logger("GuidedGenerator", Debug, "saturate generated " + buffer.size + " new clauses")
     buffer.result
+  }
+  
+  def toEager = {
+    val cc2 = cc.copy
+    val buildingBlock = gen.buildingBlock
+    EagerGenerator(f, cc2, buildingBlock)
   }
 
   override def clone = {
@@ -244,6 +258,8 @@ protected class GGen(val vs: Array[Variable],
     val toIdx = vs.zipWithIndex.toMap
     Matching.findLocalSubterms(cc, vs.toSet, f)
   }
+
+  def toGen = new Gen(vs, f)
 
 }
 

@@ -1,7 +1,8 @@
-package psync.logic
+package psync.logic.quantifiers
 
 import psync.formula._
 import psync.formula.Common._
+import psync.logic._
 
 import org.scalatest._
 

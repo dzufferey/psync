@@ -1,6 +1,7 @@
-package psync.logic
+package psync.logic.quantifiers
 
 import psync.formula._
+import psync.logic._
 
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
@@ -23,6 +24,8 @@ trait Generator {
   def saturate(depth: Option[Int]): List[Formula] = saturate(depth, true)
 
   def saturate: List[Formula] = saturate(None, true)
+
+  def toEager: EagerGenerator
 
 }
 
@@ -52,7 +55,7 @@ object InstGen {
     //make sure formula is taken into account
     cc.addConstraints(axioms)
     //
-    new IncrementalGenerator(axioms, cc)
+    new EagerGenerator(axioms, cc)
   }
   
   /** instantiate all the universally quantified variables with the provided ground terms.

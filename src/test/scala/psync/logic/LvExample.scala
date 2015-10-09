@@ -272,6 +272,7 @@ class LvExample extends FunSuite {
       Neq(maxTS(mailbox1(i)), v)
     )
     assertUnsat(fs, cle(2, 1))
+    //TODO for the Venn regions, we might need Eager instantiation
     //assertUnsat(fs, clg(2, 2))
   }
 
@@ -313,10 +314,7 @@ class LvExample extends FunSuite {
 //  )
 //  assertUnsat(fs, clg(2, 3))
 //  //assertUnsat(fs)
-//  //assertUnsat(fs, 60000, true, cl2_2)
-//  //assertUnsat(fs, 60000, true, cl2_1, Some("test1.smt2"))
-//  //assertUnsat(fs, 60000, true, cl2_2, Some("test2.smt2"), true)
-//  //getModel(fs, 60000)
+//  //assertUnsat(fs, 60000, true, cle(2,2))
 //}
 
 }

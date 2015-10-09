@@ -1,11 +1,12 @@
-package psync.logic
+package psync.logic.quantifiers
 
 import psync.formula._
 import psync.formula.Common._
+import psync.logic._
 
 import org.scalatest._
 
-class IncrementalGeneratorSuite extends FunSuite {
+class EagerGeneratorSuite extends FunSuite {
 
   test("formula 1"){
     val axs = List(
@@ -13,7 +14,7 @@ class IncrementalGeneratorSuite extends FunSuite {
       ForAll(List(p2), Eq(rp2, IntLit(0))),
       ForAll(List(p1,p2), Eq(pp1, pp2))
     )
-    val itg = new IncrementalFormulaGenerator(axs, new CongruenceClosure)
+    val itg = new EagerFormulaGenerator(axs, new CongruenceClosure)
     val g1 = itg.generate(p1)
     assert(g1.size == 2)
     assert(g1 contains Eq(IntLit(0), rp1))
@@ -33,7 +34,7 @@ class IncrementalGeneratorSuite extends FunSuite {
       ForAll(List(p2), Eq(rp2, IntLit(0))),
       ForAll(List(p1,p2), Eq(pp1, pp2))
     )
-    val itg = new IncrementalGenerator(axs)
+    val itg = new EagerGenerator(axs)
     val g1 = itg.generate(p1)
     assert(g1.size == 2)
     assert(g1 contains Eq(IntLit(0), rp1))
@@ -53,7 +54,7 @@ class IncrementalGeneratorSuite extends FunSuite {
       ForAll(List(p1), Eq(rp1, IntLit(0))),
       ForAll(List(p1,p2), Eq(pp1, pp2))
     )
-    val itg = new IncrementalGenerator(axs)
+    val itg = new EagerGenerator(axs)
     val g1 = itg.generate(p1)
     assert(g1.size == 2)
     assert(g1.contains(Eq(IntLit(0), rp1)) || g1.contains(Eq(IntLit(0), rp2)))
@@ -68,7 +69,7 @@ class IncrementalGeneratorSuite extends FunSuite {
       ForAll(List(p2), Eq(rp2, IntLit(0))),
       ForAll(List(p1,p2), Eq(pp1, pp2))
     )
-    val itg = new IncrementalGenerator(axs)
+    val itg = new EagerGenerator(axs)
     val g1 = itg.generate(p1)
     assert(g1.size == 2)
     assert(g1 contains Eq(IntLit(0), rp1))
@@ -102,7 +103,7 @@ class IncrementalGeneratorSuite extends FunSuite {
         )
       )
     )
-    val itg = new IncrementalGenerator(axs)
+    val itg = new EagerGenerator(axs)
     val g1 = itg.generate(Set[Formula](p1,p2))
     assert(g1.size == 4)
   }

@@ -1,6 +1,7 @@
-package psync.logic
+package psync.logic.quantifiers
 
 import psync.formula._
+import psync.logic._
 
 import dzufferey.utils.{Misc, Namer}
 import dzufferey.utils.Logger
@@ -10,7 +11,7 @@ import scala.collection.mutable.{Set => MSet}
 import scala.collection.mutable.ArrayBuffer
 
 
-class IncrementalFormulaGenerator(axioms: Iterable[Formula], cc: CongruenceClosure) {
+class EagerFormulaGenerator(axioms: Iterable[Formula], cc: CongruenceClosure) {
 
   //the current generators
   protected val idx  = scala.collection.mutable.Map[Type,ArrayBuffer[Int]]()
@@ -40,7 +41,7 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula], cc: CongruenceClosu
         buffer += index
       })
       if (gens.size % 1000 == 0) {
-        Logger("IncrementalGenerator", Debug, "#generator: " + gens.size)
+        Logger("EagerGenerator", Debug, "#generator: " + gens.size)
       }
     }
   }
@@ -48,7 +49,7 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula], cc: CongruenceClosu
   //extract the first Gen from the axioms
   axioms.foreach{
     case fa @ ForAll(vs, f) => addGen( Gen(vs, f, cc, compDef) )
-    case other => Logger("IncrementalGenerator", Warning, "(2) expect ∀, found: " + other)
+    case other => Logger("EagerGenerator", Warning, "(2) expect ∀, found: " + other)
   }
   
 
@@ -157,7 +158,7 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula], cc: CongruenceClosu
   }
 
   def clone(cc2: CongruenceClosure) = {
-    val g = new IncrementalFormulaGenerator(axioms, cc2)
+    val g = new EagerFormulaGenerator(axioms, cc2)
     g.idx.clear
     idx.foreach{ case (k,v) => g.idx += (k -> v.clone) }
     g.gens.clear
@@ -172,7 +173,7 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula], cc: CongruenceClosu
   }
 
   def log(lvl: Level) {
-    Logger("IncrementalFormulaGenerator", lvl, {
+    Logger("EagerFormulaGenerator", lvl, {
       val buffer = new scala.collection.mutable.StringBuilder(1024 * 1024)
       buffer ++= "idx:\n"
       for ( (t, is) <- idx) {
@@ -210,10 +211,26 @@ class IncrementalFormulaGenerator(axioms: Iterable[Formula], cc: CongruenceClosu
     })
   }
 
+  def set(bb: (Map[Type,Iterable[Int]],IndexedSeq[Gen],Map[Int,Iterable[Int]])) = {
+    gens.clear
+    idx.clear
+    hashFilter.clear
+    done.clear
+    bb._1.foreach{ case (t,is) =>
+      val buffer = idx.getOrElseUpdate(t, ArrayBuffer[Int]())
+      buffer ++= is
+    }
+    gens ++= bb._2
+    bb._3.foreach{ case (i,is) =>
+      val buffer = hashFilter.getOrElseUpdate(i, ArrayBuffer[Int]())
+      buffer ++= is
+    }
+  }
+
 }
 
 
-class IncrementalGenerator(f: Formula, val cc: CongruenceClosure = new CongruenceClosure) extends Cloneable with Generator {
+class EagerGenerator(f: Formula, val cc: CongruenceClosure = new CongruenceClosure) extends Cloneable with Generator {
 
   //make sure the current equalities are in the cc
   cc.addConstraints(f)
@@ -222,7 +239,7 @@ class IncrementalGenerator(f: Formula, val cc: CongruenceClosure = new Congruenc
   protected var gen = {
     val (axioms, other) = FormulaUtils.getConjuncts(f).partition(Quantifiers.hasFAnotInComp)
     leftOver = other
-    new IncrementalFormulaGenerator(axioms.map(Simplify.pnf), cc)
+    new EagerFormulaGenerator(axioms.map(Simplify.pnf), cc)
   }
 
   def generate(term: Formula): List[Formula] = {
@@ -246,7 +263,7 @@ class IncrementalGenerator(f: Formula, val cc: CongruenceClosure = new Congruenc
     var processed = scala.collection.mutable.Set[Formula]()
     var toProcess = cc.groundTerms.map(cc.repr)
     while (d.getOrElse(1) > 0 && !toProcess.isEmpty) {
-      Logger("IncrementalGenerator", Debug, "saturate with |toProcess| = " + toProcess.size + ", depth = " + d)
+      Logger("EagerGenerator", Debug, "saturate with |toProcess| = " + toProcess.size + ", depth = " + d)
       val newInst = generate(toProcess)
       buffer ++= newInst
       processed ++= toProcess
@@ -255,27 +272,39 @@ class IncrementalGenerator(f: Formula, val cc: CongruenceClosure = new Congruenc
       d = d.map(_ - 1)
     }
     if (local && d.getOrElse(1) == 0) {
-      Logger("IncrementalGenerator", Debug, "saturate before local: " + buffer.size + " new clauses")
+      Logger("EagerGenerator", Debug, "saturate before local: " + buffer.size + " new clauses")
       buffer ++= gen.locallySaturate
     }
-    Logger("IncrementalGenerator", Debug, "saturate generated " + buffer.size + " new clauses")
+    Logger("EagerGenerator", Debug, "saturate generated " + buffer.size + " new clauses")
     buffer.result
   }
 
+  def toEager = this
+
   override def clone = {
     val cc2 = cc.copy
-    val ig = new IncrementalGenerator(f, cc2)
+    val ig = new EagerGenerator(f, cc2)
     ig.gen = gen.clone(cc2)
     ig
   }
   
   def log(lvl: Level) {
-    Logger("IncrementalGenerator", lvl,
-        "Incremental Generator:\n  " + 
+    Logger("EagerGenerator", lvl,
+        "Eager Generator:\n  " + 
         FormulaUtils.getConjuncts(f).mkString("\n  ") + "\n" +
         "leftOver:\n  " + leftOver.mkString("\n  ") + "\n" +
         "CC\n" + cc + "\n")
     gen.log(lvl)
+  }
+
+}
+
+object EagerGenerator {
+
+  def apply(f: Formula, cc: CongruenceClosure, bb: (Map[Type,Iterable[Int]],IndexedSeq[Gen],Map[Int,Iterable[Int]])) = {
+    val ig = new EagerGenerator(f, cc)
+    ig.gen.set(bb)
+    ig
   }
 
 }
