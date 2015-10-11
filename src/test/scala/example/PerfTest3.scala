@@ -44,6 +44,7 @@ class PerfTest3(options: RuntimeOptions,
   val lck = new ReentrantLock 
   var nbr = 0l
   var started: Short = 0
+  var finished: Short = 0
 
   val values   = Array.fill[Int](nbrValues)(0)
   val versions = Array.fill[Short](nbrValues)(-1)
@@ -119,6 +120,7 @@ class PerfTest3(options: RuntimeOptions,
       }
     }
     started = inst
+    assert(Instance.leq(finished,started))
     rt.startInstance(inst, io, msgs)
   }
 
@@ -127,6 +129,8 @@ class PerfTest3(options: RuntimeOptions,
     l.lock
     try {
       if (pushDecision(inst, data)) {
+        finished = inst
+        assert(Instance.leq(finished,started))
         if (selfStarted contains inst) {
           selfStarted -= inst
           rate.release
@@ -153,7 +157,7 @@ class PerfTest3(options: RuntimeOptions,
         val inst = msg.instance
         if (Instance.lt(started, inst)) {
           start(inst, emp, Set(msg))
-        } else if (Instance.lt(inst, started)) {
+        } else if (Instance.lt(inst, finished)) {
           getDec(inst) match {
             case Some(d) => 
               val payload = PooledByteBufAllocator.DEFAULT.buffer()
@@ -162,11 +166,9 @@ class PerfTest3(options: RuntimeOptions,
               payload.writeBytes(d)
               rt.sendMessage(msg.senderId, Tag(inst,0,Decision,0), payload)
             case None =>
-              if (started - inst > 50) {
-                val payload = PooledByteBufAllocator.DEFAULT.buffer()
-                payload.writeLong(8)
-                rt.sendMessage(msg.senderId, Tag(inst,0,Late,0), payload)
-              }
+              val payload = PooledByteBufAllocator.DEFAULT.buffer()
+              payload.writeLong(8)
+              rt.sendMessage(msg.senderId, Tag(inst,0,Late,0), payload)
           }
           msg.release
         } else {
