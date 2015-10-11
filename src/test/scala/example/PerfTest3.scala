@@ -31,10 +31,9 @@ class PerfTest3(options: RuntimeOptions,
   val log: java.io.BufferedWriter =
     if (logFile.isDefined) new java.io.BufferedWriter(new java.io.FileWriter(logFile.get + "_" + id + ".log"))
     else null
-  val logLock = new ReentrantLock
 
   if (log != null) {
-    log.write("idx\tinst\tval")
+    log.write("inst\tkey\tvalue")
     log.newLine()
   }
   
@@ -46,36 +45,45 @@ class PerfTest3(options: RuntimeOptions,
   var nbr = 0l
   var started: Short = 0
 
-  val values   = Array.ofDim[Int](nbrValues)
-  val acceptedRequests = new ConcurrentLinkedQueue[Array[Byte]]()
+  val values   = Array.fill[Int](nbrValues)(0)
+  val versions = Array.fill[Short](nbrValues)(-1)
+  val acceptedRequests = new ConcurrentLinkedQueue[(Short, Array[Byte])]()
 
-  def bytesToInt(b: Array[Byte], base: Int) = {
+  @inline final def bytesToInt(b: Array[Byte], base: Int) = {
      b(base + 3) & 0xFF |
     (b(base + 2) & 0xFF) << 8 |
     (b(base + 1) & 0xFF) << 16 |
     (b(base    ) & 0xFF) << 24;
   }
 
-  def intToBytes(a: Int, b: Array[Byte], base: Int) = {
+  @inline final def intToBytes(a: Int, b: Array[Byte], base: Int) = {
     b(base + 3) = (a & 0xFF).toByte
     b(base + 2) = ((a >>  8) & 0xFF).toByte
     b(base + 1) = ((a >> 16) & 0xFF).toByte
     b(base    ) = ((a >> 24) & 0xFF).toByte
   }
 
-  def processRequest(b: Array[Byte], base: Int) {
+  @inline final def processRequest(inst: Short, b: Array[Byte], base: Int) {
     val c = bytesToInt(b, base) 
     val k = bytesToInt(b, base + 4) 
     val v = bytesToInt(b, base + 8)
-    values(k) = v
+    //check that the request has not been superseded
+    if (Instance.lt(versions(k), inst)) {
+      values(k) = v
+      versions(k) = inst
+      if (log != null) {
+        log.write(inst + "\t" + k + "\t" + v)
+        log.newLine()
+      }
+    }
     //TODO notify client
   }
 
-  def processBatch(a: Array[Byte]) {
+  def processBatch(inst: Short, a: Array[Byte]) {
     assert(a.size % 12 == 0)
     var b = 0
     while (b < a.size) {
-      processRequest(a, b)
+      processRequest(inst, a, b)
       b += 12
       nbr += 1
     }
@@ -85,11 +93,12 @@ class PerfTest3(options: RuntimeOptions,
     def run = {
       try{
         while(!Thread.interrupted) {
-          val batch = acceptedRequests.poll
-          if (batch != null) {
-            processBatch(batch)
+          val req = acceptedRequests.poll
+          if (req != null) {
+            val (inst, batch) = req
+            processBatch(inst, batch)
           } else {
-            Thread.sleep(5)
+            Thread.sleep(2)
           }
         }
       } catch {
@@ -124,7 +133,7 @@ class PerfTest3(options: RuntimeOptions,
         }
         if (data != null) { //null/empty means the proposer crashed before setting a value
           if (!data.isEmpty) {
-            acceptedRequests.add(data)
+            acceptedRequests.add(inst -> data)
           }
           if (log != null) {
             //TODO log
