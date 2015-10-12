@@ -157,7 +157,7 @@ class PerfTest3(options: RuntimeOptions,
         val inst = msg.instance
         if (Instance.lt(started, inst)) {
           start(inst, emp, Set(msg))
-        } else if (Instance.lt(inst, finished)) {
+        } else if (Instance.leq(inst, finished)) {
           getDec(inst) match {
             case Some(d) => 
               val payload = PooledByteBufAllocator.DEFAULT.buffer()
@@ -165,14 +165,17 @@ class PerfTest3(options: RuntimeOptions,
               payload.writeInt(d.size)
               payload.writeBytes(d)
               rt.sendMessage(msg.senderId, Tag(inst,0,Decision,0), payload)
+              Logger("PerfTest3", Debug, "sending decision to " + msg.senderId.id + " for " + inst)
             case None =>
               val payload = PooledByteBufAllocator.DEFAULT.buffer()
               payload.writeLong(8)
               rt.sendMessage(msg.senderId, Tag(inst,0,Late,0), payload)
+              Logger("PerfTest3", Debug, "sending late to " + msg.senderId.id + " for " + inst)
           }
           msg.release
         } else {
           //TODO check if running and push to inst ?
+          Logger("PerfTest3", Debug, "message for instance started but not finished: " + inst + ", started: " + started + ", finished: " + finished)
           msg.release
         }
       } else if (flag == Decision) {
@@ -185,10 +188,12 @@ class PerfTest3(options: RuntimeOptions,
         msg.release
         rt.stopInstance(inst)
         proposeDecision(inst, d)
+        Logger("PerfTest3", Debug, "received decision for " + inst)
       } else if (flag == Late) {
         val inst = msg.instance
         rt.stopInstance(inst)
         proposeDecision(inst, null)
+        Logger("PerfTest3", Debug, "received late for " + inst)
       } else {
         sys.error("unknown or error flag: " + flag)
       }
