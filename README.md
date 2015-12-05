@@ -183,8 +183,17 @@ The scripts depends on `test_scripts/deps` for getting the appropriate dependenc
 The script should work for a \*nix machine.
 Depending on your OS and configuration, you may need to update this file.
 
-## Assembly and deployement
+## Assembly and deployment
 
-To simplify the deployement of this project, we use the [sbt-assembly](https://github.com/sbt/sbt-assembly) plugin to produce a single jar containing all the dependencies.
+To simplify the deployment of this project, we use the [sbt-assembly](https://github.com/sbt/sbt-assembly) plugin to produce a single jar containing all the dependencies.
 Run `sbt assembly` to produce a this jar.
+
+## Known Issues
+
+When running many tests it is not unusual to see the following warning:
+
+    WARNING: Failed to generate a seed from SecureRandom within 3 seconds. Not enough entropy?
+
+Starting/stopping Netty too many times seems to deplete the pool of entropy.
+Currently PSync does not use any cryptographic primitive, therefore, this warning is harmless.
 
