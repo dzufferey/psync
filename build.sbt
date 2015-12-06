@@ -27,7 +27,7 @@ libraryDependencies ++=  Seq(
     "org.scalatest" %% "scalatest" % "2.2.4" % "test",
     "org.scalacheck" %% "scalacheck" % "1.12.4" % "test",
     "org.scala-lang.modules" %% "scala-pickling" % "0.10.1",
-    "io.netty" % "netty-all" % "4.0.32.Final",
+    "io.netty" % "netty-all" % "4.0.33.Final",
     "io.github.dzufferey" %% "scala-arg" % "0.1-SNAPSHOT",
     "io.github.dzufferey" %% "report" % "0.1-SNAPSHOT",
     "io.github.dzufferey" %% "misc-scala-utils" % "0.1-SNAPSHOT"
