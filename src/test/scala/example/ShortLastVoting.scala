@@ -30,15 +30,19 @@ class SlvProcess extends Process[ConsensusIO] {
   }
 
   val rounds = phase(
-    new Round[(Int,Time)]{
+    //FIXME use Int until PerfTest2 is fixed
+    //new Round[(Int,Time)]{
+    new Round[(Int,Int)]{
 
-      def send(): Map[ProcessID,(Int, Time)] = {
+      //def send(): Map[ProcessID,(Int, Time)] = {
+      def send(): Map[ProcessID,(Int, Int)] = {
         Map( coord(r/4) -> (x, ts) )
       }
 
       override def expectedNbrMessages = if (id == coord(r/4)) n/2 + 1 else 0
 
-      def update(mailbox: Map[ProcessID,(Int, Time)]) {
+      //def update(mailbox: Map[ProcessID,(Int, Time)]) {
+      def update(mailbox: Map[ProcessID,(Int, Int)]) {
         if (id == coord(r/4) && mailbox.size > n/2) {
           // let θ be one of the largest θ from 〈ν, θ〉received
           // vote(p) := one ν such that 〈ν, θ〉 is received

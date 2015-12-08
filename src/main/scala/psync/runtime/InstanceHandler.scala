@@ -44,9 +44,9 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected val buffer = new ArrayBlockingQueue[DatagramPacket](options.bufferSize) 
   
   protected var timeout = options.timeout
-  
+  protected val earlyMoving = options.earlyMoving
   protected val adaptative = options.adaptative
-  
+
   protected var didTimeOut = 0
 
   protected var instance: Short = 0
@@ -200,7 +200,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
         //println(grp.self.id + ", " + tag.instanceNbr + " delivering: " + currentRound)
         //normal case
         storePacket(pkt)
-        if (received >= expected) {
+        if (received >= expected && earlyMoving) {
           deliver
         }
       } else {
@@ -263,7 +263,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       }
     }
     channel.flush
-    if (received >= expected) {
+    if (received >= expected && earlyMoving) {
       deliver
     }
   }
