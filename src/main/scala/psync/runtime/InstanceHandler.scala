@@ -46,6 +46,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected var timeout = options.timeout
   protected val earlyMoving = options.earlyMoving
   protected val adaptative = options.adaptative
+  protected val sendWhenCatchingUp = options.sendWhenCatchingUp
 
   protected var didTimeOut = 0
 
@@ -168,7 +169,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
         } else {
           //Logger("InstanceHandler", Warning, instance + " timeout")
           didTimeOut += 1
-          deliver
+          deliver(false)
         }
         adaptTimeout
       }
@@ -192,7 +193,11 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     try {
       while(round - currentRound > 0) {
         //println(grp.self.id + ", " + tag.instanceNbr + " catching up: " + currentRound + " -> " + round)
-        deliver
+        if (round - currentRound == 1) {
+          deliver(false)
+        } else {
+          deliver(true)
+        }
       }
     } catch {
       case t: Throwable =>
@@ -204,7 +209,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       //normal case
       storePacket(pkt)
       if (received >= expected && earlyMoving) {
-        deliver
+        deliver(false)
       }
     } else {
       pkt.release //packet late
@@ -223,7 +228,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     }
   }
   
-  protected def deliver {
+  protected def deliver(catchingUp: Boolean) {
     Logger("Predicate", Debug, grp.self.id + ", " + instance + " delivering for round " + currentRound + " (received = " + received + ")")
     val toDeliver = messages.slice(0, received)
     val msgs = fromPkts(toDeliver)
@@ -233,7 +238,9 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     //actual delivery
     if (proc.update(msgs)) {
       //start the next round (if has not exited)
-      send
+      if (!catchingUp || sendWhenCatchingUp) {
+        send
+      }
     } else {
       //TODO better!!
       throw new TerminateInstance
@@ -266,7 +273,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     }
     channel.flush
     if (received >= expected && earlyMoving) {
-      deliver
+      deliver(false)
     }
   }
 
