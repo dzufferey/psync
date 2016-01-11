@@ -1,40 +1,43 @@
 # general
 
-- find a nice acronym for 'round' → rename to PSync
 - expected number of messages for a round: inferred from the send function
 - locally testable safety/liveness conditions: of the form ∀ p. QF-φ(p)
 - split the sources into multiple parts/sub-projects
   * cleaner separation between the runtime and the declarations
   * so we can use macros for the testing and debugging in the main project
 - find a way to get generic algorithms:
-  currently we have problem with anonym class (new Process ...)
+  currently we have problem with anonymous class (new Process ...)
   "Parameter type in structural refinement may not refer to an abstract type defined outside that refinement"
   need to either find a way of processing Process differently or encapsulate instance variables differently
   it is possible to add the type parameter when rewriting the class ?
+- allow for event driven algorithms
+  could process the messages as soon as received
+  current version can be built on top of that
+- allow for round local variables (reinitialized each time)
 
 
-# implementation
+# runtime
 
-- ghost variables: check they are only read in the verification part and remove at compile time
-- runtime 
-    * limit the scope of TerminateInstance in the Runtime: should noe escape the Round
-    * reduce number of threads, improve pooling:
-        - could we use ForkJoinTask as queue of thing to do (instead of the current queue of message)
-          a new task join on the previous task (do we need locking to avoid weak memory model problem, TODO make some test)
-          use an java.util.concurrent.atomic.AtomicReference to store the tail of the task queue
-            compareAndSet for cleanUp
-            getAndSet for adding a new task
-          what are the tasks:
-            start
-            stop
-            message
-            timeout
-            defaultHandler
-    * add a strict timeout option (be careful about trying to catch up too quickly)
-    * add wake-up all option in the start option
-    * reduce memory footprint
-    * a TCP version
-    * more predictable performances (when overloaded)
+- option to send (or not) messages during the catch-up
+- limit the scope of TerminateInstance in the Runtime: should not escape the Round
+    try to remove the control-flow inversion all together
+- reduce number of threads, improve pooling:
+    could we use ForkJoinTask as queue of thing to do (instead of the current queue of message)
+    a new task join on the previous task (do we need locking to avoid weak memory model problem, TODO make some test)
+    use an java.util.concurrent.atomic.AtomicReference to store the tail of the task queue
+        compareAndSet for cleanUp
+        getAndSet for adding a new task
+    what are the tasks:
+        start
+        stop
+        message
+        timeout
+        defaultHandler
+- add a strict timeout option (be careful about trying to catch up too quickly)
+- add wake-up all option in the start option
+- reduce memory footprint
+- a TCP version
+- more predictable performances (when overloaded)
 
 
 # verification

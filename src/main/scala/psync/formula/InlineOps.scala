@@ -24,6 +24,8 @@ object InlineOps {
     
     def <=(rhs: Formula) = Leq(lhs, rhs)
     def >=(rhs: Formula) = Geq(lhs, rhs)
+    def ≤(rhs: Formula) = Leq(lhs, rhs)
+    def ≥(rhs: Formula) = Geq(lhs, rhs)
     def <(rhs: Formula) = Lt(lhs, rhs)
     def >(rhs: Formula) = Gt(lhs, rhs)
 

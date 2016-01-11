@@ -11,6 +11,8 @@ trait Generator {
 
   def cc: CongruenceClosure
 
+  def logger: QILogger = new QILogger
+
   def generate(term: Formula): List[Formula]
 
   def generate(terms: Set[Formula]): List[Formula]

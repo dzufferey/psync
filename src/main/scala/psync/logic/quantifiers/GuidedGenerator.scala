@@ -161,6 +161,8 @@ class GuidedGenerator(f: Formula, val cc: CongruenceClosure = new CongruenceClos
     val cc2 = cc.copy
     val ig = new GuidedGenerator(f, cc2)
     ig.gen = gen.clone(cc2)
+    logger.nodesIterator.foreach(ig.logger.addNode(_))
+    logger.edgesIterator.foreach(ig.logger.addEdge(_))
     ig
   }
   

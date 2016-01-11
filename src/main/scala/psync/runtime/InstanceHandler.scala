@@ -138,12 +138,27 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       again = false
   }
 
+  @inline
+  private def adaptTimeout {
+    if (adaptative) {
+      //TODO something amortized to avoid oscillations
+      if (didTimeOut > 5) {
+        didTimeOut = 0
+        timeout += 10
+      } else if (didTimeOut < -50) {
+        didTimeOut = 0
+        timeout -= 10
+      }
+    }
+  }
+
   def run {
     try {
       Logger("InstanceHandler", Info, "starting instance " + instance)
       again = true
       send //TODO might already stop here
       while(again && !Thread.interrupted()) {
+        //TODO the timeout should also depends on when the round started!
         val msg = buffer.poll(timeout, TimeUnit.MILLISECONDS)
         if (msg != null) {
           didTimeOut -= 1
@@ -155,16 +170,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
           didTimeOut += 1
           deliver
         }
-        if (adaptative) {
-          //TODO something amortized to avoid oscillations
-          if (didTimeOut > 5) {
-            didTimeOut = 0
-            timeout += 10
-          } else if (didTimeOut < -50) {
-            didTimeOut = 0
-            timeout -= 10
-          }
-        }
+        adaptTimeout
       }
     } catch {
       case _: TerminateInstance | _: java.lang.InterruptedException => ()
@@ -179,33 +185,29 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   // current round //
   ///////////////////
   
-  //general receive (not sure if it is the correct round, instance, etc.).
+  //general receive (not sure if it is the correct round, but instance is correct).
   protected def receive(pkt: DatagramPacket) {
     val tag = Message.getTag(pkt.content)
     val round = tag.roundNbr
-    if (instance != tag.instanceNbr) {
-      pkt.release
+    try {
+      while(round - currentRound > 0) {
+        //println(grp.self.id + ", " + tag.instanceNbr + " catching up: " + currentRound + " -> " + round)
+        deliver
+      }
+    } catch {
+      case t: Throwable =>
+        pkt.release
+        throw t
+    }
+    if (round == currentRound) {
+      //println(grp.self.id + ", " + tag.instanceNbr + " delivering: " + currentRound)
+      //normal case
+      storePacket(pkt)
+      if (received >= expected && earlyMoving) {
+        deliver
+      }
     } else {
-      try {
-        while(round - currentRound > 0) {
-          //println(grp.self.id + ", " + tag.instanceNbr + " catching up: " + currentRound + " -> " + round)
-          deliver
-        }
-      } catch {
-        case t: Throwable =>
-          pkt.release
-          throw t
-      }
-      if (round == currentRound) {
-        //println(grp.self.id + ", " + tag.instanceNbr + " delivering: " + currentRound)
-        //normal case
-        storePacket(pkt)
-        if (received >= expected && earlyMoving) {
-          deliver
-        }
-      } else {
-        pkt.release //packet late
-      }
+      pkt.release //packet late
     }
   }
 

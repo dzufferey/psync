@@ -14,15 +14,15 @@ import scala.collection.mutable.ArrayBuffer
 class EagerFormulaGenerator(axioms: Iterable[Formula], cc: CongruenceClosure) {
 
   //the current generators
-  protected val idx  = scala.collection.mutable.Map[Type,ArrayBuffer[Int]]()
+  protected val idx  = MMap[Type,ArrayBuffer[Int]]()
   protected val gens = ArrayBuffer[Gen]()
-  protected val done = scala.collection.mutable.Map[Type,MSet[Formula]]()
+  protected val done = MMap[Type,MSet[Formula]]()
   
   //speed-up the findSimilar test by keeping the hashes of existing generators
-  protected val hashFilter = scala.collection.mutable.Map[Int,ArrayBuffer[Int]]()
+  protected val hashFilter = MMap[Int,ArrayBuffer[Int]]()
   
   //for limiting the number of ∃ var generated for comprehensions
-  protected val compDef = scala.collection.mutable.Map[Binding,Variable]()
+  protected val compDef = MMap[Binding,Variable]()
   
 
   protected def findSimilar(g: Gen): Option[Int] = {
@@ -285,6 +285,8 @@ class EagerGenerator(f: Formula, val cc: CongruenceClosure = new CongruenceClosu
     val cc2 = cc.copy
     val ig = new EagerGenerator(f, cc2)
     ig.gen = gen.clone(cc2)
+    logger.nodesIterator.foreach(ig.logger.addNode(_))
+    logger.edgesIterator.foreach(ig.logger.addEdge(_))
     ig
   }
   

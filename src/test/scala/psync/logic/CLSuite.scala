@@ -1,6 +1,7 @@
 package psync.logic
 
 import psync.formula._
+import psync.formula.InlineOps._
 import psync.utils.smtlib._
 import dzufferey.utils.Logger
 import TestCommon._
@@ -286,6 +287,23 @@ class CLSuite extends FunSuite {
     assertSat(List(Leq(t1, t2), Leq(t2, t1)))
     assertSat(List(Leq(t1, t2), Leq(t2, t3), Leq(t3, t1)))
     assertUnsat(List(Leq(t1, t2), Leq(t2, t3), Leq(t3, t1), Not(Eq(t1, t3))))
+  }
+
+  test("lv 2x inv simple") {
+    val t = CL.timeType
+    val ts = UnInterpretedFct("ts",Some(pid ~> t))
+    val d1 = Variable("d1").setType(Int)
+    val d2 = Variable("d2").setType(Int)
+    val fs = List(
+      Eq(a, Comprehension(List(i), Geq(ts(i), Variable("tA")))),
+      Eq(b, Comprehension(List(i), Geq(ts(i), Variable("tB")))),
+      ForAll(List(i), (i ∈ a) ==> (data(i) === d1)),
+      ForAll(List(i), (i ∈ b) ==> (data(i) === d2)),
+      Gt(Cardinality(a), nOver2),
+      Gt(Cardinality(b), nOver2),
+      d1 !== d2
+    )
+    assertUnsat(fs)
   }
 
   //TODO tuples

@@ -45,11 +45,6 @@ abstract class Round[A] {
   //TODO can we inter that from the send code ?
   def expectedNbrMessages: Int = group.size
 
-  
-  //////////////////
-  // util methods //
-  //////////////////
-
 }
 
 abstract class RoundWrapper extends RtRound {
@@ -86,7 +81,7 @@ abstract class RoundWrapper extends RtRound {
       (pid, a)
     }
     val decoded = msg.map(decode)
-    //TODO TerminateInstance should be caught here (and the method should retrun true)
+    //TODO TerminateInstance should be caught here (and the method should return true)
     r.update(decoded)
     r.getContinue
   }

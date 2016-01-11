@@ -15,6 +15,7 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
 
   private var srv: Option[PacketServer] = None
 
+  //TODO try a stack for better locality
   private val processPool = new ArrayBlockingQueue[InstanceHandler[IO,P]](options.processPool)
 
   private val executor = options.workers match {

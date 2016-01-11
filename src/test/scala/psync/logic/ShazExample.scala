@@ -48,7 +48,7 @@ class ShazExample extends FunSuite {
     And(
       (aaoa(memLo).card + freeSpace) === nfaoa(memLo),
       freeSpace <= 0,
-      ForAll(List(l1, l2), Implies(And(l1 ∈ memAddr, l2 ∈ memAddr, l1 <= l2), aaoa(l1) ⊆ aaoa(l2))),
+      ForAll(List(l1, l2), Implies(And(l1 ∈ memAddr, l2 ∈ memAddr, l1 ≤ l2), aaoa(l1) ⊆ aaoa(l2))),
       ForAll(List(loc), And(
         aaoa(loc).card <= nfaoa(loc),
         Or(loc ∈ memAddr, nfaoa(loc) === 0),
