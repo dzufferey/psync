@@ -2,6 +2,7 @@ package psync.logic.quantifiers
 
 import psync.formula._
 import psync.logic._
+import psync.utils.Options
 
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
@@ -11,11 +12,21 @@ trait Generator {
 
   def cc: CongruenceClosure
 
-  def logger: QILogger = new QILogger
+  //def logger: QILogger
+  val _logger = {
+    if (Options.logQI) new BasicQILogger
+    else new EmptyQILogger
+  }
+  def logger = _logger
 
   def generate(term: Formula): List[Formula]
 
-  def generate(terms: Set[Formula]): List[Formula]
+  def generate(terms: Set[Formula]): List[Formula] = {
+    val buffer = scala.collection.mutable.ListBuffer[Formula]()
+    terms.foreach(t => buffer.appendAll(generate(t)))
+    //buffer.foreach( cc.addConstraints )
+    buffer.result
+  }
 
   /** saturate starting with the groundTerms (representative in cc), up to a certain depth.
    * @param depth bound on the recursion depth
@@ -28,7 +39,6 @@ trait Generator {
   def saturate: List[Formula] = saturate(None, true)
 
   def toEager: EagerGenerator
-
 }
 
 /** Instance generation: methods to instanciate the quantifiers */

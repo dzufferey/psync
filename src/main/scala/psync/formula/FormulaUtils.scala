@@ -288,8 +288,11 @@ object FormulaUtils {
     !exists( x => !p(x), f)
   }
 
-  /** is f2 a descendent of f1 */
+  /** is f1 == f2 ∨ f2 a descendent of f1 */
   def contains(f1: Formula, f2: Formula): Boolean = exists( x => x == f2, f1)
+  
+  /** is f2 a descendent of f1 */
+  def isDescendent(f1: Formula, f2: Formula): Boolean = f1 != f2 && exists( x => x == f2, f1)
 
   def isGround(f: Formula): Boolean = {
     forall({

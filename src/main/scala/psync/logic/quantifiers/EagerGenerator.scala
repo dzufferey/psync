@@ -249,12 +249,6 @@ class EagerGenerator(f: Formula, val cc: CongruenceClosure = new CongruenceClosu
     newInst
   }
 
-  def generate(terms: Set[Formula]): List[Formula] = {
-    val buffer = scala.collection.mutable.ListBuffer[Formula]()
-    terms.foreach(t => buffer.appendAll(generate(t)))
-    buffer.result
-  }
-
   def generateWithExistingGTS = generate(cc.groundTerms)
 
   def saturate(depth: Option[Int], local: Boolean) = {

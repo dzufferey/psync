@@ -121,7 +121,7 @@ class GuidedGenerator(f: Formula, val cc: CongruenceClosure = new CongruenceClos
     newInst
   }
 
-  def generate(terms: Set[Formula]): List[Formula] = {
+  override def generate(terms: Set[Formula]): List[Formula] = {
     val buffer = scala.collection.mutable.ListBuffer[Formula]()
     //TODO currently avoiding the cc repr due to the way generated terms are checked
     terms.foreach(t => buffer.appendAll(gen.generate(t)))

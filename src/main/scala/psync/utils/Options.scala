@@ -22,6 +22,7 @@ object Options {
   //verification
   var dumpVcs = false
   var timeout = 10000l
+  var logQI = false
  
 }
 
@@ -33,5 +34,7 @@ abstract class VerificationOptions extends DefaultOptions {
   newOption("--timeout", Int( i => Options.timeout = i.toLong * 1000 ), "timeout for the SMT solver is second (default: 10).")
   newOption("--cvc4mf", Unit( () => smtlib.Solver.useCvc4Mf ), "use cvc4 (model finder engine) as smt sovler.")
   newOption("--z3", Unit( () => smtlib.Solver.useZ3 ), "use z3 as smt sovler (default).")
+  newOption("--logQI", Unit( () => Options.logQI = true ), "log quantifier instantition (default false).")
+
 }
 

@@ -15,12 +15,35 @@ import java.io.BufferedWriter
 
 //Quantifier Instantiation Logger to help understand where/how the current heuristics blow up
 
+//TODO add an "empty logger" when we don't track anything
+
 object QILogger {
-  case class Node(idx: Int, formula: Formula, newGroundTerms: List[Formula])
-  case class Edge(src: Int, dst: Int, variable: Variable, term: Formula)
+  case class Node(idx: Int, formula: Formula, newGroundTerms: Iterable[Formula])
+  case class Edge(src: Int, dst: Int, /*variable: Variable,*/ term: Formula)
 }
 
-class QILogger {
+trait QILogger {
+  
+  import QILogger._
+  
+  def nodesIterator: Iterable[Node]
+  def edgesIterator: Iterable[Edge]
+
+  def reset: Unit
+  def addNode(n: Node): Unit
+  def addNode(idx: Int, formula: Formula, newGroundTerms: => Iterable[Formula]): Unit
+  def addEdge(e: Edge): Unit
+  def addEdge(src: Int, dst: Int, /*variable: Variable,*/ term: Formula): Unit
+
+  def printGraphviz(out: BufferedWriter): Unit
+
+  def storeGraphviz(fileName: String) {
+    IO.writeInFile(fileName, printGraphviz(_))
+  }
+
+}
+
+class BasicQILogger extends QILogger {
 
   import QILogger._
 
@@ -40,7 +63,7 @@ class QILogger {
     nodes += n.idx -> n
   }
 
-  def addNode(idx: Int, formula: Formula, newGroundTerms: List[Formula]) {
+  def addNode(idx: Int, formula: Formula, newGroundTerms: => Iterable[Formula]) {
     addNode(Node(idx, formula, newGroundTerms))
   }
   
@@ -50,8 +73,8 @@ class QILogger {
     edges += e
   }
 
-  def addEdge(src: Int, dst: Int, variable: Variable, term: Formula) {
-    addEdge(Edge(src, dst, variable, term))
+  def addEdge(src: Int, dst: Int, /*variable: Variable,*/ term: Formula) {
+    addEdge(Edge(src, dst, /*variable,*/ term))
   }
 
   def printGraphviz(out: BufferedWriter) {
@@ -63,7 +86,8 @@ class QILogger {
       writeln(n.idx + " [label=\"" + label + "\"];")
     }
     def edge(e: Edge) {
-      val label = e.variable + " <- " + e.term
+      //val label = e.variable + " <- " + e.term
+      val label = e.term
       writeln(e.src + " -> " + e.dst + " [label=\"" + label + "\"];")
     }
     writeln("digraph IQ {")
@@ -72,9 +96,16 @@ class QILogger {
     writeln("}")
   }
 
-  def storeGraphviz(fileName: String) {
-    IO.writeInFile(fileName, printGraphviz(_))
-  }
-
 }
 
+class EmptyQILogger extends QILogger {
+  import QILogger._
+  def nodesIterator: Iterable[Node] = Nil
+  def edgesIterator: Iterable[Edge] = Nil
+  def reset { }
+  def addNode(n: Node) { }
+  def addNode(idx: Int, formula: Formula, newGroundTerms: => Iterable[Formula]) { }
+  def addEdge(e: Edge) { }
+  def addEdge(src: Int, dst: Int, /*variable: Variable,*/ term: Formula) { }
+  def printGraphviz(out: BufferedWriter) { }
+}
