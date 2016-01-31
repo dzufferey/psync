@@ -294,9 +294,10 @@ object FormulaUtils {
   /** is f2 a descendent of f1 */
   def isDescendent(f1: Formula, f2: Formula): Boolean = f1 != f2 && exists( x => x == f2, f1)
 
+  //TODO not really about ground terms ...
   def isGround(f: Formula): Boolean = {
     forall({
-      case Binding(_, _, _) => false
+      case Binding(bt, _, _) => bt == Comprehension
       case Application(fct, _) => !symbolExcludedFromGroundTerm(fct)
       case _ => true
     }, f)
@@ -304,6 +305,11 @@ object FormulaUtils {
 
   def collectGroundTerms(f: Formula): Set[Formula] = {
     def collect(f: Formula, bound: Set[Variable]): (Set[Formula], Boolean) = f match {
+      case c @ Comprehension(vs, f) =>
+        val (acc, ground) = collect(f, bound -- vs) //consider variables bound in the comprehension as ground
+        val acc2 = acc.filter( a => vs.forall( !contains(a, _) ) )
+        if (ground) (acc2 + c, true)
+        else (acc2, false)
       case Binding(_, vs, f) => (collect(f, bound ++ vs)._1, false)
       case a @ Application(fct, args) =>
         val (acc, ground) = args.foldLeft( (Set[Formula](),true))( (acc,f) => {

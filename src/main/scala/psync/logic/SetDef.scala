@@ -10,6 +10,11 @@ import dzufferey.utils.Namer
 //TODO trim the scope when the body is defined
 case class SetDef(scope: Set[Variable], id: Formula, body: Option[Binding]) {
     
+//protected def idCheck(id: Formula) = id match {
+//  case Binding(_,_,_) => false
+//  case _ => true
+//}
+//Logger.assert(idCheck(id), "SetDef", "SetDef has id: " + id)
   Logger.assert(id.tpe match { case FSet(_) => true; case _ => false }, "SetDef", "SetDef had not FSet type: " + id.tpe + "\n" + id + " = " + body)
 
   def tpe = id.tpe
@@ -38,7 +43,10 @@ case class SetDef(scope: Set[Variable], id: Formula, body: Option[Binding]) {
 
   def ccNormalize(cClasses: CC): SetDef = {
     val n1 = normalize
-    val newId = if (n1.scope.isEmpty) cClasses.normalize(n1.id) else n1.id
+    val newId = if (n1.scope.isEmpty) {
+        //cClasses.normalize(n1.id)
+        cClasses.cClass(n1.id).find{ case Binding(_,_,_) => false; case _ => true }.getOrElse(n1.id)
+      } else n1.id
     val newBody = n1.body.map( cClasses.normalize(_).asInstanceOf[Binding] )
     SetDef(n1.scope, newId, newBody)
   }

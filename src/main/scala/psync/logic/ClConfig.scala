@@ -1,12 +1,15 @@
 package psync.logic
 
 import psync.formula._
+import psync.logic.quantifiers._
 
 sealed abstract class QStrategy
 case class Eager(bound: Option[Int], local: Boolean) extends QStrategy
 case class Guided(bound: Option[Int], local: Boolean) extends QStrategy
 case class QSeq(first: QStrategy, second: QStrategy) extends QStrategy
+case class QNew(tactic: Tactic, bound: Option[Int], local: Boolean) extends QStrategy
 
+//TODO refactor to have a Generator instead of a QStrategy
 case class ClConfig(vennBound: Option[Int],
                     onType: Option[Set[Type]],
                     instantiationStrategy: QStrategy)

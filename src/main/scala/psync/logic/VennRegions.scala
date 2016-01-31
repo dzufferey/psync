@@ -10,13 +10,20 @@ import dzufferey.utils.Namer
 object VennRegions {
 
   //since we generate fresh variable names we need an eager generator
-  protected def mkUniv(generator: EagerGenerator)(f: Formula) = {
+  //protected def mkUniv(generator: EagerGenerator)(f: Formula) = {
+  //XXX with the new version this does not require the generator to be eager
+  protected def mkUniv(generator: Generator)(f: Formula) = {
     val newClauses = generator.generate(f)
     //println(newClauses.mkString("newClauses\n    ","\n    ",""))
     //val filtered = newClauses.filter(f => !CL.hasComp(f))
     val filtered = newClauses.filter(CL.keepAsIt)
     //println(filtered.mkString("filtered\n    ","\n    ",""))
     And(filtered:_*)
+  }
+
+  protected def maybeToEager(generator: Generator) = {
+    try generator.toEager
+    catch { case _: Throwable => generator }
   }
   
   /** Generate the ILP for the given sets.
@@ -29,7 +36,7 @@ object VennRegions {
             universeSize: Option[Formula],
             sets: Iterable[(Formula, Option[Binding])],
             generator: Generator) = {
-    new VennRegions(tpe, universeSize, sets, mkUniv(generator.toEager)).constraints
+    new VennRegions(tpe, universeSize, sets, mkUniv(maybeToEager(generator))).constraints
   }
 
   /** Generate the ILP for the given sets.
@@ -67,7 +74,7 @@ object VennRegions {
         mkUniv(generator.toEager)
       } else {
         val elt = Variable(Namer("elt")).setType(tpe)
-        val clauses = mkUniv(generator.toEager)(elt)
+        val clauses = mkUniv(maybeToEager(generator))(elt)
         ( (f: Formula) => FormulaUtils.replace(elt, f, clauses) )
       }
     new VennRegionsWithBound(bound, tpe, universeSize, sets, fct).constraints

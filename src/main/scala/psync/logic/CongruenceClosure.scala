@@ -11,6 +11,7 @@ import dzufferey.utils.LogLevel._
 trait CC {
   def repr(f: Formula): Formula
   def allRepr: Set[Formula]
+  def cClass(f: Formula): Iterable[Formula]
   def normalize(f: Formula): Formula
   def groundTerms: Set[Formula]
   def contains(f: Formula): Boolean
@@ -27,7 +28,15 @@ class CongruenceClosure extends CC {
   protected val formulaToNode = MMap[Formula, CcNode]()
   protected val symbolToNodes = MMap[Symbol, ListBuffer[CcNode]]()
     
-  override def toString = immutable.toString //TODO the braindead version
+  override def toString = immutable.toString //TODO this is the braindead version
+
+  protected def incrementalAdd(f: Symbol, node: CcSym, argsN: List[CcNode]) {
+    for (n <- argsN) n.find.ccParents += node //calling find here for inserting incrementally
+    //check according to existing equalities
+    val existing = symbolToNodes.getOrElseUpdate(f, ListBuffer[CcNode]())
+    existing.foreach( n => if (node.congruent(n)) node.merge(n) )
+    existing += node
+  }
 
   protected def getNode(f: Formula): CcNode = {
     if (formulaToNode contains f) { 
@@ -37,15 +46,17 @@ class CongruenceClosure extends CC {
         case a @ Application(f, args) =>
           val argsN = args.map(getNode(_))
           val node = new CcSym(a, f, argsN)
-          for (n <- argsN) n.find.ccParents += node //calling find here for inserting incrementally
-          //check according to existing equalities
-          val existing = symbolToNodes.getOrElseUpdate(f, ListBuffer[CcNode]())
-          existing.foreach( n => if (node.congruent(n)) node.merge(n) )
-          existing += node
-          //return the newly inserted node
+          incrementalAdd(f, node, argsN)
           node
         case v @ Variable(_) => new CcVar(v)
         case l @ Literal(_) => new CcLit(l)
+        case c @ Comprehension(_, _) =>
+          val (sym, _, args) = Quantifiers.symbolizeComprehension(c)
+          val argsN = args.map(getNode(_))
+          val node = new CcSym(c, sym, argsN)
+          incrementalAdd(sym, node, argsN)
+          //println("adding: " + c + " as " + sym + args.mkString("(",", ",")"))
+          node
         case other =>
           Logger.logAndThrow("CongruenceClosure", Error, "did not expect: " + other)
       }
@@ -187,6 +198,10 @@ class CongruenceClasses(cls: Iterable[CongruenceClass], map: Map[Formula, Congru
   def repr(f: Formula) = {
     if (map.contains(f)) map(f).repr
     else f
+  }
+
+  def cClass(f: Formula): Set[Formula] = {
+    apply(f).members
   }
   
   lazy val allR = cls.view.map(_.repr).toSet

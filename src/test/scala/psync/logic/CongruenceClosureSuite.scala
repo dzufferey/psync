@@ -61,4 +61,22 @@ class CongruenceClosureSuite extends FunSuite {
     assert(cc.cClass(y).size == 1)
   }
 
+  test("comprehensions") {
+    val c1 = Comprehension(List(x), Leq(x, y) )
+    val c2 = Comprehension(List(x), Leq(x, z) )
+    val cc = new CongruenceClosure
+    cc.repr(c1)
+    cc.repr(c2)
+    assert(cc.contains(c1))
+    assert(cc.contains(c2))
+    assert(cc.cClass(y).size == 1)
+    assert(cc.cClass(z).size == 1)
+    assert(cc.cClass(c1).size == 1)
+    assert(cc.cClass(c2).size == 1)
+    cc.addConstraints(Eq(y,z))
+    assert(cc.cClass(y).size == 2)
+    assert(cc.cClass(c1).size == 2)
+    assert(cc.repr(c1) == cc.repr(c2))
+  }
+
 }

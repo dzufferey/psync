@@ -74,7 +74,7 @@ class IncrementalGenerator( axioms: Iterable[Formula],
           buffer += index
         })
         if (gens.size % 1000 == 0) {
-          Logger("EagerGenerator", Debug, "#generator: " + gens.size)
+          Logger("IncrementalGenerator", Debug, "#generator: " + gens.size)
         }
         logger.addNode(index, ForAll(g.vs.toList, g.f),
                        FormulaUtils.collectGroundTerms(ForAll(g.vs.toList, g.f)) -- cc.groundTerms)
@@ -87,7 +87,7 @@ class IncrementalGenerator( axioms: Iterable[Formula],
   //extract the first Gen from the axioms
   axioms.foreach{
     case fa @ ForAll(vs, f) => addGen( makeGen(vs, f) )
-    case other => Logger("EagerGenerator", Warning, "(2) expect ∀, found: " + other)
+    case other => Logger("IncrementalGenerator", Warning, "(2) expect ∀, found: " + other)
   }
 
   def generate(term: Formula): List[Formula] = {

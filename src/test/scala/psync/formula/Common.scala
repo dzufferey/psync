@@ -9,6 +9,7 @@ object Common {
 
   val x = Variable("x").setType(Int)
   val y = Variable("y").setType(Int)
+  val z = Variable("z").setType(Int)
   
   val p1 = Variable("p1").setType(pid)
   val p2 = Variable("p2").setType(pid)

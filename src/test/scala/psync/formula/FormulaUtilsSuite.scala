@@ -18,9 +18,8 @@ class FormulaUtilsSuite extends FunSuite {
     assert(collectTypes(x) == Set(Int))
   }
 
-  test("ground terms") {
-
-  val rqp1 = Application(r, List(Application(q, List(p1))))
+  test("ground terms 1") {
+    val rqp1 = Application(r, List(Application(q, List(p1))))
 
     val ax = ForAll(List(p1), Eq(qp1,p2))
     val gts = Set[Formula](p2)
@@ -32,6 +31,16 @@ class FormulaUtilsSuite extends FunSuite {
     val form2 = And(ax, Lt(rp2,rqp3))
     val gts2 = gts + rp2 + rqp3 + qp3 + p3 + Lt(rp2,rqp3)
     assert(collectGroundTerms(form2) == gts2)
+  }
+  
+  test("ground terms 2") {
+    val c1 = Comprehension(List(x), Leq(x, y) )
+    val gts = Set(y,c1)
+    assert(collectGroundTerms(c1) == gts)
+    val f1 = ForAll(List(y), c1)
+    assert(collectGroundTerms(f1).isEmpty)
+    val f2 = ForAll(List(x), c1)
+    assert(collectGroundTerms(f2) == gts)
   }
 
 }

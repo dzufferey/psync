@@ -1,6 +1,7 @@
 package psync.logic
 
 import psync.formula._
+import psync.logic.quantifiers._
 import psync.utils.smtlib._
 import dzufferey.utils.Logger
 
@@ -34,6 +35,8 @@ object TestCommon {
   def clg(v: Int, q: Int) = ClConfig(Some(v), None, Guided(Some(q), false))
 
   def clh(v: Int, q1: Int, q2: Int) = ClConfig(Some(v), None, QSeq(Eager(Some(q1), false), Guided(Some(q2), false)))
+
+  def cln(v: Int, t: Tactic, depth: Int, local: Boolean) = ClConfig(Some(v), None, QNew(t, Some(depth), local))
 
   def reduce(clc: ClConfig, conjuncts: List[Formula], debug: Boolean): Formula = {
     val cl = new CL(clc)

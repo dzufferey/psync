@@ -194,4 +194,79 @@ object Quantifiers {
     case _ => false
   }
 
+  /** Turn comprehensions into symbols (used to handle comprehensions in the CongruenceClosure)
+   *  @return (symbol, definition axiom, arguments)
+   *    symbol: The function symbol standing for the comprehension
+   *    definition axiom: An axiom that associate the symbol to the comprehension
+   *    arguments: the toplevel ground terms of the formula defining the comprehension
+   */
+  def symbolizeComprehension(c: Formula): (Symbol, Formula, List[Formula]) = c match {
+    case c @ Comprehension(vs, f) =>
+      var counter = 0
+      var revVars: List[Variable] = Nil
+      var revArgs: List[Formula] = Nil
+      def makeVariable(f: Formula): Variable = {
+        val v = Variable("arg_"+ counter).setType(f.tpe)
+        assert(vs.forall(_ != v)) //check capture
+        counter += 1
+        revVars ::= v
+        revArgs ::= f
+        v
+      }
+      def hasVs(f: Formula) = {
+        vs.exists( FormulaUtils.contains(f, _) )
+      }
+      def process(f: Formula): Formula = f match {
+        case a @ Application(f2, args) if FormulaUtils.symbolExcludedFromGroundTerm(f2)
+                                          || hasVs(a) =>
+          val args2 = args.map(process)
+          Copier.Application(a, f2, args2)
+        case other =>
+          if (vs.exists(_ == other)) {
+            other
+          } else {
+            assert(!hasVs(other))
+            makeVariable(other)
+          }
+      }
+      val newBody = process(f)
+      val args = revArgs.reverse
+      val name = "compFun_"+newBody //TODO find a better naming method
+      val sym = UnInterpretedFct(name, Some(Function(args.map(_.tpe), c.tpe)))
+      val vars = revVars.reverse
+      val defAxiom = ForAll(vars, Eq(sym(vars:_*), Copier.Binding(c, Comprehension, vs, newBody)))
+      //println(defAxiom)
+      (sym, defAxiom, args)
+    case other =>
+      Logger.logAndThrow("Quantifiers", Error, "expected Comprehension, found: " + other)
+  }
+
+/*
+  //TODO a better way is to consider the comprehension without free variables as ground
+  //    don't forget to normalized the bound name in the comprehension
+  //global skolemization that tries to minimize the number of skolem functions and their parameters
+  //    look for 'definitions' (\exists x. x = y \land ...) where y might contains some free variables
+  //    make the skolem function only depend on the parameters in the defs
+  //    reuse the skolem function when the def is the same
+  def smartSkolemize(fs: List[Formula]): List[Formula] = {
+    import scala.collection.mutable.{Map => MMap, Set => MSet}
+    val definitions = MMap[Formula,Symbol]() //if the symbol has no arguments it is a constant
+    val usedSymbols = MSet[Symbol]() //to avoid conflict
+    // first make sure all the variables are unique
+    val f1 = Simplify.boundVarUnique(And(fs:_*))
+    // collect the existing function symbols
+    usedSymbols ++= FormulaUtils.collectSymbols(f1)
+    //TODO
+    //  for each existentially quantified variable gather:
+    //    one (or more) definition(s)
+    //        the level of the ∃x. ∧_i C_i look for x = ? in C_i
+    //    the universally bound variables
+    //  try to unify the definitions in order reduce the number of functions (and thus the number of generated terms)
+    //  do the skolemization
+    //    for the variables that have a definition keep on the free var in the def as part of the terms
+    // XXX the congruence closure and the reduction of sets should take care of this ?
+    ???
+  }
+*/
+
 }

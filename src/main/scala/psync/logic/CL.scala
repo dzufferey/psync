@@ -217,6 +217,12 @@ class CL(config: ClConfig) {
         val (fs1, _) = quantifierInstantiation(fst, fs, cc)
         val (fs2, g) = quantifierInstantiation(snd, fs, cc)
         ((fs1.toSet ++ fs2.toSet).toList, g)
+      case QNew(t, bnd, local) =>
+        val (axioms, leftOver) = fs.partition(Quantifiers.hasFAnotInComp)
+        val gen = new IncrementalGenerator(axioms, t, cc)
+        val res = leftOver ::: gen.saturate(bnd, local)
+        //gen.log(Debug)
+        (res, gen)
     }
   }
 
