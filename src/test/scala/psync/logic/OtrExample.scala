@@ -105,24 +105,32 @@ class OtrExample extends FunSuite {
     val fs = List(initialState, Not(invariantAgreement))
     assertUnsat(fs, cle(2, 2))
     assertUnsat(fs, clg(2, 2))
+    assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))
+    assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
   }
 
   test("invariant implies agreement") {
     val fs = List(invariantAgreement, Not(agreement))
     assertUnsat(fs, cle(2, 2))
     assertUnsat(fs, clg(2, 2))
+    assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))
+    assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
   }
   
   test("invariant implies termination") {
     val fs = List(invariantProgress2, Not(termination))
     assertUnsat(fs, cle(2, 2))
     assertUnsat(fs, clg(2, 2))
+    assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))
+    assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
   }
 
   test("validity holds initially") {
     val fs = List(ForAll(List(i), Eq(data0(i), data(i))), Not(validity))
     assertUnsat(fs, cle(2, 2))
     assertUnsat(fs, clg(2, 2))
+    assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))
+    assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
   }
 
   test("mmor unsat") {
@@ -139,8 +147,9 @@ class OtrExample extends FunSuite {
       //negated prop: ¬(∀ k. mmor(k) == v)
       mmor(k) !== v
     )
-//    assertUnsat(fs, cle(3,1)) //XXX used to work
+    assertUnsat(fs, cle(3,1))
     assertUnsat(fs, clh(3,1,1))
+    //assertUnsat(fs, cln(3, new quantifiers.Eager, 2, true)) //XXX
     //assertUnsat(fs, clg(3,2))
     //assertUnsat(fs, 10000, true, cle(3,1))
     //assertUnsat(fs, 10000, true, clg(3,2))
@@ -226,6 +235,8 @@ class OtrExample extends FunSuite {
     )
     assertUnsat(fs, cle(1,1))
     assertUnsat(fs, clh(1,1,1))
+    //assertUnsat(fs, 10000, false, cln(1, new quantifiers.Eager, 1, true)) XXX
+    //assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
     //assertUnsat(fs, clg(10,3))
   }
 
