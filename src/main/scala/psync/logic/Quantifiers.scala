@@ -12,6 +12,7 @@ object Quantifiers {
    *  Negation makes them universal.
    *  This method fix this and put the ∃ back.
    *  assumes formula in PNF and flattened, looks only at the top level ∀
+   *  TODO why only swapping set type ?
    */
   def fixUniquelyDefinedUniversal(f: Formula): Formula = f match {
     case ForAll(vs, f) =>
@@ -194,6 +195,8 @@ object Quantifiers {
     case _ => false
   }
 
+  protected val symbolMap = new java.util.concurrent.ConcurrentHashMap[String,Symbol]()
+
   /** Turn comprehensions into symbols (used to handle comprehensions in the CongruenceClosure)
    *  @return (symbol, definition axiom, arguments)
    *    symbol: The function symbol standing for the comprehension
@@ -217,22 +220,36 @@ object Quantifiers {
         vs.exists( FormulaUtils.contains(f, _) )
       }
       def process(f: Formula): Formula = f match {
-        case a @ Application(f2, args) if FormulaUtils.symbolExcludedFromGroundTerm(f2)
+        case a @ Application(fct, args) if FormulaUtils.symbolExcludedFromGroundTerm(fct)
                                           || hasVs(a) =>
           val args2 = args.map(process)
-          Copier.Application(a, f2, args2)
+          Copier.Application(a, fct, args2)
+        case b @ Binding(bt @ (ForAll|Exists), vs2, f2) =>
+          Logger("Quantifiers", Warning, "quantifier inside a set comprehension: " + b)
+          assert(vs2.forall( x => vs.forall(_ != x)), "variable collision: " + c)
+          Copier.Binding(b, bt, vs2, process(f2))
+        case Binding(Comprehension, vs, f2) =>
+          Logger.logAndThrow("Quantifiers", Warning, "Comprehension inside a comprehension: " + c)
         case other =>
           if (vs.exists(_ == other)) {
             other
           } else {
-            assert(!hasVs(other))
+            assert(!hasVs(other), "hasVs["+vs+"]: " + other )
             makeVariable(other)
           }
       }
       val newBody = process(f)
       val args = revArgs.reverse
-      val name = "compFun_"+newBody //TODO find a better naming method
-      val sym = UnInterpretedFct(name, Some(Function(args.map(_.tpe), c.tpe)))
+      val id = "compFun_"+newBody+"_"+c.tpe
+      val sym =
+        if (symbolMap containsKey id) {
+          symbolMap.get(id)   
+        } else {
+          val name = Namer("compFun")
+          val s = UnInterpretedFct(name, Some(Function(args.map(_.tpe), c.tpe)))
+          val s2 = symbolMap.putIfAbsent(id, s)
+          if (s2 == null) s else s2
+        }
       val vars = revVars.reverse
       val defAxiom = ForAll(vars, Eq(sym(vars:_*), Copier.Binding(c, Comprehension, vs, newBody)))
       //println(defAxiom)
@@ -240,33 +257,5 @@ object Quantifiers {
     case other =>
       Logger.logAndThrow("Quantifiers", Error, "expected Comprehension, found: " + other)
   }
-
-/*
-  //TODO a better way is to consider the comprehension without free variables as ground
-  //    don't forget to normalized the bound name in the comprehension
-  //global skolemization that tries to minimize the number of skolem functions and their parameters
-  //    look for 'definitions' (\exists x. x = y \land ...) where y might contains some free variables
-  //    make the skolem function only depend on the parameters in the defs
-  //    reuse the skolem function when the def is the same
-  def smartSkolemize(fs: List[Formula]): List[Formula] = {
-    import scala.collection.mutable.{Map => MMap, Set => MSet}
-    val definitions = MMap[Formula,Symbol]() //if the symbol has no arguments it is a constant
-    val usedSymbols = MSet[Symbol]() //to avoid conflict
-    // first make sure all the variables are unique
-    val f1 = Simplify.boundVarUnique(And(fs:_*))
-    // collect the existing function symbols
-    usedSymbols ++= FormulaUtils.collectSymbols(f1)
-    //TODO
-    //  for each existentially quantified variable gather:
-    //    one (or more) definition(s)
-    //        the level of the ∃x. ∧_i C_i look for x = ? in C_i
-    //    the universally bound variables
-    //  try to unify the definitions in order reduce the number of functions (and thus the number of generated terms)
-    //  do the skolemization
-    //    for the variables that have a definition keep on the free var in the def as part of the terms
-    // XXX the congruence closure and the reduction of sets should take care of this ?
-    ???
-  }
-*/
 
 }

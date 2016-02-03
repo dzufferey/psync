@@ -33,7 +33,7 @@ object CL {
   def keepAsIt(f: Formula): Boolean = {
     //TODO this accepts formula that would be rejected if they were skolemized!!
     !hasComp(f) && TypeStratification.isStratified(f)
-    //!hasComp && Quantifiers.isEPR(f)
+    //!hasComp(f) && Quantifiers.isEPR(f)
   }
 
 }
@@ -58,83 +58,6 @@ class CL(config: ClConfig) {
     f6
   }
 
-  protected def forallOnly(f: Formula): Boolean = {
-    var isForAll = false
-    var hasComp = false
-    def check(f1: Formula) = f1 match {
-      case ForAll(_, _) => isForAll = true
-      case Comprehension(_, _) => hasComp = true
-      case _ => ()
-    }
-    FormulaUtils.traverse(check, f)
-    isForAll && !hasComp
-  }
-
-  //TODO assumes positive occurance!!
-  protected def namedComprehensions(conjuncts: List[Formula]): (List[Formula], Set[SetDef]) = {
-    var acc = Set[SetDef]()
-    def process(bound: Set[Variable], f: Formula) = f match {
-      case Eq(id, c @ Binding(Comprehension, vs, body)) => 
-        val scope = bound intersect (body.freeVariables -- vs)
-        acc += SetDef(scope, id, Some(c))
-        True()
-      case Eq(c @ Binding(Comprehension, vs, body), id) => 
-        val scope = bound intersect (body.freeVariables -- vs)
-        acc += SetDef(scope, id, Some(c))
-        True()
-      case other =>
-        other
-    }
-    val f2 = FormulaUtils.mapWithScope(process, And(conjuncts:_*))
-    (FormulaUtils.getConjuncts(f2), acc)
-  }
-  
-  //TODO something is wrong here
-  protected def anonymComprehensions(conjuncts: List[Formula]): (List[Formula], Set[SetDef]) = {
-    //reuse defs when possible
-    var acc = Set[SetDef]()
-    def process(bound: Set[Variable], f: Formula) = f match {
-      case c @ Binding(Comprehension, vs, body) => 
-        val scope = bound intersect (body.freeVariables -- vs)
-        val tpe = c.tpe match {
-          case t @ FSet(_) => t
-          case other =>
-            val t = FSet(vs.head.tpe)
-            Logger("CL", Warning, "Comprehension with type " + other + " instead of " + t + "\n  " + c)
-            Logger.assert(vs.size == 1, "CL", "Comprehension not binding just one var " + vs)
-            t
-        }
-        val id = Quantifiers.skolemify(Variable(Namer("_comp")).setType(tpe), scope)
-        val sd = SetDef(scope, id, Some(c)).normalize
-        val id2 = acc.find( d => d.similar(sd) ) match {
-          case Some(d) =>
-            d.id
-          case None =>
-            acc += sd
-            id
-        }
-        id2
-      case other =>
-        other
-    }
-    val f2 = FormulaUtils.mapWithScope(process, And(conjuncts:_*))
-    (FormulaUtils.getConjuncts(f2), acc)
-  }
-
-  protected def collectComprehensionDefinitions(conjuncts: List[Formula]): (List[Formula], Set[SetDef]) = {
-    val (f1, defs1) = namedComprehensions(conjuncts)
-    val (f2, defs2) = anonymComprehensions(f1)
-    val allDefs = (defs1 ++ defs2).map(_.normalize)
-    assert(allDefs.forall(_.scope.isEmpty), "non-empty scope")
-    (f2, allDefs)
-  }
-  
-  protected def collectSetTerms(gts: Set[Formula]): List[SetDef] = {
-    val sts = gts.filter( _.tpe match { case FSet(_) => true
-                                        case _ => false } )
-    sts.toList.map( ho => SetDef(ho, None) )
-  }
-
   protected def sizeOfUniverse(tpe: Type): Option[Formula] = tpe match {
     case `procType` => Some(n)
     case Bool => Some(Literal(2))
@@ -148,44 +71,51 @@ class CL(config: ClConfig) {
       }
     case _ => None
   }
-  
-  //assumes that conjuncts is already added to gen.cc
-  def reduceComprehension(conjuncts: List[Formula],
-                          gen: Generator): List[Formula] = {
-    //get the comprehensions definitions and normalize
-    val (woComp, _c1) = collectComprehensionDefinitions(conjuncts)
-    val (c1, subst) = SetDef.normalize(_c1, gen.cc)
-    val newEqs = subst.map{ case (v1, v2) => Eq(v1, v2) }.toList
-    Logger("CL", Debug, "similar: " + subst.mkString(", "))
-    newEqs.foreach(gen.cc.addConstraints)
-    //get all the sets and merge the ones which are equal
-    val gts = FormulaUtils.collectGroundTerms(And(conjuncts:_*))
-    val keySets = ReduceMaps.newTerms(gen.cc) //generate keySet for Maps if they are not already there
-    val _c2 = c1 ++ collectSetTerms(gts ++ keySets)
-    val c2 = SetDef.mergeEqual(_c2, gen.cc)
-    //generate the ILP
-    val byType = c2.groupBy(_.contentTpe)
-    val ilps =
-      for ( (tpe, sDefs) <- byType if onType.map(_ contains tpe).getOrElse(true)) yield {
-        Logger("CL", Info, sDefs.mkString("reduceComprehension "+tpe+" (nbr = " +sDefs.size+ ")\n    ","\n    ",""))
-        val fs = sDefs.map(_.fresh)
-        val sets = fs.map( sd => (sd.id, sd.body)) 
-        val cstrs = bound match {
-          case Some(b) => VennRegions.withBound(b, tpe, sizeOfUniverse(tpe), sets, gen, false)
-          case None => VennRegions(tpe, sizeOfUniverse(tpe), sets, gen)
-        }
-        val scope = fs.map(_.scope).flatten.toList
-        ForAll(scope, cstrs)
-      }
-    Lt(Literal(0), n) :: newEqs ::: woComp ::: ilps.toList
-  }
 
+  protected def makeVennILP(defs: Iterable[SetDef], gen: Generator) = {
+    val byType = defs.groupBy(_.contentTpe)
+    for ( (tpe, sDefs) <- byType if onType.map(_ contains tpe).getOrElse(true)) yield {
+      Logger("CL", Info, sDefs.mkString("reduceComprehension "+tpe+" (nbr = " +sDefs.size+ ")\n    ","\n    ",""))
+      val fs = sDefs.map(_.fresh)
+      val sets = fs.map( sd => (sd.id, sd.body)) 
+      val cstrs = bound match {
+        case Some(b) => VennRegions.withBound(b, tpe, sizeOfUniverse(tpe), sets, gen, false)
+        case None => VennRegions(tpe, sizeOfUniverse(tpe), sets, gen)
+      }
+      val scope = fs.map(_.scope).flatten.toList
+      ForAll(scope, cstrs)
+    }
+  }
+  
   def reduceComprehension(conjuncts: List[Formula],
-                          cClasses: CC = CongruenceClasses.empty,
-                          univConjuncts: List[Formula] = Nil): List[Formula] = {
-    val gen = InstGen.makeGenerator(And(univConjuncts:_*), cClasses)
-    cClasses.groundTerms.foreach(gen.generate) //warm-up the generator
-    reduceComprehension(conjuncts, gen)
+                          symbols: Map[Symbol,Formula],
+                          gen: Generator): List[Formula] = {
+    //generate keySet for Maps if they are not already there
+    val keySets = ReduceMaps.newTerms(gen.cc)
+    for (ks <- keySets) gen.cc.repr(ks) //add the new sets to the CC
+    //collect all the sets
+    val sets = gen.cc.groundTerms.filter( _.tpe match { case FSet(_) => true; case _ => false } )
+    //instantiate the symbol the definitions
+    val allDefs = sets.map{
+      case a @ Application(sym, args) if symbols contains sym =>
+        symbols(sym) match {
+          case ForAll(_, Eq(Application(s2, args2), c @ Comprehension(_, _))) =>
+            val subst = args2.zip(args).toMap
+            SetDef(a, Some(FormulaUtils.map(f => subst.getOrElse(f,f), c).asInstanceOf[Binding]))
+          case Eq(Application(s2, Nil), c @ Comprehension(_, _)) =>
+            SetDef(a, Some(c.asInstanceOf[Binding]))
+          case other =>
+            Logger.logAndThrow("CL", Error, "expected set definition, found: " + other)
+        }
+      case other =>
+        SetDef(other, None)
+    }
+    //merge if multiple definitions are equal,
+    val setDefs = SetDef.mergeEqual(allDefs, gen.cc)
+    //make the ILP
+    val ilps = makeVennILP(setDefs, gen)
+    Logger("CL", Debug, "ilps:\n  " + ilps.mkString("\n  "))
+    Lt(Literal(0), n) :: ilps.toList ::: conjuncts
   }
   
   protected def cleanUp(ls: List[Formula]) = {
@@ -219,8 +149,12 @@ class CL(config: ClConfig) {
         ((fs1.toSet ++ fs2.toSet).toList, g)
       case QNew(t, bnd, local) =>
         val (axioms, leftOver) = fs.partition(Quantifiers.hasFAnotInComp)
+        Logger("CL", Debug, "leftOver:\n  " + leftOver.mkString("\n  "))
+        Logger("CL", Debug, "axioms:\n  " + axioms.mkString("\n  "))
         val gen = new IncrementalGenerator(axioms, t, cc)
-        val res = leftOver ::: gen.saturate(bnd, local)
+        val generated = gen.saturate(bnd, local)
+        Logger("CL", Debug, "generated: \n  " + generated.mkString("\n  "))
+        val res = leftOver ::: generated
         //gen.log(Debug)
         (res, gen)
     }
@@ -231,22 +165,27 @@ class CL(config: ClConfig) {
   }
   
   def reduce(formula: Formula): Formula = {
-    //TODO make that part more modular:
-    //preprocessing:
-    //  term generation for 'unsupported' ∀
-    //  instantiate not in one step but 
-    //filtering for venn region:
-    //  something smarter than the type ?
 
     val query = normalize(formula)
     assert(Typer(query).success, "CL.reduce, not well typed")
+    
+    //For comprehension
+    var symbols = Map.empty[Symbol,Formula]
 
     //remove the top level ∃ quantifiers (sat query)
     val (query1, _) = Quantifiers.getExistentialPrefix(query)
     val clauses0 = FormulaUtils.getConjuncts(query1)
     val clauses = clauses0.map( f => {
       val f2 = Simplify.pnf(f)
-      Quantifiers.fixUniquelyDefinedUniversal(f2)
+      val f3 = Quantifiers.fixUniquelyDefinedUniversal(f2)
+      val f4 = FormulaUtils.map({
+        case c @ Comprehension(_, _) =>
+          val (sym, d, args) = Quantifiers.symbolizeComprehension(c)
+          symbols += (sym -> d)
+          sym(args:_*)
+        case other => other
+      }, f3)
+      Quantifiers.skolemize(f4)
     })
     
     val cc = new CongruenceClosure //incremental CC
@@ -261,7 +200,7 @@ class CL(config: ClConfig) {
     Logger("CL", Debug, "after instantiation:\n  " + inst.mkString("\n  "))
 
     //the venn regions
-    val withILP = reduceComprehension(inst, gen) //TODO this generate quite a bit more terms!
+    val withILP = reduceComprehension(inst, symbols, gen)
     
     //add axioms for the other theories
     val withSetAx = SetOperationsAxioms.addAxioms(withILP)

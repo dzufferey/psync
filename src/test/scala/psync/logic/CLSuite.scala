@@ -348,8 +348,8 @@ class CLSuite extends FunSuite {
       d1 !== d2
     )
     assertUnsat(fs)
-    //assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
-    //assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
+    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
   }
 
   //TODO tuples
