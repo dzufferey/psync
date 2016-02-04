@@ -149,10 +149,8 @@ class OtrExample extends FunSuite {
     )
     assertUnsat(fs, cle(3,1))
     assertUnsat(fs, clh(3,1,1))
-    //assertUnsat(fs, cln(3, new quantifiers.Eager, 2, true)) //XXX
-    //assertUnsat(fs, clg(3,2))
-    //assertUnsat(fs, 10000, true, cle(3,1))
-    //assertUnsat(fs, 10000, true, clg(3,2))
+    //assertUnsat(fs, 60000, false, cln(3, new quantifiers.Eager, 1, true)) //XXX expensive
+    assertUnsat(fs, cln(3, new quantifiers.Guided, 1, true))
   }
   
 //test("invariant is inductive") {
@@ -205,9 +203,8 @@ class OtrExample extends FunSuite {
     )
     assertUnsat(fs, cle(1,2))
     assertUnsat(fs, clh(1,2,1))
-    //assertUnsat(fs, clg(1,2))
-    //assertUnsat(fs, 10000, true, cle(1,2))
-    //assertUnsat(fs, 10000, true, clg(1,2))
+    assertUnsat(fs, cln(1, new quantifiers.Eager, 2, true))
+    //assertUnsat(fs, cln(1, new quantifiers.Guided, 2, true)) //XXX
   }
 
 //XXX used to work
@@ -235,9 +232,8 @@ class OtrExample extends FunSuite {
     )
     assertUnsat(fs, cle(1,1))
     assertUnsat(fs, clh(1,1,1))
-    //assertUnsat(fs, 10000, false, cln(1, new quantifiers.Eager, 1, true)) XXX
-    //assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
-    //assertUnsat(fs, clg(10,3))
+    assertUnsat(fs, cln(1, new quantifiers.Eager, 1, true))
+    assertUnsat(fs, cln(1, new quantifiers.Guided, 1, true))
   }
 
 }

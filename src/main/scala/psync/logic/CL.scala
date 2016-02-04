@@ -114,7 +114,7 @@ class CL(config: ClConfig) {
     val setDefs = SetDef.mergeEqual(allDefs, gen.cc)
     //make the ILP
     val ilps = makeVennILP(setDefs, gen)
-    Logger("CL", Debug, "ilps:\n  " + ilps.mkString("\n  "))
+    //Logger("CL", Debug, "ilps:\n  " + ilps.mkString("\n  "))
     Lt(Literal(0), n) :: ilps.toList ::: conjuncts
   }
   
@@ -148,12 +148,13 @@ class CL(config: ClConfig) {
         val (fs2, g) = quantifierInstantiation(snd, fs, cc)
         ((fs1.toSet ++ fs2.toSet).toList, g)
       case QNew(t, bnd, local) =>
-        val (axioms, leftOver) = fs.partition(Quantifiers.hasFAnotInComp)
+        val (leftOver, axioms) = fs.partition(keepAsIt)
+        //val (axioms, leftOver) = fs.partition(Quantifiers.hasFAnotInComp)
         Logger("CL", Debug, "leftOver:\n  " + leftOver.mkString("\n  "))
         Logger("CL", Debug, "axioms:\n  " + axioms.mkString("\n  "))
         val gen = new IncrementalGenerator(axioms, t, cc)
         val generated = gen.saturate(bnd, local)
-        Logger("CL", Debug, "generated: \n  " + generated.mkString("\n  "))
+        //Logger("CL", Debug, "generated: \n  " + generated.mkString("\n  "))
         val res = leftOver ::: generated
         //gen.log(Debug)
         (res, gen)

@@ -126,12 +126,16 @@ class TpcExample extends FunSuite {
     val fs = List(invariant1, Not(agreement))
     assertUnsat(fs, cle(2, 2))
     assertUnsat(fs, clg(2, 2))
+    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
+    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
   }
 
   test("invariant implies validity") {
     val fs = List(invariant1, Not(validity))
     assertUnsat(fs, cle(2, 2))
     assertUnsat(fs, clg(2, 2))
+    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
+    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
   }
 
   test("initialState and round 1a implies invariant 1") {
@@ -142,6 +146,8 @@ class TpcExample extends FunSuite {
     )
     assertUnsat(fs, cle(2, 2))
     assertUnsat(fs, clg(2, 2))
+    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
+    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
   }
 
   test("invariant 1 is inductive at round 2a") {
@@ -152,6 +158,8 @@ class TpcExample extends FunSuite {
     )
     assertUnsat(fs, cle(2, 2))
     assertUnsat(fs, clg(2, 2))
+    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
+    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
   }
 
 
@@ -163,6 +171,8 @@ class TpcExample extends FunSuite {
     )
     assertUnsat(fs, cle(2, 2))
     assertUnsat(fs, clg(2, 2))
+    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
+    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
   }
 
   test("invariant 1 is inductive at round 2b") {
@@ -173,6 +183,8 @@ class TpcExample extends FunSuite {
     )
     assertUnsat(fs, cle(2, 2))
     assertUnsat(fs, clg(2, 2))
+    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
+    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
   }
 
 }
