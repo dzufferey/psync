@@ -23,18 +23,10 @@ object TestCommon {
 
   val cl = ClDefault
 
-  val cl__0 = ClConfig(None, None, Eager(Some(0), true))
-  val cl__1 = ClConfig(None, None, Eager(Some(1), true))
-  val cl__2 = ClConfig(None, None, Eager(Some(2), true))
-  val cl__3 = ClConfig(None, None, Eager(Some(3), true))
-  val cl__4 = ClConfig(None, None, Eager(Some(4), true))
-  
   //corresponds to previous clv_q
-  def cle(v: Int, q: Int) = ClConfig(Some(v), None, Eager(Some(q), true))
-
-  def clg(v: Int, q: Int) = ClConfig(Some(v), None, Guided(Some(q), false))
-
-  def clh(v: Int, q1: Int, q2: Int) = ClConfig(Some(v), None, QSeq(Eager(Some(q1), false), Guided(Some(q2), false)))
+  //def cle(v: Int, q: Int) = ClConfig(Some(v), None, Eager(Some(q), true))
+  //def clg(v: Int, q: Int) = ClConfig(Some(v), None, Guided(Some(q), false))
+  //def clh(v: Int, q1: Int, q2: Int) = ClConfig(Some(v), None, QSeq(Eager(Some(q1), false), Guided(Some(q2), false)))
 
   def cln(v: Int, t: Tactic, depth: Int, local: Boolean) = ClConfig(Some(v), None, QNew(t, Some(depth), local))
 

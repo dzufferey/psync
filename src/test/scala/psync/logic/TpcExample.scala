@@ -124,16 +124,12 @@ class TpcExample extends FunSuite {
 
   test("invariant implies agreement") {
     val fs = List(invariant1, Not(agreement))
-    assertUnsat(fs, cle(2, 2))
-    assertUnsat(fs, clg(2, 2))
     assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
     assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
   }
 
   test("invariant implies validity") {
     val fs = List(invariant1, Not(validity))
-    assertUnsat(fs, cle(2, 2))
-    assertUnsat(fs, clg(2, 2))
     assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
     assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
   }
@@ -144,8 +140,6 @@ class TpcExample extends FunSuite {
       round1a,
       Not(prime(invariant1))
     )
-    assertUnsat(fs, cle(2, 2))
-    assertUnsat(fs, clg(2, 2))
     assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
     assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
   }
@@ -156,8 +150,6 @@ class TpcExample extends FunSuite {
       round2a,
       Not(prime(invariant1))
     )
-    assertUnsat(fs, cle(2, 2))
-    assertUnsat(fs, clg(2, 2))
     assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
     assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
   }
@@ -169,8 +161,6 @@ class TpcExample extends FunSuite {
       round1b,
       Not(prime(invariant1))
     )
-    assertUnsat(fs, cle(2, 2))
-    assertUnsat(fs, clg(2, 2))
     assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
     assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
   }
@@ -181,8 +171,6 @@ class TpcExample extends FunSuite {
       round2b,
       Not(prime(invariant1))
     )
-    assertUnsat(fs, cle(2, 2))
-    assertUnsat(fs, clg(2, 2))
     assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
     assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
   }

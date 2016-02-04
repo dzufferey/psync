@@ -21,11 +21,6 @@ object VennRegions {
     And(filtered:_*)
   }
 
-  protected def maybeToEager(generator: Generator) = {
-    try generator.toEager
-    catch { case _: Throwable => generator }
-  }
-  
   /** Generate the ILP for the given sets.
    * @param tpe the type of the elements in the sets, e.g., ProcessID
    * @param universeSize the size of the universe (if the universe is finite), e.g., 'n' for ProcessID
@@ -36,7 +31,7 @@ object VennRegions {
             universeSize: Option[Formula],
             sets: Iterable[(Formula, Option[Binding])],
             generator: Generator) = {
-    new VennRegions(tpe, universeSize, sets, mkUniv(maybeToEager(generator))).constraints
+    new VennRegions(tpe, universeSize, sets, mkUniv(generator)).constraints
   }
 
   /** Generate the ILP for the given sets.
@@ -71,10 +66,10 @@ object VennRegions {
                 preserveGenerator: Boolean): Formula = {
     val fct: Formula => Formula =
       if (preserveGenerator) {
-        mkUniv(generator.toEager)
+        mkUniv(generator.clone)
       } else {
         val elt = Variable(Namer("elt")).setType(tpe)
-        val clauses = mkUniv(maybeToEager(generator))(elt)
+        val clauses = mkUniv(generator)(elt)
         ( (f: Formula) => FormulaUtils.replace(elt, f, clauses) )
       }
     new VennRegionsWithBound(bound, tpe, universeSize, sets, fct).constraints

@@ -90,7 +90,6 @@ class CLSuite extends FunSuite {
       Or(ForAll(List(i), Eq(data(i), Literal(1))), Eq(data(p),Literal(3)))
     )
     assertSat(fs)
-    assertSat(fs, clg(2, 2))
     assertSat(fs, cln(2, new quantifiers.Eager, 2, true))
     assertSat(fs, cln(2, new quantifiers.Guided, 2, true))
   }
@@ -107,7 +106,6 @@ class CLSuite extends FunSuite {
       ForAll(List(i), Implies(In(i,ho(p2)), Lt(data(p2), data(i))))
     )
     assertUnsat(fs)
-    assertUnsat(fs, clg(2, 2))
     assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
     assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
   }
@@ -168,7 +166,6 @@ class CLSuite extends FunSuite {
       ForAll(List(i), Eq(data(i), Literal(0)))
     )
     assertUnsat(fs)
-    assertUnsat(fs, clg(2, 10))
     assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
     assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
   }
@@ -228,7 +225,6 @@ class CLSuite extends FunSuite {
       ForAll(List(i), Lt(Cardinality(ho(i)), Literal(1)))
     )      
     assertUnsat(fs)
-    assertUnsat(fs, clg(2, 2))
     assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
     assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
   }
@@ -254,7 +250,6 @@ class CLSuite extends FunSuite {
       ForAll(List(i), Not(Eq(data(i), Literal(2))))
     )
     assertUnsat(fs)
-    assertUnsat(fs, clg(2, 2))
     assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
     assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
   } 

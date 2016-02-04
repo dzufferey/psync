@@ -18,10 +18,8 @@ class IncrementalGenerator( axioms: Iterable[Formula],
 
   def cc = _cc
 
-  def toEager = ???
-
   def saturate(depth: Option[Int], local: Boolean): List[Formula] = {
-    val buffer = scala.collection.mutable.ListBuffer[Formula]()
+    val buffer = scala.collection.mutable.Set[Formula]()
 
     tactic.init(depth.getOrElse(1000), cc)
     
@@ -31,17 +29,17 @@ class IncrementalGenerator( axioms: Iterable[Formula],
       tactic.generatorResult(result)
     }
 
-    buffer.appendAll(tactic.result)
+    buffer ++= tactic.result
     tactic.clear
 
-    if (local) buffer.appendAll(locallySaturate)
+    if (local) buffer ++= locallySaturate
 
     if (Options.logQI) {
       val fname = Namer("qi") + ".dot"
       logger.storeGraphviz(fname)
     }
 
-    buffer.result
+    buffer.toList
   }
 
   //the current generators
@@ -357,4 +355,3 @@ class IncrementalGenerator( axioms: Iterable[Formula],
 
 }
 
-//TODO can we build the eager and guided generator on top of this ?

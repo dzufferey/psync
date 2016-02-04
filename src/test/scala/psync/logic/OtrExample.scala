@@ -103,32 +103,24 @@ class OtrExample extends FunSuite {
   
   test("initial state implies invariant") {
     val fs = List(initialState, Not(invariantAgreement))
-    assertUnsat(fs, cle(2, 2))
-    assertUnsat(fs, clg(2, 2))
     assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))
     assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
   }
 
   test("invariant implies agreement") {
     val fs = List(invariantAgreement, Not(agreement))
-    assertUnsat(fs, cle(2, 2))
-    assertUnsat(fs, clg(2, 2))
     assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))
     assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
   }
   
   test("invariant implies termination") {
     val fs = List(invariantProgress2, Not(termination))
-    assertUnsat(fs, cle(2, 2))
-    assertUnsat(fs, clg(2, 2))
     assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))
     assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
   }
 
   test("validity holds initially") {
     val fs = List(ForAll(List(i), Eq(data0(i), data(i))), Not(validity))
-    assertUnsat(fs, cle(2, 2))
-    assertUnsat(fs, clg(2, 2))
     assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))
     assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
   }
@@ -147,8 +139,6 @@ class OtrExample extends FunSuite {
       //negated prop: ¬(∀ k. mmor(k) == v)
       mmor(k) !== v
     )
-    assertUnsat(fs, cle(3,1))
-    assertUnsat(fs, clh(3,1,1))
     //assertUnsat(fs, 60000, false, cln(3, new quantifiers.Eager, 1, true)) //XXX expensive
     assertUnsat(fs, cln(3, new quantifiers.Guided, 1, true))
   }
@@ -201,8 +191,6 @@ class OtrExample extends FunSuite {
       tr,
       Not(prime(invariantProgress2))
     )
-    assertUnsat(fs, cle(1,2))
-    assertUnsat(fs, clh(1,2,1))
     assertUnsat(fs, cln(1, new quantifiers.Eager, 2, true))
     //assertUnsat(fs, cln(1, new quantifiers.Guided, 2, true)) //XXX
   }
@@ -230,8 +218,6 @@ class OtrExample extends FunSuite {
       tr,
       Not(prime(validity))
     )
-    assertUnsat(fs, cle(1,1))
-    assertUnsat(fs, clh(1,1,1))
     assertUnsat(fs, cln(1, new quantifiers.Eager, 1, true))
     assertUnsat(fs, cln(1, new quantifiers.Guided, 1, true))
   }

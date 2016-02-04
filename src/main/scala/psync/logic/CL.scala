@@ -129,27 +129,8 @@ class CL(config: ClConfig) {
   protected def quantifierInstantiation(strat: QStrategy, fs: List[Formula], cc: CongruenceClosure): (List[Formula], Generator) = {
     Logger("CL", Debug, "instantiation strategy: " + strat)
     strat match {
-      case Eager(bnd, local) =>
-        val (epr, rest) = fs.partition(keepAsIt)
-        Logger("CL", Debug, "epr/stratified clauses:\n  " + epr.mkString("\n  "))
-        Logger("CL", Debug, "clauses to process:\n  " + rest.mkString("\n  "))
-        val gen = InstGen.makeGenerator(And(rest:_*), cc)
-        val res = epr ::: gen.leftOver ::: gen.saturate(bnd, local) //leftOver contains things not processed by the generator
-        //gen.log(Debug)
-        (res, gen)
-      case Guided(bnd, local) =>
-        Logger("CL", Debug, "clauses to process:\n  " + fs.mkString("\n  "))
-        val gen = InstGen.makeGuidedGenerator(And(fs:_*), cc)
-        val res = gen.leftOver ::: gen.saturate(bnd, local) //leftOver contains things not processed by the generator
-        //gen.log(Debug)
-        (res, gen)
-      case QSeq(fst, snd) =>
-        val (fs1, _) = quantifierInstantiation(fst, fs, cc)
-        val (fs2, g) = quantifierInstantiation(snd, fs, cc)
-        ((fs1.toSet ++ fs2.toSet).toList, g)
       case QNew(t, bnd, local) =>
         val (leftOver, axioms) = fs.partition(keepAsIt)
-        //val (axioms, leftOver) = fs.partition(Quantifiers.hasFAnotInComp)
         Logger("CL", Debug, "leftOver:\n  " + leftOver.mkString("\n  "))
         Logger("CL", Debug, "axioms:\n  " + axioms.mkString("\n  "))
         val gen = new IncrementalGenerator(axioms, t, cc)

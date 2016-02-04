@@ -241,24 +241,17 @@ class LvExample extends FunSuite {
 
   test("initial state implies invariant") {
     val fs = List(initialState, Not(invariant1))
-    assertUnsat(fs, cle(2, 1))
     assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))
-    //assertUnsat(fs, clg(2, 3))
-    //assertUnsat(fs, 10000, true, clg(2, 3))
   }
 
   test("invariant implies agreement") {
     val fs = List(invariant1, Not(agreement))
-    assertUnsat(fs, cle(2, 1))
-    assertUnsat(fs, clg(2, 2))
     assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))
     //assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true)) //XXX this blow-up ?
   }
   
   test("validity holds initially") {
     val fs = List(initialState, Not(validity))
-    assertUnsat(fs, cle(2, 1))
-    assertUnsat(fs, clg(2, 2))
     assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))
     assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
   }
@@ -276,8 +269,6 @@ class LvExample extends FunSuite {
       majorityM(mailbox1(i)),
       Neq(maxTS(mailbox1(i)), v)
     )
-    assertUnsat(fs, cle(2, 1))
-    assertUnsat(fs, clh(2, 1, 1))
     assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))
     //assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true)) //XXX blow-up ??
   }
