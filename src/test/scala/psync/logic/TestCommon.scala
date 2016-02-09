@@ -36,6 +36,7 @@ object TestCommon {
       Logger.moreVerbose
       Logger.moreVerbose
       Logger.disallow("Typer")
+      psync.utils.Options.logQI = true
     }
     try {
       val c0 = conjuncts.flatMap(FormulaUtils.getConjuncts(_))
@@ -56,6 +57,7 @@ object TestCommon {
         Logger.lessVerbose
         Logger.lessVerbose
         Logger.allow("Typer")
+        psync.utils.Options.logQI = false
       }
     }
   }

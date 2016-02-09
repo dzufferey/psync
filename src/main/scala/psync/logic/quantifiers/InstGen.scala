@@ -12,12 +12,7 @@ trait Generator {
 
   def cc: CongruenceClosure
 
-  //def logger: QILogger
-  val _logger = {
-    if (Options.logQI) new BasicQILogger
-    else new EmptyQILogger
-  }
-  def logger = _logger
+  def logger: QILogger
 
   def generate(term: Formula): List[Formula]
 

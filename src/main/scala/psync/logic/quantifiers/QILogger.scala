@@ -83,14 +83,14 @@ class BasicQILogger extends QILogger {
     }
     def node(n: Node) {
       val label = n.formula + "|" + n.newGroundTerms.map(_.toString).mkString(", ")
-      writeln(n.idx + " [label=\"" + label + "\"];")
+      writeln(n.idx + " [label=\"{" + label + "}\"];")
     }
     def edge(e: Edge) {
-      //val label = e.variable + " <- " + e.term
       val label = e.term
       writeln(e.src + " -> " + e.dst + " [label=\"" + label + "\"];")
     }
     writeln("digraph IQ {")
+    writeln("  node [shape=record];")
     nodes.foreach(n => node(n._2))
     edges.foreach(edge)
     writeln("}")

@@ -17,6 +17,12 @@ class IncrementalGenerator( axioms: Iterable[Formula],
                           ) extends Generator {
 
   def cc = _cc
+  
+  val _logger = {
+    if (Options.logQI) new BasicQILogger
+    else new EmptyQILogger
+  }
+  def logger = _logger
 
   def saturate(depth: Option[Int], local: Boolean): List[Formula] = {
     val buffer = scala.collection.mutable.Set[Formula]()
@@ -51,6 +57,13 @@ class IncrementalGenerator( axioms: Iterable[Formula],
   
   //for limiting the number of ∃ var generated for comprehensions
   protected val compDef = MMap[Binding,Variable]()
+
+  //for leave nodes in QILogger
+  protected var leafCounter = 0
+  protected def newLeadIdx = {
+    leafCounter -= 1
+    leafCounter
+  }
 
   /* returns an existing similar Gen if there already is one */
   protected def findSimilar(g: Gen): Option[Int] = {
@@ -100,28 +113,17 @@ class IncrementalGenerator( axioms: Iterable[Formula],
       while(!newGens.isEmpty) {
         val g = newGens.pop
         if (g.isResult) {
-          //TODO log the results
-          if (g.result != True()) res += g.result
+          if (g.result != True()) {
+            res += g.result
+            val l = newLeadIdx
+            logger.addNode(l, g.result,
+                           FormulaUtils.collectGroundTerms(g.result) -- cc.groundTerms)
+            logger.addEdge(c, l, term)
+          }
         } else {
           val d = addGen(g)
           logger.addEdge(c, d, term)
         }
-        /*
-        } else if (g.vs.size >= s) {
-          //for generator that just got an ∃ instantiated, we need to look for terms which have already been processed
-          val j = 0
-          val tpeDone = MSet[Type]()
-          while (j < g.vs.size && !tpeDone(g.vs(j).tpe)) {
-            val catchUP = done.getOrElseUpdate(g.vs(j).tpe, MSet[Formula]())
-            tpeDone += g.vs(j).tpe
-            for ( c <- catchUP ) newGens.pushAll( g(c) ) //this could be cut short by directly giving a ref to the stack
-          }
-          addGen(g)
-        } else {
-          assert(g.vs.size + 1 == s, "old: " + gens(c) + ", new: " + g)
-          addGen(g)
-        }
-        */
       }
       i += 1
     }
@@ -129,51 +131,49 @@ class IncrementalGenerator( axioms: Iterable[Formula],
   }
 
   def locallySaturate: List[Formula] = {
-    //TODO log the results
     var i = 0
     val lDone = scala.collection.mutable.BitSet()
     val res = scala.collection.mutable.ListBuffer[Formula]()
     def checkDone(g: Gen, remaining: Iterable[Map[Variable,Formula]]) = {
       if (g.isResult) {
-        assert(remaining.isEmpty || remaining.forall(_.isEmpty))
-        if (g.result != True()) res += g.result
         true
       } else {
         false
       }
     }
-    def instVar(g: Gen, matches: Iterable[Map[Variable,Formula]]) {
-      if (!checkDone(g, matches)) {
-        val v = g.vs.last
-        //println(matches.mkString(g + "\n  ", "\n  ", ""))
-        val byV = matches.filter(_ contains v).groupBy(_(v)) //matches without v are term generating due to existential quantifiers
-        for ( (candidate, maps) <- byV ) {
-          val g2 = g(v, candidate)
+    def instVar(idx: Int, g: Gen, matches: Iterable[Map[Variable,Formula]]) {
+      assert(!g.isResult)
+      val v = g.vs.last
+      //println(matches.mkString(g + "\n  ", "\n  ", ""))
+      val byV = matches.filter(_ contains v).groupBy(_(v)) //matches without v are term generating due to existential quantifiers
+      for ( (candidate, maps) <- byV ) {
+        val g2 = g(v, candidate)
+        if (g2.isResult) {
+          if (g2.result != True()) {
+            res += g2.result
+            val l = newLeadIdx
+            logger.addNode(l, g2.result,
+                           FormulaUtils.collectGroundTerms(g2.result) -- cc.groundTerms)
+            logger.addEdge(idx, l, candidate)
+          }
+        } else {
           val renaming = g.vs.zip(g2.vs).toMap //g2 has renamed arguments ...
           val remaining = maps.map( m => {
             val m1 = m - v 
             m1.map{ case (a,b) => renaming(a) -> b }
           })
-          complete(g2, remaining)
+          val newIdx = addGen(g2)
+          logger.addEdge(idx, newIdx, candidate)
+          val g3 = gens(newIdx) //in case we add state to the gen
+          lDone += newIdx
+          instVar(newIdx, g3, remaining)
         }
-      }
-    }
-    def complete(g: Gen, remaining: Iterable[Map[Variable,Formula]]) {
-      if (!checkDone(g, remaining)) findSimilar(g) match {
-        case Some(i) =>
-          val g2 = gens(i)
-          lDone += i
-          instVar(g2, remaining)
-        case None =>
-          lDone += gens.size
-          addGen(g)
-          instVar(g, remaining)
       }
     }
     while(i < gens.size && !lDone(i)) {
       val g = gens(i)
       val matches = g.localMatches
-      instVar(g, matches)
+      instVar(i, g, matches)
       i += 1
     }
     res.result
