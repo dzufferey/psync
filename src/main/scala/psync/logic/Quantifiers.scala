@@ -216,31 +216,37 @@ object Quantifiers {
         revArgs ::= f
         v
       }
-      def hasVs(f: Formula) = {
+      def hasVs(vs: Iterable[Variable], f: Formula) = {
         vs.exists( FormulaUtils.contains(f, _) )
       }
-      def process(f: Formula): Formula = f match {
+      def process(bound: Set[Variable], f: Formula): Formula = f match {
         case a @ Application(fct, args) if FormulaUtils.symbolExcludedFromGroundTerm(fct)
-                                          || hasVs(a) =>
-          val args2 = args.map(process)
+                                          || hasVs(bound, a) =>
+          val args2 = args.map(process(bound, _))
           Copier.Application(a, fct, args2)
         case b @ Binding(bt @ (ForAll|Exists), vs2, f2) =>
           Logger("Quantifiers", Warning, "quantifier inside a set comprehension: " + b)
-          assert(vs2.forall( x => vs.forall(_ != x)), "variable collision: " + c)
-          Copier.Binding(b, bt, vs2, process(f2))
+          Copier.Binding(b, bt, vs2, process(bound ++ vs2, f2))
         case Binding(Comprehension, vs, f2) =>
           Logger.logAndThrow("Quantifiers", Warning, "Comprehension inside a comprehension: " + c)
+        case v @ Variable(_) =>
+          if (bound(v)) v
+          else makeVariable(v)
         case other =>
-          if (vs.exists(_ == other)) {
-            other
-          } else {
-            assert(!hasVs(other), "hasVs["+vs+"]: " + other )
-            makeVariable(other)
-          }
+          assert(!hasVs(bound, other), "hasVs["+bound+"]: " + other )
+          makeVariable(other)
       }
-      val newBody = process(f)
+      val newComp = Comprehension(vs, process(vs.toSet, f))
+      //println("newComp: " + newComp)
+      val simplified = Simplify.simplify(Simplify.deBruijnIndex(newComp))
+      //println("simplified: " + simplified)
+      val (newVs, newBody) = simplified match {
+        case Comprehension(v, b) => v -> b
+        case other => Logger.logAndThrow("Quantifiers", Warning, "expected Comprehension, found : " + other)
+      }
       val args = revArgs.reverse
-      val id = "compFun_"+newBody+"_"+c.tpe
+      val id = "compFun_"+newBody.toStringFull+"_"+c.tpe
+      //println("id: " + id)
       val sym =
         if (symbolMap containsKey id) {
           symbolMap.get(id)   
@@ -248,10 +254,13 @@ object Quantifiers {
           val name = Namer("compFun")
           val s = UnInterpretedFct(name, Some(Function(args.map(_.tpe), c.tpe)))
           val s2 = symbolMap.putIfAbsent(id, s)
-          if (s2 == null) s else s2
+          if (s2 == null) {
+            Logger("CL", Debug, "introducing " + s + " for " + simplified)
+            s
+          }else s2
         }
       val vars = revVars.reverse
-      val defAxiom = ForAll(vars, Eq(sym(vars:_*), Copier.Binding(c, Comprehension, vs, newBody)))
+      val defAxiom = ForAll(vars, Eq(sym(vars:_*), Copier.Binding(c, Comprehension, newVs, newBody)))
       //println(defAxiom)
       (sym, defAxiom, args)
     case other =>

@@ -36,9 +36,14 @@ trait QILogger {
   def addEdge(src: Int, dst: Int, /*variable: Variable,*/ term: Formula): Unit
 
   def printGraphviz(out: BufferedWriter): Unit
+  def printVisJS(out: BufferedWriter): Unit
 
   def storeGraphviz(fileName: String) {
     IO.writeInFile(fileName, printGraphviz(_))
+  }
+
+  def storeVisJS(fileName: String) {
+    IO.writeInFile(fileName, printVisJS(_))
   }
 
 }
@@ -96,6 +101,93 @@ class BasicQILogger extends QILogger {
     writeln("}")
   }
 
+  def printVisJS(out: BufferedWriter) {
+    def writeln(str: String) {
+      out.write(str); out.newLine
+    }
+    def node(n: Node) = {
+      //val label = (Seq(n.formula) ++ n.newGroundTerms).map(f => xml.Utility.escape(f.toString)).mkString("\\n")
+      val label = (Seq(n.formula) ++ n.newGroundTerms).map(_.toString).mkString("\\n")
+      "{id: "+n.idx+", label: '"+label+"', shape: 'box'}"
+    }
+    def edge(e: Edge) = {
+      //val label = xml.Utility.escape(e.term.toString)
+      val label = e.term.toString
+      "{from: "+e.src+", to: "+e.dst+", label: '"+label+"', font: {align: 'horizontal'}}"
+    }
+    writeln("""<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8"> 
+  <title>Quantifier instantiation graph</title>
+      
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.14.0/vis.min.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.14.0/vis.min.css" rel="stylesheet" type="text/css" />
+          
+  <style type="text/css">
+    #qigraph {
+      width: 90vw;
+      height: 90vh;
+      border: 1px solid lightgray;
+    }
+  </style>
+</head>
+<body>
+<div id="qigraph"></div>
+
+<script type="text/javascript">
+  // create an array with nodes
+  var nodes = new vis.DataSet([""")
+    writeln(nodes.map(n => node(n._2)).mkString("    ", ",\n    ",""))
+    writeln("""  ]);
+
+  // create an array with edges
+  var edges = new vis.DataSet([""")
+    writeln(edges.map(edge).mkString("    ", ",\n    ",""))
+    writeln("""  ]);
+
+  // create a network
+  var container = document.getElementById('qigraph');
+  var data = {
+    nodes: nodes,
+    edges: edges
+  };
+  var options = {
+    layout: {
+      hierarchical: {
+        direction: "UD",
+        sortMethod: "directed",
+        levelSeparation: 500,
+        nodeSpacing: 400
+      }
+    },
+    interaction: {
+        dragNodes :false
+    },
+    edges: {
+      arrows: {to : true }
+    },
+    physics: {
+      enabled: false
+    },
+    configure: {
+      filter: function (option, path) {
+        if (path.indexOf('hierarchical') !== -1) {
+          return true;
+        }
+        return false;
+      },
+      showButton:false
+    }
+  };
+  var network = new vis.Network(container, data, options);
+</script>
+</body>
+</html>
+""")
+  }
+
+
 }
 
 class EmptyQILogger extends QILogger {
@@ -108,4 +200,5 @@ class EmptyQILogger extends QILogger {
   def addEdge(e: Edge) { }
   def addEdge(src: Int, dst: Int, /*variable: Variable,*/ term: Formula) { }
   def printGraphviz(out: BufferedWriter) { }
+  def printVisJS(out: BufferedWriter) { }
 }

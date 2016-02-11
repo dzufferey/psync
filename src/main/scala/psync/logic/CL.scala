@@ -49,13 +49,11 @@ class CL(config: ClConfig) {
   protected def normalize(f: Formula) = {
     //TODO some (lazy) CNF conversion ?
     //TODO purification before or after instantiation ?
-    val f1 = Simplify.normalize(f)
-    val f2 = Simplify.nnf(f1)
-    val f3 = FormulaUtils.flatten(f2)
-    val f4 = Simplify.boundVarUnique(f3)
-    val f5 = Simplify.mergeExists(f4)
-    val f6 = Simplify.splitTopLevelForall(f5)
-    f6
+    val f1 = Simplify.simplify(f)
+    val f2 = Simplify.boundVarUnique(f1)
+    val f3 = Simplify.mergeExists(f2)
+    val f4 = Simplify.splitTopLevelForall(f3)
+    f4
   }
 
   protected def sizeOfUniverse(tpe: Type): Option[Formula] = tpe match {
@@ -129,7 +127,7 @@ class CL(config: ClConfig) {
   protected def quantifierInstantiation(strat: QStrategy, fs: List[Formula], cc: CongruenceClosure): (List[Formula], Generator) = {
     Logger("CL", Debug, "instantiation strategy: " + strat)
     strat match {
-      case QNew(t, bnd, local) =>
+      case QStrategy(t, bnd, local) =>
         val (leftOver, axioms) = fs.partition(keepAsIt)
         Logger("CL", Debug, "leftOver:\n  " + leftOver.mkString("\n  "))
         Logger("CL", Debug, "axioms:\n  " + axioms.mkString("\n  "))

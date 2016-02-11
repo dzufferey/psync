@@ -139,7 +139,7 @@ class OtrExample extends FunSuite {
       //negated prop: ¬(∀ k. mmor(k) == v)
       mmor(k) !== v
     )
-    //assertUnsat(fs, 60000, false, cln(3, new quantifiers.Eager, 1, true)) //XXX expensive
+    assertUnsat(fs, cln(3, new quantifiers.Eager, 1, true))
     assertUnsat(fs, cln(3, new quantifiers.Guided, 1, true))
   }
   
@@ -191,8 +191,8 @@ class OtrExample extends FunSuite {
       tr,
       Not(prime(invariantProgress2))
     )
-    assertUnsat(fs, cln(1, new quantifiers.Eager, 2, true))
-    //assertUnsat(fs, cln(1, new quantifiers.Guided, 2, true)) //XXX
+    //assertUnsat(fs, cln(1, new quantifiers.Eager, 2, true))
+    assertUnsat(fs, cln(1, new quantifiers.Sequence(new quantifiers.Eager, new quantifiers.Guided), 2, true))
   }
 
 //XXX used to work

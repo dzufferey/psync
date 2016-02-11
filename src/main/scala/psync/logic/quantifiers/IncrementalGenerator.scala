@@ -41,8 +41,8 @@ class IncrementalGenerator( axioms: Iterable[Formula],
     if (local) buffer ++= locallySaturate
 
     if (Options.logQI) {
-      val fname = Namer("qi") + ".dot"
-      logger.storeGraphviz(fname)
+      val fname = Namer("qi") + ".html"
+      logger.storeVisJS(fname)
     }
 
     buffer.toList
@@ -114,11 +114,13 @@ class IncrementalGenerator( axioms: Iterable[Formula],
         val g = newGens.pop
         if (g.isResult) {
           if (g.result != True()) {
+            if (!res(g.result)) {
+              val l = newLeadIdx
+              logger.addNode(l, g.result,
+                             FormulaUtils.collectGroundTerms(g.result) -- cc.groundTerms)
+              logger.addEdge(c, l, term)
+            }
             res += g.result
-            val l = newLeadIdx
-            logger.addNode(l, g.result,
-                           FormulaUtils.collectGroundTerms(g.result) -- cc.groundTerms)
-            logger.addEdge(c, l, term)
           }
         } else {
           val d = addGen(g)
@@ -133,7 +135,7 @@ class IncrementalGenerator( axioms: Iterable[Formula],
   def locallySaturate: List[Formula] = {
     var i = 0
     val lDone = scala.collection.mutable.BitSet()
-    val res = scala.collection.mutable.ListBuffer[Formula]()
+    val res = MSet[Formula]()
     def checkDone(g: Gen, remaining: Iterable[Map[Variable,Formula]]) = {
       if (g.isResult) {
         true
@@ -150,11 +152,13 @@ class IncrementalGenerator( axioms: Iterable[Formula],
         val g2 = g(v, candidate)
         if (g2.isResult) {
           if (g2.result != True()) {
+            if (!res(g2.result)) {
+              val l = newLeadIdx
+              logger.addNode(l, g2.result,
+                             FormulaUtils.collectGroundTerms(g2.result) -- cc.groundTerms)
+              logger.addEdge(idx, l, candidate)
+            }
             res += g2.result
-            val l = newLeadIdx
-            logger.addNode(l, g2.result,
-                           FormulaUtils.collectGroundTerms(g2.result) -- cc.groundTerms)
-            logger.addEdge(idx, l, candidate)
           }
         } else {
           val renaming = g.vs.zip(g2.vs).toMap //g2 has renamed arguments ...
@@ -176,7 +180,7 @@ class IncrementalGenerator( axioms: Iterable[Formula],
       instVar(i, g, matches)
       i += 1
     }
-    res.result
+    res.toList
   }
 
   def clone(cc2: CongruenceClosure) = {
@@ -274,7 +278,9 @@ class IncrementalGenerator( axioms: Iterable[Formula],
   }
   
   //check ∃∀: if the top level is ∃, then give it a fresh name and continue
-  protected def makeGen(vs: List[Variable], f: Formula): Gen = {
+  protected def makeGen(vs0: List[Variable], f0: Formula): Gen = {
+    val f = Simplify.simplify(f0)
+    val vs = vs0.filter(f.freeVariables)
     if (vs.isEmpty) {
       f match {
         case Exists(vse, fe) =>

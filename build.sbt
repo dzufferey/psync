@@ -22,7 +22,7 @@ parallelExecution in Test := false
 libraryDependencies ++=  Seq(
     "org.scala-lang" % "scala-reflect" % scalaVersion.value,
     "org.scala-lang" % "scala-compiler" % scalaVersion.value,
-    "org.scala-lang.modules" %% "scala-xml" % "1.0.4",
+    "org.scala-lang.modules" %% "scala-xml" % "1.0.5",
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4",
     "org.scalatest" %% "scalatest" % "2.2.4" % "test",
     "org.scalacheck" %% "scalacheck" % "1.12.4" % "test",

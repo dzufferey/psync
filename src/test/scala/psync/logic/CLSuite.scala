@@ -347,6 +347,33 @@ class CLSuite extends FunSuite {
     assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
   }
 
+  test("majority is a quorum") {
+    val majority = UnInterpretedFct("majority",Some(FSet(pid) ~> Bool))
+    val quorum = UnInterpretedFct("quorum",Some(FSet(pid) ~> FSet(pid) ~> Bool))
+    val fs = List(
+      ForAll(List(a), majority(a) === (a.card > n/2)),
+      ForAll(List(a,b), quorum(a,b) === ((a ∩ b).card > 0)),
+      majority(a),
+      majority(b),
+      !quorum(a, b)
+    )
+    assertUnsat(fs, /*10000, true,*/ cln(2, new quantifiers.Guided, 0, false))
+  }
+  
+  test("2/3 majority is a fast quorum") {
+    val majority = UnInterpretedFct("majority",Some(FSet(pid) ~> Bool))
+    val quorum = UnInterpretedFct("quorum",Some(FSet(pid) ~> FSet(pid) ~> FSet(pid) ~> Bool))
+    val fs = List(
+      ForAll(List(a), majority(a) === (a.card > n*2/3)),
+      ForAll(List(a,b,c), quorum(a,b,c) === (((a ∩ b) ∩ c).card > 0)),
+      majority(a),
+      majority(b),
+      majority(c),
+      !quorum(a, b, c)
+    )
+    assertUnsat(fs, cln(3, new quantifiers.Guided, 0, true))
+  }
+
   //TODO tuples
   //test("pairs 0") {
   //}

@@ -130,7 +130,7 @@ object FormulaUtils {
     (alpha(mapping, f), mapping)
   }
 
-  protected def flatten1(i: InterpretedFct, f: Formula): List[Formula] = f match {
+  def flatten1(i: InterpretedFct, f: Formula): List[Formula] = f match {
     case Application(`i`, lst) => lst.flatMap(flatten1(i, _))
     case Application(_, _) => List(flatten(f))
     case Binding(b, v, f) => List(Copier.Binding(f, b, v, flatten(f)))
@@ -140,8 +140,8 @@ object FormulaUtils {
   def flatten(f: Formula): Formula = f match {
     case Application(Plus, lst) => Copier.Application(f, Plus,   lst.flatMap(flatten1(Plus, _)))
     case Application(Times, lst) => Copier.Application(f, Times, lst.flatMap(flatten1(Times, _)))
-    case Application(Union, lst) => Copier.Application(f, Union, lst.flatMap(flatten1(Union, _)))
-    case Application(Intersection, lst) => Copier.Application(f, Intersection, lst.flatMap(flatten1(Intersection, _)))
+    //case Application(Union, lst) => Copier.Application(f, Union, lst.flatMap(flatten1(Union, _)))
+    //case Application(Intersection, lst) => Copier.Application(f, Intersection, lst.flatMap(flatten1(Intersection, _)))
     case Application(And, lst) => Copier.Application(f, And, lst.flatMap(flatten1(And, _)))
     case Application(Or, lst) => Copier.Application(f, Or, lst.flatMap(flatten1(Or, _)))
     case Application(other, lst) => Copier.Application(f, other, lst map flatten)
@@ -261,7 +261,7 @@ object FormulaUtils {
         case Some(s) =>
           //println("typeWithParams: " + app.fct + ", " + concreteType + ", " + params + ", " + subst + ", " + s)
           params.map(s)
-        case None => sys.error("FormulaUtils.typeWithParams, cannot unify: " + normal.typeWithParams + ", " + concreteType)
+        case None => sys.error("FormulaUtils.typeWithParams, cannot unify: " + normal.typeWithParams + ", " + concreteType + " in " + app)
       }
   }
   

@@ -270,7 +270,7 @@ class LvExample extends FunSuite {
       Neq(maxTS(mailbox1(i)), v)
     )
     assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))
-    //assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true)) //XXX blow-up ??
+    assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
   }
 
   //TODO those completely blow-up
@@ -314,7 +314,8 @@ class LvExample extends FunSuite {
 //    round4,
 //    Not(prime(invariant1))
 //  )
-//  assertUnsat(fs, 30000, true, clg(3, 3))
+//  //assertUnsat(fs, 30000, true, cln(2, new quantifiers.Eager, 2, true))
+//  assertUnsat(fs, 30000, true, cln(0, new quantifiers.Guided, 2, false))
 //  //assertUnsat(fs, 30000, true, clh(2, 1, 1))
 //  //assertUnsat(fs, 60000, true, clg(2, 3))
 //  //assertUnsat(fs, 60000, true, cle(2,2))

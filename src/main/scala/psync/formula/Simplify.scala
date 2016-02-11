@@ -42,8 +42,12 @@ object Simplify {
       val args2 = args.map(nnf(_, neg))
       Copier.Application(f, fct, args2)
     case other =>
-      assert(other.tpe == Bool)
-      if (neg) Not(other) else other
+      if (neg) {
+        assert(other.tpe == Bool)
+        Not(other) 
+      } else {
+        other
+      }
   }
 
   def cnf(f: Formula): Formula = {
@@ -360,17 +364,30 @@ object Simplify {
   //TODO some more
   def simplifySetOp(f: Formula): Formula = {
     import FormulaUtils._
-    def fct(f: Formula) = f match {
-      case Union(lst @ _*) =>
-        val lst2 = lst.toSet
-        Application(Union, lst2.toList.sorted).setType(f.tpe)
-      case Intersection(lst @ _*) =>
-        val lst2 = lst.toSet
-        Application(Intersection, lst2.toList.sorted).setType(f.tpe)
+    def flattenSet(f: Formula): Formula = f match {
+      case Application(Union, lst) =>
+        val lst2 = lst.flatMap(FormulaUtils.flatten1(Union, _))
+        Copier.Application(f, Union, lst2.toSet.toList.sorted)
+      case Application(Intersection, lst) =>
+        val lst2 = lst.flatMap(FormulaUtils.flatten1(Intersection, _))
+        Copier.Application(f, Intersection, lst2.toSet.toList.sorted)
       case other =>
         other
     }
-    FormulaUtils.map(fct, f)
+    //keep the binary version for the different axioms ...
+    def binarize(f: Formula) = f match {
+      case Union(lst @ _*)        if lst.size == 1 => lst.head
+      case Intersection(lst @ _*) if lst.size == 1 => lst.head
+      case Union(lst @ _*)        if lst.size > 2 => lst.reduce( (a,b) => Union(a,b) )
+      case Intersection(lst @ _*) if lst.size > 2 => lst.reduce( (a,b) => Intersection(a,b) )
+      case other => other
+    }
+    val f2 = FormulaUtils.map(flattenSet, f)
+    val f3 = FormulaUtils.map(binarize, f2)
+    //println("f:   " + f)
+    //println("f2:  " + f2)
+    //println("f3:  " + f3)
+    f3
   }
   
   def lcm(m: Long, n: Long) = {

@@ -31,23 +31,21 @@ trait Tactic {
 
 }
 
-class Eager extends Tactic {
-
+abstract class TacticCommon extends Tactic {
+  
   protected var depth = 0
   protected var cc: CongruenceClosure = null
   protected var queue = PriorityQueue[(Int,Formula)]()
   protected var done = MSet[Formula]()
   protected var currentDepth = 0
   protected val buffer = ListBuffer[Formula]()
-
+  
   protected def isDone(t: Formula) = done(t) || done(cc.repr(t))
 
-  def init(_depth: Int, _cc: CongruenceClosure) {
-    clear
-    depth = _depth
-    cc = _cc
-    for (gt <- cc.groundTerms if 0 <= depth) {
-      queue.enqueue( 0 -> gt )
+  protected def enqueue(d: Int, t: Formula) {
+    if (d <= depth && !isDone(t)) {
+      Logger("Tactic", Debug, "depth "+d+": " + t)
+      queue.enqueue( -d -> t )
     }
   }
 
@@ -59,7 +57,7 @@ class Eager extends Tactic {
     currentDepth = 0
     cc = null
   }
-
+  
   def hasNext: Boolean = queue.headOption match {
     case Some((lvl,term)) =>
       if (isDone(term)) {
@@ -79,74 +77,49 @@ class Eager extends Tactic {
     term
   }
 
+  def init(_depth: Int, _cc: CongruenceClosure) {
+    clear
+    depth = _depth
+    cc = _cc
+    for (gt <- cc.groundTerms) enqueue(0, gt)
+  }
+  
+  def result: Iterable[Formula] = buffer.toList
+
+}
+
+class Eager extends TacticCommon {
+
   def generatorResult(fs: Iterable[Formula]) {
     buffer.appendAll(fs)
     val newDepth = currentDepth + 1
-    if (newDepth <= depth) {
+    if (newDepth < depth) {
       for (f <- fs;
            t <- FormulaUtils.collectGroundTerms(f) if !cc.contains(t) )
       {
-        //println("adding: " + t)
-        queue.enqueue(-newDepth -> t)
+        enqueue(newDepth, t)
       }
     }
     fs.foreach(cc.addConstraints)
   }
 
-  def result: Iterable[Formula] = buffer.toList
-
   def leftOut: Iterable[Formula] = Nil
 
 }
 
-class Guided extends Tactic {
+class Guided extends TacticCommon {
 
-  protected var depth = 0
-  protected var cc: CongruenceClosure = null
-  protected var queue = PriorityQueue[(Int,Formula)]()
-  protected var done = MSet[Formula]()
   protected var currentTerm: Formula = null
-  protected var currentDepth = 0
-  protected val buffer = ListBuffer[Formula]()
   protected val keptBack = MMap[Formula,List[Formula]]()
 
-  protected def isDone(t: Formula) = done(t) || done(cc.repr(t))
-
-  def init(_depth: Int, _cc: CongruenceClosure) {
-    clear
-    depth = _depth
-    cc = _cc
-    for (gt <- cc.groundTerms if 0 <= depth) {
-      queue.enqueue( 0 -> gt )
-    }
-  }
-  
-  def clear {
-    queue.clear
-    done.clear
-    buffer.clear
+  override def clear {
+    super.clear
+    currentTerm = null
     keptBack.clear
-    depth = 0
-    currentDepth = 0
-    cc = null
   }
 
-  def hasNext: Boolean = queue.headOption match {
-    case Some((lvl,term)) =>
-      if (isDone(term)) {
-        queue.dequeue
-        hasNext
-      } else {
-        true
-      }
-    case None => false
-  }
-
-  def next: Formula = {
-    val (lvl, term) = queue.dequeue
-    currentDepth = -lvl
-    done += term
-    done += cc.repr(term)
+  override def next: Formula = {
+    val term = super.next
     currentTerm = term
     term
   }
@@ -172,12 +145,12 @@ class Guided extends Tactic {
       //add to cc, buffer, and queue
       currentDepth += 1
       buffer.appendAll(fs)
-      toAdd.foreach(cc.addConstraints)
       for (f <- toAdd;
-           t <- FormulaUtils.collectGroundTerms(f) if !isDone(t) )
+           t <- FormulaUtils.collectGroundTerms(f) if !cc.contains(t) )
       {
-        queue.enqueue(-currentDepth -> t)
+        enqueue(currentDepth, t)
       }
+      toAdd.foreach(cc.addConstraints)
       toAdd.clear()
       // check if we should pull some new keptBack elements
       for (k <- keptBack.keys if cc.contains(k)) {
@@ -188,13 +161,11 @@ class Guided extends Tactic {
     }
   }
 
-  def result: Iterable[Formula] = buffer.toList
-
   def leftOut: Iterable[Formula] = keptBack.values.flatten.toSet
 
 }
 
-class Sequence(t1: Tactic, t2: Tactic) extends {
+class Sequence(t1: Tactic, t2: Tactic) extends Tactic {
 
   protected var first = true
   protected var d1 = 0
@@ -222,6 +193,7 @@ class Sequence(t1: Tactic, t2: Tactic) extends {
       if (t1.hasNext) {
         true
       } else {
+        first = false
         t2.init(d2, cc)
         t2.hasNext
       }

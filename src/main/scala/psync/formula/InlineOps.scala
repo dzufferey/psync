@@ -7,6 +7,7 @@ object InlineOps {
 
   implicit class Ops(lhs: Formula) {
   
+    def unary_! = Not(lhs)
     def &&(rhs: Formula) = And(lhs, rhs)
     def ∧(rhs: Formula) = And(lhs, rhs)
     def ||(rhs: Formula) = Or(lhs, rhs)

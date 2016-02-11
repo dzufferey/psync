@@ -265,12 +265,23 @@ case object Union extends InterpretedFct("∪", "|", "union") {
   private val fv = Type.freshTypeVar
   override val typeParams = List(fv)
   val typeWithParams = FSet(fv) ~> FSet(fv) ~> FSet(fv)
+  override def tpe(arity: Int): Type = {
+    val args = (0 until arity).map(_ => FSet(fv)).toList
+    val t = Function(args, FSet(fv))
+    t alpha Map(fv -> Type.freshTypeVar)
+  }
   override val priority = 10
 }
 case object Intersection extends InterpretedFct("∩", "intersect") {
   private val fv = Type.freshTypeVar
   override val typeParams = List(fv)
   val typeWithParams = FSet(fv) ~> FSet(fv) ~> FSet(fv)
+  override def tpe(arity: Int): Type = {
+    val args = (0 until arity).map(_ => FSet(fv)).toList
+    val t = Function(args, FSet(fv))
+    val t2 = t alpha Map(fv -> Type.freshTypeVar)
+    t2
+  }
   override val priority = 10
 }
 case object SubsetEq extends InterpretedFct("⊆", "subsetOf") {

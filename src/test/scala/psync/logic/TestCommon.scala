@@ -23,12 +23,7 @@ object TestCommon {
 
   val cl = ClDefault
 
-  //corresponds to previous clv_q
-  //def cle(v: Int, q: Int) = ClConfig(Some(v), None, Eager(Some(q), true))
-  //def clg(v: Int, q: Int) = ClConfig(Some(v), None, Guided(Some(q), false))
-  //def clh(v: Int, q1: Int, q2: Int) = ClConfig(Some(v), None, QSeq(Eager(Some(q1), false), Guided(Some(q2), false)))
-
-  def cln(v: Int, t: Tactic, depth: Int, local: Boolean) = ClConfig(Some(v), None, QNew(t, Some(depth), local))
+  def cln(v: Int, t: Tactic, depth: Int, local: Boolean) = ClConfig(Some(v), None, QStrategy(t, Some(depth), local))
 
   def reduce(clc: ClConfig, conjuncts: List[Formula], debug: Boolean): Formula = {
     val cl = new CL(clc)
@@ -52,6 +47,9 @@ object TestCommon {
         FormulaUtils.getConjuncts(f1).foreach( f => println("  " + f) )
       }
       f1
+    } catch {
+      case t: Throwable => t.printStackTrace 
+        throw t
     } finally {
       if(debug) {
         Logger.lessVerbose
@@ -71,7 +69,12 @@ object TestCommon {
     val f1 = reduce(reducer, conjuncts, debug)
     val solver = if (useCvcMf) Solver.cvc4mf(UFLIA, fname, to)
                  else Solver(UFLIA, fname, to)
-    assert(!solver.testB(f1), "unsat formula")
+    try {
+      assert(!solver.testB(f1), "unsat formula")
+    } catch {
+      case t: Throwable => t.printStackTrace 
+        throw t
+    }
   }
   
   def assertUnsat(conjuncts: List[Formula],
