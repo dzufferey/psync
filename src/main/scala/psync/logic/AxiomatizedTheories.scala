@@ -28,11 +28,15 @@ object OptionAxioms {
   }
 
   def addAxioms(conjuncts: List[Formula]): List[Formula] = {
+    conjuncts ::: getAxioms(conjuncts)
+  }
+
+  def getAxioms(conjuncts: List[Formula]): List[Formula] = {
     //collect the option types, get the parameters, and mkAxioms
     val tpes = conjuncts.foldLeft(Set[Type]())( _ ++ FormulaUtils.collectTypes(_) )
     val opts = tpes.toList.collect{ case FOption(t) => t }
     val axms = opts.flatMap(mkAxioms)
-    conjuncts ::: axms
+    axms
   }
 
 }
@@ -57,13 +61,16 @@ object TupleAxioms {
   }
 
   def addAxioms(conjuncts: List[Formula]): List[Formula] = {
+    conjuncts ::: getAxioms(conjuncts)
+  }
+
+  def getAxioms(conjuncts: List[Formula]): List[Formula] = {
     //collect the option types, get the parameters, and mkAxioms
     val tpes = conjuncts.foldLeft(Set[Type]())( _ ++ FormulaUtils.collectTypes(_) )
     val opts = tpes.toList.collect{ case Product(ts) => ts }
     val axms = opts.flatMap(mkAxioms)
-    conjuncts ::: axms
+    axms
   }
-
 }
 
 object SetOperationsAxioms {
@@ -125,6 +132,10 @@ object SetOperationsAxioms {
   }
   
   def addAxioms(conjuncts: List[Formula]): List[Formula] = {
+    conjuncts ::: getAxioms(conjuncts)
+  }
+  
+  def getAxioms(conjuncts: List[Formula]): List[Formula] = {
     val f = And(conjuncts:_*)
     val setOps = FormulaUtils.collectSymbolsWithParams(f).collect{
         case p @ (Union | Intersection | SubsetEq | SupersetEq, _) => p
@@ -154,8 +165,7 @@ object SetOperationsAxioms {
           Nil
       }
     }
-
-    conjuncts ::: setAxioms
+    setAxioms
   }
 
 

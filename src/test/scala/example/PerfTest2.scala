@@ -268,7 +268,7 @@ class PerfTest2(options: RuntimeOptions,
       }
       //Logger("PerfTest", Notice, "(" + id + ") starting instance " + instanceNbr + " with " + idx + ", " + value + ", " + v + ", self " + self)
       rt.startInstance(instanceNbr, io, msg)
-      if (self) wakeupOthers(instanceNbr, v)
+      //if (self) wakeupOthers(instanceNbr, v)
 
     } else {
       //Logger("PerfTest", Debug, "backing off " + idx)

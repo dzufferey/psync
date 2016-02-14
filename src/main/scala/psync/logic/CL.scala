@@ -144,6 +144,19 @@ class CL(config: ClConfig) {
     quantifierInstantiation(config.instantiationStrategy, fs, cc)
   }
   
+  protected def localQuantifierInstantiation(fs: List[Formula], cc: CongruenceClosure) = {
+    val (leftOver, axioms) = fs.partition(keepAsIt)
+    Logger("CL", Debug, "local leftOver:\n  " + leftOver.mkString("\n  "))
+    Logger("CL", Debug, "local axioms:\n  " + axioms.mkString("\n  "))
+    Logger("CL", Debug, "local cc:\n  " + cc)
+    val gen = new IncrementalGenerator(axioms, new Eager, cc)
+    //val generated = gen.saturate(Some(0), true)
+    val generated = gen.locallySaturate
+    Logger("CL", Debug, "local generated: \n  " + generated.mkString("\n  "))
+    leftOver ::: generated
+  }
+
+  
   def reduce(formula: Formula): Formula = {
 
     val query = normalize(formula)
@@ -167,7 +180,7 @@ class CL(config: ClConfig) {
       }, f3)
       Quantifiers.skolemize(f4)
     })
-    
+
     val cc = new CongruenceClosure //incremental CC
     cc.addConstraints(clauses)
     //make sure we have a least one process
@@ -181,12 +194,19 @@ class CL(config: ClConfig) {
 
     //the venn regions
     val withILP = reduceComprehension(inst, symbols, gen)
+    val withILP2 = FormulaUtils.getConjuncts(cleanUp(withILP))
     
     //add axioms for the other theories
-    val withSetAx = SetOperationsAxioms.addAxioms(withILP)
-    val withOpt = OptionAxioms.addAxioms(withSetAx)
-    val withTpl = TupleAxioms.addAxioms(withOpt)
-    val withoutTime = ReduceTime(withTpl)
+    val setAx = SetOperationsAxioms.getAxioms(withILP2)
+    val optAx = OptionAxioms.getAxioms(withILP2)
+    val tplAx = TupleAxioms.getAxioms(withILP2)
+    //deal with extra theory axioms
+    val cc2 = new CongruenceClosure //incremental CC
+    cc2.addConstraints(withILP2)
+    val withExtraAxioms = localQuantifierInstantiation(setAx ::: optAx ::: tplAx, cc2)
+
+    //
+    val withoutTime = ReduceTime(withILP2 ::: withExtraAxioms)
     val expendedLt = ReduceOrdered(withoutTime)
 
 

@@ -46,7 +46,9 @@ abstract class TacticCommon extends Tactic {
     if (d <= depth && !isDone(t)) {
       Logger("Tactic", Debug, "depth "+d+": " + t)
       queue.enqueue( -d -> t )
-    }
+    }/* else {
+      Logger("Tactic", Debug, "rejecting depth "+d+": " + t)
+    }*/
   }
 
   def clear {
@@ -131,10 +133,10 @@ class Guided extends TacticCommon {
       val (_old,_new) = gts.partition(cc.contains)
       if (_new.isEmpty ||
           _old.exists(FormulaUtils.isDescendent(_, currentTerm))) {
-        //println("adding: " + f + ", " + _new + ", " + _old)
+        //Logger("Tactic", Debug, "adding: " + f + ", " + _new + ", " + _old)
         toAdd += f
       } else {
-        //println("keeping: " + f + ", " + _new + ", " + _old)
+        //Logger("Tactic", Debug, "keeping: " + f + ", " + _new + ", " + _old)
         for (n <- _new) {
           val ks = keptBack.getOrElse(n, Nil)
           keptBack += (n -> (f :: ks))
@@ -144,12 +146,12 @@ class Guided extends TacticCommon {
     while (!toAdd.isEmpty) {
       //add to cc, buffer, and queue
       currentDepth += 1
-      buffer.appendAll(fs)
-      for (f <- toAdd;
-           t <- FormulaUtils.collectGroundTerms(f) if !cc.contains(t) )
-      {
-        enqueue(currentDepth, t)
-      }
+      buffer.appendAll(toAdd)
+      toAdd.foreach( f => {
+        val ts = FormulaUtils.collectGroundTerms(f)
+        val ts2 = ts.filter(t => !cc.contains(t))
+        ts2.foreach(enqueue(currentDepth, _))
+      })
       toAdd.foreach(cc.addConstraints)
       toAdd.clear()
       // check if we should pull some new keptBack elements

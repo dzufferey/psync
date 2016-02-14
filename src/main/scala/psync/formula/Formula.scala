@@ -371,6 +371,15 @@ case object Fst extends InterpretedFct("_1") {
   override def instanciateType(ts: List[Type]) =
     if (ts == Nil) Wildcard ~> Wildcard
     else Product(ts) ~> ts(0)
+  override def apply(args: Formula*): Formula = {
+    val app = Application(this, args.toList)
+    if (args.length == 1) {
+      args.head.tpe match {
+        case Product(x :: xs) => app.setType(x)
+        case _ => app
+      }
+    } else app
+  }
 }
 case object Snd extends InterpretedFct("_2") {
   val typeWithParams = Wildcard ~> Wildcard
@@ -380,6 +389,15 @@ case object Snd extends InterpretedFct("_2") {
   override def instanciateType(ts: List[Type]) =
     if (ts == Nil) Wildcard ~> Wildcard
     else Product(ts) ~> ts(1)
+  override def apply(args: Formula*): Formula = {
+    val app = Application(this, args.toList)
+    if (args.length == 1) {
+      args.head.tpe match {
+        case Product(_ :: x :: xs) => app.setType(x)
+        case _ => app
+      }
+    } else app
+  }
 }
 case object Trd extends InterpretedFct("_3") {
   val typeWithParams = Wildcard ~> Wildcard
@@ -389,6 +407,15 @@ case object Trd extends InterpretedFct("_3") {
   override def instanciateType(ts: List[Type]) =
     if (ts == Nil) Wildcard ~> Wildcard
     else Product(ts) ~> ts(2)
+  override def apply(args: Formula*): Formula = {
+    val app = Application(this, args.toList)
+    if (args.length == 1) {
+      args.head.tpe match {
+        case Product(_ :: _ :: x :: xs) => app.setType(x)
+        case _ => app
+      }
+    } else app
+  }
 }
 
 case object KeySet extends InterpretedFct("keySet") {

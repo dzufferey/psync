@@ -24,6 +24,7 @@ class LastVoting extends Algorithm[ConsensusIO, LVProcess] {
       V.exists( v => V.exists( t => {
           val A = P.filter( i => i.ts >= t )
           A.size > n/2 &&
+          r > 0 &&
           t <= r/4 &&
           P.forall( i => (A.contains(i) ==> (i.x == v) ) &&
                          (i.decided ==> (i.decision == v) ) &&
@@ -108,12 +109,19 @@ class LVProcess extends Process[ConsensusIO]{
         Map(coord -> (x, ts.toInt))
       }
 
-      override def expectedNbrMessages = if (id == coord) n/2 + 1 else 0
+      override def expectedNbrMessages = {
+        if (id == coord) {
+          if (r.toInt == 0) 1
+          else n/2 + 1
+        } else 0
+      }
 
       //def update(mailbox: Map[ProcessID,(Int, Time)]) {
       def update(mailbox: Map[ProcessID,(Int, Int)]) {
         assert(r.toInt % 4 == 0)
-        if (id == coord && mailbox.size > n/2) {
+        if (id == coord &&
+            (mailbox.size > n/2 ||
+             (r.toInt == 0 && mailbox.size > 0))) {
           // let θ be one of the largest θ from 〈ν, θ〉received
           // vote(p) := one ν such that 〈ν, θ〉 is received
           vote = mailbox.maxBy(_._2._2)._2._1

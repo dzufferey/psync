@@ -87,7 +87,10 @@ object Parser extends StandardTokenParsers {
     | "+"  ^^^ Plus
     | "-"  ^^^ Minus
     | "*"  ^^^ Times
-    | ident ^^ { id => InterpretedFct(id).filter( _.symbol == id ).headOption.getOrElse(UnInterpretedFct(id)) }
+    | ident ^^ { id =>
+                 val candidates = InterpretedFct(id)
+                 candidates.find( _.symbol == id ).orElse(candidates.headOption).getOrElse(UnInterpretedFct(id))
+               }
   )
 
   def typedVar: Parser[Variable] = "(" ~> ident ~ sort <~ ")" ^^ { case id ~ srt => Variable(id).setType(srt) }

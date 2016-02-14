@@ -35,6 +35,7 @@ object InlineOps {
     def ⊆(rhs: Formula) = SubsetEq(lhs, rhs)
     def ⊇(rhs: Formula) = SupersetEq(lhs, rhs)
     def ∈(rhs: Formula) = In(lhs, rhs)
+    def ∉(rhs: Formula) = Not(In(lhs, rhs))
     def contains(rhs: Formula) = In(rhs, lhs)
     def card = Cardinality(lhs)
 

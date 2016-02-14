@@ -87,7 +87,7 @@ class LvExample extends FunSuite {
             Implies(
               IsDefinedAt(b, i),
               Or( Eq(Fst(LookUp(b, i)), maxTS(b)),
-                  Not(Leq(Snd(LookUp(b, i)), Snd(LookUp(b, i))))
+                  Leq(Snd(LookUp(b, i)), Snd(LookUp(b, j)))
               )
             )
           )
@@ -247,7 +247,7 @@ class LvExample extends FunSuite {
   test("invariant implies agreement") {
     val fs = List(invariant1, Not(agreement))
     assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))
-    //assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true)) //XXX this blow-up ?
+    assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
   }
   
   test("validity holds initially") {
@@ -262,6 +262,7 @@ class LvExample extends FunSuite {
       Eq(a, Comprehension(List(i), Leq(t, timeStamp(i)))),
       majorityS(a),
       ForAll(List(i), And(Implies(In(i, a), Eq(data(i), v)))),
+      //ForAll(List(i), Eq(KeySet(mailbox1(i)), ho(i))),
       ForAll(List(i,j), And(
         Eq(IsDefinedAt(mailbox1(j), i), In(i, ho(j))),
         Eq(LookUp(mailbox1(j), i), Tuple(data(i),timeStamp(i)))
@@ -269,8 +270,9 @@ class LvExample extends FunSuite {
       majorityM(mailbox1(i)),
       Neq(maxTS(mailbox1(i)), v)
     )
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
+    //getModel(fs)
+    //assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true)) //XXX this should be strictly more terms than Guided
+    assertUnsat(fs, /*10000, true,*/ cln(2, new quantifiers.Guided, 2, true))
   }
 
   //TODO those completely blow-up
