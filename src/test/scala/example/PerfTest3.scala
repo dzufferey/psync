@@ -139,9 +139,6 @@ class PerfTest3(options: RuntimeOptions,
           if (!data.isEmpty) {
             acceptedRequests.add(inst -> data)
           }
-          if (log != null) {
-            //TODO log
-          }
         }
       }
     } finally {

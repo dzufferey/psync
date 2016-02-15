@@ -96,11 +96,11 @@ class Eager extends TacticCommon {
     buffer.appendAll(fs)
     val newDepth = currentDepth + 1
     if (newDepth < depth) {
-      for (f <- fs;
-           t <- FormulaUtils.collectGroundTerms(f) if !cc.contains(t) )
-      {
-        enqueue(newDepth, t)
-      }
+      fs.foreach( f => {
+        val ts = FormulaUtils.collectGroundTerms(f)
+        val ts2 = ts.filter(t => !cc.contains(t))
+        ts2.foreach(enqueue(currentDepth, _))
+      })
     }
     fs.foreach(cc.addConstraints)
   }

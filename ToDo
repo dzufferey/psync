@@ -18,7 +18,6 @@
 
 # runtime
 
-- option to send (or not) messages during the catch-up
 - limit the scope of TerminateInstance in the Runtime: should not escape the Round
     try to remove the control-flow inversion all together
 - reduce number of threads, improve pooling:
@@ -34,10 +33,9 @@
         timeout
         defaultHandler
 - add a strict timeout option (be careful about trying to catch up too quickly)
-- add wake-up all option in the start option
 - reduce memory footprint
 - a TCP version
-- more predictable performances (when overloaded)
+- more predictable performances when overloaded
 
 
 # verification
@@ -45,13 +43,12 @@
 - Formula:
     * generalize typer overloading: Int vs Real
 - InstGen
+    * type stratification / EPR snould be at the level of individual variables, not clauses
+    * require skolemization and remove the code to deal with ∃
     * local step should not change the internal state of the generator
     * generalise depth and integrate stratification
         - different types may have different depth (local types have depth 0)
         - not every type may be allowed to generate terms of other types
-    * round number as its own type (value class) to reduce the instantiation between time and int
-        - test in the LvExample and see what difference it makes
-        - just before solving turn round back into Int
 - better structure of the specification:
     * which invariant we can use to prove what property
     * add temporal elements to spec/formula
