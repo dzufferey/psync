@@ -51,7 +51,7 @@ class CongruenceClosure extends CC {
         case v @ Variable(_) => new CcVar(v)
         case l @ Literal(_) => new CcLit(l)
         case c @ Comprehension(_, _) =>
-          val (sym, _, args) = Quantifiers.symbolizeComprehension(c)
+          val (sym, _, args) = quantifiers.symbolizeComprehension(c)
           val argsN = args.map(getNode(_))
           val node = new CcSym(c, sym, argsN)
           incrementalAdd(sym, node, argsN)

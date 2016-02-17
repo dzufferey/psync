@@ -308,7 +308,7 @@ object Simplify {
         val init = (List[Formula](), Set[Variable]())
         val (disj2, vars) = disjs.foldLeft( init )( (acc, f) => {
           val (fs, vs) = acc
-          val (f2, v) = psync.logic.Quantifiers.getExistentialPrefix(f)
+          val (f2, v) = psync.logic.quantifiers.getExistentialPrefix(f)
           val existing = vs -- v
           val news = v.filterNot(vs)
           val (map,_) = news.foldLeft((Map[Variable,Variable](),existing))( (acc, v) => {

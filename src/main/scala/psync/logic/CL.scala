@@ -33,7 +33,7 @@ object CL {
   def keepAsIt(f: Formula): Boolean = {
     //TODO this accepts formula that would be rejected if they were skolemized!!
     !hasComp(f) && TypeStratification.isStratified(f)
-    //!hasComp(f) && Quantifiers.isEPR(f)
+    //!hasComp(f) && isEPR(f)
   }
 
 }
@@ -119,7 +119,7 @@ class CL(config: ClConfig) {
   protected def cleanUp(ls: List[Formula]) = {
     val f = And(ls:_*)
     val simp = Simplify.boundVarUnique(f)
-    val qf = Quantifiers.skolemize(simp) //get ride of ∃
+    val qf = skolemize(simp) //get ride of ∃
     val renamed = Simplify.deBruijnIndex(qf)
     Simplify.simplify(renamed)
   }
@@ -166,19 +166,19 @@ class CL(config: ClConfig) {
     var symbols = Map.empty[Symbol,Formula]
 
     //remove the top level ∃ quantifiers (sat query)
-    val (query1, _) = Quantifiers.getExistentialPrefix(query)
+    val (query1, _) = getExistentialPrefix(query)
     val clauses0 = FormulaUtils.getConjuncts(query1)
     val clauses = clauses0.map( f => {
       val f2 = Simplify.pnf(f)
-      val f3 = Quantifiers.fixUniquelyDefinedUniversal(f2)
+      val f3 = fixUniquelyDefinedUniversal(f2)
       val f4 = FormulaUtils.map({
         case c @ Comprehension(_, _) =>
-          val (sym, d, args) = Quantifiers.symbolizeComprehension(c)
+          val (sym, d, args) = symbolizeComprehension(c)
           symbols += (sym -> d)
           sym(args:_*)
         case other => other
       }, f3)
-      Quantifiers.skolemize(f4)
+      skolemize(f4)
     })
 
     val cc = new CongruenceClosure //incremental CC

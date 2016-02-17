@@ -43,7 +43,7 @@ object InstGen {
 
   def postprocess(f: Formula): Formula = {
     val simp = Simplify.boundVarUnique(f)
-    val qf = Quantifiers.skolemize(simp)
+    val qf = skolemize(simp)
     Simplify.simplifyBool(FormulaUtils.flatten(qf))
   }
 
@@ -90,7 +90,7 @@ object InstGen {
                     cClasses: CC = CongruenceClasses.empty,
                     additionalTerms: Set[Formula] = Set()): Formula = {
     val fs = FormulaUtils.getConjuncts(formula)
-    val (axioms, leftOver) = fs.partition(Quantifiers.hasFAnotInComp)
+    val (axioms, leftOver) = fs.partition(hasFAnotInComp)
     val gen = makeGenerator(axioms, cClasses, mandatoryTerms ++ additionalTerms)
     val cc = gen.cc
     val mRepr = mandatoryTerms.map(cc.repr)
@@ -114,7 +114,7 @@ object InstGen {
                 cClasses: CC = new CongruenceClosure,
                 additionalTerms: Set[Formula] = Set()): Formula = {
     val fs = FormulaUtils.getConjuncts(formula)
-    val (axioms, leftOver) = fs.partition(Quantifiers.hasFAnotInComp)
+    val (axioms, leftOver) = fs.partition(hasFAnotInComp)
     val ts = additionalTerms ++ FormulaUtils.collectGroundTerms(And(leftOver:_*))
     val gen = makeGenerator(axioms, cClasses, ts)
     val insts = gen.saturate(depth)

@@ -27,10 +27,6 @@ object OptionAxioms {
     axms//.map(Typer(_).get)
   }
 
-  def addAxioms(conjuncts: List[Formula]): List[Formula] = {
-    conjuncts ::: getAxioms(conjuncts)
-  }
-
   def getAxioms(conjuncts: List[Formula]): List[Formula] = {
     //collect the option types, get the parameters, and mkAxioms
     val tpes = conjuncts.foldLeft(Set[Type]())( _ ++ FormulaUtils.collectTypes(_) )
@@ -58,10 +54,6 @@ object TupleAxioms {
       acc = ForAll(tpl::args, Implies(Eq(tpl, app), Eq(Trd(tpl).setType(ts(2)), args(2)))) :: acc
     }
     acc//.map(Typer(_).get)
-  }
-
-  def addAxioms(conjuncts: List[Formula]): List[Formula] = {
-    conjuncts ::: getAxioms(conjuncts)
   }
 
   def getAxioms(conjuncts: List[Formula]): List[Formula] = {
@@ -129,10 +121,6 @@ object SetOperationsAxioms {
     ForAll(List(s,t),
       Implies(SubsetEq(s, t),
               Leq(Cardinality(s),Cardinality(t))))
-  }
-  
-  def addAxioms(conjuncts: List[Formula]): List[Formula] = {
-    conjuncts ::: getAxioms(conjuncts)
   }
   
   def getAxioms(conjuncts: List[Formula]): List[Formula] = {

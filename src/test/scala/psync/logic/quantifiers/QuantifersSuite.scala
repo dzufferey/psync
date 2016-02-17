@@ -1,5 +1,6 @@
-package psync.logic
+package psync.logic.quantifiers
 
+import psync.logic._
 import psync.formula._
 import psync.utils.smtlib._
 
@@ -19,8 +20,8 @@ class QuantifiersSuite extends FunSuite {
       ForAll(List(p1), Eq(qp1,p2)),
       ForAll(List(p1), Eq(qp1,p2))
     )
-    pos.foreach( f => assert( Quantifiers.isEPR(f)) )
-    neg.foreach( f => assert(!Quantifiers.isEPR(f)) )
+    pos.foreach( f => assert( isEPR(f)) )
+    neg.foreach( f => assert(!isEPR(f)) )
   }
   
   test("isEPR 2") {
@@ -32,28 +33,32 @@ class QuantifiersSuite extends FunSuite {
     val _data = UnInterpretedFct("data",Some(pid ~> Int))
     def data(i: Formula) = Application(_data, List(i)).setType(Int)
     val f = ForAll(List(i), Eq(data(i), Literal(0)))
-    assert(!Quantifiers.isEPR(f))
+    assert(!isEPR(f))
   }
   
   test("isStratified 1") {
     import psync.formula.Common._
-    def lt1(t1: Type, t2: Type): Boolean = (t1, t2) match {
-      case (Int, `pid`) | (FSet(`pid`), `pid`) => true
-      case _ => false
+    val lt1 = new TypeStratification {
+      def apply(t1: Type, t2: Type): Boolean = (t2, t1) match {
+        case (Int, `pid`) | (FSet(`pid`), `pid`) => true
+        case _ => false
+      }
     }
-    def lt2(t1: Type, t2: Type): Boolean = (t1, t2) match {
-      case (Int, `pid`) | (`pid`, FSet(`pid`)) => true
-      case _ => false
+    val lt2 = new TypeStratification {
+      def apply(t1: Type, t2: Type): Boolean = (t2, t1) match {
+        case (Int, `pid`) | (`pid`, FSet(`pid`)) => true
+        case _ => false
+      }
     }
     val f1 = ForAll(List(p1), Eq(rp1, Literal(0)))
-    assert(Quantifiers.isStratified(f1, lt1))
-    assert(Quantifiers.isStratified(f1, lt2))
+    assert(lt1.isStratified(f1))
+    assert(lt2.isStratified(f1))
     val f2 = ForAll(List(p1), Eq(rqp1, Literal(0)))
-    assert(!Quantifiers.isStratified(f2, lt1))
-    assert(!Quantifiers.isStratified(f2, lt2))
+    assert(!lt1.isStratified(f2))
+    assert(!lt2.isStratified(f2))
     val f3 = ForAll(List(p1), In(p1, CL.HO(p1)))
-    assert( Quantifiers.isStratified(f3, lt1))
-    assert(!Quantifiers.isStratified(f3, lt2))
+    assert( lt1.isStratified(f3))
+    assert(!lt2.isStratified(f3))
   }
   
   test("isStratified 2") {

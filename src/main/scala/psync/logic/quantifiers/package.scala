@@ -6,7 +6,7 @@ import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 import dzufferey.utils.{Namer, Misc}
 
-object Quantifiers {
+package object quantifiers {
 
   /*  Sometime we introduce constant as shorthand for set.
    *  Negation makes them universal.
@@ -18,7 +18,7 @@ object Quantifiers {
     case ForAll(vs, f) =>
       val (_swappable, rest) = vs.partition(_.tpe match {case FSet(_) => true; case _ => false})
       val swappable = _swappable.toSet
-      Logger("CL", Debug, "fix uniquely defined universal swappable: " + swappable.mkString(", "))
+      Logger("quantifiers", Debug, "fix uniquely defined universal swappable: " + swappable.mkString(", "))
       //we are looking for clause like A = {x. ...} ⇒ ...
       val (prefix, f2) = FormulaUtils.getQuantifierPrefix(f)
       val avoid = f.boundVariables ++ vs
@@ -53,7 +53,7 @@ object Quantifiers {
 
       val (defs, f3) = extractDef(swappable, f2)
 
-      Logger("CL", Debug, "fix uniquely defined universal defs: " + defs.mkString(", "))
+      Logger("quantifiers", Debug, "fix uniquely defined universal defs: " + defs.mkString(", "))
       val eqs2 = defs.map{ case (a,b) => Eq(a, b) }
       val withDefs = And(f3 +: eqs2.toSeq :_*)
       val withPrefix = FormulaUtils.restoreQuantifierPrefix(prefix, withDefs)
@@ -65,7 +65,7 @@ object Quantifiers {
       }
 
       val swapped = defs.map(_._1).toSet
-      Logger("CL", Info, "fix uniquely defined universal for: " + swapped.mkString(", "))
+      Logger("quantifiers", Info, "fix uniquely defined universal for: " + swapped.mkString(", "))
       val remaining = swappable.filterNot(swapped contains _).toList ::: rest
       val above = defs.flatMap{ case (v, c) => if ( hasDependencies(v,c)) Some(v) else None }.toList
       val below = defs.flatMap{ case (v, c) => if (!hasDependencies(v,c)) Some(v) else None }.toList
@@ -88,18 +88,6 @@ object Quantifiers {
         acc
     }
     FormulaUtils.collectWithScope(true, check, axiom)
-  }
-
-  def isStratified(axiom: Formula, lt: (Type, Type) => Boolean): Boolean = {
-    def isGround(vs: Set[Variable], f: Formula) = f.freeVariables.intersect(vs).isEmpty
-    def check(acc: Boolean, vs: Set[Variable], f: Formula) = f match {
-      case Application(_, args) =>
-        acc && (f.tpe == Bool || args.forall( a => isGround(vs, a) || lt(f.tpe, a.tpe) ) )
-      case _ =>
-        acc
-    }
-    val sk = skolemize(axiom)
-    FormulaUtils.collectWithScope(true, check, sk)
   }
 
   protected def getQuantPrefix(f: Formula, exists: Boolean): (Formula, List[Variable]) = {
@@ -225,10 +213,10 @@ object Quantifiers {
           val args2 = args.map(process(bound, _))
           Copier.Application(a, fct, args2)
         case b @ Binding(bt @ (ForAll|Exists), vs2, f2) =>
-          Logger("Quantifiers", Warning, "quantifier inside a set comprehension: " + b)
+          Logger("quantifiers", Warning, "quantifier inside a set comprehension: " + b)
           Copier.Binding(b, bt, vs2, process(bound ++ vs2, f2))
         case Binding(Comprehension, vs, f2) =>
-          Logger.logAndThrow("Quantifiers", Warning, "Comprehension inside a comprehension: " + c)
+          Logger.logAndThrow("quantifiers", Warning, "Comprehension inside a comprehension: " + c)
         case v @ Variable(_) =>
           if (bound(v)) v
           else makeVariable(v)
@@ -242,7 +230,7 @@ object Quantifiers {
       //println("simplified: " + simplified)
       val (newVs, newBody) = simplified match {
         case Comprehension(v, b) => v -> b
-        case other => Logger.logAndThrow("Quantifiers", Warning, "expected Comprehension, found : " + other)
+        case other => Logger.logAndThrow("quantifiers", Warning, "expected Comprehension, found : " + other)
       }
       val args = revArgs.reverse
       val id = "compFun_"+newBody.toStringFull+"_"+c.tpe
@@ -255,7 +243,7 @@ object Quantifiers {
           val s = UnInterpretedFct(name, Some(Function(args.map(_.tpe), c.tpe)))
           val s2 = symbolMap.putIfAbsent(id, s)
           if (s2 == null) {
-            Logger("CL", Debug, "introducing " + s + " for " + simplified)
+            Logger("quantifier", Debug, "introducing " + s + " for " + simplified)
             s
           }else s2
         }
@@ -264,7 +252,7 @@ object Quantifiers {
       //println(defAxiom)
       (sym, defAxiom, args)
     case other =>
-      Logger.logAndThrow("Quantifiers", Error, "expected Comprehension, found: " + other)
+      Logger.logAndThrow("quantifiers", Error, "expected Comprehension, found: " + other)
   }
 
 }

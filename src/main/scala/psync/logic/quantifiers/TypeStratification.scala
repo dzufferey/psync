@@ -1,5 +1,6 @@
-package psync.logic
+package psync.logic.quantifiers
 
+import psync.logic.CL
 import psync.formula._
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
@@ -15,8 +16,17 @@ trait TypeStratification {
   def lt(t1: Type, t2: Type): Boolean = apply(t2, t1)
 
   /** A formula is stratified if all its quantified variables are. */ 
-  def isStratified(f: Formula): Boolean = Quantifiers.isStratified(f, this.lt)
-
+  def isStratified(axiom: Formula): Boolean = {
+    def isGround(vs: Set[Variable], f: Formula) = f.freeVariables.intersect(vs).isEmpty
+    def check(acc: Boolean, vs: Set[Variable], f: Formula) = f match {
+      case Application(_, args) =>
+        acc && (f.tpe == Bool || args.forall( a => isGround(vs, a) || lt(f.tpe, a.tpe) ) )
+      case _ =>
+        acc
+    }
+    val sk = skolemize(axiom)
+    FormulaUtils.collectWithScope(true, check, sk)
+  }
 }
 
 /** Default TypeStratification */
