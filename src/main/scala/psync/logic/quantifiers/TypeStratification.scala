@@ -15,6 +15,13 @@ trait TypeStratification {
   /** If type t1 is strictly smaller than t2 then a variable of type t2 is allowed to generates terms of type t1. */
   def lt(t1: Type, t2: Type): Boolean = apply(t2, t1)
 
+  /** Checks is a variable is stratified is the given formula.
+   *  Assumes f does not contains quantifiers
+   */
+  def isStratified(v: Variable, f: Formula): Boolean = {
+    isStratified(ForAll(List(v), f))
+  }
+
   /** A formula is stratified if all its quantified variables are. */ 
   def isStratified(axiom: Formula): Boolean = {
     def isGround(vs: Set[Variable], f: Formula) = f.freeVariables.intersect(vs).isEmpty

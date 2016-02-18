@@ -128,12 +128,11 @@ class CL(config: ClConfig) {
     Logger("CL", Debug, "instantiation strategy: " + strat)
     strat match {
       case QStrategy(t, bnd, local) =>
-        val (leftOver, axioms) = fs.partition(keepAsIt)
+        val gen = new IncrementalGenerator(fs, t, cc, TypeStratification)
+        val leftOver = gen.leftOver
         Logger("CL", Debug, "leftOver:\n  " + leftOver.mkString("\n  "))
-        Logger("CL", Debug, "axioms:\n  " + axioms.mkString("\n  "))
-        val gen = new IncrementalGenerator(axioms, t, cc)
         val generated = gen.saturate(bnd, local)
-        //Logger("CL", Debug, "generated: \n  " + generated.mkString("\n  "))
+        Logger("CL", Debug, "generated: \n  " + generated.mkString("\n  "))
         val res = leftOver ::: generated
         //gen.log(Debug)
         (res, gen)
@@ -148,11 +147,11 @@ class CL(config: ClConfig) {
     val (leftOver, axioms) = fs.partition(keepAsIt)
     Logger("CL", Debug, "local leftOver:\n  " + leftOver.mkString("\n  "))
     Logger("CL", Debug, "local axioms:\n  " + axioms.mkString("\n  "))
-    Logger("CL", Debug, "local cc:\n  " + cc)
+    Logger("CL", Debug, "local cc:\n" + cc)
     val gen = new IncrementalGenerator(axioms, new Eager, cc)
     //val generated = gen.saturate(Some(0), true)
     val generated = gen.locallySaturate
-    Logger("CL", Debug, "local generated: \n  " + generated.mkString("\n  "))
+    Logger("CL", Debug, "local generated:\n  " + generated.mkString("\n  "))
     leftOver ::: generated
   }
 

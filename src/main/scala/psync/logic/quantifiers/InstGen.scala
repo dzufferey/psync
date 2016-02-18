@@ -47,8 +47,6 @@ object InstGen {
     Simplify.simplifyBool(FormulaUtils.flatten(qf))
   }
 
-  protected def toCongruenceClosure(cClasses: CC) = cClasses.mutable
-
   /** instantiate all the universally quantified variables with the provided ground terms.
    * @param axioms a list of axioms
    * @param cClasses (optional) congruence classes to reduce the number of terms used in the instantiation

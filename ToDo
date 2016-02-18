@@ -43,10 +43,8 @@
 - Formula:
     * generalize typer overloading: Int vs Real
 - InstGen
-    * type stratification / EPR snould be at the level of individual variables, not clauses
-    * require skolemization and remove the code to deal with ∃
     * local step should not change the internal state of the generator
-    * generalise depth and integrate stratification
+    * generalise depth and stratification
         - different types may have different depth (local types have depth 0)
         - not every type may be allowed to generate terms of other types
 - better structure of the specification:

@@ -13,7 +13,8 @@ import scala.collection.mutable.ArrayBuffer
 
 class IncrementalGenerator( axioms: Iterable[Formula],
                             tactic: Tactic,
-                            _cc: CongruenceClosure
+                            _cc: CongruenceClosure,
+                            typeStrat: TypeStratification = null
                           ) extends Generator {
 
   def cc = _cc
@@ -65,6 +66,43 @@ class IncrementalGenerator( axioms: Iterable[Formula],
     leafCounter
   }
 
+  /** The part that are not instantiated */
+  var leftOver = List[Formula]()
+
+  axioms.foreach( a => {
+    val (vs, f) = openAxiom(a)
+    if (vs.isEmpty) {
+      Logger("IncrementalGenerator", Debug, "left over: " + f)
+      leftOver ::= f
+    } else {
+      addGen( makeGen(vs, f) )
+    }
+  })
+  
+  /** Identify the variables that needs to be instantiated using the type stratification.
+   *  Checks that ∃ have been skolemized
+   */
+  protected def openAxiom(f: Formula): (List[Variable], Formula) = {
+    Logger.assert(Simplify.isPnf(f), "IncrementalGenerator", "not in Prenex normal form: " + f)
+    def needInst(v: Variable, f: Formula) = {
+      (typeStrat == null) ||
+      !typeStrat.isStratified(v,f)
+    }
+    f match {
+      case ForAll(vs, body) =>
+        body match {
+          case Exists(_, _) => Logger.logAndThrow("IncrementalGenerator", Error, "∃ needs to be skolemized: " + f)
+          case _ => ()
+        }
+        val (inst,keep) = vs.partition( needInst(_, body) )
+        (inst, if (keep.isEmpty) body else ForAll(keep, body))
+      case Exists(_, _) =>
+        Logger.logAndThrow("IncrementalGenerator", Error, "∃ needs to be skolemized: " + f)
+      case other =>
+        (Nil, other)
+    }
+  }
+
   /* returns an existing similar Gen if there already is one */
   protected def findSimilar(g: Gen): Option[Int] = {
     val potentialConflict = hashFilter.getOrElseUpdate(g.hashCode, ArrayBuffer[Int]())
@@ -73,6 +111,7 @@ class IncrementalGenerator( axioms: Iterable[Formula],
   
   /* adds a new generator to the list of generator */
   protected def addGen(g: Gen) = {
+    //println("adding: " + g)
     assert(!g.isResult)
     findSimilar(g) match {
       case None =>
@@ -93,12 +132,6 @@ class IncrementalGenerator( axioms: Iterable[Formula],
       case Some(index) =>
         index
     }
-  }
-
-  //extract the first Gen from the axioms
-  axioms.foreach{
-    case fa @ ForAll(vs, f) => addGen( makeGen(vs, f) )
-    case other => Logger("IncrementalGenerator", Warning, "(2) expect ∀, found: " + other)
   }
 
   def generate(term: Formula): List[Formula] = {
@@ -277,31 +310,13 @@ class IncrementalGenerator( axioms: Iterable[Formula],
     new Gen(vs, f)
   }
   
-  //check ∃∀: if the top level is ∃, then give it a fresh name and continue
   protected def makeGen(vs0: List[Variable], f0: Formula): Gen = {
     val f = Simplify.simplify(f0)
     val vs = vs0.filter(f.freeVariables)
     if (vs.isEmpty) {
-      f match {
-        case Exists(vse, fe) =>
-          val bvse = vse.toSet
-          val renaming = vse.map( v => {
-            val defs = getDefinitions(v, fe)
-            (v -> findCandidate(v, bvse - v, defs)) 
-          }).toMap
-          def map(f: Formula) = f match {
-            case v @ Variable(_) => renaming.getOrElse(v, v)
-            case f => f
-          }
-          FormulaUtils.map(map, fe) match {
-            case ForAll(va, fa) => makeGen(va, fa)
-            case other => makeGen(Nil, other)
-          }
-        case other =>
-          new Gen(Array.empty[Variable], other)
-      }
+      new Gen(Array.empty[Variable], f)
     } else {
-      Simplify.deBruijnIndex(ForAll(vs, f)) match {
+      Simplify.deBruijnIndex(Binding(ForAll, vs, f).setType(Bool)) match {
         case ForAll(va, fa) =>
           import FormulaUtils._
           new Gen(va.toArray.sorted, Simplify.simplify(fa))

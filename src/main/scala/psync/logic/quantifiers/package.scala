@@ -183,6 +183,7 @@ package object quantifiers {
     case _ => false
   }
 
+  //TODO weak references
   protected val symbolMap = new java.util.concurrent.ConcurrentHashMap[String,Symbol]()
 
   /** Turn comprehensions into symbols (used to handle comprehensions in the CongruenceClosure)

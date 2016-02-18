@@ -374,8 +374,16 @@ class CLSuite extends FunSuite {
     assertUnsat(fs, cln(3, new quantifiers.Guided, 0, true))
   }
 
-  //TODO tuples
-  //test("pairs 0") {
-  //}
+  test("pairs 0") {
+    val tpl1 = Variable("tpl1").setType(Product(List(pid, pid)))
+    val tpl2 = Variable("tpl2").setType(Product(List(pid, pid)))
+    val fs = List(
+      tpl1 === Tuple(i, j),
+      tpl2 === Tuple(l, j),
+      tpl2._2 !== i
+    )
+    assertSat(fs)
+    assertUnsat((tpl1._1 !== i) :: fs)
+  }
 
 }

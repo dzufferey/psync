@@ -184,4 +184,26 @@ class IncrementalGeneratorSuite extends FunSuite {
     //println(res)
   }
 
+  test("stratification 1"){
+    def mkItg(f: Formula) = {
+      new IncrementalGenerator(List(f), new Guided, new CongruenceClosure, TypeStratification)
+    }
+    val itg1 = mkItg(ForAll(List(p1), Eq(rp1, IntLit(0))))
+    assert(itg1.leftOver.size == 1)
+    val itg2 = mkItg(ForAll(List(p1,p2), Eq(qp1, qp2)))
+    assert(itg2.leftOver.size == 0)
+  }
+
+  test("stratification 2"){
+    def mkItg(f: Formula) = {
+    }
+    val cc = new CongruenceClosure
+    cc.repr(p1)
+    cc.repr(p2)
+    val itg = new IncrementalGenerator(List(ForAll(List(p1,p2), Neq(qp1, p2))), new Eager, cc, TypeStratification)
+    assert(itg.leftOver.size == 0)
+    val res = itg.saturate(Some(0), true)
+    assert(res.size == 2)
+  }
+
 }
