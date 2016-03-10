@@ -21,9 +21,9 @@ trait Specs[IO, P <: Process[IO]] {
     implicit class BoolOps(lhs: Boolean) {
       def ==>(rhs: Boolean): Boolean =  !lhs || rhs
     }
-    def init[T](v: T): T = sys.error("only for specification purpose, removed by macros")
-    def old[T](v: T): T =  sys.error("only for specification purpose, removed by macros")
-    def idToP(p: ProcessID): P =  sys.error("only for specification purpose, removed by macros")
+    def init[T](v: T): T = sys.error("only for specification purpose, removed by macros") // linter:ignore UnusedParameter
+    def old[T](v: T): T =  sys.error("only for specification purpose, removed by macros") // linter:ignore UnusedParameter
+    def idToP(p: ProcessID): P =  sys.error("only for specification purpose, removed by macros") // linter:ignore UnusedParameter
   }
 
   var axiomList: List[Axiom] = Nil

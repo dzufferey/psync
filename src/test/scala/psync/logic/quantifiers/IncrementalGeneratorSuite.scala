@@ -195,8 +195,6 @@ class IncrementalGeneratorSuite extends FunSuite {
   }
 
   test("stratification 2"){
-    def mkItg(f: Formula) = {
-    }
     val cc = new CongruenceClosure
     cc.repr(p1)
     cc.repr(p2)

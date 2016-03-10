@@ -101,8 +101,8 @@ object ERBRunner extends RTOptions {
     }
     Thread.sleep(100)
     Console.println("replica " + id + " proposing " + init)
-    delivered.put(id.toShort, true)
-    rt.startInstance(id.toShort, io)
+    delivered.put(id, true)
+    rt.startInstance(id, io)
   }
   
   Runtime.getRuntime().addShutdownHook(

@@ -157,7 +157,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
       val nbrOk = nbr.isEmpty || nbr.get == instanceNbr + 1 //start because of sequence #
       val opOk = op.isDefined || !pending.isEmpty //start because of op
       if (nbrOk && opOk) {
-        instanceNbr = (instanceNbr + 1).asInstanceOf[Short]
+        instanceNbr = (instanceNbr + 1).toShort
         val init = op.getOrElse(pending.poll)
         assert(init != null, "cannot decide on initial value") 
         val io = new MembershipIO {
@@ -224,7 +224,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
     if (flag == Flags.normal || flag == Flags.dummy) {
       //check version number to know whether we are in synch
       val inst = msg.tag.instanceNbr
-      val expected = (instanceNbr + 1).asInstanceOf[Short]
+      val expected = (instanceNbr + 1).toShort
 
       if (inst == expected) {
         val bytes = msg.getPayLoad

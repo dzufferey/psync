@@ -2,7 +2,7 @@ name := "psync"
 
 version := "0.2-SNAPSHOT"
 
-scalaVersion := "2.11.7"
+scalaVersion := "2.11.8"
 
 scalacOptions in Compile ++= Seq(
     "-unchecked",
@@ -24,14 +24,16 @@ libraryDependencies ++=  Seq(
     "org.scala-lang" % "scala-compiler" % scalaVersion.value,
     "org.scala-lang.modules" %% "scala-xml" % "1.0.5",
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4",
-    "org.scalatest" %% "scalatest" % "2.2.4" % "test",
-    "org.scalacheck" %% "scalacheck" % "1.12.4" % "test",
+    "org.scalatest" %% "scalatest" % "2.2.6" % "test",
+    "org.scalacheck" %% "scalacheck" % "1.13.0" % "test",
     "org.scala-lang.modules" %% "scala-pickling" % "0.10.1",
-    "io.netty" % "netty-all" % "4.0.33.Final",
+    "io.netty" % "netty-all" % "4.0.34.Final",
     "io.github.dzufferey" %% "scala-arg" % "0.1-SNAPSHOT",
     "io.github.dzufferey" %% "report" % "0.1-SNAPSHOT",
     "io.github.dzufferey" %% "misc-scala-utils" % "0.1-SNAPSHOT"
 )
+
+addCompilerPlugin("org.psywerx.hairyfotr" %% "linter" % "0.1.13")
 
 resolvers += Resolver.sonatypeRepo("snapshots")
 

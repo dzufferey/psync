@@ -10,7 +10,7 @@ class A1 {
   @ensures("res", Eq(Variable("res"), Literal(0)))
   def m1(v: Int): Int = {
     assert(v > 0)
-    0
+    0 // linter:ignore InvariantReturn
   }
 
 }
@@ -26,7 +26,7 @@ class AnnotSuite extends FunSuite {
       val as = method.annotations.filter(a => a.tree.tpe == reqTpe || a.tree.tpe == ensTpe)
       if(!as.isEmpty) {
         for (a <- as) {
-          val expr = Annotations.eval(a)
+          val expr = Annotations.eval(a) // linter:ignore UndesirableTypeInference
           expr match {
             case r: requires =>
               assert(r.f == Gt(Variable("v"), Literal(0)))

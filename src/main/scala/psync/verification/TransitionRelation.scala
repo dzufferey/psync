@@ -186,9 +186,9 @@ class TransitionRelation(_tr: Formula,
 
   /* returns a list of precondition to test */
   def auxPrecondition(aux: Map[String, AuxiliaryMethod]): List[(Formula, Formula)] = {
-    sys.error("TODO ...")
+    ???
   }
   
-  def report = sys.error("TODO")
+  def report = ???
 
 }

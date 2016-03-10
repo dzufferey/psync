@@ -38,7 +38,7 @@ class EpsilonProcess(f: Int, epsilon: Double) extends Process[RealConsensusIO] {
       def _new(k: Int, f: Int, collection: Seq[Double]) = {
         val red = reduce(f, collection)
         val sel = select(k, red)
-        sel.reduce(_ + _) / sel.size
+        sel.sum / sel.size
       }
      
       def send: Map[ProcessID,(Double, Boolean)] = {

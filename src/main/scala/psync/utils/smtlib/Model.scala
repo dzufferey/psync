@@ -25,7 +25,7 @@ object Def {
   
   def uneval(domains: Map[Type, Set[ValExt]], d: Def, ret: ValDef): List[List[ValDef]] = d match {
     case v: ValDef =>
-      if (v == ret) List() else Nil
+      if (v == ret) List(Nil) else Nil
     case f: FunDef =>
       val mtch = f.defs.filter(_._2 == ret).map(_._1)
         if (!mtch.isEmpty)

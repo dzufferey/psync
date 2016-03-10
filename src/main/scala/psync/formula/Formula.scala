@@ -107,7 +107,7 @@ sealed abstract class Symbol {
 
   def tpe: Type = instanciateType(typeParams.map( t => Type.freshTypeVar))
   //for variadic functions
-  def tpe(arity: Int): Type = tpe
+  def tpe(arity: Int): Type = tpe // linter:ignore UnusedParameter
 
   val fix = Fix.Prefix
   val priority = 10

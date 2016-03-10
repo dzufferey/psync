@@ -25,7 +25,8 @@ object Annotations {
     assert(a.tree.tpe == reqTpe || a.tree.tpe == ensTpe, "wrong type: " + a.tree.tpe)
     val str = a.toString
     Logger("Annotations", Info, "recontructing: " + str)
-    val expr = tb.eval(tb.parse(str)) //TODO this a big hack!!
+    //TODO this a big hack!!
+    val expr = tb.eval(tb.parse(str)) // linter:ignore UndesirableTypeInference
     Logger("Annotations", Info, "result: " + expr)
     expr
   }

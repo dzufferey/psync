@@ -26,11 +26,11 @@ package object quantifiers {
       def extractDef(candidates: Set[Variable], f: Formula): (Seq[(Variable, Formula)], Formula) = f match {
         case Or(lst @ _*) =>
           //try to get the definitions at this level
-          val (_defs, rest) = lst.partition( f => f match {
+          val (_defs, rest) = lst.partition{
             case Not(Eq(v @ Variable(_), c @ Comprehension(_,_))) if candidates(v) => true
             case Not(Eq(c @ Comprehension(_,_), v @ Variable(_))) if candidates(v) => true
             case _ => false
-          })
+          }
           val defs1 = _defs.collect{
             case Not(Eq(v @ Variable(_), c @ Comprehension(_,_))) => v -> c
             case Not(Eq(c @ Comprehension(_,_), v @ Variable(_))) => v -> c
@@ -38,7 +38,7 @@ package object quantifiers {
           assert(defs1.size == _defs.size)
           
           //no def at this stage and present only in one clause, then can go further down
-          val candidates2 = (candidates -- defs1.map(_._1)).filter( v => rest.filter(_.freeVariables contains v).size == 1 )
+          val candidates2 = (candidates -- defs1.map(_._1)).filter( v => rest.count(_.freeVariables contains v) == 1 )
           val (defs2, rest2) = rest.map(extractDef(candidates2, _)).unzip
 
           (defs1 ++ defs2.flatten, Or(rest2:_*))

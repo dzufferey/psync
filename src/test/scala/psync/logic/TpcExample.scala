@@ -124,14 +124,14 @@ class TpcExample extends FunSuite {
 
   test("invariant implies agreement") {
     val fs = List(invariant1, Not(agreement))
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertUnsat(fs, cln(2, new quantifiers.Eager,  1, true))
+    assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
   }
 
   test("invariant implies validity") {
     val fs = List(invariant1, Not(validity))
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertUnsat(fs, cln(2, new quantifiers.Eager,  1, true))
+    assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
   }
 
   test("initialState and round 1a implies invariant 1") {
@@ -140,8 +140,10 @@ class TpcExample extends FunSuite {
       round1a,
       Not(prime(invariant1))
     )
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertUnsat(fs, cln(1, new quantifiers.Eager,  1, true))
+    assertUnsat(fs, cln(1, new quantifiers.Guided, 1, true))
+    assertUnsat(fs, cln(2, new quantifiers.Eager,  1, true))
+    assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
   }
 
   test("invariant 1 is inductive at round 2a") {
@@ -150,8 +152,10 @@ class TpcExample extends FunSuite {
       round2a,
       Not(prime(invariant1))
     )
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertUnsat(fs, cln(1, new quantifiers.Eager,  1, true))
+    assertUnsat(fs, cln(1, new quantifiers.Guided, 1, true))
+    assertUnsat(fs, cln(2, new quantifiers.Eager,  1, true))
+    assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
   }
 
 
@@ -161,8 +165,10 @@ class TpcExample extends FunSuite {
       round1b,
       Not(prime(invariant1))
     )
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertUnsat(fs, cln(1, new quantifiers.Eager,  1, true))
+    assertUnsat(fs, cln(1, new quantifiers.Guided, 1, true))
+    assertUnsat(fs, cln(2, new quantifiers.Eager,  1, true))
+    assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
   }
 
   test("invariant 1 is inductive at round 2b") {
@@ -171,8 +177,10 @@ class TpcExample extends FunSuite {
       round2b,
       Not(prime(invariant1))
     )
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertUnsat(fs, cln(1, new quantifiers.Eager,  1, true))
+    assertUnsat(fs, cln(1, new quantifiers.Guided, 1, true))
+    assertUnsat(fs, cln(2, new quantifiers.Eager,  1, true))
+    assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
   }
 
 }

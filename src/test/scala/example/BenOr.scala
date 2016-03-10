@@ -69,7 +69,7 @@ class BenOrProcess extends Process[BinaryConsensusIO] {
           x = true
           canDecide = true
         } else if (f > n/2) {
-          x = true
+          x = false
           canDecide = true
         } else if (t > 1){
           x = true

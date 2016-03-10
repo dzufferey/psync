@@ -85,10 +85,8 @@ class LockManager(self: Short,
         import scala.pickling._ 
         import binary._ 
         msg.round % 4 match {
-          case 0 => msg.getInt(0)//getContent[(Int,Int)]._1
-          case 1 => msg.getInt(0)
+          case 0 | 1 | 3 => msg.getInt(0)//getContent[(Int,Int)]._1
           case 2 => -1
-          case 3 => msg.getInt(0)
           case _ => sys.error("???")
         }
       } else {
@@ -272,7 +270,7 @@ object Main extends RTOptions {
       val cli = new LockManagerClient(clientPort, (remoteAddress, remotePort))
       cli.run
     } else {
-      val srv = new LockManager(id.toShort, clientPort)
+      val srv = new LockManager(id, clientPort)
       srv.start
     }
   }

@@ -119,7 +119,7 @@ trait FormulaExtractor {
     case Ident(TermName(fct)) =>
       val tpe = extractType(e.tpe)
       //c.echo(e.pos, "(4) "+ e +" as an UnInterpretedFct with type " + e.tpe + "," + tpe)
-      UnInterpretedFct(fct.toString, Some(tpe)) //TODO type parameters
+      UnInterpretedFct(fct, Some(tpe)) //TODO type parameters
     case _ => sys.error("extractSymbol: " + showRaw(e))
   }
 
@@ -311,10 +311,10 @@ trait FormulaExtractor {
         val m = Variable(c.freshName("applyMap")).setType(t)
         val elt = Variable(c.freshName("v")).setType(extractType(t1))
         val args2 = args map tree2Formula
-        val (keys,values) = args2.map( x => x match {
+        val (keys,values) = args2.map{
           case Tuple(k, v) =>  k -> v
           case other => Fst(other) -> Snd(other)
-        }).unzip
+        }.unzip
         // LookUp
         (keys zip values) foreach { case (k, v) => addCstr(Eq(LookUp(m, k), v)) }
         // KeySet

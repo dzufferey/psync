@@ -169,13 +169,6 @@ class IncrementalGenerator( axioms: Iterable[Formula],
     var i = 0
     val lDone = scala.collection.mutable.BitSet()
     val res = MSet[Formula]()
-    def checkDone(g: Gen, remaining: Iterable[Map[Variable,Formula]]) = {
-      if (g.isResult) {
-        true
-      } else {
-        false
-      }
-    }
     def instVar(idx: Int, g: Gen, matches: Iterable[Map[Variable,Formula]]) {
       assert(!g.isResult)
       val v = g.vs.last

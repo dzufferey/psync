@@ -63,10 +63,10 @@ object Typer {
     }
     def normalize = {
       val nonTrivial1 = lst.map(_.normalize).filter(_ != TrivialCstr)
-      val nonTrivial2 = nonTrivial1.flatMap( t => t match {
+      val nonTrivial2 = nonTrivial1.flatMap{
         case ConjCstr(lst) => lst
         case other => List(other)
-      }).toSet.toList
+      }.toSet.toList
       nonTrivial2 match {
         case Nil => TrivialCstr
         case x :: Nil => x

@@ -29,7 +29,7 @@ object TestCommon {
   def reduce(clc: ClConfig, conjuncts: List[Formula], debug: Boolean): Formula = {
     val cl = new CL(clc)
     if(debug) {
-      Logger.moreVerbose
+      Logger.moreVerbose //linter:ignore IdenticalStatements
       Logger.moreVerbose
       Logger.disallow("Typer")
       psync.utils.Options.logQI = true
@@ -53,7 +53,7 @@ object TestCommon {
         throw t
     } finally {
       if(debug) {
-        Logger.lessVerbose
+        Logger.lessVerbose //linter:ignore IdenticalStatements
         Logger.lessVerbose
         Logger.allow("Typer")
         psync.utils.Options.logQI = false
@@ -89,7 +89,7 @@ object TestCommon {
                 reducer: ClConfig = cl,
                 fname: Option[String] = None,
                 useCvcMf: Boolean = false) {
-    val f1 = reduce(cl, conjuncts, debug)
+    val f1 = reduce(reducer, conjuncts, debug)
     val solver = if (useCvcMf) Solver.cvc4mf(UFLIA, fname, to)
                  else Solver(UFLIA, fname, to)
     assert( solver.testB(f1), "sat formula")

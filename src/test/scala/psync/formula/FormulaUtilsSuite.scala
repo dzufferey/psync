@@ -11,11 +11,11 @@ class FormulaUtilsSuite extends FunSuite {
   val p1 = Variable("p1").setType(pid)
   
   test("collecting types") {
-    assert(collectTypes(And(And(Eq(a,a),Eq(x,x)), Eq(p1,p1))) == Set(Bool, Int, pid))
-    assert(collectTypes(And(Eq(a,a), Eq(p1,p1))) == Set(Bool, pid))
-    assert(collectTypes(And(Eq(x,x), Eq(p1,p1))) == Set(Bool, Int, pid))
-    assert(collectTypes(Eq(x,x)) == Set(Bool, Int))
-    assert(collectTypes(x) == Set(Int))
+    assert(collectTypes(And(And(Eq(a,a),Eq(x,x)), Eq(p1,p1))) == Set[Type](Bool, Int, pid))
+    assert(collectTypes(And(Eq(a,a), Eq(p1,p1))) == Set[Type](Bool, pid))
+    assert(collectTypes(And(Eq(x,x), Eq(p1,p1))) == Set[Type](Bool, Int, pid))
+    assert(collectTypes(Eq(x,x)) == Set[Type](Bool, Int))
+    assert(collectTypes(x) == Set[Type](Int))
   }
 
   test("ground terms 1") {
@@ -35,7 +35,7 @@ class FormulaUtilsSuite extends FunSuite {
   
   test("ground terms 2") {
     val c1 = Comprehension(List(x), Leq(x, y) )
-    val gts = Set(y,c1)
+    val gts = Set[Formula](y,c1)
     assert(collectGroundTerms(c1) == gts)
     val f1 = ForAll(List(y), c1)
     assert(collectGroundTerms(f1).isEmpty)

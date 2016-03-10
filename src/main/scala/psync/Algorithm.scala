@@ -46,8 +46,8 @@ object Time {
 
 //placeholder for quantifying over some domain
 class Domain[A] {
-  def forall(fct: A => Boolean): Boolean = sys.error("only for specification purpose, removed by macros")
-  def exists(fct: A => Boolean): Boolean = sys.error("only for specification purpose, removed by macros")
-  def filter(fct: A => Boolean): Set[A] =  sys.error("only for specification purpose, removed by macros")
+  def forall(fct: A => Boolean): Boolean = sys.error("only for specification purpose, removed by macros") // linter:ignore UnusedParameter
+  def exists(fct: A => Boolean): Boolean = sys.error("only for specification purpose, removed by macros") // linter:ignore UnusedParameter
+  def filter(fct: A => Boolean): Set[A] =  sys.error("only for specification purpose, removed by macros") // linter:ignore UnusedParameter
 }
 

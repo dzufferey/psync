@@ -63,8 +63,8 @@ trait ProcessRewrite {
         case Select(_, TermName("HO")) =>
           c.abort(c.enclosingPosition, "HO should be used only in the specification")
 
-        case Select(_, TermName(name)) if map contains name.toString =>
-          map(name.toString)
+        case Select(_, TermName(name)) if map contains name =>
+          map(name)
     
         case Ident(name) if map contains name.toString =>
           map(name.toString)

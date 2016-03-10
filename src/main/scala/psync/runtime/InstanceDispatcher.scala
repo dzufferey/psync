@@ -58,7 +58,7 @@ class InstanceDispatcher(options: RuntimeOptions)
     var oldLst: List[(Int,InstHandler)] = Nil
     l.lock()
     try {
-      oldLst = instances(i)
+      oldLst = instances(i) // linter:ignore VariableAssignedUnusedValue
       val lst2 = oldLst.filter( p => p._1 != inst )
       instances(i) = lst2
     } finally {

@@ -44,15 +44,16 @@ object TupleAxioms {
     val tpl = Variable("tpl").setType(Product(ts))
     val app = Application(Tuple, args).setType(Product(ts))
     var acc: List[Formula] = Nil
-    if (ts.size >= 1) {
+    val size = ts.size
+    if (size >= 1) {
       //acc ::= ForAll(args, Eq(Fst(app).setType(ts(0)), args(0)))
       acc ::= ForAll(tpl::args, Implies(Eq(tpl, app), Eq(Fst(tpl).setType(ts(0)), args(0))))
     }
-    if (ts.size >= 2) {
+    if (size >= 2) {
       //acc ::= ForAll(args, Eq(Snd(app).setType(ts(1)), args(1)))
       acc ::= ForAll(tpl::args, Implies(Eq(tpl, app), Eq(Snd(tpl).setType(ts(1)), args(1))))
     }
-    if (ts.size >= 3) {
+    if (size >= 3) {
       //acc ::= ForAll(args, Eq(Trd(app).setType(ts(2)), args(2)))
       acc ::= ForAll(tpl::args, Implies(Eq(tpl, app), Eq(Trd(tpl).setType(ts(2)), args(2))))
     }

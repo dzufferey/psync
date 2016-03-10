@@ -135,10 +135,8 @@ class PerfTest3(options: RuntimeOptions,
           selfStarted -= inst
           rate.release
         }
-        if (data != null) { //null/empty means the proposer crashed before setting a value
-          if (!data.isEmpty) {
-            acceptedRequests.add(inst -> data)
-          }
+        if (data != null && data.nonEmpty) { //null/empty means the proposer crashed before setting a value
+          acceptedRequests.add(inst -> data)
         }
       }
     } finally {

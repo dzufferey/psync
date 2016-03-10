@@ -17,7 +17,7 @@ class VennRegionsSuite extends FunSuite {
   val b = Variable("B").setType(FSet(pid))
   val c = Variable("C").setType(FSet(pid))
 
-  def nothing(f: Formula) = True()
+  def nothing(f: Formula) = True() // linter:ignore UnusedParameter
 
   test("0 set") {
     val vr = new VennRegions(pid, Some(n), Nil, nothing)
