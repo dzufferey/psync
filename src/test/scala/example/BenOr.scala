@@ -44,9 +44,9 @@ class BenOrProcess extends Process[BinaryConsensusIO] {
           decided = true
           decision = x
           terminate
-        } else if (mailbox.filter(_._2._1).size > n/2 || mailbox.exists(m => m._2._1 && m._2._2)) {
+        } else if (mailbox.count(_._2._1) > n/2 || mailbox.exists(m => m._2._1 && m._2._2)) {
           vote = Some(true)
-        } else if (mailbox.filter(!_._2._1).size > n/2 || mailbox.exists(m => !m._2._1 && m._2._2)) {
+        } else if (mailbox.count(!_._2._1) > n/2 || mailbox.exists(m => !m._2._1 && m._2._2)) {
           vote = Some(false)
         } else {
           vote = None
@@ -63,8 +63,8 @@ class BenOrProcess extends Process[BinaryConsensusIO] {
       }
 
       def update(mailbox: Map[ProcessID,Option[Boolean]]) {
-        val t = mailbox.filter{ case (p,v) => v == Some(true) }.size
-        val f = mailbox.filter{ case (p,v) => v == Some(false) }.size
+        val t = mailbox.count{ case (p,v) => v == Some(true) }
+        val f = mailbox.count{ case (p,v) => v == Some(false) }
         if (t > n/2) {
           x = true
           canDecide = true

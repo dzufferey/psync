@@ -133,7 +133,8 @@ trait FormulaExtractor {
 
   def extractVarFromPattern(e: Tree): Variable = e match {
     case Bind(TermName(n), Ident(termNames.WILDCARD)) => Variable(n).setType(typeOfTree(e))
-    case other => sys.error("extractVarFromPattern, did not expect: " + other)
+    case Ident(termNames.WILDCARD) => Variable(c.freshName("_wildcard_")).setType(typeOfTree(e))
+    case other => sys.error("extractVarFromPattern, did not expect: " + showRaw(other))
   }
 
   private def knows(op: Name, args: List[Tree], pos: Position) = {
@@ -223,6 +224,15 @@ trait FormulaExtractor {
       case q"$domain.forall( ..$xs => $f )" => makeBinding(ForAll, domain, xs, f)
       case q"$domain.exists( ..$xs => $f )" => makeBinding(Exists, domain, xs, f)
       case q"$domain.filter( ..$xs => $f )" => makeBinding(Comprehension, domain, xs, f)
+      case q"$domain.count( ..$xs => $f )" => 
+        val inner = makeBinding(Comprehension, domain, xs, f) 
+        typeOfTree(domain) match {
+          case FSet(_) => Cardinality(inner)
+          case FMap(_, _) => Size(inner)
+          case other =>
+            c.warning(e.pos, "neither set, nor map: " + other)
+            Variable(c.freshName("dummy"))
+        }
       case q"$domain.map[$tpt1,$tpt2]( $x => $f )(immutable.this.Set.canBuildFrom[$tpt3])" =>
         // { y | x ∈ domain ∧ y = f(x) }
         val y = Variable(c.freshName("y")).setType(typeOfTree(tpt1))

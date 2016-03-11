@@ -62,7 +62,7 @@ class OtrProcess(afterDecision: Int) extends Process[ConsensusIO]{
         if (mailbox.size > 2*n/3) {
           val v = mmor(mailbox)
           x = v
-          if (mailbox.filter{ case (k, msg) => msg == v }.size > 2*n/3) {
+          if (mailbox.count{ case (k, msg) => msg == v } > 2*n/3) {
             if (!decided) {
               callback.decide(v)
             }

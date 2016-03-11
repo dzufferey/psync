@@ -30,7 +30,7 @@ class CgolProcess extends Process[CgolIO] {
       }
 
       def update(mailbox: Map[ProcessID,Boolean]) {
-        val aliveNeighbours = mailbox.filter(_._2).size
+        val aliveNeighbours = mailbox.count(_._2)
         if (alive) {
           if (aliveNeighbours != 2 && aliveNeighbours != 3) {
             alive = false

@@ -29,7 +29,7 @@ class Otr2Process(afterDecision: Int) extends Process[ConsensusIO]{
         m._1
       } ensuring { v1 =>
         mailbox.forall{ case (k, v2) =>
-          mailbox.filter{ case (k, v3) => v1 == v3 }.size > mailbox.filter{ case (k, v3) => v2 == v3 }.size || v1 <= v2
+          mailbox.count{ case (k, v3) => v1 == v3 } > mailbox.count{ case (k, v3) => v2 == v3 } || v1 <= v2
         }
       }
 
@@ -41,7 +41,7 @@ class Otr2Process(afterDecision: Int) extends Process[ConsensusIO]{
         if (mailbox.size > 2*n/3) {
           val v = mmor(mailbox)
           x = v
-          if (mailbox.filter{ case (k, msg) => msg == v }.size > 2*n/3) {
+          if (mailbox.count{ case (k, msg) => msg == v } > 2*n/3) {
             if (decision.isEmpty) {
               callback.decide(v)
             }

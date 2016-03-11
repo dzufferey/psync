@@ -62,7 +62,7 @@ class MConsensusProcess extends Process[MembershipIO] {
         m._1
       } ensuring { v1 =>
         mailbox.forall{ case (k, v2) =>
-          mailbox.filter(_._2 == v1).size > mailbox.filter(_._2 == v2).size || v1.compare(v2) <= 0
+          mailbox.count{ case (_,b) => b == v1 } > mailbox.count{ case (_,b) => b == v2 } || v1.compare(v2) <= 0
         }
       }
       
@@ -74,7 +74,7 @@ class MConsensusProcess extends Process[MembershipIO] {
         if (mailbox.size > 2*n/3) {
           val v = mmor(mailbox)
           x = v
-          if (mailbox.filter{ case (p,v2) => v == v2 }.size > 2*n/3) {
+          if (mailbox.count{ case (p,v2) => v == v2 } > 2*n/3) {
             if (decision.isEmpty) {
               callback.decide(v)
             }

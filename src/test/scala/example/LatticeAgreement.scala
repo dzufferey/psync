@@ -42,7 +42,7 @@ class LatticeAgreementProcess extends Process[LatticeIO]{
 
       def update(mailbox: Map[ProcessID,Lattice.T]) {
         if (active) {
-          if (mailbox.filter{ case (k,v) => v == proposed}.size > n/2) {
+          if (mailbox.count{ case (k,v) => v == proposed} > n/2) {
             callback.decide(proposed)
             decision = Some(proposed)
             active = false
