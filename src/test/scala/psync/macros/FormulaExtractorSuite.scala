@@ -51,6 +51,10 @@ class FormulaExtractorSuite extends FunSuite {
       case Comprehension(List(v1), And(In(v2,Variable("s")), Leq(v3, IntLit(2)))) if v1 == v2 && v2 == v3 => ()
       case other => sys.error("unexpected: " + other)
     }
+    Macros.asFormula( s.count(_ <= 2) ) match {
+      case Cardinality(Comprehension(List(v1), And(In(v2,Variable("s")), Leq(v3, IntLit(2))))) if v1 == v2 && v2 == v3 => ()
+      case other => sys.error("unexpected: " + other)
+    }
     Macros.asFormula( s.map( _ + 2) ) match {
       case Comprehension(List(v1), And(In(Application(w, List(v2)), Variable("s")), Eq(v3, Plus(Application(w2, List(v4)), IntLit(2)))))
         if v1 == v2 && v2 == v3 && v3 == v4 && w == w2 && w.toString.startsWith("witness") => ()
@@ -108,11 +112,30 @@ class FormulaExtractorSuite extends FunSuite {
   test("Map filter") {
     val m = Map(1 -> 2)
     val m2 = Map(1 -> 2)
+    val s = 0
     Macros.asFormula( m2 == m.filter{ case (k, v) => k == v } ) match {
       case And(Eq(Variable("m2"), v1),
                ForAll(List(f1), Eq(LookUp(Variable("m"), f2), LookUp(v3, f3))),
                Eq(KeySet(v2), Comprehension(List(c1), And(In(c2, KeySet(Variable("m"))), Eq(c3, LookUp(Variable("m"), c4)))))
-           ) if v1 == v2 && v2 == v3 && 
+           ) if v1 == v2 && v2 == v3 &&
+                c1 == c2 && c2 == c3 && c3 == c4 &&
+                f1 == f2 && f2 == f3 => ()
+      case other => sys.error("unexpected: " + other)
+    }
+    Macros.asFormula( s == m.count{ case (k, v) => k == v } ) match {
+      case And(Eq(Variable("s"), Size(v1)),
+               ForAll(List(f1), Eq(LookUp(Variable("m"), f2), LookUp(v3, f3))),
+               Eq(KeySet(v2), Comprehension(List(c1), And(In(c2, KeySet(Variable("m"))), Eq(c3, LookUp(Variable("m"), c4)))))
+           ) if v1 == v2 && v2 == v3 &&
+                c1 == c2 && c2 == c3 && c3 == c4 &&
+                f1 == f2 && f2 == f3 => ()
+      case other => sys.error("unexpected: " + other)
+    }
+    Macros.asFormula( m2 == m.filter( kv => kv._1 == kv._2 ) ) match {
+      case And(Eq(Variable("m2"), v1),
+               ForAll(List(f1), Eq(LookUp(Variable("m"), f2), LookUp(v3, f3))),
+               Eq(KeySet(v2), Comprehension(List(c1), And(In(c2, KeySet(Variable("m"))), Eq(c3, LookUp(Variable("m"), c4)))))
+           ) if v1 == v2 && v2 == v3 &&
                 c1 == c2 && c2 == c3 && c3 == c4 &&
                 f1 == f2 && f2 == f3 => ()
       case other => sys.error("unexpected: " + other)
@@ -128,6 +151,17 @@ class FormulaExtractorSuite extends FunSuite {
                Eq(KeySet(v2), KeySet(Variable("m")))
            ) if v1 == v2 && v2 == v3 && 
                 f1 == f2 && f2 == f3 => ()
+      case other => sys.error("unexpected: " + other)
+    }
+    Macros.asFormula( m2 == (m.map( kv  => kv._1 -> (kv._2 + 1) ): Map[Int, Int]) ) match {
+      case And(Eq(Variable("m2"), v1),
+               ForAll(List(f1,r1), Implies(
+                 Eq(Tuple(r2,LookUp(v2,r3)), Tuple(f2,Plus(LookUp(Variable("m"),f3),IntLit(1)))),
+                 Eq(In(f4,KeySet(Variable("m"))), In(r4,KeySet(v3)))
+               ))
+           ) if v1 == v2 && v2 == v3 &&
+                f1 == f2 && f2 == f3 && f3 == f4 &&
+                r1 == r2 && r2 == r3 && r3 == r4 => ()
       case other => sys.error("unexpected: " + other)
     }
   }

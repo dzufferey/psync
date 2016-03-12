@@ -53,13 +53,39 @@ trait FormulaExtractor {
             addCstr(ForAll(List(kv), Eq(LookUp(d, kv), LookUp(v, kv))))
             v
         }
-      case _ =>
-        c.warning(domain.pos, "makeBindingMap: " + b + ", " + domain + " -> " + params + " => " + body)
-        val v = Variable(c.freshName("dummy"))
-        b match {
-          case Exists | ForAll => v.setType(Bool)
-          case Comprehension => v.setType(typeOfTree(domain))
+      case expr =>
+        val n = extractVarFromValDef(params.head)
+        extractDomain(domain) match {
+          case Some(d) =>
+            d.tpe match {
+              case FMap(kt,vt) =>
+                val pred = tree2Formula(expr)
+                b match {
+                  case Exists => Exists(List(n), And(In(Fst(n), KeySet(d)), Eq(LookUp(d, Fst(n)), Snd(n)), pred))
+                  case ForAll => ForAll(List(n), Implies(And(In(Fst(n), KeySet(d)), Eq(LookUp(d, Fst(n)), Snd(n))), pred))
+                  case Comprehension =>
+                    val v  = Variable(c.freshName("filteredMap"))
+                    val kv = Variable(c.freshName("key")).setType(kt)
+                    val pred1 = FormulaUtils.replace(Fst(n), kv, pred)
+                    val pred2 = FormulaUtils.replace(Snd(n), LookUp(d, kv), pred1)
+                    if (pred2.freeVariables contains n) {
+                      c.warning(domain.pos, "makeBindingMap, no sure what to do leaving unconstrained: " + b + ", " + domain + " -> " + params + " => " + body + " gives " + pred2)
+                      Variable(c.freshName("dummy"))
+                    } else {
+                      addCstr(Eq(KeySet(v), Comprehension(List(kv), And(In(kv, KeySet(d)), pred2)) ))
+                      addCstr(ForAll(List(kv), Eq(LookUp(d, kv), LookUp(v, kv))))
+                      v
+                    }
+                }
+              case other =>
+                c.warning(domain.pos, "makeBindingMap, expected map type: " + other)
+                Variable(c.freshName("dummy"))
+            }
+          case None =>
+            c.warning(domain.pos, "makeBindingMap, expected map domain: " + domain)
+            Variable(c.freshName("dummy"))
         }
+
     }
   }
 
@@ -72,35 +98,7 @@ trait FormulaExtractor {
       c.abort(domain.pos, "makeBinding: unknown domain type → " + other + " for " + domain + ", " + domain.tpe + ", " + domain.symbol.typeSignature)
   }
 
-  /*
-  def mkInit(v: Name, t: Type): psync.formula.Symbol = {
-    UnInterpretedFct(psync.verification.Utils.initPrefix + v.toString, Some(extractType(t))) //TODO type parameters ?!
-  }
-  def mkInit(v: Tree, t: Type): psync.formula.Symbol = v match {
-    case q"$pkg.this.$name" => mkInit(name, t)
-    case other => sys.error("mkInit: " + showRaw(v))
-  }
-  
-  def mkOld(v: Name, t: Type): psync.formula.Symbol = {
-    UnInterpretedFct(psync.verification.Utils.oldPrefix + v.toString, Some(extractType(t))) //TODO type parameters ?!
-  }
-  def mkOld(v: Tree, t: Type): psync.formula.Symbol = v match {
-    case q"$pkg.this.$name" => mkOld(name, t)
-    case other => sys.error("mkOld: " + showRaw(v))
-  }
-  */
-
   def extractSymbol(e: Tree): psync.formula.Symbol = e match {
-    /*
-    case Select(
-              Apply(TypeApply(Select(Select(This(_), TermName("VarHelper")), TermName("init")), List(TypeTree())),
-              List(fct @ Select(This(_), v))), TermName("apply")) =>
-      mkInit(v, fct.tpe)
-    case Select(
-              Apply(TypeApply(Select(Select(This(_), TermName("VarHelper")), TermName("old")), List(TypeTree())),
-              List(fct @ Select(This(_), v))), TermName("apply")) =>
-      mkOld(v, fct.tpe)
-    */
     case TypeApply(Select(Select(Ident(scala), TermName("Some")), TermName("apply")), List(tpt)) =>
       FSome
     //TODO clean that part
@@ -261,11 +259,41 @@ trait FormulaExtractor {
                     c.warning(expr.pos, "body too complicated, leaving it unconstrained: " + other)
                 }
                 id
-              case other =>
-                c.abort(domain.pos, "Map.map, expected pair function. found: " + other)
+              case expr =>
+                val n = extractVarFromValDef(x)
+                val dummy = Variable(c.freshName("dummy"))
+                extractDomain(domain) match {
+                  case Some(d) =>
+                    d.tpe match {
+                      case FMap(kt,vt) =>
+                        val pred = tree2Formula(expr)
+                        val kv = Variable(c.freshName("key")).setType(kt)
+                        val pred1 = FormulaUtils.replace(Fst(n), kv, pred)
+                        val pred2 = FormulaUtils.replace(Snd(n), LookUp(d, kv), pred1)
+                        if (pred2.freeVariables contains n) {
+                          c.warning(domain.pos, "Map.map, no sure what to do leaving unconstrained: " + domain + " -> " + x + " => " + expr + " gives " + pred2)
+                          dummy
+                        } else {
+                          val rm  = Variable(c.freshName("mappedMap"))
+                          val rkv = Variable(c.freshName("mappedKey"))
+                          addCstr(ForAll(List(kv,rkv), Implies(
+                            Eq(Tuple(rkv, LookUp(rm, rkv)), pred2),
+                            Eq(In(kv, KeySet(d)), In(rkv, KeySet(rm)))
+                          )))
+                          rm
+                        }
+                      case other =>
+                        c.warning(domain.pos, "Map.map, expected domain with map type, found: " + other)
+                        dummy
+                    }
+                  case None =>
+                    c.warning(domain.pos, "Map.map, expected domain, found: " + domain)
+                    dummy
+                }
             }
           case other =>
-            c.abort(domain.pos, "Map.map, expected pairs of type. found: " + other)
+            c.warning(domain.pos, "Map.map, expected pair function. found: " + other)
+            Variable(c.freshName("dummy"))
         }
       
       case q"$scope.SpecHelper.init[$tpt]($expr)" =>
@@ -417,14 +445,6 @@ trait FormulaExtractor {
       case q"$expr.toInt" if typeOfTree(expr) == psync.verification.Utils.timeType =>
         psync.logic.ReduceTime.toInt(tree2Formula(expr))
 
-      //init and old
-      /*
-      case q"$scope.VarHelper.init[$tpt]($expr)" =>
-        mkInit(expr, tpt.tpe)(tree2Formula(expr))
-      case q"$scope.VarHelper.old[$tpt]($expr)" =>
-        mkOld(expr, tpt.tpe)(tree2Formula(expr))
-      */
-     
       //interpreted/known symbols
       case Apply(s @ Select(l, op), args) if knows(op, l :: args, s.pos) => mkKnown(op, l :: args, s.pos)
       case Apply(TypeApply(s @ Select(l, op), _), args) if knows(op, l :: args, s.pos) => mkKnown(op, l :: args, s.pos)
