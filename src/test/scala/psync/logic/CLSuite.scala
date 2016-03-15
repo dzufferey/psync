@@ -357,7 +357,7 @@ class CLSuite extends FunSuite {
       majority(b),
       !quorum(a, b)
     )
-    assertUnsat(fs, /*10000, true,*/ cln(2, new quantifiers.Guided, 0, false))
+    assertUnsat(fs, /*10000, true,*/ cln(2, new quantifiers.Guided, 1, false))
   }
   
   test("2/3 majority is a fast quorum") {
@@ -371,7 +371,7 @@ class CLSuite extends FunSuite {
       majority(c),
       !quorum(a, b, c)
     )
-    assertUnsat(fs, cln(3, new quantifiers.Guided, 0, true))
+    assertUnsat(fs, cln(3, new quantifiers.Guided, 1, true))
   }
 
   test("pairs 0") {

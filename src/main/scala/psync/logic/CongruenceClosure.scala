@@ -4,6 +4,7 @@ import psync.formula._
 
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
+import psync.utils.Stats
 
 //TODO should we consider a comprehension a ground term ? (if the body does not have refer to quantified variables)
 
@@ -21,7 +22,7 @@ trait CC {
   def immutable: CongruenceClasses
 }
 
-class CongruenceClosure extends CC {
+class CongruenceClosure(initialDomain: Iterable[Formula] = Nil) extends CC {
     
   import scala.collection.mutable.{ListBuffer, Map => MMap}
   protected var nbrNodes = 0
@@ -30,32 +31,38 @@ class CongruenceClosure extends CC {
     
   override def toString = immutable.toString //TODO this is the braindead version
 
-  protected def incrementalAdd(f: Symbol, node: CcSym, argsN: List[CcNode]) {
+  //populate the maps, this is cheaper than adding later as it does not need to check for congruences
+  initialDomain.foreach( f =>
+    FormulaUtils.collectGroundTerms(f).foreach(getNode(_, true))
+  )
+
+  protected def incrementalAdd(f: Symbol, node: CcSym, argsN: List[CcNode], initialization: Boolean) {
     for (n <- argsN) n.find.ccParents += node //calling find here for inserting incrementally
     //check according to existing equalities
     val existing = symbolToNodes.getOrElseUpdate(f, ListBuffer[CcNode]())
-    existing.foreach( n => if (node.congruent(n)) node.merge(n) )
+    if (!initialization) {
+      existing.foreach( n => if (node.congruent(n)) node.merge(n) )
+    }
     existing += node
   }
 
-  protected def getNode(f: Formula): CcNode = {
+  protected def getNode(f: Formula, initialization: Boolean): CcNode = {
     if (formulaToNode contains f) { 
       formulaToNode(f)
     } else {
       val n = f match {
         case a @ Application(f, args) =>
-          val argsN = args.map(getNode(_))
+          val argsN = args.map(getNode(_, initialization))
           val node = new CcSym(a, f, argsN)
-          incrementalAdd(f, node, argsN)
+          incrementalAdd(f, node, argsN, initialization)
           node
         case v @ Variable(_) => new CcVar(v)
         case l @ Literal(_) => new CcLit(l)
         case c @ Comprehension(_, _) =>
           val (sym, _, args) = quantifiers.symbolizeComprehension(c)
-          val argsN = args.map(getNode(_))
+          val argsN = args.map(getNode(_, initialization))
           val node = new CcSym(c, sym, argsN)
-          incrementalAdd(sym, node, argsN)
-          //println("adding: " + c + " as " + sym + args.mkString("(",", ",")"))
+          incrementalAdd(sym, node, argsN, initialization)
           node
         case other =>
           Logger.logAndThrow("CongruenceClosure", Error, "did not expect: " + other)
@@ -83,7 +90,7 @@ class CongruenceClosure extends CC {
       if (formulaToNode.contains(f)) {
         formulaToNode(f).find.formula
       } else {
-        getNode(f).find.formula
+        getNode(f, false).find.formula
       }
     } else {
       f
@@ -95,7 +102,7 @@ class CongruenceClosure extends CC {
       if (formulaToNode.contains(f)) {
         formulaToNode(f).cClass
       } else {
-        getNode(f).cClass
+        getNode(f, false).cClass
       }
     } else {
       Seq(f)
@@ -168,7 +175,7 @@ class CongruenceClosure extends CC {
   def addConstraints(f: Seq[Formula]) { f.foreach(addConstraints) }
 
   def addConstraints(f: Formula) {
-    FormulaUtils.collectGroundTerms(f).foreach( getNode(_) )
+    FormulaUtils.collectGroundTerms(f).foreach(getNode(_, false))
     processEqs(f)
   }
 

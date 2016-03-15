@@ -155,7 +155,7 @@ class CL(config: ClConfig) {
     leftOver ::: generated
   }
 
-  
+
   def reduce(formula: Formula): Formula = {
 
     val query = normalize(formula)
@@ -200,7 +200,7 @@ class CL(config: ClConfig) {
     val optAx = OptionAxioms.getAxioms(withILP2)
     val tplAx = TupleAxioms.getAxioms(withILP2)
     //deal with extra theory axioms
-    val cc2 = new CongruenceClosure //incremental CC
+    val cc2 = new CongruenceClosure(withILP2) //XXX this steps get pretty expensive!!
     cc2.addConstraints(withILP2)
     val withExtraAxioms = localQuantifierInstantiation(setAx ::: optAx ::: tplAx, cc2)
 

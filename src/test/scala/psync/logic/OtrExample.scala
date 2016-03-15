@@ -181,8 +181,8 @@ class OtrExample extends FunSuite {
 //    tr,
 //    Not(prime(invariantProgress2))
 //  )
-//  assertUnsat(fs, 10000, true, clh(3,1,1))
-//  //assertUnsat(fs, 10000, true, cle(3,2))
+//  //assertUnsat(fs, cln(3, new quantifiers.Eager, 2, true))
+//  assertUnsat(fs, cln(3, new quantifiers.Sequence(new quantifiers.Eager, new quantifiers.Guided), 2, true))
 //}
 
   test("invariant 2 is inductive") {
@@ -195,7 +195,7 @@ class OtrExample extends FunSuite {
     assertUnsat(fs, cln(1, new quantifiers.Sequence(new quantifiers.Eager, new quantifiers.Guided), 2, true))
   }
 
-//XXX used to work
+//XXX used to work, the quantifier instantiation seems too expensive right now
 //test("integrity") {
 //  val fs = List(
 //    invariantAgreement,
@@ -203,11 +203,8 @@ class OtrExample extends FunSuite {
 //    tr,
 //    Not(integrity)
 //  )
-//  assertUnsat(fs, cle(3,2))
-//  assertUnsat(fs, clh(3,1,1))
-//  //assertUnsat(fs, clg(10,2))
-////assertUnsat(fs, 10000, true, cle(4, 2))
-////assertUnsat(fs, 10000, true, clg(10, 5))
+//  assertUnsat(fs, 60000, false, cln(3, new quantifiers.Eager, 2, true))
+//  //assertUnsat(fs, cln(3, new quantifiers.Guided, 1, true))
 //}
 
   test("validity is inductive") {

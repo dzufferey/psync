@@ -11,6 +11,15 @@ import binary._
 class TerminateInstance extends Exception() { }
 
 
+/** A Round is the logical unit of time and communication in PSync.
+ *
+ * The rounds are parameterized by a type `A` which is the payload of the
+ * messages sent during the round. To specify a round, the user needs to
+ * extend this class and implement the `send` and `update` methods.
+ * 
+ * The round class provide some helper methods such as `broadcast`,
+ * `exitAtEndOfRound`, and `terminate`.
+ */
 abstract class Round[A] {
 
   def send(): Map[ProcessID,A]
@@ -32,6 +41,7 @@ abstract class Round[A] {
     throw new TerminateInstance
   }
   
+  /* Broadcast is a shortcut to send the same message to every participant. */
   protected final def broadcast[A](msg: A): Map[ProcessID,A] = {
     group.replicas.foldLeft(Map.empty[ProcessID,A])( (acc, r) => acc + (r.id -> msg) )
   }
@@ -47,6 +57,10 @@ abstract class Round[A] {
 
 }
 
+
+/** During the compilation a macro wrap the user facing [[Round]]
+ *  to make implement the [[RtRound]] interface used by the runtime.
+ */
 abstract class RoundWrapper extends RtRound {
 
   type A
@@ -89,6 +103,7 @@ abstract class RoundWrapper extends RtRound {
 
 }
 
+/** RtRound is the interface of rounds used by the runtime. */
 abstract class RtRound {
   
   def expectedNbrMessages: Int

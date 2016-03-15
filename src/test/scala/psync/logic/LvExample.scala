@@ -194,7 +194,7 @@ class LvExample extends FunSuite {
         And(Eq(data1(i), LookUp(mailbox4(i), coord(i))),
             Eq(decided1(i), True())))),
 
-    ForAll(List(i,v),
+    ForAll(List(i),
       Implies(Not(IsDefinedAt(mailbox4(i), coord(i))),
         And(Eq(data1(i), data(i)),
             Eq(decided1(i), decided(i))))),
@@ -317,10 +317,8 @@ class LvExample extends FunSuite {
 //    Not(prime(invariant1))
 //  )
 //  //assertUnsat(fs, 30000, true, cln(2, new quantifiers.Eager, 2, true))
-//  assertUnsat(fs, 30000, true, cln(0, new quantifiers.Guided, 2, false))
-//  //assertUnsat(fs, 30000, true, clh(2, 1, 1))
-//  //assertUnsat(fs, 60000, true, clg(2, 3))
-//  //assertUnsat(fs, 60000, true, cle(2,2))
+//  assertUnsat(fs, 30000, true, cln(2, new quantifiers.Sequence(new quantifiers.Eager, new quantifiers.Guided), 2, true))
+//  //assertUnsat(fs, 30000, true, cln(0, new quantifiers.Guided, 2, false))
 //}
 
 }

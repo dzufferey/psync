@@ -10,6 +10,11 @@ class Stats {
 
   private val comments = new ConcurrentLinkedQueue[String]()
   
+  def clear {
+    map.clear()
+    comments.clear()
+  }
+  
   def comment[A](what: String) = {
     comments.add(what)
   }

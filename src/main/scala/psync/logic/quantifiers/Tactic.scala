@@ -43,7 +43,7 @@ abstract class TacticCommon extends Tactic {
   protected def isDone(t: Formula) = done(t) || done(cc.repr(t))
 
   protected def enqueue(d: Int, t: Formula) {
-    if (d <= depth && !isDone(t)) {
+    if (d < depth && !isDone(t)) {
       Logger("Tactic", Debug, "depth "+d+": " + t)
       queue.enqueue( -d -> t )
     }/* else {
@@ -84,6 +84,9 @@ abstract class TacticCommon extends Tactic {
     depth = _depth
     cc = _cc
     for (gt <- cc.groundTerms) enqueue(0, gt)
+    if (depth <= 0) {
+      Logger("Tactic", Warning, "depth "+depth+" should be > 0")
+    }
   }
   
   def result: Iterable[Formula] = buffer.toList
@@ -99,7 +102,7 @@ class Eager extends TacticCommon {
       fs.foreach( f => {
         val ts = FormulaUtils.collectGroundTerms(f)
         val ts2 = ts.filter(t => !cc.contains(t))
-        ts2.foreach(enqueue(currentDepth, _))
+        ts2.foreach(enqueue(newDepth, _))
       })
     }
     fs.foreach(cc.addConstraints)
