@@ -196,20 +196,22 @@ class CL(config: ClConfig) {
     val withILP2 = FormulaUtils.getConjuncts(cleanUp(withILP))
     
     //add axioms for the other theories
-    val setAx = SetOperationsAxioms.getAxioms(withILP2)
-    val optAx = OptionAxioms.getAxioms(withILP2)
-    val tplAx = TupleAxioms.getAxioms(withILP2)
-    //deal with extra theory axioms
-    val cc2 = new CongruenceClosure(withILP2) //XXX this steps get pretty expensive!!
-    cc2.addConstraints(withILP2)
-    val withExtraAxioms = localQuantifierInstantiation(setAx ::: optAx ::: tplAx, cc2)
+    val extraAxioms = AxiomatizedTheory.getAxioms(withILP2)
+    val withExtraAxioms =
+      if (extraAxioms.isEmpty) {
+        Nil
+      } else {
+        //instantiate the extra theory axioms
+        val cc2 = new CongruenceClosure(withILP2) //XXX this is expensive when the formula is large
+        cc2.addConstraints(withILP2)
+        localQuantifierInstantiation(extraAxioms, cc2)
+      }
 
     //
     val withoutTime = ReduceTime(withILP2 ::: withExtraAxioms)
     val expendedLt = ReduceOrdered(withoutTime)
 
 
-    //clean-up and skolemization
     val last = cleanUp(expendedLt)
     //assert(Typer(last).success, "CL.reduce, not well typed")
     last

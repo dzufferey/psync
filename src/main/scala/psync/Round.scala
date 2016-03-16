@@ -109,9 +109,8 @@ abstract class RtRound {
   def expectedNbrMessages: Int
   def packSend(alloc: ByteBufAllocator): Map[ProcessID, ByteBuf]
   def unpackUpdate(msg: Map[ProcessID, ByteBuf]): Boolean
-  
+
   def setOptions(options: runtime.RuntimeOptions): Unit
-  
   def setGroup(g: psync.runtime.Group): Unit
 
   //////////////////////

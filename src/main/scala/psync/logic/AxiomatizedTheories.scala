@@ -5,7 +5,24 @@ import psync.formula._
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
-object OptionAxioms {
+trait AxiomatizedTheory {
+  def getAxioms(conjuncts: List[Formula]): List[Formula]
+}
+
+object AxiomatizedTheory extends AxiomatizedTheory {
+  val theories = List(
+    OptionAxioms,
+    TupleAxioms,
+    SetOperationsAxioms
+  )
+
+  def getAxioms(conjuncts: List[Formula]): List[Formula] = {
+    theories.flatMap( _.getAxioms(conjuncts) )
+  }
+
+}
+
+object OptionAxioms extends AxiomatizedTheory {
 
   private def mkAxioms(t: Type): List[Formula] = {
     //println("mkAxioms with " + t)
@@ -24,7 +41,7 @@ object OptionAxioms {
       //def xor defined, implied as IsEmpty is replaced by ¬IsDefined
       //ForAll(List(y), Or(And(IsDefined(y), Not(IsEmpty(y))), And(Not(IsDefined(y)), IsEmpty(y))))
     )
-    axms//.map(Typer(_).get)
+    axms
   }
 
   def getAxioms(conjuncts: List[Formula]): List[Formula] = {
@@ -37,7 +54,7 @@ object OptionAxioms {
 
 }
 
-object TupleAxioms {
+object TupleAxioms extends AxiomatizedTheory {
 
   private def mkAxioms(ts: List[Type]): List[Formula] = {
     val args = ts.zipWithIndex.map{ case (t,i) => Variable("tplArg"+i).setType(t) }
@@ -69,7 +86,7 @@ object TupleAxioms {
   }
 }
 
-object SetOperationsAxioms {
+object SetOperationsAxioms extends AxiomatizedTheory {
 
   //TODO should we have reflexivity, symmetry, etc., ?
 

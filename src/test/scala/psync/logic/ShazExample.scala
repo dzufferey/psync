@@ -58,7 +58,16 @@ class ShazExample extends FunSuite {
     )
   }
 
-  //TODO be more considerate in the quantifier inst. this really blows up.
+  test("Sanity check 1") {
+    assertSat(List(invariant(numFreeAtOrAfter, allocatingAtOrAfter, free, freeSpace)))
+  }
+
+  test("Sanity check 2") {
+    val i = invariant(numFreeAtOrAfter, allocatingAtOrAfter, free, freeSpace)
+    assertUnsat(List(i, Not(i)))
+  }
+
+////TODO be more considerate in the quantifier inst. this really blows up.
 //test("Reclaim") {
 //  val fs = List(
 //    memAssumptions,
@@ -76,8 +85,9 @@ class ShazExample extends FunSuite {
 //    ),
 //    Not(invariant(numFreeAtOrAfter1, allocatingAtOrAfter, free1, freeSpace1))
 //  )
+//  assertSat(fs, cln(2, new quantifiers.Eager, 2, true))
 //  //assertUnsat(fs, 10000, true)
-//  assertUnsat(fs, 20000, true, cl2_2, Some("test2_2.smt2"))
+//  //assertUnsat(fs, 20000, true, cl2_2, Some("test2_2.smt2"))
 //}
 
 
