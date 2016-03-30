@@ -27,7 +27,7 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
       val w = n
       Logger("Runtime", Debug, "using fixed thread pool of size " + w)
       java.util.concurrent.Executors.newFixedThreadPool(w)
-    case Adapt => 
+    case Adapt =>
       Logger("Runtime", Debug, "using cached thread pool")
       java.util.concurrent.Executors.newCachedThreadPool()
   }
@@ -104,17 +104,17 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
       //already running
       return
     }
-    
+
     //create the group
     val me = new ProcessID(options.id)
     val grp = Group(me, options.peers)
 
     //start the server
-    val ports = 
+    val ports =
       if (grp contains me) grp.get(me).ports
       else Set(options.port)
     Logger("Runtime", Info, "starting service on ports: " + ports.mkString(", "))
-    val pktSrv = new PacketServer(executor, ports, grp, defaultHandler, options)
+    val pktSrv = new UDPPacketServer(executor, ports, grp, defaultHandler, options)
     srv = Some(pktSrv)
     pktSrv.start
     for (i <- 0 until options.processPool) processPool.offer(createProcess)
@@ -130,7 +130,7 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
     }
     srv = None
   }
-  
+
   def submitTask(fct: Runnable) = {
     executor.execute(fct)
   }
