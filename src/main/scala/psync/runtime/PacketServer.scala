@@ -1,20 +1,8 @@
 package psync.runtime
 
 import psync._
-import dzufferey.utils.Logger
-import dzufferey.utils.LogLevel._
-
-import io.netty.buffer._
-import io.netty.channel._
-import io.netty.channel.socket._
-import io.netty.channel.nio._
-import io.netty.channel.socket.nio._
-import io.netty.channel.epoll._
-import io.netty.channel.oio._
-import io.netty.channel.socket.oio._
-import io.netty.channel.ChannelHandler.Sharable
-import io.netty.bootstrap.Bootstrap
-import java.net.InetSocketAddress
+import io.netty.channel.Channel
+import io.netty.channel.socket.DatagramPacket
 
 abstract class PacketServer(
     executor: java.util.concurrent.Executor,
