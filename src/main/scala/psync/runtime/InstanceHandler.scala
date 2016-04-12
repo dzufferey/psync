@@ -3,7 +3,6 @@ package psync.runtime
 import psync._
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
-import io.netty.channel.Channel
 import io.netty.buffer.ByteBuf
 import io.netty.channel.socket._
 import java.util.concurrent.ArrayBlockingQueue
@@ -36,13 +35,13 @@ trait InstHandler {
 
 class InstanceHandler[IO,P <: Process[IO]](proc: P,
                           rt: psync.runtime.Runtime[IO,P],
-                          channel: Channel,
+                          pktServ: PacketServer,
                           dispatcher: InstanceDispatcher,
                           defaultHandler: DatagramPacket => Unit,
                           options: RuntimeOptions) extends Runnable with InstHandler {
-  
-  protected val buffer = new ArrayBlockingQueue[DatagramPacket](options.bufferSize) 
-  
+
+  protected val buffer = new ArrayBlockingQueue[DatagramPacket](options.bufferSize)
+
   protected var timeout = options.timeout
   protected val earlyMoving = options.earlyMoving
   protected val adaptative = options.adaptative
@@ -61,7 +60,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected var messages: Array[DatagramPacket] = null
   protected var from: Array[Boolean] = null
   protected var received = 0
-  
+
 
   /** A new packet is received and should be processed */
   def newPacket(dp: DatagramPacket) = {
@@ -70,12 +69,12 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       dp.release
     }
   }
-  
+
   /** Forward the packet to the defaultHandler */
   protected def default(pkt: DatagramPacket) {
     rt.submitTask(new Runnable { def run = defaultHandler(pkt) })
   }
-  
+
   /** Allocate new buffers if needed */
   protected def checkResources {
     if (messages == null || messages.size != n) {
@@ -113,7 +112,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     msgs.foreach(p => newPacket(p.packet))
     dispatcher.add(inst, this)
   }
-  
+
   protected def freeRemainingMessages {
     var idx = 0
     while (idx < n) {
@@ -185,11 +184,11 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       stop
     }
   }
-  
+
   ///////////////////
   // current round //
   ///////////////////
-  
+
   //general receive (not sure if it is the correct round, but instance is correct).
   protected def receive(pkt: DatagramPacket) {
     val tag = Message.getTag(pkt.content)
@@ -231,7 +230,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       pkt.release
     }
   }
-  
+
   protected def deliver(catchingUp: Boolean) {
     Logger("Predicate", Debug, grp.self.id + ", " + instance + " delivering for round " + currentRound + " (received = " + received + ")")
     val toDeliver = messages.slice(0, received)
@@ -250,7 +249,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       throw new TerminateInstance
     }
   }
-  
+
   protected def clear {
     val r = received
     received = 0
@@ -261,7 +260,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       from(i) = false
     }
   }
-  
+
   protected def send {
     //Logger("Predicate", Debug, "sending for round " + currentRound)
     val myAddress = grp.idToInet(grp.self)
@@ -272,10 +271,9 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       if (pkt.recipient() == myAddress) {
         storePacket(pkt)
       } else {
-        channel.write(pkt, channel.voidPromise())
+        pktServ.send(pkt)
       }
     }
-    channel.flush
     if (received >= expected && earlyMoving) {
       deliver(false)
     }
@@ -301,7 +299,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       false
     }
   }
-    
+
   protected def toPkts(msgs: Map[ProcessID, ByteBuf]): Iterable[DatagramPacket] = {
     val src = grp.idToInet(grp.self)
     val tag = Tag(instance, currentRound)

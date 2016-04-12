@@ -36,10 +36,9 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
     assert(srv.isDefined)
     val p = alg.process
     p.setOptions(options)
-    val channel = srv.get.channel
     val dispatcher = srv.get.dispatcher
     val defaultHandler = srv.get.defaultHandler(_)
-    new InstanceHandler(p, this, channel, dispatcher, defaultHandler, options)
+    new InstanceHandler(p, this, srv.get, dispatcher, defaultHandler, options)
   }
 
   private def getProcess: InstanceHandler[IO,P] = {
@@ -153,9 +152,7 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
       } else {
         new DatagramPacket(payload, dst)
       }
-    val channel = srv.get.channel
-    channel.write(pkt, channel.voidPromise())
-    channel.flush
+    srv.get.send(pkt)
   }
 
   def directory = {

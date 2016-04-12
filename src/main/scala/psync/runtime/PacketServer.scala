@@ -25,4 +25,6 @@ abstract class PacketServer(
 
   def start: Unit
 
+  def send(pkt: DatagramPacket): Unit
+
 }

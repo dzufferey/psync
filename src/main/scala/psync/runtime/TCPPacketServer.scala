@@ -67,6 +67,11 @@ class TCPPacketServer(
     chan = b.bind(port).sync().channel()
   }
 
+  def send(pkt: DatagramPacket) {
+    chan.write(pkt, channel.voidPromise())
+    chan.flush
+  }
+
 }
 
 @Sharable
