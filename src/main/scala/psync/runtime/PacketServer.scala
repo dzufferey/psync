@@ -6,7 +6,7 @@ import io.netty.channel.socket.DatagramPacket
 
 abstract class PacketServer(
     executor: java.util.concurrent.Executor,
-    ports: Iterable[Int],
+    port: Int,
     initGroup: Group,
     _defaultHandler: Message => Unit, //defaultHandler is responsible for releasing the ByteBuf payload
     options: RuntimeOptions)
@@ -16,8 +16,8 @@ abstract class PacketServer(
 
   def defaultHandler(pkt: DatagramPacket): Unit
 
-  protected var chans: Array[Channel] = null
-  def channels: Array[Channel] = chans
+  protected var chan: Channel = null
+  def channel: Channel = chan
 
   val dispatcher = new InstanceDispatcher(options)
 

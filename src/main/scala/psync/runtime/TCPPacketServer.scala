@@ -18,10 +18,10 @@ import java.net.InetSocketAddress
 
 class TCPPacketServer(
     executor: java.util.concurrent.Executor,
-    ports: Iterable[Int],
+    port: Int,
     initGroup: Group,
     _defaultHandler: Message => Unit, //defaultHandler is responsible for releasing the ByteBuf payload
-    options: RuntimeOptions) extends PacketServer(executor, ports, initGroup, _defaultHandler, options)
+    options: RuntimeOptions) extends PacketServer(executor, port, initGroup, _defaultHandler, options)
 {
 
   def defaultHandler(pkt: DatagramPacket) {
@@ -29,7 +29,7 @@ class TCPPacketServer(
     _defaultHandler(msg)
   }
 
-  Logger.assert(options.protocol == NetworkProtocol.TCP, "TCPPacketServer", "transport layer: only TCP supported for the moment")
+  Logger.assert(options.protocol == NetworkProtocol.TCP, "TCPPacketServer", "transport layer: only TCP supported")
 
   private val group: EventLoopGroup = options.group match {
     case NetworkGroup.NIO => new NioEventLoopGroup()
@@ -42,12 +42,8 @@ class TCPPacketServer(
     try {
       group.shutdownGracefully
     } finally {
-      for ( i <- chans.indices) {
-        if (chans(i) != null) {
-          chans(i).close
-          chans(i) = null
-        }
-      }
+      chan.close()
+      chan = null
     }
   }
 
@@ -68,8 +64,7 @@ class TCPPacketServer(
 
     b.handler(new TCPPacketServerHandler(defaultHandler, dispatcher))
 
-    val ps = ports.toArray
-    chans = ps.map( p => b.bind(p).sync().channel() )
+    chan = b.bind(port).sync().channel()
   }
 
 }

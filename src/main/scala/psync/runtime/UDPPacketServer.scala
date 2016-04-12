@@ -18,10 +18,10 @@ import java.net.InetSocketAddress
 
 class UDPPacketServer(
     executor: java.util.concurrent.Executor,
-    ports: Iterable[Int],
+    port: Int,
     initGroup: Group,
     _defaultHandler: Message => Unit, //defaultHandler is responsible for releasing the ByteBuf payload
-    options: RuntimeOptions) extends PacketServer(executor, ports, initGroup, _defaultHandler, options)
+    options: RuntimeOptions) extends PacketServer(executor, port, initGroup, _defaultHandler, options)
 {
 
   def defaultHandler(pkt: DatagramPacket) {
@@ -29,7 +29,7 @@ class UDPPacketServer(
     _defaultHandler(msg)
   }
 
-  Logger.assert(options.protocol == NetworkProtocol.UDP, "UDPPacketServer", "transport layer: only UDP supported for the moment")
+  Logger.assert(options.protocol == NetworkProtocol.UDP, "UDPPacketServer", "transport layer: only UDP supported")
 
   private val group: EventLoopGroup = options.group match {
     case NetworkGroup.NIO => new NioEventLoopGroup()
@@ -42,12 +42,8 @@ class UDPPacketServer(
     try {
       group.shutdownGracefully
     } finally {
-      for ( i <- chans.indices) {
-        if (chans(i) != null) {
-          chans(i).close
-          chans(i) = null
-        }
-      }
+      chan.close()
+      chan = null
     }
   }
 
@@ -67,9 +63,7 @@ class UDPPacketServer(
     }
 
     b.handler(new UDPPacketServerHandler(defaultHandler, dispatcher))
-
-    val ps = ports.toArray
-    chans = ps.map( p => b.bind(p).sync().channel() )
+    chan = b.bind(port).sync().channel()
   }
 
 }

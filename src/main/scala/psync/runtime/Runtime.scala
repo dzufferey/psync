@@ -32,15 +32,11 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
       java.util.concurrent.Executors.newCachedThreadPool()
   }
 
-
-  private var channelIdx = new AtomicInteger
   private def createProcess: InstanceHandler[IO,P] = {
     assert(srv.isDefined)
     val p = alg.process
     p.setOptions(options)
-    val channels = srv.get.channels
-    val idx = channelIdx.getAndIncrement.abs % channels.size
-    val channel = channels(idx)
+    val channel = srv.get.channel
     val dispatcher = srv.get.dispatcher
     val defaultHandler = srv.get.defaultHandler(_)
     new InstanceHandler(p, this, channel, dispatcher, defaultHandler, options)
@@ -113,8 +109,9 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
     val ports =
       if (grp contains me) grp.get(me).ports
       else Set(options.port)
+    val port = ports.iterator.next()
     Logger("Runtime", Info, "starting service on ports: " + ports.mkString(", "))
-    val pktSrv = new UDPPacketServer(executor, ports, grp, defaultHandler, options)
+    val pktSrv = new UDPPacketServer(executor, port, grp, defaultHandler, options)
     srv = Some(pktSrv)
     pktSrv.start
     for (i <- 0 until options.processPool) processPool.offer(createProcess)
@@ -156,7 +153,7 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
       } else {
         new DatagramPacket(payload, dst)
       }
-    val channel = srv.get.channels(0)
+    val channel = srv.get.channel
     channel.write(pkt, channel.voidPromise())
     channel.flush
   }
