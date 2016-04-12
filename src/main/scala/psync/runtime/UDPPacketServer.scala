@@ -24,6 +24,9 @@ class UDPPacketServer(
     options: RuntimeOptions) extends PacketServer(executor, port, initGroup, _defaultHandler, options)
 {
 
+  protected var chan: Channel = null
+  def channel: Channel = chan
+
   def defaultHandler(pkt: DatagramPacket) {
     val msg = new Message(pkt, directory.group)
     _defaultHandler(msg)
@@ -67,7 +70,7 @@ class UDPPacketServer(
   }
 
   def send(pkt: DatagramPacket) {
-    chan.write(pkt, channel.voidPromise())
+    chan.write(pkt, chan.voidPromise())
     chan.flush
   }
 

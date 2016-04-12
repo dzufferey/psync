@@ -16,9 +16,6 @@ abstract class PacketServer(
 
   def defaultHandler(pkt: DatagramPacket): Unit
 
-  protected var chan: Channel = null
-  def channel: Channel = chan
-
   val dispatcher = new InstanceDispatcher(options)
 
   def close: Unit

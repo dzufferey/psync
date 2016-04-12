@@ -24,6 +24,8 @@ class TCPPacketServer(
     options: RuntimeOptions) extends PacketServer(executor, port, initGroup, _defaultHandler, options)
 {
 
+  private var recipientMap: Map[ProcessID, Channel] = Map()
+
   def defaultHandler(pkt: DatagramPacket) {
     val msg = new Message(pkt, directory.group)
     _defaultHandler(msg)
@@ -38,37 +40,40 @@ class TCPPacketServer(
   }
 
   def close {
-    dispatcher.clear
-    try {
-      group.shutdownGracefully
-    } finally {
-      chan.close()
-      chan = null
-    }
+    // dispatcher.clear
+    // try {
+    //   group.shutdownGracefully
+    // } finally {
+    //   chan.close()
+    //   chan = null
+    // }
   }
 
   def start {
-    val packetSize = options.packetSize
-    val b = new Bootstrap()
-    b.group(group)
-    options.group match {
-      case NetworkGroup.NIO =>   b.channel(classOf[NioDatagramChannel])
-      case NetworkGroup.OIO =>   b.channel(classOf[OioDatagramChannel])
-      case NetworkGroup.EPOLL => b.channel(classOf[EpollDatagramChannel])
-    }
+    // val packetSize = options.packetSize
+    // val b = new Bootstrap()
+    // b.group(group)
+    // options.group match {
+    //   case NetworkGroup.NIO =>   b.channel(classOf[NioDatagramChannel])
+    //   case NetworkGroup.OIO =>   b.channel(classOf[OioDatagramChannel])
+    //   case NetworkGroup.EPOLL => b.channel(classOf[EpollDatagramChannel])
+    // }
 
-    if (packetSize >= 8) {//make sure we have at least space for the tag
-      b.option[Integer](ChannelOption.SO_RCVBUF, packetSize)
-      b.option(ChannelOption.RCVBUF_ALLOCATOR, new FixedRecvByteBufAllocator(packetSize))
-    }
+    // if (packetSize >= 8) {//make sure we have at least space for the tag
+    //   b.option[Integer](ChannelOption.SO_RCVBUF, packetSize)
+    //   b.option(ChannelOption.RCVBUF_ALLOCATOR, new FixedRecvByteBufAllocator(packetSize))
+    // }
 
-    b.handler(new TCPPacketServerHandler(defaultHandler, dispatcher))
+    // b.handler(new TCPPacketServerHandler(defaultHandler, dispatcher))
 
-    chan = b.bind(port).sync().channel()
+    // chan = b.bind(port).sync().channel()
   }
 
   def send(pkt: DatagramPacket) {
-    chan.write(pkt, channel.voidPromise())
+    val recipientAddress = pkt.recipient
+    val recipientID = initGroup.get(recipientAddress).id
+    val chan = recipientMap(recipientID)
+    chan.write(pkt, chan.voidPromise())
     chan.flush
   }
 
