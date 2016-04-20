@@ -262,6 +262,16 @@ object Typer {
     })
     base2 ++ addition
   }
+  
+  def mergeTypeMap(m1: Map[TypeVariable,Type], m2: Option[Map[TypeVariable,Type]]): Option[Map[TypeVariable,Type]] = {
+    m1.foldLeft(m2)( (acc, kv) => {
+      acc.flatMap( m =>
+        if (m.contains(kv._1)) {
+          if (m(kv._1) == kv._2) Some(m)
+          else None
+        } else Some(m + kv) )
+    })
+  }
 
   def solveConstraints(eqs: TypeConstraints): List[Map[TypeVariable, Type]] = eqs match {
     case TrivialCstr => List(Map.empty[TypeVariable, Type])

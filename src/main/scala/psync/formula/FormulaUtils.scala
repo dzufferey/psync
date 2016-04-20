@@ -335,6 +335,30 @@ object FormulaUtils {
     }
     collect(Set[Variable](), process, f)
   }
+  
+  def copy(f: Formula): Formula = f match {
+    case Literal(l) => Literal(l).setType(f.tpe)
+    case Variable(v) => Variable(v).setType(f.tpe)
+    case Application(fct, args) =>
+      val args2 = args.map(copy)
+      Application(fct, args).setType(f.tpe)
+    case Binding(bt, vars, expr) =>
+      val vars2 = vars.map(copy).asInstanceOf[List[Variable]]
+      val expr2 = copy(expr)
+      Binding(bt, vars2, expr2).setType(f.tpe)
+  }
+    
+  def copyAndType(m: Map[TypeVariable, Type], f: Formula): Formula = f match {
+    case Literal(l) => Literal(l).setType(f.tpe.alpha(m))
+    case Variable(v) => Variable(v).setType(f.tpe.alpha(m))
+    case Application(fct, args) =>
+      val args2 = args.map(copyAndType(m, _))
+      Application(fct, args).setType(f.tpe.alpha(m))
+    case Binding(bt, vars, expr) =>
+      val vars2 = vars.map(copyAndType(m, _)).asInstanceOf[List[Variable]]
+      val expr2 = copyAndType(m, expr)
+      Binding(bt, vars2, expr2).setType(f.tpe.alpha(m))
+  }
 
 }
 

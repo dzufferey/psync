@@ -32,7 +32,6 @@
         message
         timeout
         defaultHandler
-- add a strict timeout option (be careful about trying to catch up too quickly)
 - reduce memory footprint
 - a TCP version
 - more predictable performances when overloaded
@@ -40,13 +39,11 @@
 
 # verification
 
+- reimplement the extraction using scala-meta
 - Formula:
     * generalize typer overloading: Int vs Real
 - InstGen
-    * local step should not change the internal state of the generator
-    * generalise depth and stratification
-        - different types may have different depth (local types have depth 0)
-        - not every type may be allowed to generate terms of other types
+    * smarter heuristics
 - better structure of the specification:
     * which invariant we can use to prove what property
     * add temporal elements to spec/formula
