@@ -19,17 +19,18 @@ import io.netty.handler.ssl._
 import io.netty.handler.ssl.util._
 import java.net.InetSocketAddress
 import java.util.concurrent.{Executors, TimeUnit}
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.{Map, SynchronizedMap, HashMap}
 
 class TCPPacketServer(
     executor: java.util.concurrent.Executor,
     port: Int,
-    initGroup: Group,
+    val initGroup: Group,
     _defaultHandler: Message => Unit, //defaultHandler is responsible for releasing the ByteBuf payload
     options: RuntimeOptions) extends PacketServer(executor, port, initGroup, _defaultHandler, options)
 {
 
-  val recipientMap: Map[ProcessID, Channel] = new HashMap[ProcessID, Channel] with SynchronizedMap[ProcessID, Channel]
+  val recipientMap: Map[Short, Channel] = new TrieMap[Short, Channel]// with SynchronizedMap[ProcessID, Channel]
   private val recipients: Set[ProcessID] = initGroup.replicas.map(_.id).toSet - initGroup.self
 
   def defaultHandler(pkt: DatagramPacket) {
@@ -107,13 +108,13 @@ class TCPPacketServer(
         if (isSSLEnabled) {
           pipeline.addLast(sslClientCtx.newHandler(ch.alloc(), inet.getHostName(), inet.getPort()))
         }
-        pipeline.addLast(new TCPPacketClientHandler(outerThis, id))
+        pipeline.addLast(new TCPPacketClientHandler(outerThis, initGroup.self, id))
       }
     })
     bootstrap.connect(inet).addListener(new ChannelFutureListener() {
       override def operationComplete(future: ChannelFuture) {
         if (future.cause() != null) {
-          Logger("TCPPacketServer", Debug, "Couldn't connect, trying again...")
+          Logger("TCPPacketServer", Warning, "Couldn't connect, trying again...")
           delayedStartConnction(id)
         }
       }
@@ -126,18 +127,19 @@ class TCPPacketServer(
       if (initGroup.self.id < recipient.id)
         startConnection(recipient)
     }
+    Thread.sleep(1000)
   }
 
   def send(pkt: DatagramPacket) {
     val recipientAddress = pkt.recipient
     val recipientID = initGroup.get(recipientAddress).id
-    val chanOption = recipientMap.get(recipientID)
+    val chanOption = recipientMap.get(recipientID.id)
     chanOption match {
       case Some(chan) =>
         chan.write(pkt.content, chan.voidPromise())
         chan.flush
       case None =>
-        Logger("TCPPacketServer", Warning, "Tried to send packet, but no channel was available.")
+        Logger("TCPPacketServer", Info, "Tried to send packet, but no channel was available.")
         // Todo: have some sort of queue that waits for the client to come back up?
         //       Drop the packet?
     }
@@ -171,14 +173,15 @@ class TCPPacketServerHandler(
   override def channelInactive(ctx: ChannelHandlerContext) {
     Logger("TCPPacketServerHandler", Debug, "Someone disconneted")
     if (processID.isDefined)
-      packetServer.recipientMap.remove(processID.get)
+      packetServer.recipientMap.remove(processID.get.id)
   }
 
   override def channelRead0(ctx: ChannelHandlerContext, buf: ByteBuf) {
     if (processID.isEmpty) {
       // First message is always a processID
       processID = Some(new ProcessID(buf.getShort(0)))
-      packetServer.recipientMap.update(processID.get, ctx.channel())
+      packetServer.recipientMap.update(processID.get.id, ctx.channel())
+      Logger("TCPPacketServerHandler", Info, "Client " + processID.get.id + " connected to server " + packetServer.initGroup.self.id)
     } else {
       packetServer.receive(processID.get, buf)
     }
@@ -191,27 +194,28 @@ class TCPPacketServerHandler(
 
 class TCPPacketClientHandler(
     packetServer: TCPPacketServer,
-    processID: ProcessID
+    localID: ProcessID,
+    remoteID: ProcessID
   ) extends SimpleChannelInboundHandler[ByteBuf](false) {
 
   override def channelRead0(ctx: ChannelHandlerContext, buf: ByteBuf) {
-    packetServer.receive(processID, buf)
+    packetServer.receive(remoteID, buf)
   }
 
   override def channelActive(ctx: ChannelHandlerContext) {
     Logger("TCPPacketClientHandler", Debug, "Someone connected.")
     val chan = ctx.channel()
-    packetServer.recipientMap.update(processID, chan)
+    packetServer.recipientMap.update(remoteID.id, chan)
     val payload = PooledByteBufAllocator.DEFAULT.buffer()
-    payload.writeShort(processID.id)
+    payload.writeShort(localID.id)
     chan.write(payload, chan.voidPromise())
     chan.flush
   }
 
   override def channelInactive(ctx: ChannelHandlerContext) {
-    Logger("TCPPacketClientHandler", Debug, "Someone disconneted")
-    packetServer.recipientMap.remove(processID)
-    packetServer.delayedStartConnction(processID)
+    Logger("TCPPacketClientHandler", Debug, "Someone disconneted.")
+    packetServer.recipientMap.remove(remoteID.id)
+    packetServer.delayedStartConnction(remoteID)
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {

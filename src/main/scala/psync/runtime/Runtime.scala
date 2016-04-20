@@ -110,7 +110,12 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
       else Set(options.port)
     val port = ports.iterator.next()
     Logger("Runtime", Info, "starting service on ports: " + ports.mkString(", "))
-    val pktSrv = new UDPPacketServer(executor, port, grp, defaultHandler, options)
+    val pktSrv = options.protocol match {
+      case NetworkProtocol.UDP =>
+        new UDPPacketServer(executor, port, grp, defaultHandler, options)
+      case _ =>
+        new TCPPacketServer(executor, port, grp, defaultHandler, options)
+    }
     srv = Some(pktSrv)
     pktSrv.start
     for (i <- 0 until options.processPool) processPool.offer(createProcess)
