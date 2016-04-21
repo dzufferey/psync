@@ -15,6 +15,7 @@ import io.netty.channel.epoll._
 import io.netty.channel.oio._
 import io.netty.channel.socket.oio._
 import io.netty.channel.ChannelHandler.Sharable
+import io.netty.handler.codec.{LengthFieldBasedFrameDecoder,LengthFieldPrepender}
 import io.netty.handler.ssl._
 import io.netty.handler.ssl.util._
 import java.net.InetSocketAddress
@@ -79,6 +80,11 @@ class TCPPacketServer(
         val pipeline = ch.pipeline()
         if (isSSLEnabled) {
           pipeline.addLast(sslServerCtx.newHandler(ch.alloc()))
+        } else {
+          pipeline.addLast(
+            new LengthFieldBasedFrameDecoder(Short.MaxValue, 0, 2, 0, 2),
+            new LengthFieldPrepender(2)
+          )
         }
         pipeline.addLast(new TCPPacketServerHandler(outerThis))
       }
@@ -107,6 +113,11 @@ class TCPPacketServer(
         val pipeline = ch.pipeline()
         if (isSSLEnabled) {
           pipeline.addLast(sslClientCtx.newHandler(ch.alloc(), inet.getHostName(), inet.getPort()))
+        } else {
+          pipeline.addLast(
+            new LengthFieldBasedFrameDecoder(Short.MaxValue, 0, 2, 0, 2),
+            new LengthFieldPrepender(2)
+          )
         }
         pipeline.addLast(new TCPPacketClientHandler(outerThis, initGroup.self, id))
       }
@@ -180,6 +191,7 @@ class TCPPacketServerHandler(
     if (processID.isEmpty) {
       // First message is always a processID
       processID = Some(new ProcessID(buf.getShort(0)))
+      buf.release
       packetServer.recipientMap.update(processID.get.id, ctx.channel())
       Logger("TCPPacketServerHandler", Info, "Client " + processID.get.id + " connected to server " + packetServer.initGroup.self.id)
     } else {
