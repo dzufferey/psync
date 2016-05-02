@@ -3,3 +3,4 @@ test_scripts/deps
 *.html
 *.smt2
 *.thy~
+certs/
