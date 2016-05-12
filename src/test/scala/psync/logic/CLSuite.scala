@@ -13,6 +13,10 @@ class CLSuite extends FunSuite {
   val p = Variable("p").setType(pid)
   val p1 = Variable("p1").setType(pid)
   val p2 = Variable("p2").setType(pid)
+  val p3 = Variable("p3").setType(pid)
+  val p4 = Variable("p4").setType(pid)
+  val p5 = Variable("p5").setType(pid)
+  val p6 = Variable("p6").setType(pid)
 
   val nOver2 = Divides(n, Literal(2))
   val nOver3 = Divides(n, Literal(3)) 
@@ -384,6 +388,103 @@ class CLSuite extends FunSuite {
     )
     assertSat(fs)
     assertUnsat((tpl1._1 !== i) :: fs)
+  }
+
+  //from https://github.com/CVC4/CVC4/blob/master/test/regress/regress0/sets/card.smt2
+  test("cvc4-card-1") {
+    val fs = List(
+      a.card >= 5,
+      b.card >= 5,
+      (a ∪ b).card <= 4
+    )
+    assertUnsat(fs)
+  }
+
+  //from https://github.com/CVC4/CVC4/blob/master/test/regress/regress0/sets/card-2.smt2
+  test("cvc4-card-2") {
+    val fs = List(
+      a.card >= 5,
+      b.card >= 5,
+      c.card <= 6,
+      c === (a ∪ b)
+    )
+    assertSat(fs)
+  }
+
+  //from https://github.com/CVC4/CVC4/blob/master/test/regress/regress0/sets/card-3.smt2
+  test("cvc4-card-3") {
+    val fs = List(
+      (a ∪ b).card >= 8,
+      (a ∪ c).card >= 8,
+      (b ∪ c).card <= 5,
+      a.card <= 5,
+      (b ∩ c) === Comprehension(List(i), False())
+    )
+    assertUnsat(fs, cln(10, new quantifiers.Guided, 1, false))
+  }
+
+  //from https://github.com/CVC4/CVC4/blob/master/test/regress/regress0/sets/card-4.smt2
+  test("cvc4-card-4") {
+    val fs = List(
+      (a ∪ b).card >= 8,
+      (a ∪ c).card >= 8,
+      //(b ∪ c).card <= 5,
+      a.card <= 5,
+      (b ∩ c) === Comprehension(List(i), False()),
+      p1 ∈ a,
+      p2 ∈ a,
+      p3 ∈ a,
+      p4 ∈ a,
+      p5 ∈ a,
+      p6 ∈ a
+    )
+    assertSat(fs)
+  }
+
+/* TODO distinct membership will be hard to catch unless we build a complete model
+  //from https://github.com/CVC4/CVC4/blob/master/test/regress/regress0/sets/card-5.smt2
+  test("cvc4-card-5") {
+    val fs = List(
+      (a ∪ b).card >= 8,
+      (a ∪ c).card >= 8,
+      //(b ∪ c).card <= 5,
+      a.card <= 5,
+      (b ∩ c) === Comprehension(List(i), False()),
+      p1 ∈ a,
+      p2 ∈ a,
+      p3 ∈ a,
+      p4 ∈ a,
+      p5 ∈ a,
+      p6 ∈ a,
+      p1 !== p2, p1 !== p3, p1 !== p4, p1 !== p5, p1 !== p6,
+      p2 !== p3, p2 !== p4, p2 !== p5, p2 !== p6,
+      p3 !== p4, p3 !== p5, p3 !== p6,
+      p4 !== p5, p4 !== p6,
+      p5 !== p6
+    )
+    assertUnsat(fs)
+  }
+*/
+
+  //from https://github.com/CVC4/CVC4/blob/master/test/regress/regress0/sets/card-6.smt2
+  test("cvc4-card-6") {
+    val fs = List(
+      (a ∩ b) === Comprehension(List(i), False()),
+      c ⊆ (a ∪ b),
+      c.card >= 5,
+      a.card <= 2,
+      b.card <= 2
+    )
+    assertUnsat(fs, cln(10, new quantifiers.Guided, 1, false))
+  }
+
+  //from https://github.com/CVC4/CVC4/blob/master/test/regress/regress0/sets/card-7.smt2
+  test("cvc4-card-7") {
+    val as = (1 to 20).map( i => Variable("A"+i).setType(FSet(pid)) )
+    val ac = as.map( a => a.card )
+    val ac1 = ac.map( ac => ac === 1 )
+    val fs = (Plus(ac:_*) === 20) :: ac1.toList
+    assertSat(fs, cln(1, new quantifiers.Guided, 1, false))
   }
 
 }

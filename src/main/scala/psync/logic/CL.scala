@@ -50,10 +50,12 @@ class CL(config: ClConfig) {
     //TODO some (lazy) CNF conversion ?
     //TODO purification before or after instantiation ?
     val f1 = Simplify.simplify(f)
-    val f2 = Simplify.boundVarUnique(f1)
-    val f3 = Simplify.mergeExists(f2)
-    val f4 = Simplify.splitTopLevelForall(f3)
-    f4
+    val f2 = Rewriting(f1)
+    val f3 = Simplify.boundVarUnique(f2)
+    val f4 = Simplify.mergeExists(f3)
+    val f5 = Simplify.splitTopLevelForall(f4)
+    val f6 = Rewriting(f5)
+    f6
   }
 
   protected def sizeOfUniverse(tpe: Type): Option[Formula] = tpe match {
@@ -192,23 +194,24 @@ class CL(config: ClConfig) {
     Logger("CL", Debug, "after instantiation:\n  " + inst.mkString("\n  "))
 
     //the venn regions
-    val withILP = reduceComprehension(inst, symbols, gen)
-    val withILP2 = FormulaUtils.getConjuncts(cleanUp(withILP))
+    val withILP1 = reduceComprehension(inst, symbols, gen)
+    val withILP2 = FormulaUtils.getConjuncts(cleanUp(withILP1))
+    val withILP  = withILP2.map(normalize)
     
     //add axioms for the other theories
-    val extraAxioms = AxiomatizedTheory.getAxioms(withILP2)
+    val extraAxioms = AxiomatizedTheory.getAxioms(withILP)
     val withExtraAxioms =
       if (extraAxioms.isEmpty) {
         Nil
       } else {
         //instantiate the extra theory axioms
-        val cc2 = new CongruenceClosure(withILP2) //XXX this is expensive when the formula is large
-        cc2.addConstraints(withILP2)
+        val cc2 = new CongruenceClosure(withILP) //XXX this is expensive when the formula is large
+        cc2.addConstraints(withILP)
         localQuantifierInstantiation(extraAxioms, cc2)
       }
 
     //
-    val withoutTime = ReduceTime(withILP2 ::: withExtraAxioms)
+    val withoutTime = ReduceTime(withILP ::: withExtraAxioms)
     val expendedLt = ReduceOrdered(withoutTime)
 
 
