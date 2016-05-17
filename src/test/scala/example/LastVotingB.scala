@@ -39,12 +39,17 @@ class LVBProcess extends Process[BConsensusIO] {
         Map( coord(r/4) -> (x, ts) )
       }
 
-      override def expectedNbrMessages = if (id == coord(r/4)) n/2 + 1 else 0
+      override def expectedNbrMessages = {
+        if (id == coord(r/4)) {
+          if (r.toInt == 0) 1
+          else n/2 + 1
+        } else 0
+      }
 
       def update(mailbox: Map[ProcessID,(Array[Byte], Time)]) {
-        if (id == coord(r/4) && mailbox.size > n/2) {
-          // let θ be one of the largest θ from 〈ν, θ〉received
-          // vote(p) := one ν such that 〈ν, θ〉 is received
+        if (id == coord(r/4) &&
+            (mailbox.size > n/2 ||
+             (r.toInt == 0 && mailbox.size > 0))) {
           val nemp = mailbox.filter(!_._2._1.isEmpty)
           if (nemp.isEmpty) {
             vote = Array[Byte]()

@@ -3,7 +3,7 @@
 
 <configuration>
   <parameters>
-    <param> <name>protocol</name> <value>UDP</value> </param>
+    <param> <name>protocol</name> <value>TCP</value> </param>
     <param> <name>timeout</name> <value>50</value> </param>
     <param> <name>group</name> <value>NIO</value> </param>
     <param> <name>bufferSize</name> <value>256</value> </param>
