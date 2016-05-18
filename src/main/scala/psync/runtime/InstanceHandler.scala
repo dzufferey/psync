@@ -47,6 +47,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected val earlyMoving = options.earlyMoving
   protected val adaptative = options.adaptative
   protected val sendWhenCatchingUp = options.sendWhenCatchingUp
+  protected val delayFirstSend = options.delayFirstSend
 
   protected var didTimeOut = 0
 
@@ -157,6 +158,9 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     try {
       Logger("InstanceHandler", Info, "starting instance " + instance)
       again = true
+      if (delayFirstSend > 0) {
+        Thread.sleep(delayFirstSend)
+      }
       send //TODO might already stop here
       while(again && !Thread.interrupted()) {
         //TODO the timeout should also depends on when the round started!

@@ -1,7 +1,7 @@
 #!/bin/bash
 source `dirname $0`/deps
 
-t=15
+t=8
 
 echo running 7 ε-consensus replicas
  java -cp ${cp} example.EpsilonRunner -id 0 --conf src/test/resources/7replicas-conf.xml $* &

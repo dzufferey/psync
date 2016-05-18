@@ -115,7 +115,7 @@ object EpsilonRunner extends RTOptions {
       }
     }
     val cur = java.lang.System.currentTimeMillis()
-    Thread.sleep(8000 + start - cur)
+    Thread.sleep(5000 + start - cur)
     Console.println("replica " + id + " starting with " + init)
     rt.startInstance(0, io)
   }

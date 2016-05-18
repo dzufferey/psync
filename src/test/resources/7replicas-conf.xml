@@ -4,10 +4,11 @@
 <configuration>
   <parameters>
     <param> <name>protocol</name> <value>UDP</value> </param>
-    <param> <name>timeout</name> <value>1000</value> </param>
+    <param> <name>timeout</name> <value>100</value> </param>
     <param> <name>group</name> <value>nio</value> </param>
     <param> <name>bufferSize</name> <value>128</value> </param>
     <param> <name>earlyMoving</name> <value>false</value> </param>
+    <param> <name>delayFirstSend</name> <value>100</value> </param>
   </parameters>
   <peers>
     <replica> <id>0</id> <address>127.0.0.1</address> <port>4444</port> </replica>

@@ -28,6 +28,7 @@ trait RuntimeOptions {
   def timeout = _timeout
   def earlyMoving = _earlyMoving
   def sendWhenCatchingUp = _sendWhenCatchingUp
+  def delayFirstSend = _delayFirstSend
   def adaptative = _adaptative
   def packetSize = _packetSize
   def bufferSize = _bufferSize
@@ -42,6 +43,7 @@ trait RuntimeOptions {
   protected var _protocol = NetworkProtocol.UDP
   protected var _earlyMoving = true
   protected var _sendWhenCatchingUp = true
+  protected var _delayFirstSend = -1
   protected var _timeout = 10l
   protected var _adaptative = false
   protected var _packetSize = -1
@@ -67,6 +69,7 @@ abstract class RTOptions extends DefaultOptions with RuntimeOptions {
   newOption("--earlyMoving",            Bool( b => _earlyMoving = b ),              "early moving optimization (default: true).")
   newOption("--noEarlyMoving",          Unit( () => _earlyMoving = false ),         "disable early moving optimization.")
   newOption("--noSendWhenCatchingUp",   Unit( () => _sendWhenCatchingUp = false ),  "disable send when catching up.")
+  newOption("--delayFirstSend",         Int( i => _delayFirstSend = i ),            "delay the messages send in the first round (default: -1).")
   newOption("--adapt",                  Unit( () => _adaptative = true ),           "adaptative timeout (default: false).")
   newOption("--adaptative",             Bool( b => _adaptative = b ),               "adaptative timeout (default: false).")
   newOption("--packetSize",             Int( i => _packetSize = i ),                "max packet size for the memory allocator (default: what netty provides).")
