@@ -47,6 +47,7 @@
 - better structure of the specification:
     * which invariant we can use to prove what property
     * add temporal elements to spec/formula
+- allow pure functions in the send method
 - reduce memory footprint of Simplify
 - extraction of initial state: if a variable is not initialized in the process, take the default value in the declaration
 - extract the spec of aux fct from the type annotation

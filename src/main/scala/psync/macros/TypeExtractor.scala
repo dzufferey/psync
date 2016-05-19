@@ -79,15 +79,6 @@ trait TypeExtractor {
         case IsUnit() => UnitT()
         case MethodType(args, returnT) =>
           psync.formula.Function(args.map(arg => extractType(arg.typeSignature)), extractType(returnT))
-        /*
-        case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "TypeName(\"LocalVariable\")" =>
-          psync.formula.Function(List(psync.verification.Utils.procType), (extractType(arg)))
-        case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "TypeName(\"GhostVariable\")" =>
-          psync.formula.Function(List(psync.verification.Utils.procType), (extractType(arg)))
-        case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "TypeName(\"GlobalVariable\")" =>
-          extractType(arg)
-        */
-        //case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "TypeName(\"Domain\")" =>
         case TypeRef(_, tRef, List(arg)) if showRaw(tRef) == "psync.Domain" =>
           FSet(extractType(arg)) //Domain are Set
         case t @ TypeRef(_, _, List()) =>
@@ -102,8 +93,8 @@ trait TypeExtractor {
         case NullaryMethodType(tpe) =>
           extractType(tpe)
         case other =>
-          //TODO
-          println("TODO extractType:\n  " + other + "\n  " + showRaw(other))
+          //TODO as uninterpreted ?
+          c.warning(null, "extractType(" + other + ") " + showRaw(other) + " currently Wildcard")
           Wildcard
       }
     }
@@ -116,7 +107,7 @@ trait TypeExtractor {
     extractType(t.tpe) match {
       case Wildcard =>
         t match {
-          case TypeTree() => extractType(t.tpe)
+          //case TypeTree() => extractType(t.tpe)
           case Ident(TypeName("Int"))
              | Ident(TypeName("Long"))
              | Ident(TypeName("Short")) => Int
@@ -128,7 +119,7 @@ trait TypeExtractor {
           case Select(Ident(pkg), TypeName(tn)) => UnInterpreted(pkg.toString + "." + tn)
           case Ident(TypeName(tn)) => UnInterpreted(tn)
           case _ =>
-            c.warning(t.pos, "TODO extractType from tree: " + showRaw(t) + " currently Wildcard")
+            c.warning(t.pos, "TODO extractType from tree: " + showRaw(t) + "(" + t.tpe + ") currently Wildcard")
             Wildcard
         }
       case other => other
