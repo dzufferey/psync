@@ -143,7 +143,8 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
     })
   }
 
-  /** the first 8 bytes of the payload must be empty */
+  /** Send an out-of-band message to another process.
+   *  The first 8 bytes of the payload must be empty */
   def sendMessage(dest: ProcessID, tag: Tag, payload: ByteBuf) = {
     assert(Flags.userDefinable(tag.flag) || tag.flag == Flags.dummy) //TODO in the long term, we might want to remove the dummy
     assert(srv.isDefined)
@@ -163,6 +164,12 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
   def directory = {
     assert(srv.isDefined)
     srv.get.directory
+  }
+
+  /* Try to deliver a message.
+   * Useful when multiple defaulthandlers interleave */
+  def deliverMessage(m: Message): Boolean = {
+    srv.get.dispatcher.dispatch(m.packet)
   }
 
 }

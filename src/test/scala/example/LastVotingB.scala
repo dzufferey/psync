@@ -36,7 +36,10 @@ class LVBProcess extends Process[BConsensusIO] {
     new Round[(Array[Byte], Time)]{
 
       def send(): Map[ProcessID,(Array[Byte], Time)] = {
-        Map( coord(r/4) -> (x, ts) )
+        if (r.toInt != 0 || id == coord(r/4))
+          Map( coord(r/4) -> (x, ts) )
+        else
+          Map( )
       }
 
       override def expectedNbrMessages = {

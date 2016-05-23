@@ -5,6 +5,10 @@ package psync.runtime
  */
 object Instance {
 
+  def compare(i1: Short, i2: Short): Int = {
+    i1 - i2
+  }
+
   def lt(i1: Short, i2: Short): Boolean = {
     (i2 - i1).toShort > 0
   }

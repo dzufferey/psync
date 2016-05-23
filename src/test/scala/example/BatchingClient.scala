@@ -4,39 +4,45 @@ import psync._
 import psync.runtime._
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
-import java.util.concurrent.Semaphore
 import java.util.concurrent.locks.ReentrantLock
-import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.ConcurrentSkipListSet
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.TimeUnit
+import scala.collection.mutable.PriorityQueue
 import scala.util.Random
 import io.netty.buffer.PooledByteBufAllocator
-
 
 class BatchingClient(options: RuntimeOptions,
                      nbrValues: Int,
                      batchSize: Int,
                      _rate: Int,
+                     eagerStart: Boolean,
                      logFile: Option[String]
                    ) extends DecisionLog[Array[Byte]]
 {
+  import BatchingClient.myYield
 
   final val Decision = 4
   final val Late = 5
   final val ForwardedBatch = 6
+  final val AskDecision = 7
 
   val id = options.id
   val lck = new ReentrantLock 
   var nbr = 0l
 
-  //
-  val rate = new Semaphore(_rate)
-  //
-  var selfStarted = scala.collection.mutable.Set[Short]()
-  var started: Short = 0
-  var finished: Short = 0
+  // Rate limiting (sliding window)
 
+  var rate = _rate
+  val monitor = lck.newCondition()
+  /** self started instances (used for rate limiting) */
+  val selfStarted = scala.collection.mutable.Set[Short]()
+
+  val tracker = new InstanceTracking
+
+  // logging decisions
 
   val log: java.io.BufferedWriter =
     if (logFile.isDefined) new java.io.BufferedWriter(new java.io.FileWriter(logFile.get + "_" + id + ".log"))
@@ -46,12 +52,17 @@ class BatchingClient(options: RuntimeOptions,
     log.write("inst\tkey\tvalue")
     log.newLine()
   }
+
+
+  // PSync runtime
   
   val alg = new LastVotingB
   val rt = new Runtime(alg, options, defaultHandler(_))
   rt.startService
 
+
   // state of the system
+
   val values   = Array.fill[Int](nbrValues)(0)
   val versions = Array.fill[Short](nbrValues)(-1)
   // batches that have been accepted but still needs to be executed
@@ -93,33 +104,67 @@ class BatchingClient(options: RuntimeOptions,
   }
 
   def processBatch(inst: Short, a: Array[Byte]) {
-    assert(a.size % 12 == 0)
-    var b = 0
-    while (b < a.size) {
-      processRequest(inst, a, b)
-      b += 12
-      nbr += 1
+    if (a != null && a.nonEmpty) { //null/empty means the proposer crashed before setting a value
+      assert(a.size % 12 == 0)
+      var b = 0
+      while (b < a.size) {
+        processRequest(inst, a, b)
+        b += 12
+        nbr += 1
+      }
     }
   }
 
+
   // the thread that executes the commands and notify the clients
   val decisionProcessor = new Thread(new Runnable(){
+    object BatchOrdering extends Ordering[(Short, Array[Byte])] {
+      // assumes that the instance number are unique
+      def compare(a: (Short, Array[Byte]), b: (Short, Array[Byte])) = {
+        Instance.compare(b._1, a._1) // swap a,b for lowest batch first
+      }
+    }
+    private val reorderingQueue = new PriorityQueue[(Short, Array[Byte])]()(BatchOrdering)
+    private var nextBatch: Short = 1
     def run = {
       try{
         while(!Thread.interrupted) {
           val req = acceptedBatch.poll
           if (req != null) {
             val (inst, batch) = req
-            //TODO reordering of batches
-            processBatch(inst, batch)
+            if (inst == nextBatch) {
+              processBatch(inst, batch)
+              nextBatch = (nextBatch + 1).toShort
+              // check in there are pending batches to process
+              while (!reorderingQueue.isEmpty && reorderingQueue.head._1 == nextBatch) {
+                val (inst, batch) = reorderingQueue.dequeue
+                processBatch(inst, batch)
+                nextBatch = (nextBatch + 1).toShort
+              }
+            } else {
+              // not the next batch, put in the reordering queue
+              Logger.assert(Instance.lt(nextBatch, inst), "BatchingClient", "nextBatch = " + nextBatch + ", inst = " + inst)
+              reorderingQueue += req
+              if (reorderingQueue.size > _rate * 10 && !tracker.isRunning(nextBatch)) {
+                //pick someone to ask
+                var askingTo = scala.util.Random.nextInt(rt.directory.size)
+                while (askingTo == id) {
+                  askingTo = scala.util.Random.nextInt(rt.directory.size)
+                }
+                val payload = PooledByteBufAllocator.DEFAULT.buffer()
+                payload.writeLong(8)
+                rt.sendMessage(new ProcessID(askingTo.toShort), Tag(nextBatch,0,AskDecision,0), payload)
+                Logger("BatchingClient", Info, id + " asking to " + askingTo + " for decision " + nextBatch)
+              }
+            }
           } else {
-            Thread.`yield`()
-            //Thread.sleep(10)
+            myYield
           }
         }
       } catch {
         case _: java.lang.InterruptedException => ()
       }
+      Logger("BatchingClient", Info, "decisionProcessor, nextBatch = " + nextBatch + ", |reorderingQueue| = " + reorderingQueue.size)
     }
   })
   decisionProcessor.start
@@ -127,12 +172,15 @@ class BatchingClient(options: RuntimeOptions,
 
   @inline final def submitBatch(batch: Array[Byte]) {
     if (id == 0) {
-      Logger("BatchingClient", Debug, id + ", taking")
-      rate.acquire
       lck.lock
       try {
-        val inst = (started + 1).toShort
-        selfStarted += inst
+        Logger("BatchingClient", Debug, id + ", taking")
+        while(rate <= 0) {
+          monitor.await
+        }
+        val inst = (tracker.started + 1).toShort
+        selfStarted.add(inst)
+        rate -= 1
         start(inst, batch, Set.empty)
       } finally {
         lck.unlock
@@ -176,14 +224,14 @@ class BatchingClient(options: RuntimeOptions,
             if (b != null) {
               submitBatch(b)
             } else {
-              Thread.`yield`()
-              //Thread.sleep(10)
+              myYield
             }
           }
         }
       } catch {
         case _: java.lang.InterruptedException => ()
       }
+      Logger("BatchingClient", Info, "requestsProcessor, |pendingRequests| = " + pendingRequests.size + ", |pendingBatch| = " + pendingBatch.size)
     }
   })
   requestsProcessor.start
@@ -200,8 +248,8 @@ class BatchingClient(options: RuntimeOptions,
         proposeDecision(i, value)
       }
     }
-    started = inst
-    assert(Instance.leq(finished,started))
+    assert(tracker.canStart(inst) && !tracker.isRunning(inst))
+    tracker.start(inst)
     rt.startInstance(inst, io, msgs)
   }
 
@@ -213,16 +261,19 @@ class BatchingClient(options: RuntimeOptions,
       //put the decision in the rolling log
       if (pushDecision(inst, data)) {
         Logger("BatchingClient", Debug, id + ", pushDecision ✓")
-        finished = inst
-        assert(Instance.leq(finished,started))
-        //if (selfStarted contains inst) {
-        if (id == 0) {
-          Logger("BatchingClient", Debug, id + ", releasing")
-          selfStarted -= inst
-          rate.release
-        }
-        if (data != null && data.nonEmpty) { //null/empty means the proposer crashed before setting a value
-          acceptedBatch.add(inst -> data)
+        acceptedBatch.add(inst -> data)
+        //
+        lck.lock
+        try {
+          tracker.stop(inst)
+          if (selfStarted contains inst) {
+            Logger("BatchingClient", Debug, id + ", releasing")
+            selfStarted -= inst
+            rate += 1
+            monitor.signal()
+          }
+        } finally {
+          lck.unlock
         }
       } else {
         Logger("BatchingClient", Debug, id + ", pushDecision ✗")
@@ -239,29 +290,38 @@ class BatchingClient(options: RuntimeOptions,
       val inst = msg.instance
       lck.lock
       try {
-        if (Instance.lt(started, inst)) {
+        if (tracker.canStart(inst)) {
           start(inst, emp, Set(msg))
-        } else if (Instance.leq(inst, finished)) {
-          getDec(inst) match {
-            case Some(d) => 
-              val payload = PooledByteBufAllocator.DEFAULT.buffer()
-              payload.writeLong(8)
-              payload.writeInt(d.size)
-              payload.writeBytes(d)
-              rt.sendMessage(msg.senderId, Tag(inst,0,Decision,0), payload)
-              Logger("BatchingClient", Debug, "sending decision to " + msg.senderId.id + " for " + inst)
-            case None =>
-              val payload = PooledByteBufAllocator.DEFAULT.buffer()
-              payload.writeLong(8)
-              rt.sendMessage(msg.senderId, Tag(inst,0,Late,0), payload)
-              Logger("BatchingClient", Debug, "sending late to " + msg.senderId.id + " for " + inst)
+        } else if (tracker.isRunning(inst)) {
+          if (!rt.deliverMessage(msg)) {
+            Logger("BatchingClient", Debug, "could not deliver message message for running instance " + inst)
+            msg.release
           }
-          msg.release
         } else {
-          //TODO check if running and push to inst ?
-          Logger("BatchingClient", Debug, "message for instance started but not finished: " + inst + ", started: " + started + ", finished: " + finished)
+          sendRecoveryInfo(inst, msg.senderId)
           msg.release
         }
+      } finally {
+        lck.unlock
+      }
+    } else if (flag == AskDecision) {
+      val inst = msg.instance
+      lck.lock
+      try {
+        if (tracker.canStart(inst) || tracker.isRunning(inst)) {
+          if (tracker.pending(inst)) {
+            Logger("BatchingClient", Info, id + ", AskDecision for pending instance " + inst)
+          } else if (tracker.running(inst)) {
+            Logger("BatchingClient", Info, id + ", AskDecision for running instance " + inst)
+          } else if (Instance.lt(tracker.started, inst)){
+            Logger("BatchingClient", Info, id + ", AskDecision for instance not yet started " + inst)
+          } else {
+            Logger("BatchingClient", Warning, id + ", AskDecision for instance " + inst + "\n" + tracker)
+          }
+        } else {
+          sendRecoveryInfo(inst, msg.senderId)
+        }
+        msg.release
       } finally {
         lck.unlock
       }
@@ -278,6 +338,7 @@ class BatchingClient(options: RuntimeOptions,
       Logger("BatchingClient", Debug, "received decision for " + inst)
     } else if (flag == Late) {
       val inst = msg.instance
+      msg.release
       rt.stopInstance(inst)
       //TODO get the whole state
       proposeDecision(inst, null)
@@ -294,23 +355,28 @@ class BatchingClient(options: RuntimeOptions,
       sys.error("unknown or error flag: " + flag)
     }
   }
-  
-  def sendRecoveryInfo(m: Message) = {
-    val inst = m.instance
-    val payload = PooledByteBufAllocator.DEFAULT.buffer()
-    val sender = m.senderId
-    payload.writeLong(8)
-    var tag = Tag(0,0)
+
+  def sendRecoveryInfo(inst: Short, dest: ProcessID) = {
     getDec(inst) match {
       case Some(d) =>
-        tag = Tag(inst,0,Decision,0)
-        payload.writeInt(d.size)
-        payload.writeBytes(d)
+        val payload = PooledByteBufAllocator.DEFAULT.buffer()
+        payload.writeLong(8)
+        if (d.nonEmpty) {
+          payload.writeInt(d.size)
+          payload.writeBytes(d)
+        } else {
+          payload.writeInt(emp.size)
+          payload.writeBytes(emp)
+        }
+        rt.sendMessage(dest, Tag(inst,0,Decision,0), payload)
+        Logger("BatchingClient", Debug, id + " sending decision to " + dest.id + " for " + inst)
       case None =>
-        Tag(inst,0,Late,0)
+        val payload = PooledByteBufAllocator.DEFAULT.buffer()
+        payload.writeLong(8)
+        rt.sendMessage(dest, Tag(inst,0,Late,0), payload)
         //TODO send the whole state
+        Logger("BatchingClient", Debug, id + " sending late to " + dest.id + " for " + inst)
     }
-    rt.sendMessage(sender, tag, payload)
   }
   
   def propose(c: Int, k: Int, v: Int) {
@@ -332,10 +398,18 @@ class BatchingClient(options: RuntimeOptions,
 
 object BatchingClient extends RTOptions {
 
+  def myYield = {
+    Thread.`yield`()
+    //Thread.sleep(5)
+  }
+
   var confFile = "src/test/resources/sample-conf.xml"
   
   var logFile: Option[String] = None
   newOption("--log", dzufferey.arg.String(str => logFile = Some(str) ), "log file prefix")
+
+  var eagerStart = false
+  newOption("--eager", dzufferey.arg.Unit( () => eagerStart = true), "start the instances in parallel")
 
   var rate = 1
   newOption("-rt", dzufferey.arg.Int( i => rate = i), "fix the rate (#queries in parallel)")
@@ -357,7 +431,7 @@ object BatchingClient extends RTOptions {
 
   def main(args: Array[java.lang.String]) {
     apply(args)
-    system = new BatchingClient(this, n, batch, rate, logFile)
+    system = new BatchingClient(this, n, batch, rate, eagerStart, logFile)
 
     //let the system setup before starting
     Thread.sleep(delay)
@@ -367,9 +441,12 @@ object BatchingClient extends RTOptions {
 
     //TODO many clients
     while (true) {
-      system.propose(id, prng.nextInt(n), prng.nextInt())
-      //Thread.`yield`()
-      //Thread.sleep(10)
+      var i = 0
+      while (i < 150) {
+        system.propose(id, prng.nextInt(n), prng.nextInt())
+        i += 1
+      }
+      Thread.sleep(1)
     }
 
   }
@@ -380,10 +457,69 @@ object BatchingClient extends RTOptions {
         val versionNbr = system.shutdown
         val end = java.lang.System.currentTimeMillis()
         val duration = (end - begin) / 1000
-        println("#decisions = " + versionNbr + ", Δt = " + duration + ", throughput = " + (versionNbr/duration))
+        Logger("BatchingClient", Notice, "#decisions = " + versionNbr + ", Δt = " + duration + ", throughput = " + (versionNbr/duration))
       }
     }
   )
 
+
+}
+
+
+/** To keep track of the what is running
+ *  This object is not thread safe! */
+class InstanceTracking {
+
+  /** the # of the highest started instance */
+  var started: Short = 0
+  /** what is currently running */
+  var running = scala.collection.mutable.Set[Short]()
+  /** with the sliding window, there may be gap (# < started but not yet started) */
+  var pending = scala.collection.mutable.Set[Short]()
+
+  assertTrackingInvariant
+
+  override def toString = {
+    "started: " + started +
+    "\nrunning: " + running.mkString(", ") +
+    "\npending: " + pending.mkString(", ")
+  }
+
+  def canStart(inst: Short) = {
+    Instance.lt(started, inst) || pending(inst)
+  }
+
+  def start(inst: Short) {
+    var oldStarted = started
+    started = Instance.max(started, inst)
+    pending -= inst
+    running += inst
+    oldStarted = (oldStarted + 1).toShort
+    while(Instance.lt(oldStarted, started)) {
+      pending += oldStarted
+      oldStarted = (oldStarted + 1).toShort
+    }
+    assertTrackingInvariant
+  }
+
+  def stop(inst: Short) {
+    assert(running(inst), "not running " + inst + "\n" + toString)
+    running -= inst
+    assertTrackingInvariant
+  }
+
+  def isRunning(inst: Short) = running contains inst
+
+  def trackingInvariant = {
+    running.forall( Instance.leq(_, started) ) &&
+    pending.forall( Instance.lt(_, started) ) &&
+    pending.forall( !running.contains( _ ) )
+  }
+
+  def assertTrackingInvariant {
+    if (!trackingInvariant) {
+      Logger.logAndThrow("InstanceTracking", Error, toString)
+    }
+  }
 
 }

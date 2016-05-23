@@ -147,6 +147,8 @@ class Directory(private var g: Group) {
   
   def contains(pid: ProcessID) = g.contains(pid)
 
+  def size = g.size
+
   def getSafe(address: InetSocketAddress) = g.getSafe(address)
 
   def get(id: ProcessID) = g.get(id)
