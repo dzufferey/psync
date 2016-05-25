@@ -28,22 +28,33 @@ class InstanceTracking {
     Instance.lt(started, inst) || pending(inst)
   }
 
-  def start(inst: Short) {
+  protected def updateStarted(inst: Short) {
     var oldStarted = started
     started = Instance.max(started, inst)
-    pending -= inst
-    running += inst
     oldStarted = (oldStarted + 1).toShort
     while(Instance.lt(oldStarted, started)) {
       pending += oldStarted
       oldStarted = (oldStarted + 1).toShort
     }
+  }
+
+  def start(inst: Short) {
+    pending -= inst
+    running += inst
+    updateStarted(inst)
     assertTrackingInvariant
   }
 
   def stop(inst: Short) {
     assert(running(inst), "not running " + inst + "\n" + toString)
     running -= inst
+    assertTrackingInvariant
+  }
+
+  def stopAndUpdateStarted(inst: Short) {
+    updateStarted(inst)
+    running -= inst
+    pending -= inst
     assertTrackingInvariant
   }
 

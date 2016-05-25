@@ -61,10 +61,6 @@ class BatchingClient(val options: BatchingClient.type)
   
   def defaultHandler(msg: Message) {
 
-    if (jitting) {
-      msg.release
-      return
-    }
 
     val flag = msg.tag.flag
     Logger("BatchingClient", Debug, id + ", defaultHandler: " + msg.tag)
@@ -72,7 +68,9 @@ class BatchingClient(val options: BatchingClient.type)
       val inst = msg.instance
       lck.lock
       try {
-        if (tracker.canStart(inst)) {
+        if (jitting) {
+          msg.release
+        } else if (tracker.canStart(inst)) {
           // with eagerStart, instances are started eagerly, not lazily
           if (!options.eagerStart) {
             startInstance(inst, emp, Set(msg))
@@ -180,31 +178,28 @@ class BatchingClient(val options: BatchingClient.type)
   def warmupJIT {
     jitting = true
     val io = new BConsensusIO {
-      val i = 0
       val phase = 0
       val initialValue = emp
-      def decide(value: Array[Byte]) {
-        lck.lock
-        try {
-          jitting = false
-        } finally {
-          lck.unlock
-        }
-      }
+      def decide(value: Array[Byte]) { }
     }
     rt.startInstance(0, io, Set.empty)
+    rt.startInstance(1, io, Set.empty)
+    rt.startInstance(2, io, Set.empty)
+    rt.startInstance(3, io, Set.empty)
+    rt.startInstance(4, io, Set.empty)
     //let it run for a while
-    Thread.sleep(3 * options.delay / 4)
+    Thread.sleep(options.delay)
     lck.lock
     try {
-      if (jitting) {
-        rt.stopInstance(0)
-        jitting = false
-      }
+      rt.stopInstance(0)
+      rt.stopInstance(1)
+      rt.stopInstance(2)
+      rt.stopInstance(3)
+      rt.stopInstance(4)
+      jitting = false
     } finally {
       lck.unlock
     }
-    Thread.sleep(options.delay / 4)
   }
 
 
@@ -213,6 +208,7 @@ class BatchingClient(val options: BatchingClient.type)
     requestsProcessor.start
     decisionProcessor.start
 
+    //if you comment out this method, make sure to replace it by `jitting = false`
     warmupJIT
  
     // eager case

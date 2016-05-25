@@ -47,7 +47,7 @@ trait DecisionProcessor {
         //
         lck.lock
         try {
-          tracker.stop(inst)
+          tracker.stopAndUpdateStarted(inst)
           if (isLeader) {
             release
           } else if (options.eagerStart) {
@@ -122,7 +122,10 @@ trait DecisionProcessor {
               }
             } else {
               // not the next batch, put in the reordering queue
-              Logger.assert(Instance.lt(nextBatch, inst), "BatchingClient", "nextBatch = " + nextBatch + ", inst = " + inst)
+              if (!Instance.lt(nextBatch, inst)) {
+                Logger("DecisionProcessor", Critical, "Too far behind, commiting sucide (nextBatch = " + nextBatch + ", inst = " + inst + ")")
+                sys.exit(-1)
+              }
               reorderingQueue += req
               if (reorderingQueue.size > options.rate * 10 && !tracker.isRunning(nextBatch)) {
                 //pick someone to ask
