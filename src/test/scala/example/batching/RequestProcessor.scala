@@ -19,7 +19,7 @@ trait RequestProcessor {
   // batches that needs to be proposed
   val pendingBatch = new ConcurrentLinkedQueue[Array[Byte]]
   // requests that still needs to be batched
-  val pendingRequests = new ArrayBlockingQueue[(Int,Int,Int)](10)
+  val pendingRequests = new ArrayBlockingQueue[(Int,Int,Int)](5 * options.batchSize)
 
   /** The client should use this method to submit new request */
   def propose(c: Int, k: Int, v: Int) {
