@@ -135,7 +135,7 @@ trait DecisionProcessor {
               }
               if (!lateThreshold) {
                 if (isLate.get) {
-                    Logger("BatchingClient", Notice, id + ", not late anymore")
+                    Logger("BatchingClient", Info, id + ", not late anymore")
                 }
                 isLate.set(false)
               }
@@ -148,7 +148,7 @@ trait DecisionProcessor {
               reorderingQueue += req
               if (lateThreshold) {
                 if (!isLate.get) {
-                    Logger("BatchingClient", Notice, id + ", late")
+                    Logger("BatchingClient", Info, id + ", late")
                 }
                 isLate.set(true)
                 if (!tracker.isRunning(nextBatch)) {

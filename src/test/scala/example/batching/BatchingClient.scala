@@ -158,7 +158,7 @@ class BatchingClient(val options: BatchingClient.type)
       case Some(d) =>
         val payload = PooledByteBufAllocator.DEFAULT.buffer()
         payload.writeLong(8)
-        if (d.nonEmpty) {
+        if (d != null && d.nonEmpty) {
           payload.writeInt(d.size)
           payload.writeBytes(d)
         } else {
@@ -180,6 +180,8 @@ class BatchingClient(val options: BatchingClient.type)
     rt.shutdown
     decisionProcessor.interrupt
     requestsProcessor.interrupt
+    decisionProcessor.join
+    requestsProcessor.join
     if (log != null) {
       log.close
     }
