@@ -53,6 +53,18 @@ class PerfTest2(options: RuntimeOptions,
   val nbr = new AtomicLong(0l)
   val selfStarted = new ConcurrentSkipListSet[Short]()
 
+  def getValue(msg: Message): Int = {
+    import scala.pickling._
+    import scala.pickling.Defaults._
+    import binary._
+    if ( (algorithm == "lv" && msg.round % 4 == 0) ||
+         (algorithm == "slv" &&  msg.round % 3 == 0) ) {
+      msg.getContent[(Int,Time)]._1
+    } else {
+      msg.getContent[Int]
+    }
+  }
+
   def defaultHandler(msg: Message) {
     val flag = msg.tag.flag
     //Logger("PerfTest", Debug, "defaultHandler: " + msg.instance)
@@ -60,7 +72,7 @@ class PerfTest2(options: RuntimeOptions,
     //might need to start a new instance:
     // initial values is either taken from the backOff queue or the message
     if (flag == Flags.normal || flag == Flags.dummy) {
-      val value = msg.getInt(0)
+      val value = getValue(msg)
       val idx = (value >>> 16).toShort
       //println("(0) id: " + id + " idx: " + idx + ", instance: " + msg.instance + ", round:" + msg.round)
       val v2 = backOff(idx).poll
@@ -157,7 +169,7 @@ class PerfTest2(options: RuntimeOptions,
   /** send either the decision if it is still on the log, or the currrent value and version */
   def sendRecoveryInfo(m: Message) = {
     val inst = m.instance
-    val idx = (m.getInt(0) >>> 16).toShort
+    val idx = (getValue(m) >>> 16).toShort
     val payload = PooledByteBufAllocator.DEFAULT.buffer()
     val sender = m.senderId
     payload.writeLong(8)

@@ -81,16 +81,17 @@ class LockManager(self: Short,
 
     //get the initial value from the msg (to avoid defaulting on -1)
     val content: Int = {
+      import scala.pickling._
+      import scala.pickling.Defaults._
+      import binary._
       if (Main.lv) {
-        import scala.pickling._ 
-        import binary._ 
         msg.round % 4 match {
-          case 0 | 1 | 3 => msg.getInt(0)//getContent[(Int,Int)]._1
+          case 0 | 1 | 3 => msg.getContent[(Int,Int)]._1
           case 2 => -1
           case _ => sys.error("???")
         }
       } else {
-        msg.getInt(0)
+        msg.getContent[(Int,Int)]._1
       }
     }
 

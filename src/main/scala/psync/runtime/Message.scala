@@ -38,7 +38,7 @@ class Message(val packet: DatagramPacket, dir: Group){
   
   def getPayLoad: Array[Byte] = {
     val idx: Int = payload.readerIndex()
-    payload.readLong() //skip the tag
+    payload.readerIndex(idx + Tag.size)
     val length: Int = payload.readableBytes()
     val bytes = Array.ofDim[Byte](length)
     payload.readBytes(bytes)

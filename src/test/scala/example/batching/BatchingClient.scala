@@ -75,7 +75,7 @@ class BatchingClient(val options: BatchingClient.type)
           // with eagerStart, instances are started eagerly, not lazily
           if (isLate.get) {
             //late: focus on recovery rather than starting instances
-            //cheat a bit, if the message is a decision (round % 4 == 0(3?)) then process the decision anyway
+            //cheat a bit, if the message is a decision (round % 4 == 3) then process the decision anyway
             if (msg.round % 4 == 3) {
               import scala.pickling._
               import scala.pickling.Defaults._
