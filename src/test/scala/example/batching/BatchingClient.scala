@@ -38,7 +38,7 @@ class BatchingClient(val options: BatchingClient.type)
 
 
   // PSync runtime
-  val alg = new LastVotingB
+  val alg = new LastVotingB(options.all)
   val rt = new Runtime(alg, options, defaultHandler(_))
   var jitting = true
 
@@ -190,7 +190,6 @@ class BatchingClient(val options: BatchingClient.type)
 
   /** to force the JIT load everything, start a dummy decision */
   def warmupJIT {
-    jitting = true
     val io = new BConsensusIO {
       val phase = 0
       val initialValue = emp
@@ -202,14 +201,15 @@ class BatchingClient(val options: BatchingClient.type)
     rt.startInstance(3, io, Set.empty)
     rt.startInstance(4, io, Set.empty)
     //let it run for a while
-    Thread.sleep(options.delay)
+    Thread.sleep(options.delay - 1000)
+    rt.stopInstance(0)
+    rt.stopInstance(1)
+    rt.stopInstance(2)
+    rt.stopInstance(3)
+    rt.stopInstance(4)
+    Thread.sleep(1000)
     lck.lock
     try {
-      rt.stopInstance(0)
-      rt.stopInstance(1)
-      rt.stopInstance(2)
-      rt.stopInstance(3)
-      rt.stopInstance(4)
       jitting = false
     } finally {
       lck.unlock
@@ -286,6 +286,9 @@ object BatchingClient extends RTOptions {
 
   var rpTO = 1
   newOption("--rpTO", dzufferey.arg.Int( i => rpTO = i), "RequestProcessor Timeout (default: 1)")
+
+  var all = false
+  newOption("--all", dzufferey.arg.Unit( () => all = true), "Wait for all the replica rather then n/2 + 1")
 
   val usage = "..."
   

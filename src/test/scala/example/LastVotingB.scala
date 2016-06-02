@@ -10,7 +10,7 @@ abstract class BConsensusIO {
   def decide(value: Array[Byte]): Unit
 }
 
-class LVBProcess extends Process[BConsensusIO] {
+class LVBProcess(wholeCohort: Boolean) extends Process[BConsensusIO] {
   
   //variables
   var phase = 0
@@ -29,6 +29,8 @@ class LVBProcess extends Process[BConsensusIO] {
     ready = false
     commit = false
   }
+
+  def expectedMajority = if (wholeCohort) n else n/2 + 1
       
   def coord(phi: Int): ProcessID = new ProcessID(((phi + phase) % n).toShort)
 
@@ -45,7 +47,7 @@ class LVBProcess extends Process[BConsensusIO] {
       override def expectedNbrMessages = {
         if (id == coord(r/4)) {
           if (r.toInt == 0) 1
-          else n/2 + 1
+          else expectedMajority
         } else 0
       }
 
@@ -96,7 +98,7 @@ class LVBProcess extends Process[BConsensusIO] {
         }
       }
 
-      override def expectedNbrMessages = if (id == coord(r/4)) n/2 + 1 else 0
+      override def expectedNbrMessages = if (id == coord(r/4)) expectedMajority else 0
 
       def update(mailbox: Map[ProcessID,Int]) {
         if (id == coord(r/4) && mailbox.size > n/2) {
@@ -133,11 +135,11 @@ class LVBProcess extends Process[BConsensusIO] {
 
 }
 
-class LastVotingB extends Algorithm[BConsensusIO,LVBProcess] {
+class LastVotingB(wholeCohort: Boolean = false) extends Algorithm[BConsensusIO,LVBProcess] {
 
   val spec = TrivialSpec
   
-  def process = new LVBProcess
+  def process = new LVBProcess(wholeCohort)
 
   def dummyIO = new BConsensusIO{
     val phase = 0
