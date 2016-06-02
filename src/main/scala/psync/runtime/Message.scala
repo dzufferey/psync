@@ -24,9 +24,12 @@ class Message(val packet: DatagramPacket, dir: Group){
   def round = tag.roundNbr
   
   def getContent[A: Pickler: Unpickler: FastTypeTag]: A = {
-    val bytes = getPayLoad
-    val converted = BinaryPickle(bytes).unpickle[A]
-    converted
+    val idx: Int = payload.readerIndex()
+    payload.readerIndex(idx + Tag.size)
+    val pickle = BinaryPickle(new psync.macros.ByteBufInput(payload))
+    val result = pickle.unpickle[A]
+    payload.readerIndex(idx)
+    result
   }
 
   def getInt(idx: Int): Int = {

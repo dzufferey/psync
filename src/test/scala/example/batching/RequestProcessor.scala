@@ -7,19 +7,20 @@ import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.TimeUnit
 import io.netty.buffer.PooledByteBufAllocator
 
 trait RequestProcessor {
   self: BatchingClient =>
 
-  import BatchingClient.{myYield,ForwardedBatch}
+  import BatchingClient.ForwardedBatch
   import Bytes._
   import self._
 
   // batches that needs to be proposed
   val pendingBatch = new ConcurrentLinkedQueue[Array[Byte]]
   // requests that still needs to be batched
-  val pendingRequests = new ArrayBlockingQueue[(Int,Int,Int)](5 * options.batchSize)
+  val pendingRequests = new ArrayBlockingQueue[(Int,Int,Int)](options.pending * options.batchSize)
 
   /** The client should use this method to submit new request */
   def propose(c: Int, k: Int, v: Int) {
@@ -58,7 +59,13 @@ trait RequestProcessor {
     def run = {
       try{
         while(!Thread.interrupted) {
-          val req = pendingRequests.poll
+          //check batches forwarded by other replicas
+          val b = pendingBatch.poll
+          if (b != null) {
+            submitBatch(b)
+          }
+          //check pending requests
+          val req = pendingRequests.poll(options.rpTO, TimeUnit.MILLISECONDS)
           if (req != null) {
             val (c,k,v) = req
             assert(idx < rs + 12)
@@ -72,12 +79,6 @@ trait RequestProcessor {
               idx = 0
             }
           } else {
-            val b = pendingBatch.poll
-            if (b != null) {
-              submitBatch(b)
-            } else {
-              myYield
-            }
           }
         }
       } catch {

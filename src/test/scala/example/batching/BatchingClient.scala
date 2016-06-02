@@ -6,7 +6,7 @@ import psync.runtime._
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 import java.util.concurrent.locks.ReentrantLock
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicInteger,AtomicBoolean}
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.ConcurrentSkipListSet
 import java.util.concurrent.ArrayBlockingQueue
@@ -21,7 +21,7 @@ class BatchingClient(val options: BatchingClient.type)
     with RequestProcessor
     with RateLimiting
 {
-  import BatchingClient.{myYield,AskDecision,Decision,Late,ForwardedBatch}
+  import BatchingClient.{AskDecision,Decision,Late,ForwardedBatch}
 
   val id = options.id
   def isLeader = id == 0
@@ -31,6 +31,7 @@ class BatchingClient(val options: BatchingClient.type)
   // concurrency control
   val lck = new ReentrantLock 
   val monitor = lck.newCondition()
+  val isLate = new AtomicBoolean(false)
 
   // to keep track of what is running
   val tracker = new InstanceTracking
@@ -72,7 +73,18 @@ class BatchingClient(val options: BatchingClient.type)
           msg.release
         } else if (tracker.canStart(inst)) {
           // with eagerStart, instances are started eagerly, not lazily
-          if (!options.eagerStart) {
+          if (isLate.get) {
+            //late: focus on recovery rather than starting instances
+            //cheat a bit, if the message is a decision (round % 4 == 0(3?)) then process the decision anyway
+            if (msg.round % 4 == 3) {
+              import scala.pickling._
+              import scala.pickling.Defaults._
+              import binary._
+              val decision = msg.getContent[Array[Byte]]
+              proposeDecision(msg.instance, decision)
+            }
+            msg.release
+          } else if (!options.eagerStart) {
             startInstance(inst, emp, Set(msg))
           } else {
             msg.release
@@ -235,11 +247,6 @@ object BatchingClient extends RTOptions {
   final val ForwardedBatch = 6
   final val AskDecision = 7
 
-  def myYield = {
-    Thread.`yield`()
-    //Thread.sleep(5)
-  }
-
   var confFile = "src/test/resources/sample-conf.xml"
   
   var logFile: Option[String] = None
@@ -250,8 +257,8 @@ object BatchingClient extends RTOptions {
   newOption("-e", dzufferey.arg.Unit( () => eagerStart = true), "start the instances on the replica eagerly (default: lazily)")
 
   var rate = 1
-  newOption("--rate", dzufferey.arg.Int( i => rate = i), "fix the rate (#queries in parallel)")
-  newOption("-r", dzufferey.arg.Int( i => rate = i), "fix the rate (#queries in parallel)")
+  newOption("--rate", dzufferey.arg.Int( i => rate = i), "fix the rate, i.e., #queries in parallel (default: 1)")
+  newOption("-r", dzufferey.arg.Int( i => rate = i), "fix the rate, i.e., #queries in parallel (default: 1)")
 
   var n = 50
   newOption("-n", dzufferey.arg.Int( i => n = i), "number of different values that we can modify")
@@ -263,6 +270,20 @@ object BatchingClient extends RTOptions {
   var batchSize = 100
   newOption("--batch", dzufferey.arg.Int( i => batchSize = i), "batch size")
   newOption("-b", dzufferey.arg.Int( i => batchSize = i), "batch size")
+
+  var late = 10
+  newOption("--late", dzufferey.arg.Int( i => late = i), "fix the late coefficient (default: 10)")
+  newOption("-l", dzufferey.arg.Int( i => late = i), "fix the late coefficient (default: 10)")
+
+  var pending = 5
+  newOption("--pending", dzufferey.arg.Int( i => pending = i), "fix the pending requests coefficient (default: 5)")
+  newOption("-p", dzufferey.arg.Int( i => pending = i), "fix the pending requests coefficient (default: 5)")
+
+  var dpTO = 5
+  newOption("--dpTO", dzufferey.arg.Int( i => dpTO = i), "DecisionProcessor Timeout (default: 5)")
+
+  var rpTO = 1
+  newOption("--rpTO", dzufferey.arg.Int( i => rpTO = i), "RequestProcessor Timeout (default: 1)")
 
   val usage = "..."
   
@@ -282,7 +303,7 @@ object BatchingClient extends RTOptions {
     //TODO many clients
     while (true) {
       var i = 0
-      while (i < 150) {
+      while (i < 200) {
         system.propose(id, prng.nextInt(n), prng.nextInt())
         i += 1
       }

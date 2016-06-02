@@ -4,7 +4,8 @@ import psync.ProcessID
 import psync.runtime.{Instance,Tag}
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
-import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 import scala.collection.mutable.PriorityQueue
 import scala.util.Random
 import io.netty.buffer.PooledByteBufAllocator
@@ -12,7 +13,7 @@ import io.netty.buffer.PooledByteBufAllocator
 trait DecisionProcessor {
   self: BatchingClient =>
 
-  import BatchingClient.{myYield,AskDecision}
+  import BatchingClient.AskDecision
   import Bytes._
   import self._
 
@@ -33,7 +34,7 @@ trait DecisionProcessor {
   val values   = Array.fill[Int](options.n)(0)
   val versions = Array.fill[Short](options.n)(-1)
   // batches that have been accepted but still needs to be executed
-  val acceptedBatch = new ConcurrentLinkedQueue[(Short, Array[Byte])]()
+  val acceptedBatch = new LinkedBlockingQueue[(Short, Array[Byte])]()
 
 
   def proposeDecision(inst: Short, data: Array[Byte]) = {
@@ -105,10 +106,22 @@ trait DecisionProcessor {
     }
     private val reorderingQueue = new PriorityQueue[(Short, Array[Byte])]()(BatchOrdering)
     private var nextBatch: Short = 1
+    private def lateThreshold = reorderingQueue.size > options.rate * options.late
+    private def askDecision {
+      //pick someone to ask
+      var askingTo = scala.util.Random.nextInt(rt.directory.size)
+      while (askingTo == id) {
+        askingTo = scala.util.Random.nextInt(rt.directory.size)
+      }
+      val payload = PooledByteBufAllocator.DEFAULT.buffer()
+      payload.writeLong(8)
+      rt.sendMessage(new ProcessID(askingTo.toShort), Tag(nextBatch,0,AskDecision,0), payload)
+      Logger("BatchingClient", Info, id + " asking to " + askingTo + " for decision " + nextBatch)
+    }
     def run = {
       try{
         while(!Thread.interrupted) {
-          val req = acceptedBatch.poll
+          val req = acceptedBatch.poll(options.dpTO, TimeUnit.MILLISECONDS)
           if (req != null) {
             val (inst, batch) = req
             if (inst == nextBatch) {
@@ -120,6 +133,12 @@ trait DecisionProcessor {
                 processBatch(inst, batch)
                 nextBatch = (nextBatch + 1).toShort
               }
+              if (!lateThreshold) {
+                if (isLate.get) {
+                    Logger("BatchingClient", Notice, id + ", not late anymore")
+                }
+                isLate.set(false)
+              }
             } else {
               // not the next batch, put in the reordering queue
               if (!Instance.lt(nextBatch, inst)) {
@@ -127,20 +146,21 @@ trait DecisionProcessor {
                 sys.exit(-1)
               }
               reorderingQueue += req
-              if (reorderingQueue.size > options.rate * 10 && !tracker.isRunning(nextBatch)) {
-                //pick someone to ask
-                var askingTo = scala.util.Random.nextInt(rt.directory.size)
-                while (askingTo == id) {
-                  askingTo = scala.util.Random.nextInt(rt.directory.size)
+              if (lateThreshold) {
+                if (!isLate.get) {
+                    Logger("BatchingClient", Notice, id + ", late")
                 }
-                val payload = PooledByteBufAllocator.DEFAULT.buffer()
-                payload.writeLong(8)
-                rt.sendMessage(new ProcessID(askingTo.toShort), Tag(nextBatch,0,AskDecision,0), payload)
-                Logger("BatchingClient", Info, id + " asking to " + askingTo + " for decision " + nextBatch)
+                isLate.set(true)
+                if (!tracker.isRunning(nextBatch)) {
+                  askDecision
+                }
               }
             }
           } else {
-            myYield
+            if (isLate.get) {
+              // late and timeout, ask again
+              askDecision
+            }
           }
         }
       } catch {
