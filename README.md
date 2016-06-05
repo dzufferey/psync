@@ -1,5 +1,8 @@
 # PSync
 
+![Version 0.2 SNAPSHOT](https://img.shields.io/badge/version-0.2_SNAPSHOT-green.svg)
+[![Apache licensed](https://img.shields.io/badge/license-Apache-blue.svg)](https://raw.githubusercontent.com/dzufferey/psync/master/LICENSE)
+
 Fault-tolerant distributed systems play an important role in many critical applications.
 However, concurrency, uncertain message delays, and the occurrence of faults make those systems hard to design, implement, and verify.
 PSync is a framework for writing and verifying high-level implementations of fault-tolerant distributed algorithms.
@@ -37,7 +40,7 @@ class OtrProcess extends Process[IO]{
   var decision = -1     // for the specification
   var decided = false   // for the specification
   var callback: IO = null
-    
+
   def init(io: IO) = i{
     callback = io
     x = io.initialValue
@@ -96,7 +99,7 @@ class OTR extends Algorithm[IO, OtrProcess] {
       ("Irrevocability", P.forall( i => old(i.decided) ==> (i.decided && old(i.decision) == i.decision) ))
     )
   }
-  
+
   def process = new OtrProcess
 
 }
@@ -196,4 +199,3 @@ When running many tests it is not unusual to see the following warning:
 
 Starting/stopping Netty too many times seems to deplete the pool of entropy.
 Currently PSync does not use any cryptographic primitive, therefore, this warning is harmless.
-
