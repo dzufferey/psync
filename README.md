@@ -199,3 +199,11 @@ When running many tests it is not unusual to see the following warning:
 
 Starting/stopping Netty too many times seems to deplete the pool of entropy.
 Currently PSync does not use any cryptographic primitive, therefore, this warning is harmless.
+
+## References
+
+Here are some references about how PSync works.
+
+* [PSync: A Partially Synchronous Language for Fault-Tolerant Distributed Algorithms](http://people.csail.mit.edu/zufferey/files/2016_PSync_A_Partially_Synchronous_Language_for_Fault-Tolerant_Distributed_Algorithms.pdf), Drăgoi et al., POPL 2016
+* [The Need for Language Support for Fault-Tolerant Distributed Systems](http://drops.dagstuhl.de/opus/volltexte/2015/5019/), Drăgoi et al., SNAPL 2015
+* [A Logic-based Framework for Verifying Consensus Algorithms](http://people.csail.mit.edu/zufferey/files/2014_A_Logic-Based_Framework_for_Verifying_Consensus_Algorithms.pdf), Drăgoi et al., VMCAI 2014
