@@ -28,6 +28,8 @@ libraryDependencies ++=  Seq(
     "org.scalacheck" %% "scalacheck" % "1.13.0" % "test",
     "org.scala-lang.modules" %% "scala-pickling" % "0.10.1",
     "io.netty" % "netty-all" % "4.0.36.Final",
+    "info.hupel" %% "libisabelle" % "0.3.4",
+    "info.hupel" %% "libisabelle-setup" % "0.3.4",
     "io.github.dzufferey" %% "scala-arg" % "0.1-SNAPSHOT",
     "io.github.dzufferey" %% "report" % "0.1-SNAPSHOT",
     "io.github.dzufferey" %% "misc-scala-utils" % "0.1-SNAPSHOT"
