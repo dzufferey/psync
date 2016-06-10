@@ -1,0 +1,3 @@
+session PSync = "HOL-Protocol" +
+  theories
+    PSync

@@ -7,7 +7,9 @@ import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
 
+// inspired by
 // https://github.com/epfl-lara/leon/blob/master/src/main/scala/leon/solvers/isabelle/Translator.scala
+
 object TranslateFormula {
 
   def cleanName(id: String): String = {
@@ -163,11 +165,13 @@ object TranslateFormula {
 }
 
 
+// inspired by
 // https://github.com/epfl-lara/leon/blob/master/src/main/scala/leon/solvers/isabelle/Types.scala
+
 object TranslateType {
 
   def to(t: Type): Typ = t match {
-    case UnitT() => IType("Product_IType.unit", Nil)
+    case UnitT() => IType("Product_Type.unit", Nil)
     case Bool => IType("HOL.bool", Nil)
     case Int => IType("Int.int", Nil) //TODO should we rather use Nat.nat
     case FSet(f1) =>
@@ -181,9 +185,9 @@ object TranslateType {
       val t1 = to(f1)
       IType("Option.option", List(t1))
     case Product(lst) =>
-      Logger.assert(lst.length >= 2, "isabelle.TranslateIType.to", "Product is too short: " + t)
+      Logger.assert(lst.length >= 2, "isabelle.TranslateType.to", "Product is too short: " + t)
       val ts = lst.map(to)
-      ts.reduceRight( (t, acc) => IType("Product_IType.prod", List(t, acc)) )
+      ts.reduceRight( (t, acc) => IType("Product_Type.prod", List(t, acc)) )
     case Function(args, ret) =>
       val tas = args.map(to)
       val tr = to(ret)
