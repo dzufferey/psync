@@ -31,18 +31,34 @@ class Session {
 
   protected var system: System = null
 
+  protected val logLevel = Info
+
   def start {
     Logger.assert(system == null, "isabelle.Session", "session has already started")
-    val resources = Resources.dumpIsabelleResources()
-    val config = resources.makeConfiguration(Nil, "Protocol")
+
+    Logger("isabelle.Session", logLevel, "Starting Isabelle")
     val setup = Setup.defaultSetup(version) match {
       case cats.data.Xor.Left(err) =>
         sys.error(err.toString)
       case cats.data.Xor.Right(future) =>
         await(future)
     }
+    Logger("isabelle.Session", logLevel, "Setup done")
+
+    val resources = Resources.dumpIsabelleResources()
+    import java.nio.file.Paths
+    val paths = List(Paths.get("src/main/isabelle"))
+    val config = resources.makeConfiguration(paths, "PSync")
     val env = await(setup.makeEnvironment)
-    system = await(System.create(env, config))
+    Logger("isabelle.Session", logLevel, "Environement done")
+    Logger("isabelle.Session", logLevel, "Building session")
+    if (!System.build(env, config)) {
+      Logger.logAndThrow("isabelle.Session", Error, "Build failed")
+    } else {
+      Logger("isabelle.Session", logLevel, "Starting " + version + " instance")
+      system = await(System.create(env, config))
+      Logger("isabelle.Session", logLevel, "Isabelle started")
+    }
   }
 
   def stop {

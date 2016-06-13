@@ -30,6 +30,7 @@ libraryDependencies ++=  Seq(
     "io.netty" % "netty-all" % "4.0.36.Final",
     "info.hupel" %% "libisabelle" % "0.3.4",
     "info.hupel" %% "libisabelle-setup" % "0.3.4",
+    "ch.qos.logback" % "logback-classic" % "1.1.7",
     "io.github.dzufferey" %% "scala-arg" % "0.1-SNAPSHOT",
     "io.github.dzufferey" %% "report" % "0.1-SNAPSHOT",
     "io.github.dzufferey" %% "misc-scala-utils" % "0.1-SNAPSHOT"

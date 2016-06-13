@@ -36,37 +36,16 @@ fun access_loaded f =
     SOME thy => f thy
   | NONE => not_loaded @{here}
 
-fun prove_tac ctxt =
-  HEADGOAL
-    (SELECT_GOAL (TRY (auto_tac ctxt)) THEN_ALL_NEW
-      (FIRST'
-        [Cooper.tac false [] [] ctxt,
-         Sledgehammer_Tactics.sledgehammer_with_metis_tac ctxt [] Sledgehammer_Fact.no_fact_override []]))
-
-fun method_tac pos src = Subgoal.FOCUS (fn {context = ctxt, concl, ...} =>
-  let
-    val scan = Scan.finite Token.stopper Method.parse;
-    val ((m, _), []) =
-      src
-      |> Token.explode (Thy_Header.get_keywords (Proof_Context.theory_of ctxt)) pos
-      |> filter_out Token.is_space
-      |> Scan.catch scan
-    val state =
-      Proof.theorem NONE (K I) [[(Thm.term_of concl, [])]] ctxt
-      |> Proof.refine_singleton m
-    val {goal, ...} = Proof.simple_goal state
-  in
-    HEADGOAL (resolve_tac ctxt [Goal.conclude goal])
-  end)
+end
 
 fun prove (t, method) =
   access_loaded (fn lthy =>
     let
-      (* XXX
       val (ts', lthy) = register_terms [t] lthy
       val prop = Balanced_Tree.make HOLogic.mk_disj ts'
-      *)
+      (* XXX
       val (prop, lthy) = register_term t lthy
+      *)
       fun tac ctxt =
         case method of
           NONE => prove_tac ctxt
