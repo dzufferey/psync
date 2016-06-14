@@ -10,6 +10,9 @@ import dzufferey.utils.LogLevel._
 // inspired by
 // https://github.com/epfl-lara/leon/blob/master/src/main/scala/leon/solvers/isabelle/Translator.scala
 
+// "Set.UNIV"
+// "Finite_Set.finite"
+
 object TranslateFormula {
 
   def cleanName(id: String): String = {
@@ -17,6 +20,17 @@ object TranslateFormula {
   }
 
   def mkConst(what: String) = Const(what, Typ.dummyT)
+
+  def universe(t: Type) = {
+    val tt = TranslateType.to(FSet(t))
+    Const("Set.UNIV", tt)
+  }
+  
+  def finite(t: Type) = {
+    val f = mkConst("Finite_Set.finite")
+    val u = universe(t)
+    App(f, u)
+  }
 
   def interpreted(s: InterpretedFct) = mkConst(s match {
     case Not =>         "HOL.Not"
@@ -128,6 +142,8 @@ object TranslateFormula {
       to(In(f2,KeySet(f1)), bound)
     case Size(f1) =>
       to(Cardinality(KeySet(f1)), bound)
+    case FNone() =>
+      interpreted(FNone)
     case Application(i: InterpretedFct, fs) =>
       Logger.assert(fs.nonEmpty, "isabelle.TranslateFormula.to", "no arg for: " + f)
       val ts = fs.map(to(_, bound))
@@ -141,7 +157,8 @@ object TranslateFormula {
       val ts = fs.map(to(_, bound))
       val symT = tpe.map(TranslateType.to).getOrElse(Typ.dummyT)
       val id0 = cleanName(symbol)
-      val cst = Const(id0, symT)
+      val cst = Free(id0, symT)
+      // val cst = Const(id0, symT) // XXX we need to declare const before using them
       ts.foldLeft(cst:Term)( (acc, t) => App(acc, t) )
     case Binding(bt, vs, f1) =>
       val cst = bt match {
@@ -194,7 +211,7 @@ object TranslateType {
       tas.foldRight(tr)( (t, acc) => IType("fun", List(t, acc)) )
     case UnInterpreted(id) =>
       val id0 = TranslateFormula.cleanName(id)
-      IType("psync_" +id0, Nil) //prefix to avoid type clash
+      TFree("'"+id0, List("HOL.type"))
     case TypeVariable(id) =>
       val id0 = TranslateFormula.cleanName(id)
       TFree(id0, List("HOL.type"))

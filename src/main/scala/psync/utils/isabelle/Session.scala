@@ -16,22 +16,26 @@ import dzufferey.utils.LogLevel._
 
 object Session {
 
-  val version = Version("2016")
-  val timeout = Duration.Inf
+  final val version = Version("2016")
+  final val timeout = Duration.Inf
+  final val _10s = Duration(10, SECONDS)
 
-  def await[T](a: Awaitable[T]): T = {
-    Await.result(a, timeout)
+  def await[T](a: Awaitable[T], to: Duration = timeout): T = {
+    Await.result(a, to)
   }
 
 }
 
 class Session {
 
-  import Session._
+  import Session.{version,await}
 
   protected var system: System = null
 
-  protected val logLevel = Info
+  protected val logLevel = Notice
+  //protected val logLevel = Info
+
+  var timeout = Session.timeout
 
   def start {
     Logger.assert(system == null, "isabelle.Session", "session has already started")
@@ -63,6 +67,7 @@ class Session {
 
   def stop {
     Logger.assert(system != null, "isabelle.Session", "session has already ended")
+    Logger("isabelle.Session", logLevel, "Stopping Isabelle")
     await(system.dispose)
     system = null
   }
@@ -76,12 +81,12 @@ class Session {
   protected def runCommand[I, O](op: Operation[I, O], arg: I) = {
     Logger.assert(system != null, "isabelle.Session", "session not yet started or already ended")
     val future = system.invoke(op)(arg)
-    await(future)
+    await(future, timeout)
   }
 
-  // TODO load additional theories
-  def loadTheory(theoryName: String) = {
-    ???
+  def newTheory(name: String) = {
+    Logger("isabelle.Session", logLevel, "new theory " + name)
+    runCommand(Operations.startTheory, "PSync" -> name)
   }
 
   /* get the current state of Isabelle */
@@ -93,15 +98,15 @@ class Session {
             hypotheses: List[Formula],
             conclusion: Formula,
             proof: Option[String]) = {
-    //XXX should the proof be more structured ?
     //XXX do something with the name on the isabelle side ?
-    Logger("isabelle.Session", Info, "trying to prove " + name)
+    Logger("isabelle.Session", logLevel, "trying to prove " + name)
     val statement = hypotheses match {
       case _ :: _ :: _  => Implies(And(hypotheses:_*), conclusion)
       case h :: Nil => Implies(h, conclusion)
       case Nil => conclusion
     }
     val asTem = TranslateFormula(statement)
+    Logger("isabelle.Session", Debug, "translated formula: " + asTem)
     runCommand(Operations.prove, asTem -> proof)
   }
 
