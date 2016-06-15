@@ -36,7 +36,7 @@ object TranslateFormula {
     case Not =>         "HOL.Not"
     case And =>         "HOL.conj"
     case Or =>          "HOL.disj"
-    case Implies =>     "HOL.implies"
+    case Implies =>     "HOL.implies" // XXX an alternative is "Pure.imp"
     case Eq =>          "HOL.eq"
     case Neq =>         "HOL.not_equal"
     case Cardinality => "Finite_Set.card"
@@ -129,6 +129,22 @@ object TranslateFormula {
       val ts = fs.map(to(_, bound))
       val tpl = interpreted(Tuple)
       ts.reduceRight( (t, acc) => App(App(tpl, t), acc) ) 
+    case Snd(f1) =>
+      val t1 = to(f1, bound)
+      val s = interpreted(Snd)
+      f1.tpe match {
+        case Product(lst) =>
+          lst.length match {
+            case 2 =>
+              App(s, t1)
+            case 3 =>
+              App(interpreted(Fst), App(s, t1))
+            case n =>
+              Logger.logAndThrow("isabelle.TranslateFormula.to", Error, "expected pair/triple, found " + n + "-tuple")
+          }
+        case other =>
+          Logger.logAndThrow("isabelle.TranslateFormula.to", Error, "expected Product, found: " + other)
+      }
     case Trd(f1) =>
       val t1 = to(f1, bound)
       val s = interpreted(Snd)
@@ -185,12 +201,14 @@ object TranslateFormula {
 // inspired by
 // https://github.com/epfl-lara/leon/blob/master/src/main/scala/leon/solvers/isabelle/Types.scala
 
+//Warning: for the moment, ℤ are interpreted as ℕ
 object TranslateType {
 
   def to(t: Type): Typ = t match {
     case UnitT() => IType("Product_Type.unit", Nil)
     case Bool => IType("HOL.bool", Nil)
-    case Int => IType("Int.int", Nil) //TODO should we rather use Nat.nat
+    //case Int => IType("Int.int", Nil)
+    case Int => IType("Nat.nat", Nil) // XXX
     case FSet(f1) =>
       val t1 = to(f1)
       IType("Set.set", List(t1))
