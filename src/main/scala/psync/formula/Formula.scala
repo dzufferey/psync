@@ -36,11 +36,9 @@ case class Literal[T](value: T) extends Formula {//removed <: AnyVal to allow un
 
 }
 object UnitLit {
-  def unapply(f: Formula): Option[Unit] = f match {
-    case Literal(()) => Some(())
-    case _ => None
-  }
-  def apply(): Literal[Unit] = Literal(()).setType(UnitT())
+  private val lit = Literal(()).setType(UnitT())
+  def unapply(f: Formula): Boolean = f == lit
+  def apply(): Literal[Unit] = lit
 }
 object True {
   private val lit = Literal(true).setType(Bool)
