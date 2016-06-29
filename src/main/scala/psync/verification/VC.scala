@@ -57,7 +57,7 @@ class SingleVC( description: String,
         reduced = VC.cl.entailment(And(hypothesis, transition), conclusion)
         reduced = Application(And, FormulaUtils.getConjuncts(reduced) ::: additionalAxioms).setType(Bool)
         reduced = Simplify.simplify(reduced)
-        solver = if (psync.utils.Options.dumpVcs) Solver(UFLIA, fName)
+        solver = if (VerificationOptions.dumpVcs) Solver(UFLIA, fName)
                  else Solver(UFLIA)
         status = solver.testWithModel(reduced)
         solved = true

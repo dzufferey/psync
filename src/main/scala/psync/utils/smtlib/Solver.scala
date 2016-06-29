@@ -377,7 +377,7 @@ object Solver {
     solverArg = cvc4MfArgs
   }
 
-  def defaultTO = psync.utils.Options.timeout
+  var defaultTO = 10000l
 
   def apply(th: Theory): Solver = apply(th, None, defaultTO)
   

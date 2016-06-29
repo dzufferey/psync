@@ -3,6 +3,7 @@ package psync.logic
 import psync.formula._
 import psync.logic.quantifiers._
 import psync.utils.smtlib._
+import psync.verification.VerificationOptions
 import dzufferey.utils.Logger
 
 object TestCommon {
@@ -32,7 +33,7 @@ object TestCommon {
       Logger.moreVerbose //linter:ignore IdenticalStatements
       Logger.moreVerbose
       Logger.disallow("Typer")
-      psync.utils.Options.logQI = true
+      VerificationOptions.logQI = true
     }
     try {
       val c0 = conjuncts.flatMap(FormulaUtils.getConjuncts(_))
@@ -56,7 +57,7 @@ object TestCommon {
         Logger.lessVerbose //linter:ignore IdenticalStatements
         Logger.lessVerbose
         Logger.allow("Typer")
-        psync.utils.Options.logQI = false
+        VerificationOptions.logQI = false
       }
     }
   }

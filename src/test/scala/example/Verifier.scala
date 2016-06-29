@@ -5,7 +5,7 @@ import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 import dzufferey.arg._
 
-object Verifier extends psync.utils.VerificationOptions {
+object Verifier extends psync.verification.VerificationOptions {
   
   var v = 1
   newOption("-n", Int( i => v = i), "1/2")

@@ -5,7 +5,7 @@
   <parameters>
     <param> <name>protocol</name> <value>UDP</value> </param>
     <param> <name>timeout</name> <value>100</value> </param>
-    <param> <name>group</name> <value>nio</value> </param>
+    <param> <name>group</name> <value>NIO</value> </param>
     <param> <name>bufferSize</name> <value>128</value> </param>
     <param> <name>earlyMoving</name> <value>false</value> </param>
     <param> <name>delayFirstSend</name> <value>100</value> </param>

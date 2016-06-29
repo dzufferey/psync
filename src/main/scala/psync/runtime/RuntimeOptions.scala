@@ -62,8 +62,10 @@ abstract class RTOptions extends DefaultOptions with RuntimeOptions {
   newOption("--conf",                   String( s => processConFile(s)),            "configuration file")
   newOption("-id",                      Int( i => _id = i.toShort),                 "the replica ID")
   newOption("--id",                     Int( i => _id = i.toShort),                 "the replica ID")
-  newOption("--group",                  String( s => _group = parseGroup(s)),       "the network layer interface used by Netty: nio/oio/epoll (default: nio).")
-  newOption("--protocol",               String( s => _protocol = parseProtocol(s)), "the network protocol: udp/tcp (default: udp).")
+  newOption("--group",                  Enum(NetworkGroup, (s: NetworkGroup.NetworkGroup) => _group = s),
+                                                                                    "the network layer interface used by Netty: NIO/OIO/EPOLL (default: NIO).")
+  newOption("--protocol",               Enum(NetworkProtocol, (s: NetworkProtocol.NetworkProtocol) => _protocol = s),
+                                                                                    "the network protocol: UDP/TCP (default: UDP).")
   newOption("-to",                      Int( i => _timeout = i.toLong ),            "default timeout for runtime (default: 10).")
   newOption("--timeout",                Int( i => _timeout = i.toLong ),            "default timeout for runtime (default: 10).")
   newOption("--earlyMoving",            Bool( b => _earlyMoving = b ),              "early moving optimization (default: true).")
@@ -89,23 +91,6 @@ abstract class RTOptions extends DefaultOptions with RuntimeOptions {
     apply(args.reverse) //preserve the ordering
   }
 
-  def parseGroup(s: java.lang.String) = s.toLowerCase match {
-    case "nio" => NetworkGroup.NIO
-    case "oio" => NetworkGroup.OIO
-    case "epoll" => NetworkGroup.EPOLL
-    case other =>
-      Logger("RuntimeOptions", Warning, "NetworkGroup, unknown '"+other+"' using NIO")
-      NetworkGroup.NIO
-  }
-  
-  def parseProtocol(s: java.lang.String) = s.toLowerCase match {
-    case "udp" => NetworkProtocol.UDP
-    case "tcp" => NetworkProtocol.TCP
-    case other =>
-      Logger("RuntimeOptions", Warning, "NetworkProtocol, unknown '"+other+"' using UDP")
-      NetworkProtocol.UDP
-  }
-  
   def parseWorkers(s: java.lang.String) = {
     val n = s.toLowerCase
     try {

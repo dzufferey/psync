@@ -5,7 +5,7 @@
   <parameters>
     <param> <name>protocol</name> <value>UDP</value> </param>
     <param> <name>timeout</name> <value>50</value> </param>
-    <param> <name>group</name> <value>nio</value> </param>
+    <param> <name>group</name> <value>NIO</value> </param>
     <param> <name>bufferSize</name> <value>256</value> </param>
     <!--param> <name>packetSize</name> <value>4096</value> </param-->
     <!--param> <name>workers</name> <value>1x</value> </param-->

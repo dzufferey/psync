@@ -2,7 +2,7 @@ package psync.logic.quantifiers
 
 import psync.formula._
 import psync.logic._
-import psync.utils.Options
+import psync.verification.VerificationOptions
 
 import dzufferey.utils.{Misc, Namer}
 import dzufferey.utils.Logger
@@ -20,7 +20,7 @@ class IncrementalGenerator( axioms: Iterable[Formula],
   def cc = _cc
   
   val _logger = {
-    if (Options.logQI) new BasicQILogger
+    if (VerificationOptions.logQI) new BasicQILogger
     else new EmptyQILogger
   }
   def logger = _logger
@@ -41,7 +41,7 @@ class IncrementalGenerator( axioms: Iterable[Formula],
 
     if (local) buffer ++= locallySaturate
 
-    if (Options.logQI) {
+    if (VerificationOptions.logQI) {
       val fname = Namer("qi") + ".html"
       logger.storeVisJS(fname)
     }

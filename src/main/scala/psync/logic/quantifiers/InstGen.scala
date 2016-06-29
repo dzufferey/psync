@@ -2,7 +2,6 @@ package psync.logic.quantifiers
 
 import psync.formula._
 import psync.logic._
-import psync.utils.Options
 
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._

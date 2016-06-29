@@ -33,7 +33,6 @@
         timeout
         defaultHandler
 - reduce memory footprint
-- a TCP version
 - more predictable performances when overloaded
 
 
