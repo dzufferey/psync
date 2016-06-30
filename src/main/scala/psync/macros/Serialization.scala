@@ -6,7 +6,6 @@ import dzufferey.utils.Namer
 
 class ByteBufInput(buffer: io.netty.buffer.ByteBuf) extends scala.pickling.binary.BinaryInput {
   import io.netty.buffer.ByteBuf
-  assert(buffer.order == java.nio.ByteOrder.BIG_ENDIAN)
   def getByte() = buffer.readByte
   def getChar() = buffer.readInt.toChar
   def getShort() = buffer.readShort
@@ -21,7 +20,6 @@ class ByteBufInput(buffer: io.netty.buffer.ByteBuf) extends scala.pickling.binar
 
 class ByteBufOutput(buffer: io.netty.buffer.ByteBuf) extends scala.pickling.binary.BinaryOutput {
   import io.netty.buffer.ByteBuf
-  assert(buffer.order == java.nio.ByteOrder.BIG_ENDIAN)
   def result: Array[Byte] = null
   def ensureCapacity(capacity: Int) {
     if (capacity > 0) {
