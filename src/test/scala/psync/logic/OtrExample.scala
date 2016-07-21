@@ -8,8 +8,7 @@ import org.scalatest._
 
 //port of the example from the vmcai paper.
 //they are more readable than dumping the VCs from the code
-class OtrExample extends FunSuite {
-    
+object OtrExample {
   val pld = UnInterpreted("payload")
 
   val a = Variable("A").setType(FSet(pid))
@@ -100,7 +99,13 @@ class OtrExample extends FunSuite {
     twoThird(a),
     ForAll(List(i), Eq(ho(i), a))
   ))
-  
+}
+
+
+class OtrExample extends FunSuite {
+
+  import OtrExample._
+    
   test("initial state implies invariant") {
     val fs = List(initialState, Not(invariantAgreement))
     assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))

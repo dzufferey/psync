@@ -6,7 +6,7 @@ import TestCommon._
 
 import org.scalatest._
 
-class TpcExample extends FunSuite {
+object TpcExample {
   
   val coord = Variable("coord").setType(pid)
 
@@ -122,6 +122,13 @@ class TpcExample extends FunSuite {
     Implies(decided(i), Eq(data(i), vote(coord)))
   ))
 
+  val invariant1P = prime(invariant1)
+}
+
+class TpcExample extends FunSuite {
+
+  import TpcExample._
+  
   test("invariant implies agreement") {
     val fs = List(invariant1, Not(agreement))
     assertUnsat(fs, cln(2, new quantifiers.Eager,  1, true))
