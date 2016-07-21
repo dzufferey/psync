@@ -212,6 +212,8 @@ object Simplify {
     !hasQ(rmQ(f))
   }
 
+  def lazyPnf(f: Formula) = if (isPnf(f)) f else pnf(f)
+
   /** try to push the quantifiers as low as possible. */
   def reversePnf(f: Formula): Formula = {
     def partition(vars: Set[Variable],

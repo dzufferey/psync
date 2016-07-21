@@ -170,7 +170,7 @@ class CL(config: ClConfig) {
     val (query1, _) = getExistentialPrefix(query)
     val clauses0 = FormulaUtils.getConjuncts(query1)
     val clauses = clauses0.map( f => {
-      val f2 = Simplify.pnf(f)
+      val f2 = Simplify.lazyPnf(f)
       val f3 = fixUniquelyDefinedUniversal(f2)
       val f4 = FormulaUtils.map({
         case c @ Comprehension(_, _) =>

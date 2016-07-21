@@ -17,7 +17,7 @@ class ConfigSuite extends FunSuite {
     assert(conf.size == 4)
     assert(conf.get("protocol") == Some("UDP"))
     conf.get("timeout").map(_.toInt)
-    assert(conf.get("group") == Some("nio"))
+    assert(conf.get("group") == Some("NIO"))
     //assert(conf.get("workers") == Some("1x"))
   }
 

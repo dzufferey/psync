@@ -25,25 +25,24 @@ abstract class VC {
     }
   }
 
-  def report: Item
-}
+  def decompose: VC
 
-object VC {
-  var cl: CL = new CL(ClDefault)
+  def report: Item
 }
 
 class SingleVC( description: String,
                 hypothesis: Formula,
                 transition: Formula,
                 conclusion: Formula,
-                additionalAxioms: scala.List[Formula] = Nil
+                additionalAxioms: scala.List[Formula] = Nil,
+                cl: CL = new CL(ClDefault)
               ) extends VC {
 
   protected lazy val fName = {
     Namer(description.replaceAll(" ", "_")) + ".smt2"
   }
 
-  protected var reduced: Formula = False()
+  protected var reduced: Formula = null
 
   def solve {
     if (!solved) { 
@@ -54,9 +53,9 @@ class SingleVC( description: String,
         Logger("vC", Debug, "transition:\n  " + FormulaUtils.getConjuncts(transition).mkString("\n  "))
         Logger("VC", Debug, "conclusion:\n  " + FormulaUtils.getConjuncts(conclusion).mkString("\n  "))
         Logger("VC", Debug, "additionalAxioms:\n  " + additionalAxioms.mkString("\n  "))
-        reduced = VC.cl.entailment(And(hypothesis, transition), conclusion)
-        reduced = Application(And, FormulaUtils.getConjuncts(reduced) ::: additionalAxioms).setType(Bool)
-        reduced = Simplify.simplify(reduced)
+        val h0 = Simplify.simplify( And(hypothesis, transition, And(additionalAxioms:_*)) )
+        val c0 = Simplify.simplify( conclusion )
+        reduced = cl.entailment(h0, c0)
         solver = if (VerificationOptions.dumpVcs) Solver(UFLIA, fName)
                  else Solver(UFLIA)
         status = solver.testWithModel(reduced)
@@ -72,13 +71,35 @@ class SingleVC( description: String,
     }
   }
 
+  def decompose = {
+    // split ∨ in the hypothesis and the transition
+    val splitHyp = FormulaUtils.getDisjuncts(hypothesis)
+    val splitTrs = FormulaUtils.getDisjuncts(transition)
+    // split ∧ in the conclusion
+    val splitCon = FormulaUtils.getConjuncts(Simplify.splitForall(conclusion))
+    // all the cases
+    if (splitHyp.length * splitTrs.length * splitCon.length > 1) {
+      var count = 0
+      def mkVC(h: Formula, t: Formula, c: Formula) = {
+        count += 1
+        val descr = description + " Case " + count
+        new SingleVC(descr, h, t, c, additionalAxioms, cl)
+      }
+      val vcs = for (h <- splitHyp; t <- splitTrs; c <- splitCon)
+                yield mkVC(h,t,c)
+      new CompositeVC(description, true, vcs)
+    } else {
+      this
+    }
+  }
+
   def report = {
     val stat = if (isValid) " (success)" else " (failed)"
     val lst = new Sequence(description + stat)
     lst.add(itemForFormula("Hypothesis", hypothesis))
     lst.add(itemForFormula("Transition", transition))
     lst.add(itemForFormula("Conclusion", conclusion))
-    lst.add(itemForFormula("Reduced formula", reduced))
+    if (reduced != null) lst.add(itemForFormula("Reduced formula", reduced))
     status match {
       case Sat(Some(model)) => lst.add(new PreformattedText("Model", model.toString))
       case Unknown => lst.add(new PreformattedText("Reason", "solver returned unknown"))
@@ -106,6 +127,8 @@ class CompositeVC(description: String, all: Boolean, vcs: Seq[VC]) extends VC {
       solved = true
     }
   }
+
+  def decompose = new CompositeVC(description, all, vcs.map(_.decompose))
 
   def report = {
     val stat = if (isValid) " (success)" else " (failed)"
