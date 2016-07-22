@@ -27,23 +27,18 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
       val w = n
       Logger("Runtime", Debug, "using fixed thread pool of size " + w)
       java.util.concurrent.Executors.newFixedThreadPool(w)
-    case Adapt => 
+    case Adapt =>
       Logger("Runtime", Debug, "using cached thread pool")
       java.util.concurrent.Executors.newCachedThreadPool()
   }
 
-
-  private var channelIdx = new AtomicInteger
   private def createProcess: InstanceHandler[IO,P] = {
     assert(srv.isDefined)
     val p = alg.process
     p.setOptions(options)
-    val channels = srv.get.channels
-    val idx = channelIdx.getAndIncrement.abs % channels.size
-    val channel = channels(idx)
     val dispatcher = srv.get.dispatcher
     val defaultHandler = srv.get.defaultHandler(_)
-    new InstanceHandler(p, this, channel, dispatcher, defaultHandler, options)
+    new InstanceHandler(p, this, srv.get, dispatcher, defaultHandler, options)
   }
 
   private def getProcess: InstanceHandler[IO,P] = {
@@ -104,17 +99,23 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
       //already running
       return
     }
-    
+
     //create the group
     val me = new ProcessID(options.id)
     val grp = Group(me, options.peers)
 
     //start the server
-    val ports = 
+    val ports =
       if (grp contains me) grp.get(me).ports
       else Set(options.port)
+    val port = ports.iterator.next()
     Logger("Runtime", Info, "starting service on ports: " + ports.mkString(", "))
-    val pktSrv = new PacketServer(executor, ports, grp, defaultHandler, options)
+    val pktSrv = options.protocol match {
+      case NetworkProtocol.UDP =>
+        new UDPPacketServer(executor, port, grp, defaultHandler, options)
+      case _ =>
+        new TCPPacketServer(executor, port, grp, defaultHandler, options)
+    }
     srv = Some(pktSrv)
     pktSrv.start
     for (i <- 0 until options.processPool) processPool.offer(createProcess)
@@ -130,7 +131,7 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
     }
     srv = None
   }
-  
+
   def submitTask(fct: Runnable) = {
     executor.execute(fct)
   }
@@ -156,9 +157,7 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
       } else {
         new DatagramPacket(payload, dst)
       }
-    val channel = srv.get.channels(0)
-    channel.write(pkt, channel.voidPromise())
-    channel.flush
+    srv.get.send(pkt)
   }
 
   def directory = {

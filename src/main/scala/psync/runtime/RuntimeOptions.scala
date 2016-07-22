@@ -11,7 +11,7 @@ object NetworkGroup extends Enumeration {
 
 object NetworkProtocol extends Enumeration {
   type NetworkProtocol = Value
-  val UDP, TCP = Value
+  val UDP, TCP, TCP_SSL = Value
 }
 
 sealed abstract class Workers
@@ -20,7 +20,7 @@ case class Fixed(nbr: Int) extends Workers
 case class Factor(coeff: Int) extends Workers
 
 trait RuntimeOptions {
-  
+
   def id = _id
   def peers = _peers
   def group = _group
@@ -58,14 +58,14 @@ trait RuntimeOptions {
 abstract class RTOptions extends DefaultOptions with RuntimeOptions {
 
   import dzufferey.arg._
-  
+
   newOption("--conf",                   String( s => processConFile(s)),            "configuration file")
   newOption("-id",                      Int( i => _id = i.toShort),                 "the replica ID")
   newOption("--id",                     Int( i => _id = i.toShort),                 "the replica ID")
   newOption("--group",                  Enum(NetworkGroup, (s: NetworkGroup.NetworkGroup) => _group = s),
                                                                                     "the network layer interface used by Netty: NIO/OIO/EPOLL (default: NIO).")
   newOption("--protocol",               Enum(NetworkProtocol, (s: NetworkProtocol.NetworkProtocol) => _protocol = s),
-                                                                                    "the network protocol: UDP/TCP (default: UDP).")
+                                                                                    "the network protocol: UDP/TCP/TCP_SSL (default: UDP).")
   newOption("-to",                      Int( i => _timeout = i.toLong ),            "default timeout for runtime (default: 10).")
   newOption("--timeout",                Int( i => _timeout = i.toLong ),            "default timeout for runtime (default: 10).")
   newOption("--earlyMoving",            Bool( b => _earlyMoving = b ),              "early moving optimization (default: true).")
@@ -100,7 +100,7 @@ abstract class RTOptions extends DefaultOptions with RuntimeOptions {
     } catch {
       case e: Exception =>
         Logger("RuntimeOptions", Warning, "size of pool of workers has wrong format, using adaptative")
-        Adapt 
+        Adapt
     }
   }
 
