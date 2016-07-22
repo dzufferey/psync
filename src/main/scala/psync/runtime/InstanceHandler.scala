@@ -232,7 +232,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   }
 
   protected def deliver(catchingUp: Boolean) {
-    Logger("Predicate", Debug, grp.self.id + ", " + instance + " delivering for round " + currentRound + " (received = " + received + ")")
+    Logger("InstanceHandler", Debug, grp.self.id + ", " + instance + " delivering for round " + currentRound + " -> " + received)
     val toDeliver = messages.slice(0, received)
     val msgs = fromPkts(toDeliver)
     currentRound += 1
@@ -262,18 +262,20 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   }
 
   protected def send {
-    //Logger("Predicate", Debug, "sending for round " + currentRound)
     val myAddress = grp.idToInet(grp.self)
     val pkts = toPkts(proc.send)
+    var sent = 0
     expected = proc.expectedNbrMessages
-    //println(grp.self.id + ", " + instance + " round: " + currentRound + ", expected " + expected)
     for (pkt <- pkts) {
       if (pkt.recipient() == myAddress) {
         storePacket(pkt)
       } else {
         pktServ.send(pkt)
       }
+      sent += 1
     }
+    Logger("InstanceHandler", Debug, grp.self.id + ", " + instance + " sending for round " + currentRound + " -> " + sent)
+    Logger("InstanceHandler", Debug, grp.self.id + ", " + instance + " expected for round " + currentRound + " -> " + expected)
     if (received >= expected && earlyMoving) {
       deliver(false)
     }

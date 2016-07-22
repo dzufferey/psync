@@ -165,7 +165,7 @@ class TCPPacketServer(
         defaultHandler(pkt)
     } catch {
       case t: Throwable =>
-        Logger("TCPPacketServerHandler", Warning, "got " + t)
+        Logger("TCPPacketServerHandler", Warning, "got " + t + "\n  " + t.getStackTrace.mkString("\n  "))
     }
   }
 

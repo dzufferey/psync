@@ -100,13 +100,10 @@ class LVProcess extends Process[ConsensusIO]{
   }
 
   val rounds = phase(
-    //FIXME use Int until PerfTest2 is fixed
-    //new Round[(Int,Time)]{
-    new Round[(Int,Int)]{
+    new Round[(Int,Time)]{
 
-      //def send(): Map[ProcessID,(Int, Time)] = {
-      def send(): Map[ProcessID,(Int, Int)] = {
-        Map(coord -> (x, ts.toInt))
+      def send(): Map[ProcessID,(Int, Time)] = {
+        Map(coord -> (x, ts))
       }
 
       override def expectedNbrMessages = {
@@ -116,8 +113,7 @@ class LVProcess extends Process[ConsensusIO]{
         } else 0
       }
 
-      //def update(mailbox: Map[ProcessID,(Int, Time)]) {
-      def update(mailbox: Map[ProcessID,(Int, Int)]) {
+      def update(mailbox: Map[ProcessID,(Int, Time)]) {
         assert(r.toInt % 4 == 0)
         if (id == coord &&
             (mailbox.size > n/2 ||
