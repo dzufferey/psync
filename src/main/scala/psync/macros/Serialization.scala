@@ -48,6 +48,7 @@ trait Serialization {
         import scala.pickling._
         import scala.pickling.Defaults._
         import binary._
+        import static._
         out.writerIndex(out.writerIndex() + _root_.psync.runtime.Tag.size)
         payload.pickleTo(new _root_.psync.macros.ByteBufOutput(out))
       }""",
@@ -55,6 +56,7 @@ trait Serialization {
         import scala.pickling._
         import scala.pickling.Defaults._
         import binary._
+        import static._
         in.readerIndex(in.readerIndex() + _root_.psync.runtime.Tag.size)
         val pickle = BinaryPickle(new _root_.psync.macros.ByteBufInput(in))
         pickle.unpickle[$tpt]
