@@ -45,13 +45,15 @@
     * which invariant we can use to prove what property
     * add temporal elements to spec/formula
 - allow pure functions in the send method
-- reduce memory footprint of Simplify
 - extraction of initial state: if a variable is not initialized in the process, take the default value in the declaration
-- extract the spec of aux fct from the type annotation
 - uses https://github.com/dzufferey/scala-smtlib-interface for the smtlib interface (code duplication)
 - parsing model:
   * better support for CVC4
   * use the smtlib eval command as alternative (once we know the domain)
+- Isabelle
+  * adding finite universe hypothesis
+  * how to have specific proof strategies
+  * how to call our tactic (tryAddVennFact, singleVennIntroNoForce, etc.)
 
 
 # example

@@ -384,12 +384,19 @@ object Simplify {
       case Intersection(lst @ _*) if lst.size > 2 => lst.reduce( (a,b) => Intersection(a,b) )
       case other => other
     }
+    def trivialOps(f: Formula) = f match {
+      case In(_, Comprehension(_, False())) => False()
+      case In(_, Comprehension(_, True())) => True()
+      case SubsetEq(_, Comprehension(_, True())) => True()
+      case SubsetEq(Comprehension(_, False()), _) => True()
+      case SubsetEq(x, y) if x == y => True()
+      case SubsetEq(x, Union(lst @ _*)) if lst contains x => True()
+      case other => other
+    }
     val f2 = FormulaUtils.map(flattenSet, f)
-    val f3 = FormulaUtils.map(binarize, f2)
-    //println("f:   " + f)
-    //println("f2:  " + f2)
-    //println("f3:  " + f3)
-    f3
+    val f3 = FormulaUtils.map(trivialOps, f2)
+    val f4 = FormulaUtils.map(binarize, f3)
+    f4
   }
   
   def lcm(m: Long, n: Long) = {
@@ -553,8 +560,8 @@ object Simplify {
     val f1 = nnf(f0)
     val f2 = FormulaUtils.flatten(f1)
     val f3 = simplifyInt(f2)
-    val f4 = simplifyBool(f3)
-    val f5 = simplifySetOp(f4)
+    val f4 = simplifySetOp(f3)
+    val f5 = simplifyBool(f4)
     val f6 = simplifyQuantifiers(f5)
     f6
   }

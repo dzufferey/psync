@@ -32,9 +32,10 @@ class InstGenSuite extends FunSuite {
     val cc = CongruenceClosure(fs)
     val gts = cc.groundTerms
     val s1 = Variable("s1").setType(FSet(pid))
+    val s2 = Variable("s2").setType(FSet(pid))
     val ax1 = And(
       ForAll(List(p2), In(p2, CL.HO(p2))),
-      ForAll(List(s1), SubsetEq(s1, s1))
+      ForAll(List(s1), SubsetEq(s1, s2))
     )
     val i1a = InstGen.saturateWith(ax1, gts, Some(0), cc)
     val i1b = InstGen.saturateWith(ax1, gts, Some(1), cc)

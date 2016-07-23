@@ -21,22 +21,24 @@ class Stats {
 
   def apply[A](what: String, fct: => A): A = {
     val start = java.lang.System.currentTimeMillis
-    val result: A = fct //that should force the evaluation
-    val stop = java.lang.System.currentTimeMillis
-    val delta = stop - start
-    //store the result
-    val (cnt, time) = 
-      if (map.containsKey(what)) {
-        map.get(what)
-      } else {
-        val c1 = (new AtomicInteger(), new AtomicLong())
-        val c2 = map.putIfAbsent(what, c1)
-        if (c2 == null) c1 else c2
-      }
-    cnt.incrementAndGet
-    time.addAndGet(delta)
-    //
-    result
+    try {
+      val result: A = fct //that should force the evaluation
+      result
+    } finally {
+      val stop = java.lang.System.currentTimeMillis
+      val delta = stop - start
+      //store the result
+      val (cnt, time) = 
+        if (map.containsKey(what)) {
+          map.get(what)
+        } else {
+          val c1 = (new AtomicInteger(), new AtomicLong())
+          val c2 = map.putIfAbsent(what, c1)
+          if (c2 == null) c1 else c2
+        }
+      cnt.incrementAndGet
+      time.addAndGet(delta)
+    }
   }
 
   override def toString = {

@@ -192,6 +192,7 @@ class OtrExampleNoMailbox extends FunSuite {
       Not(integrity)
     )
     //assertUnsat(fs, cln(3, new quantifiers.Eager, 1, true))
+    //assertUnsat(fs, to = 20000, reducer = cln(3, new quantifiers.Guided, 1, true))
     assertUnsat(fs, cln(3, new quantifiers.Guided, 1, true))
   }
 

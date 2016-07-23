@@ -2,6 +2,7 @@ package psync.logic
 
 import psync.formula._
 import psync.logic.quantifiers._
+import psync.utils.Stats
 
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
@@ -160,7 +161,7 @@ class CL(config: ClConfig) {
 
   def reduce(formula: Formula): Formula = {
 
-    val query = normalize(formula)
+    val query = Stats("CL normalize", normalize(formula))
     assert(Typer(query).success, "CL.reduce, not well typed")
     
     //For comprehension
@@ -183,24 +184,28 @@ class CL(config: ClConfig) {
     })
 
     val cc = new CongruenceClosure //incremental CC
-    cc.addConstraints(clauses)
-    //make sure we have a least one process
-    if (cc.groundTerms.forall(_.tpe != procType)) {
-      cc.repr(Variable(Namer("p")).setType(procType))
-    }
-    //Logger("CL", Debug, "CC is\n" + cc)
+    Stats("CL create CC", {
+      cc.addConstraints(clauses)
+      //make sure we have a least one process
+      if (cc.groundTerms.forall(_.tpe != procType)) {
+        cc.repr(Variable(Namer("p")).setType(procType))
+      }
+      //Logger("CL", Debug, "CC is\n" + cc)
+    })
 
-    val (inst, gen) = quantifierInstantiation(clauses, cc)
+    val (inst, gen) = Stats("CL quantifier instantiation", quantifierInstantiation(clauses, cc))
     Logger("CL", Debug, "after instantiation:\n  " + inst.mkString("\n  "))
 
     //the venn regions
-    val withILP1 = reduceComprehension(inst, symbols, gen)
-    val withILP2 = FormulaUtils.getConjuncts(cleanUp(withILP1))
-    val withILP  = withILP2.map(normalize)
+    val withILP = Stats("CL reduce comprehensions", {
+      val withILP1 = reduceComprehension(inst, symbols, gen)
+      val withILP2 = FormulaUtils.getConjuncts(cleanUp(withILP1))
+      withILP2.map(normalize)
+    })
     
     //add axioms for the other theories
-    val extraAxioms = AxiomatizedTheory.getAxioms(withILP)
-    val withExtraAxioms =
+    val withExtraAxioms = Stats("CL extra axioms", {
+      val extraAxioms = AxiomatizedTheory.getAxioms(withILP)
       if (extraAxioms.isEmpty) {
         Nil
       } else {
@@ -209,13 +214,14 @@ class CL(config: ClConfig) {
         cc2.addConstraints(withILP)
         localQuantifierInstantiation(extraAxioms, cc2)
       }
+    })
 
     //
-    val withoutTime = ReduceTime(withILP ::: withExtraAxioms)
-    val expendedLt = ReduceOrdered(withoutTime)
+    val withoutTime = Stats("CL reduce time", ReduceTime(withILP ::: withExtraAxioms))
+    val expendedLt = Stats("CL reduce ordered", ReduceOrdered(withoutTime))
 
 
-    val last = cleanUp(expendedLt)
+    val last = Stats("CL clean up", cleanUp(expendedLt))
     //assert(Typer(last).success, "CL.reduce, not well typed")
     last
   }

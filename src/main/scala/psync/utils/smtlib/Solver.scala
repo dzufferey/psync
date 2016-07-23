@@ -1,6 +1,7 @@
 package psync.utils.smtlib
 
 import psync.formula._
+import psync.utils.Stats
 import dzufferey.utils._
 import dzufferey.utils.LogLevel._
 import scala.sys.process._
@@ -57,8 +58,8 @@ class Solver( th: Theory,
   ////////////////////
 
   Logger("smtlib", Debug, "starting: " + (Array(cmd) ++ options).mkString(" "))
-  toSolver("(set-option :print-success false)")
-  toSolver("(set-option :produce-models true)")
+  toSolver("""(set-option :print-success false)
+             |(set-option :produce-models true)""".stripMargin)
   toSolver("(set-logic "+th+")")
 
   //default declarations
@@ -257,15 +258,17 @@ class Solver( th: Theory,
   }
   
   def checkSat: Result = {
-    toSolver(CheckSat)
-    fromSolver match {
-      case "sat" => Sat()
-      case "unsat" => UnSat
-      case "unknown" => Unknown
-      case other =>
-        Logger("smtlib", Warning, "checkSat: solver said " + other)
-        Failure(other)
-    }
+    Stats("SMT solver: check sat", {
+      toSolver(CheckSat)
+      fromSolver match {
+        case "sat" => Sat()
+        case "unsat" => UnSat
+        case "unknown" => Unknown
+        case other =>
+          Logger("smtlib", Warning, "checkSat: solver said " + other)
+          Failure(other)
+      }
+    })
   }
   
   def getModel: Option[Model] = {

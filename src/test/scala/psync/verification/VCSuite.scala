@@ -45,10 +45,10 @@ class VCSuite extends FunSuite {
       //new SingleVC("invariant is inductive", invariantAgreement, tr, prime(invariantAgreement), Nil, cl2)
       // XXX case 1 is sat ???
     )
-      Logger.moreVerbose //linter:ignore IdenticalStatements
-      Logger.moreVerbose
-      Logger.disallow("Typer")
-      Logger.disallow("smtlib")
+    //Logger.moreVerbose //linter:ignore IdenticalStatements
+    //Logger.moreVerbose
+    //Logger.disallow("Typer")
+    //Logger.disallow("smtlib")
 
     vcs.foreach( v => {
       //assert(v.isValid)

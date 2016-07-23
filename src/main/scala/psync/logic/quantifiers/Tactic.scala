@@ -84,8 +84,8 @@ abstract class TacticCommon extends Tactic {
     depth = _depth
     cc = _cc
     for (gt <- cc.groundTerms) enqueue(0, gt)
-    if (depth <= 0) {
-      Logger("Tactic", Warning, "depth "+depth+" should be > 0")
+    if (depth < 0) {
+      Logger("Tactic", Warning, "depth "+depth+" should be ≥ 0")
     }
   }
   

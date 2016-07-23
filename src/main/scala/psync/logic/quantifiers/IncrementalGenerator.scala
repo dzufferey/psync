@@ -75,7 +75,12 @@ class IncrementalGenerator( axioms: Iterable[Formula],
       Logger("IncrementalGenerator", Debug, "left over: " + f)
       leftOver ::= f
     } else {
-      addGen( makeGen(vs, f) )
+      val gen = makeGen(vs, f)
+      if (gen.isResult) {
+        leftOver ::= gen.result
+      } else {
+        addGen(gen)
+      }
     }
   })
   
