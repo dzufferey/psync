@@ -33,7 +33,7 @@ class KSetProcess(k: Int) extends Process[ConsensusIO] {
         val content = mailbox.map{ case (k,v) => v }
         if (decider) {
           callback.decide(pick(t))
-          terminate()
+          exitAtEndOfRound()
         } else if (content.exists(_._1)) {
           decider = true
           t = content.find(_._1).get._2

@@ -25,7 +25,7 @@ class FloodMinProcess(f: Int) extends Process[ConsensusIO] {
         x = mailbox.foldLeft(x)( (acc, v) => math.min(acc, v._2) )
         if (r > f) {
           callback.decide(x)
-          terminate()
+          exitAtEndOfRound()
         }
       }
 

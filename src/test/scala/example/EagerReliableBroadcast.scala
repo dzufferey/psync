@@ -29,12 +29,12 @@ class ErbProcess extends Process[BroadcastIO] {
       def update(mailbox: Map[ProcessID,Int]) {
         if (x.isDefined) {
           callback.deliver(x.get)
-          terminate
+          exitAtEndOfRound
         } else {
           if (!mailbox.isEmpty) {
             x = Some(mailbox.head._2)
           } else if (r > 10) { //crash before delivering
-            terminate
+            exitAtEndOfRound
           }
         }
       }

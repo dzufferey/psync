@@ -61,7 +61,7 @@ class EpsilonProcess(f: Int, epsilon: Double) extends Process[RealConsensusIO] {
           x = _new(2*f, f, V)
         } else {
           callback.decide(x)
-          terminate
+          exitAtEndOfRound
         }
       }
     }

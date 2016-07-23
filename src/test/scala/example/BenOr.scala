@@ -43,15 +43,17 @@ class BenOrProcess extends Process[BinaryConsensusIO] {
           callback.decide(x)
           decided = true
           decision = x
-          terminate
-        } else if (mailbox.count(_._2._1) > n/2 || mailbox.exists(m => m._2._1 && m._2._2)) {
-          vote = Some(true)
-        } else if (mailbox.count(!_._2._1) > n/2 || mailbox.exists(m => !m._2._1 && m._2._2)) {
-          vote = Some(false)
+          exitAtEndOfRound
         } else {
-          vote = None
+          if (mailbox.count(_._2._1) > n/2 || mailbox.exists(m => m._2._1 && m._2._2)) {
+            vote = Some(true)
+          } else if (mailbox.count(!_._2._1) > n/2 || mailbox.exists(m => !m._2._1 && m._2._2)) {
+            vote = Some(false)
+          } else {
+            vote = None
+          }
+          canDecide = mailbox.exists(_._2._2)
         }
-        canDecide = mailbox.exists(_._2._2)
       }
 
     },

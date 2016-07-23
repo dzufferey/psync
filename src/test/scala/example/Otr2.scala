@@ -51,7 +51,7 @@ class Otr2Process(afterDecision: Int) extends Process[ConsensusIO]{
         if (decision.isDefined) {
           after = after - 1
           if(after <= 0) {
-            terminate()
+            exitAtEndOfRound()
           }
         }
       }

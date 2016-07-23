@@ -84,7 +84,7 @@ class MConsensusProcess extends Process[MembershipIO] {
           if (decision.isDefined) {
             after = after -1
             if (after < 0)
-              terminate()
+              exitAtEndOfRound()
           }
         }
 

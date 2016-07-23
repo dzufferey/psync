@@ -71,7 +71,7 @@ class TpcProcess extends Process[TpcIO] {
           decision = Some(mailbox.head._2)
         }
         callback.decide(decision)
-        terminate
+        exitAtEndOfRound()
       }
     }
   )

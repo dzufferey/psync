@@ -60,7 +60,7 @@ class OtrProcess extends Process[IO]{
             callback.decide(v)
             decided = true
             decision = v
-            terminate()
+            exitAtEndOfRound
 } ) } } } }
 ```
 

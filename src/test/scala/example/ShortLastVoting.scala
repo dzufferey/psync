@@ -93,7 +93,6 @@ class SlvProcess extends Process[ConsensusIO] {
         }
         commit = false
         if ((decided: Boolean)) {
-          //terminate()
           exitAtEndOfRound()
         }
       }

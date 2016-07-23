@@ -73,7 +73,6 @@ class OtrProcess(afterDecision: Int) extends Process[ConsensusIO]{
         if (decided) {
           after = after - 1
           if(after <= 0) {
-            //terminate()
             exitAtEndOfRound
           }
         }

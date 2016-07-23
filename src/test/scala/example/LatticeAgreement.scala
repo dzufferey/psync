@@ -46,7 +46,7 @@ class LatticeAgreementProcess extends Process[LatticeIO]{
             callback.decide(proposed)
             decision = Some(proposed)
             active = false
-            terminate()
+            exitAtEndOfRound()
           } else {
             proposed = Lattice.join(proposed, mailbox.map(_._2).toSeq:_*)
           }

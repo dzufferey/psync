@@ -18,8 +18,6 @@
 
 # runtime
 
-- limit the scope of TerminateInstance in the Runtime: should not escape the Round
-    try to remove the control-flow inversion all together
 - reduce number of threads, improve pooling:
     could we use ForkJoinTask as queue of thing to do (instead of the current queue of message)
     a new task join on the previous task (do we need locking to avoid weak memory model problem, TODO make some test)

@@ -30,7 +30,7 @@ class KSetESProcess(t: Int, k: Int) extends Process[ConsensusIO] {
         val currNb = mailbox.size
         if (r > t/k || canDecide) {
           callback.decide(est)
-          terminate
+          exitAtEndOfRound
         } else {
           est = mailbox.map(_._2._1).min
           canDecide = (mailbox.exists(_._2._2) || lastNb - currNb < k)
