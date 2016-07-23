@@ -51,7 +51,6 @@
   * better support for CVC4
   * use the smtlib eval command as alternative (once we know the domain)
 - Isabelle
-  * adding finite universe hypothesis
   * how to have specific proof strategies
   * how to call our tactic (tryAddVennFact, singleVennIntroNoForce, etc.)
 

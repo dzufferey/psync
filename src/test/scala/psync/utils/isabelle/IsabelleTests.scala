@@ -19,7 +19,7 @@ class IsabelleTests extends FunSuite {
     s.stop
   }
 
-  test("proving simple theorems") {
+  test("proving simple theorems 1") {
     val s = new Session
     s.start
     def prove(name: String, f: Formula, expected: String) {
@@ -54,6 +54,27 @@ class IsabelleTests extends FunSuite {
       prove("(x,y,z)._1 = x", Tuple(x,y,z)._1 === x, "fst (x, y, z) = x")
       prove("(x,y,z)._2 = y", Tuple(x,y,z)._2 === y, "fst (snd (x, y, z)) = y")
       prove("(x,y,z)._3 = z", Tuple(x,y,z)._3 === z, "snd (snd (x, y, z)) = z")
+    } finally {
+      s.stop
+    }
+  }
+  
+  test("proving simple theorems 2") {
+    val s = new Session
+    s.start
+    val a = UnInterpreted("a")
+    def prove(name: String, f: Formula, expected: String) {
+      s.lemmaWithFiniteUniverse(name, List(a), Nil, f, None) match {
+        case Success(Some(str)) => assert(str == expected)
+        case other => sys.error(other.toString)
+      }
+    }
+    try {
+      s.newTheory("Test2")
+      val x = Variable("x").setType(a)
+      val S = Variable("S").setType(FSet(a))
+      prove("|S| ≥ 0", S.card ≥ 0 , "finite UNIV \\<longrightarrow> 0 \\<le> card S")
+      prove("|{}| = 0", Comprehension(List(x), False()).card === 0 , "finite UNIV \\<longrightarrow> card {x. False} = 0")
     } finally {
       s.stop
     }

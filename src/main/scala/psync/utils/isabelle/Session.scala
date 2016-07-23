@@ -11,6 +11,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import edu.tum.cs.isabelle._
 import edu.tum.cs.isabelle.api._
 import edu.tum.cs.isabelle.setup._
+import edu.tum.cs.isabelle.pure.{Type => IType, _}
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
@@ -95,19 +96,39 @@ class Session {
   }
 
   def lemma(name: String,
-            hypotheses: List[Formula],
+            hypotheses: Seq[Formula],
             conclusion: Formula,
             proof: Option[String]) = {
+    lemmaWithFiniteUniverse(name, Nil, hypotheses, conclusion, proof)
+  }
+  
+  def lemmaWithFiniteUniverse(
+            name: String,
+            finite: Seq[Type], // TODO naming the universe size, e.g., n for ProcessID
+            hypotheses: Seq[Formula],
+            conclusion: Formula,
+            proof: Option[String]) = {
+    val fs = finite.map(TranslateFormula.finite)
+    val hyps = hypotheses.map(TranslateFormula(_))
+    val conc = TranslateFormula(conclusion)
+    tryLemma(name, fs ++ hyps, conc, proof)
+  }
+  
+  protected def tryLemma(name: String,
+                         hypotheses: Seq[Term],
+                         conclusion: Term,
+                         proof: Option[String]) = {
     //XXX do something with the name on the isabelle side ?
     Logger("isabelle.Session", logLevel, "trying to prove " + name)
-    val statement = hypotheses match {
-      case _ :: _ :: _  => Implies(And(hypotheses:_*), conclusion)
-      case h :: Nil => Implies(h, conclusion)
+    val lem = hypotheses match {
+      case _ :: _ :: _  =>
+        val hs = TranslateFormula.mkApp(And, hypotheses:_*)
+        TranslateFormula.mkApp(Implies, hs, conclusion)
+      case h :: Nil => TranslateFormula.mkApp(Implies, h, conclusion)
       case Nil => conclusion
     }
-    val asTem = TranslateFormula(statement)
-    Logger("isabelle.Session", Debug, "translated formula: " + asTem)
-    runCommand(Operations.prove, asTem -> proof)
+    Logger("isabelle.Session", Debug, "isabelle formula: " + lem)
+    runCommand(Operations.prove, lem -> proof)
   }
 
   //TODO commands and stuffs

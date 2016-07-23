@@ -32,6 +32,12 @@ object TranslateFormula {
     App(f, u)
   }
 
+  // Why do I get a type error with that ?
+  def pureImplies(args: Term*) = {
+    val i = mkConst("Pure.imp")
+    args.reduceRight( (t, acc) => App(App(i, t), acc) )
+  }
+
   def interpreted(s: InterpretedFct) = mkConst(s match {
     case Not =>         "HOL.Not"
     case And =>         "HOL.conj"
@@ -95,6 +101,15 @@ object TranslateFormula {
       val t = TranslateType.to(v.tpe)
       val id0 = cleanName(v.name)
       App(binder, Abs(id0, t, acc))
+    }
+  }
+
+  def mkApp(i: InterpretedFct, args: Term*) = {
+    val s = interpreted(i)
+    if (associative(i)) {
+      args.reduceRight( (t, acc) => App(App(s, t), acc) )
+    } else {
+      args.foldLeft(s: Term)( (acc, t) => App(acc, t) )
     }
   }
 
@@ -163,12 +178,7 @@ object TranslateFormula {
     case Application(i: InterpretedFct, fs) =>
       Logger.assert(fs.nonEmpty, "isabelle.TranslateFormula.to", "no arg for: " + f)
       val ts = fs.map(to(_, bound))
-      val s = interpreted(i)
-      if (associative(i)) {
-        ts.reduceRight( (t, acc) => App(App(s, t), acc) )
-      } else {
-        ts.foldLeft(s: Term)( (acc, t) => App(acc, t) )
-      }
+      mkApp(i, ts:_*)
     case Application(UnInterpretedFct(symbol, tpe, tparams), fs) =>
       val ts = fs.map(to(_, bound))
       val symT = tpe.map(TranslateType.to).getOrElse(Typ.dummyT)
