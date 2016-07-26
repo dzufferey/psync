@@ -55,11 +55,9 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
 
   protected var n = 0
   protected var currentRound = 0
-  protected var expected = 0
 
-  protected var messages: Array[DatagramPacket] = null
   protected var from: Array[Boolean] = null
-  protected var received = 0
+  protected var roundHasEnoughMessages = false
 
 
   /** A new packet is received and should be processed */
@@ -77,10 +75,6 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
 
   /** Allocate new buffers if needed */
   protected def checkResources {
-    if (messages == null || messages.size != n) {
-      messages = Array.ofDim[DatagramPacket](n)
-      for (i <- 0 until n) messages(i) = null
-    }
     if (from == null || from.size != n) {
       from = Array.ofDim[Boolean](n)
       for (i <- 0 until n) from(i) = false
@@ -105,8 +99,6 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     grp = g
     n = g.size
     currentRound = 0
-    received = 0
-    expected = n
     checkResources
 
     msgs.foreach(p => newPacket(p.packet))
@@ -114,14 +106,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   }
 
   protected def freeRemainingMessages {
-    var idx = 0
-    while (idx < n) {
-      if (messages(idx) != null) {
-        messages(idx).release
-        messages(idx) = null
-      }
-      idx += 1
-    }
+    //TODO more efficient way to write in bulk
     for (i <- 0 until n) from(i) = false
   }
 
@@ -155,7 +140,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
 
   @inline private final def more = again && !Thread.interrupted
   @inline private final def rndDiff(rnd: Int) = rnd - currentRound
-  @inline private final def enoughMessages = received >= expected || !earlyMoving
+  @inline private final def enoughMessages = roundHasEnoughMessages || !earlyMoving
 
   def run {
     Logger("InstanceHandler", Info, "starting instance " + instance)
@@ -218,7 +203,8 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
               msg.release
               msg = null
             } else if (late == 0) {
-              storePacket(msg)
+              val sender = grp.inetToId(msg.sender)
+              storePacket(sender, msg.content)
               msg = null
             } // else we need to catch-up
           }
@@ -242,75 +228,50 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   // current round //
   ///////////////////
 
-  protected def storePacket(pkt: DatagramPacket) {
-    val id = grp.inetToId(pkt.sender).id
+  protected def storePacket(sender: ProcessID, buf: ByteBuf) {
+    val id = sender.id
     if (!from(id)) {
       from(id) = true
-      messages(received) = pkt
-      received += 1
-      assert(Message.getTag(pkt.content).roundNbr == currentRound, Message.getTag(pkt.content).roundNbr + " vs " + currentRound)
+      assert(Message.getTag(buf).roundNbr == currentRound, Message.getTag(buf).roundNbr + " vs " + currentRound)
+      roundHasEnoughMessages = proc.receive(sender, buf)
     } else {
-      pkt.release
+      // duplicate packet
+      buf.release
     }
   }
 
   protected def deliver = {
-    Logger("InstanceHandler", Debug, grp.self.id + ", " + instance + " delivering for round " + currentRound + " -> " + received)
-    val toDeliver = messages.slice(0, received)
-    val msgs = fromPkts(toDeliver)
+    Logger("InstanceHandler", Debug, grp.self.id + ", " + instance + " delivering for round " + currentRound) // + " -> " + received)
     clear
-    //push to the layer above
-    //actual delivery
-    proc.update(msgs)
+    proc.update
   }
 
   protected def clear {
-    val r = received
-    received = 0
-    for (i <- 0 until r) {
-      messages(i) = null
-    }
+    roundHasEnoughMessages = false
     for (i <- 0 until n) {
       from(i) = false
     }
   }
 
+
   protected def send {
-    val myAddress = grp.idToInet(grp.self)
-    val pkts = toPkts(proc.send)
+    val src = grp.idToInet(grp.self)
+    val tag = Tag(instance, currentRound)
     var sent = 0
-    expected = proc.expectedNbrMessages
-    for (pkt <- pkts) {
-      if (pkt.recipient() == myAddress) {
-        storePacket(pkt)
+    def sending(pid: ProcessID, payload: ByteBuf) {
+      payload.setLong(0, tag.underlying)
+      if (pid == grp.self) {
+        storePacket(pid, payload)
       } else {
+        val dst = grp.idToInet(pid, instance)
+        val pkt = new DatagramPacket(payload, dst, src)
         pktServ.send(pkt)
       }
       sent += 1
     }
+    proc.send(sending)
     Logger("InstanceHandler", Debug,
-      grp.self.id + ", " + instance + " sending for round " + currentRound + " -> " + sent + "\n" +
-      grp.self.id + ", " + instance + " expected for round " + currentRound + " -> " + expected )
+      grp.self.id + ", " + instance + " sending for round " + currentRound + " -> " + sent + "\n")
   }
   
-  protected def toPkts(msgs: Map[ProcessID, ByteBuf]): Iterable[DatagramPacket] = {
-    val src = grp.idToInet(grp.self)
-    val tag = Tag(instance, currentRound)
-    val pkts = msgs.map{ case (dst,buf) =>
-      val dst2 = grp.idToInet(dst, instance)
-      buf.setLong(0, tag.underlying)
-      new DatagramPacket(buf, dst2, src)
-    }
-    pkts
-  }
-
-  protected def fromPkts(pkts: Seq[DatagramPacket]): Map[ProcessID, ByteBuf] = {
-    val msgs = pkts.foldLeft(Map.empty[ProcessID, ByteBuf])( (acc, pkt) => {
-      val src = grp.inetToId(pkt.sender)
-      val buf = pkt.content
-      acc + (src -> buf)
-    })
-    msgs
-  }
-
 }

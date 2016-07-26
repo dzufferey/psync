@@ -67,15 +67,17 @@ abstract class RtProcess {
     allocator = a
   }
 
-  final def send(): Map[ProcessID, io.netty.buffer.ByteBuf] = {
+  final def send(sending: (ProcessID, io.netty.buffer.ByteBuf) => Unit) = {
     incrementRound
-    currentRound.packSend(allocator)
+    currentRound.packSend(allocator, sending)
   }
 
-  final def update(msgs: Map[ProcessID, io.netty.buffer.ByteBuf]): Boolean = {
-    currentRound.unpackUpdate(msgs)
+  final def receive(sender: ProcessID, payload: io.netty.buffer.ByteBuf): Boolean = {
+    currentRound.receiveMsg(sender, payload)
   }
 
-  final def expectedNbrMessages: Int = currentRound.expectedNbrMessages
+  final def update: Boolean = {
+    currentRound.finishRound
+  }
 
 }
