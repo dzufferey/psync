@@ -20,17 +20,12 @@ class UDPPacketServer(
     executor: java.util.concurrent.Executor,
     port: Int,
     initGroup: Group,
-    _defaultHandler: Message => Unit, //defaultHandler is responsible for releasing the ByteBuf payload
+    _defaultHandler: Message => Unit,
     options: RuntimeOptions) extends PacketServer(executor, port, initGroup, _defaultHandler, options)
 {
 
   protected var chan: Channel = null
   def channel: Channel = chan
-
-  def defaultHandler(pkt: DatagramPacket) {
-    val msg = new Message(pkt, directory.group)
-    _defaultHandler(msg)
-  }
 
   Logger.assert(options.protocol == NetworkProtocol.UDP, "UDPPacketServer", "transport layer: only UDP supported")
 
@@ -60,6 +55,8 @@ class UDPPacketServer(
       case NetworkGroup.EPOLL => b.channel(classOf[EpollDatagramChannel])
     }
 
+    b.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT); //make sure we use the default pooled allocator
+
     if (packetSize >= 8) {//make sure we have at least space for the tag
       b.option[Integer](ChannelOption.SO_RCVBUF, packetSize)
       b.option(ChannelOption.RCVBUF_ALLOCATOR, new FixedRecvByteBufAllocator(packetSize))
@@ -70,8 +67,7 @@ class UDPPacketServer(
   }
 
   def send(pkt: DatagramPacket) {
-    chan.write(pkt, chan.voidPromise())
-    chan.flush
+    chan.writeAndFlush(pkt, chan.voidPromise())
   }
 
 }

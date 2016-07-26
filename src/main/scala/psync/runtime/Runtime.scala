@@ -1,7 +1,7 @@
 package psync.runtime
 
 import psync._
-import io.netty.buffer.ByteBuf
+import io.netty.buffer.{ByteBuf,PooledByteBufAllocator}
 import io.netty.channel.socket._
 import dzufferey.utils.LogLevel._
 import dzufferey.utils.Logger
@@ -36,6 +36,7 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
     assert(srv.isDefined)
     val p = alg.process
     p.setOptions(options)
+    p.setAllocator( PooledByteBufAllocator.DEFAULT )
     val dispatcher = srv.get.dispatcher
     val defaultHandler = srv.get.defaultHandler(_)
     new InstanceHandler(p, this, srv.get, dispatcher, defaultHandler, options)

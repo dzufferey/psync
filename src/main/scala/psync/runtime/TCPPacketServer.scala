@@ -27,17 +27,12 @@ class TCPPacketServer(
     executor: java.util.concurrent.Executor,
     port: Int,
     val initGroup: Group,
-    _defaultHandler: Message => Unit, //defaultHandler is responsible for releasing the ByteBuf payload
+    _defaultHandler: Message => Unit,
     options: RuntimeOptions) extends PacketServer(executor, port, initGroup, _defaultHandler, options)
 {
 
   val recipientMap: Map[Short, Channel] = new TrieMap[Short, Channel]// with SynchronizedMap[ProcessID, Channel]
   private val recipients: Set[ProcessID] = initGroup.replicas.map(_.id).toSet - initGroup.self
-
-  def defaultHandler(pkt: DatagramPacket) {
-    val msg = new Message(pkt, directory.group)
-    _defaultHandler(msg)
-  }
 
   Logger.assert(options.protocol == NetworkProtocol.TCP || options.protocol == NetworkProtocol.TCP_SSL,
                 "TCPPacketServer", "transport layer: only TCP supported")
@@ -54,8 +49,6 @@ class TCPPacketServer(
   } else null
 
   private val group: EventLoopGroup = new NioEventLoopGroup()
-
-  private val connectionRestartPeriod = 250
 
   def close {
     dispatcher.clear
@@ -75,6 +68,7 @@ class TCPPacketServer(
     val bootstrap = new ServerBootstrap()
     bootstrap.group(group)
     bootstrap.channel(classOf[NioServerSocketChannel])
+    bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT); //make sure we use the default pooled allocator
     bootstrap.childHandler(new ChannelInitializer[SocketChannel] {
       override def initChannel(ch: SocketChannel) {
         val pipeline = ch.pipeline()
@@ -92,7 +86,7 @@ class TCPPacketServer(
     bootstrap.bind(port).sync()
   }
 
-  def delayedStartConnction(id: ProcessID) {
+  def delayedStartConnection(id: ProcessID) {
     if (group.isShuttingDown())
       return
     val loop = group.next()
@@ -100,7 +94,7 @@ class TCPPacketServer(
       override def run() {
         startConnection(id)
       }
-    }, connectionRestartPeriod, TimeUnit.MILLISECONDS)
+    }, options.connectionRestartPeriod, TimeUnit.MILLISECONDS)
   }
 
   def startConnection(id: ProcessID) {
@@ -108,6 +102,7 @@ class TCPPacketServer(
     val inet = initGroup.idToInet(id)
     bootstrap.group(group)
     bootstrap.channel(classOf[NioSocketChannel])
+    bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT); //make sure we use the default pooled allocator
     bootstrap.handler(new ChannelInitializer[SocketChannel] {
       override def initChannel(ch: SocketChannel) {
         val pipeline = ch.pipeline()
@@ -126,7 +121,7 @@ class TCPPacketServer(
       override def operationComplete(future: ChannelFuture) {
         if (future.cause() != null) {
           Logger("TCPPacketServer", Warning, "Couldn't connect, trying again...")
-          delayedStartConnction(id)
+          delayedStartConnection(id)
         }
       }
     })
@@ -147,8 +142,7 @@ class TCPPacketServer(
     val chanOption = recipientMap.get(recipientID.id)
     chanOption match {
       case Some(chan) =>
-        chan.write(pkt.content, chan.voidPromise())
-        chan.flush
+        chan.writeAndFlush(pkt.content, chan.voidPromise())
       case None =>
         Logger("TCPPacketServer", Info, "Tried to send packet, but no channel was available.")
         // Todo: have some sort of queue that waits for the client to come back up?
@@ -220,14 +214,13 @@ class TCPPacketClientHandler(
     packetServer.recipientMap.update(remoteID.id, chan)
     val payload = PooledByteBufAllocator.DEFAULT.buffer()
     payload.writeShort(localID.id)
-    chan.write(payload, chan.voidPromise())
-    chan.flush
+    chan.writeAndFlush(payload, chan.voidPromise())
   }
 
   override def channelInactive(ctx: ChannelHandlerContext) {
     Logger("TCPPacketClientHandler", Debug, "Someone disconneted.")
     packetServer.recipientMap.remove(remoteID.id)
-    packetServer.delayedStartConnction(remoteID)
+    packetServer.delayedStartConnection(remoteID)
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {

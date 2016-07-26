@@ -42,7 +42,7 @@ abstract class RtProcess {
   private var _n: Int = 0
   def n: Int = _n
 
-  def setGroup(g: psync.runtime.Group): Unit = {
+  protected[psync] def setGroup(g: psync.runtime.Group): Unit = {
     rr = new Time(-1)
     _r = -1
     _id = g.self
@@ -62,7 +62,10 @@ abstract class RtProcess {
 
   protected def currentRound: RtRound = rounds(_r)
 
-  protected var allocator: io.netty.buffer.ByteBufAllocator = io.netty.buffer.PooledByteBufAllocator.DEFAULT
+  protected var allocator: io.netty.buffer.ByteBufAllocator = null
+  protected[psync] def setAllocator(a: io.netty.buffer.ByteBufAllocator) {
+    allocator = a
+  }
 
   final def send(): Map[ProcessID, io.netty.buffer.ByteBuf] = {
     incrementRound

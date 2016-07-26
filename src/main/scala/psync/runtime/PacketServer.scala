@@ -14,9 +14,12 @@ abstract class PacketServer(
 
   val directory = new Directory(initGroup)
 
-  def defaultHandler(pkt: DatagramPacket): Unit
+  protected[psync] def defaultHandler(pkt: DatagramPacket) {
+    val msg = new Message(pkt, directory.group)
+    _defaultHandler(msg)
+  }
 
-  val dispatcher = new InstanceDispatcher(options)
+  protected[psync] val dispatcher = new InstanceDispatcher(options)
 
   def close: Unit
 

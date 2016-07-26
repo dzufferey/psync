@@ -36,6 +36,7 @@ trait RuntimeOptions {
   def workers = _workers
   def port = _port
   def dispatch = _dispatch
+  def connectionRestartPeriod = _connectionRestartPeriod
 
   protected var _peers = List[Replica]()
   protected var _id: Short = -1
@@ -52,6 +53,7 @@ trait RuntimeOptions {
   protected var _workers: Workers = Adapt
   protected var _port = -1
   protected var _dispatch = 7
+  protected var _connectionRestartPeriod = 250
 
 }
 
@@ -80,6 +82,7 @@ abstract class RTOptions extends DefaultOptions with RuntimeOptions {
   newOption("--workers",                String( s => _workers = parseWorkers(s) ),  "number of workers: adaptative/\\d(fixed)/\\dx(coeff on #CPU) (default: adaptative).")
   newOption("--port",                   Int( i => _port = i ),                      "port number, in case we don't know which replica we are.")
   newOption("--dispatch",               Int( i => _dispatch = i ),                  "log₂ fan out of the dispatcher (default: 7).")
+  newOption("--connectionRestartPeriod",Int( i => _connectionRestartPeriod= i ),    "waiting time before trying to reconnecting for TCP (default: 250).")
 
   def processConFile(s: java.lang.String) {
     val (ps, opts) = Config.parse(s)
