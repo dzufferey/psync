@@ -59,6 +59,8 @@ trait TypeExtractor {
     }
   }
 
+  private val warningSet = scala.collection.mutable.Set[Type]()
+
   //TODO clean version using mirror ....
   def extractType(t: Type): psync.formula.Type = {
     import definitions._
@@ -94,7 +96,10 @@ trait TypeExtractor {
           extractType(tpe)
         case other =>
           //TODO as uninterpreted ?
-          c.warning(null, "extractType(" + other + ") " + showRaw(other) + " currently Wildcard")
+          if (!warningSet.contains(other)) {
+            c.warning(null, "extractType(" + other + ") " + showRaw(other) + " currently Wildcard")
+            warningSet += other
+          }
           Wildcard
       }
     }

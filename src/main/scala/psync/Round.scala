@@ -18,33 +18,49 @@ import binary._
  */
 abstract class Round[A] {
 
+  //////////////////////////
+  // user-defined methods //
+  //////////////////////////
+
+  /** The message sent by the process during this round.*/
   def send(): Map[ProcessID,A]
 
+  /** Update the local state according to the messages received.*/
   def update(mailbox: Map[ProcessID,A]): Unit
 
-  private var _continue = true
+  /** How many messages are expected to be received by the process in this round.
+    * This is not required but can be used by some runtime optimizations. */
+  def expectedNbrMessages: Int = group.size
+
+  ////////////////////
+  // helper methods //
+  ////////////////////
+
+  /** Terminates the PSync instance at the end of the round. */
   protected final def exitAtEndOfRound(): Unit = {
     _continue = false
   }
+
+  /** Broadcast is a shortcut to send the same message to every participant. */
+  protected final def broadcast[A](msg: A): Map[ProcessID,A] = {
+    group.replicas.foldLeft(Map.empty[ProcessID,A])( (acc, r) => acc + (r.id -> msg) )
+  }
+
+  /////////////////////
+  // for the runtime //
+  /////////////////////
+
+  private var _continue = true
   protected[psync] def getContinue = {
     val c = _continue
     _continue = true
     c
   }
   
-  /* Broadcast is a shortcut to send the same message to every participant. */
-  protected final def broadcast[A](msg: A): Map[ProcessID,A] = {
-    group.replicas.foldLeft(Map.empty[ProcessID,A])( (acc, r) => acc + (r.id -> msg) )
-  }
-  
-  //TODO a better way to hide/abstract the group
   private var group: psync.runtime.Group = null
   protected[psync] def setGroup(g: psync.runtime.Group) {
     group = g
   }
-
-  //TODO can we inter that from the send code ?
-  def expectedNbrMessages: Int = group.size
 
 }
 

@@ -8,15 +8,12 @@ abstract class Process[IO] extends RtProcess {
   lazy val HO: Set[Process[IO]] = sys.error("used only for specification!")
 
   // for the runtime
-  def setOptions(options: runtime.RuntimeOptions) {
+  protected[psync] def setOptions(options: runtime.RuntimeOptions) {
     rounds.foreach(_.setOptions(options))
   }
 
-  //////////////////////
-  // for verification //
-  //////////////////////
-
-  var initState: Option[psync.formula.Formula] = None
+  // for verification
+  protected[psync] var initState: Option[psync.formula.Formula] = None
 
 }
 
@@ -50,7 +47,7 @@ abstract class RtProcess {
     _n = g.size
   }
 
-  protected def setOptions(options: runtime.RuntimeOptions): Unit
+  protected[psync] def setOptions(options: runtime.RuntimeOptions): Unit
   
   protected def incrementRound {
     rr = rr.tick
@@ -67,16 +64,16 @@ abstract class RtProcess {
     allocator = a
   }
 
-  final def send(sending: (ProcessID, io.netty.buffer.ByteBuf) => Unit) = {
+  protected[psync] final def send(sending: (ProcessID, io.netty.buffer.ByteBuf) => Unit) = {
     incrementRound
     currentRound.packSend(allocator, sending)
   }
 
-  final def receive(sender: ProcessID, payload: io.netty.buffer.ByteBuf): Boolean = {
+  protected[psync] final def receive(sender: ProcessID, payload: io.netty.buffer.ByteBuf): Boolean = {
     currentRound.receiveMsg(sender, payload)
   }
 
-  final def update: Boolean = {
+  protected[psync] final def update: Boolean = {
     currentRound.finishRound
   }
 
