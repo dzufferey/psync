@@ -99,19 +99,27 @@ class Session {
             hypotheses: Seq[Formula],
             conclusion: Formula,
             proof: Option[String]) = {
-    lemmaWithFiniteUniverse(name, Nil, hypotheses, conclusion, proof)
+    lemmaWithFiniteUniverse(name, Nil, Map.empty, hypotheses, conclusion, proof)
   }
   
   def lemmaWithFiniteUniverse(
             name: String,
-            finite: Seq[Type], // TODO naming the universe size, e.g., n for ProcessID
+            finite: Seq[Type],
+            namedUniverseCard: Map[Variable,Type],
             hypotheses: Seq[Formula],
             conclusion: Formula,
             proof: Option[String]) = {
+    Logger.assert(namedUniverseCard.values.forall(finite contains _),
+        "isabelle.Session", "some named universe size are not finite.")
+    import TranslateFormula.{universe,mkApp}
     val fs = finite.map(TranslateFormula.finite)
+    val naming = namedUniverseCard.map{ case (v,t) =>
+        val c = mkApp(Cardinality, universe(t))
+        mkApp(Eq, TranslateFormula(v), c)
+      }.toSeq
     val hyps = hypotheses.map(TranslateFormula(_))
     val conc = TranslateFormula(conclusion)
-    tryLemma(name, fs ++ hyps, conc, proof)
+    tryLemma(name, fs ++ naming ++ hyps, conc, proof)
   }
   
   protected def tryLemma(name: String,

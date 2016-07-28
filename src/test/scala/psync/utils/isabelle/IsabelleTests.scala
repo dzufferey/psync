@@ -58,13 +58,13 @@ class IsabelleTests extends FunSuite {
       s.stop
     }
   }
-  
+
   test("proving simple theorems 2") {
     val s = new Session
     s.start
     val a = UnInterpreted("a")
     def prove(name: String, f: Formula, expected: String) {
-      s.lemmaWithFiniteUniverse(name, List(a), Nil, f, None) match {
+      s.lemmaWithFiniteUniverse(name, List(a), Map.empty, Nil, f, None) match {
         case Success(Some(str)) => assert(str == expected)
         case other => sys.error(other.toString)
       }
@@ -75,6 +75,47 @@ class IsabelleTests extends FunSuite {
       val S = Variable("S").setType(FSet(a))
       prove("|S| ≥ 0", S.card ≥ 0 , "finite UNIV \\<longrightarrow> 0 \\<le> card S")
       prove("|{}| = 0", Comprehension(List(x), False()).card === 0 , "finite UNIV \\<longrightarrow> card {x. False} = 0")
+    } finally {
+      s.stop
+    }
+  }
+
+  test("proving simple theorems 3") {
+    val s = new Session
+    s.start
+    val a = UnInterpreted("a")
+    val x = Variable("x").setType(a)
+    val n = Variable("n").setType(Int)
+    def prove(name: String, hyps: Seq[Formula], concl: Formula, proof: Option[String], expected: String) {
+      s.lemmaWithFiniteUniverse(name, List(a), Map(n -> a), hyps, concl, proof) match {
+        case Success(Some(str)) => assert(str == expected)
+        case other => sys.error(other.toString)
+      }
+    }
+    try {
+      s.newTheory("Test3")
+      ///////////////
+      val S = Variable("S").setType(FSet(a))
+      val expected0 = "finite UNIV \\<and> n = card UNIV \\<longrightarrow> 0 \\<le> card S"
+      prove("|S| ≥ 0", Nil, S.card ≥ 0, None, expected0)
+      ///////////////
+      val pred = UnInterpretedFct("P", Some(a ~> Bool))
+      val p = Comprehension(List(x), pred(x))
+      val np = Comprehension(List(x), Not(pred(x)))
+      val proof1 = Some("(auto, tryAddVennFacts, linarith)")
+      val expected1 = "finite UNIV \\<and> n = card UNIV \\<and> card {x. P x} = n \\<longrightarrow> card {x. \\<not> P x} = 0"
+      prove("complement card", List(p.card === n), np.card === 0, proof1, expected1)
+      ///////////////
+      val f = UnInterpretedFct("f", Some(a ~> a))
+      val cst1 = Variable("c1").setType(a)
+      val cst2 = Variable("c2").setType(a)
+      val hyp1 = (Comprehension(List(x), f(x) === cst1 ).card * 2) > n
+      val hyp2 = (Comprehension(List(x), f(x) === cst2 ).card * 2) > n
+      val concl = cst1 === cst2
+      val proof2 = Some("(auto, rule ccontr, singleVennIntroNoForce \"{(x::'a). (f x) = c1}\" \"{(x::'a). (f x) = c2}\", force, tryAddVennFacts, simp)")
+      val expected2 = "finite UNIV \\<and> n = card UNIV \\<and> n < card {x. f x = c1} * Suc (Suc 0) \\<and> n < card {x. f x = c2} * Suc (Suc 0) \\<longrightarrow> c1 = c2"
+      prove("majority", List(hyp1, hyp2), concl, proof2, expected2)
+
     } finally {
       s.stop
     }

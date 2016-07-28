@@ -11,8 +11,7 @@
   need to either find a way of processing Process differently or encapsulate instance variables differently
   it is possible to add the type parameter when rewriting the class ?
 - allow for event driven algorithms
-  could process the messages as soon as received
-  current version can be built on top of that
+  make an abstract interface for such rounds (basically add the serialisation automatically)
 - allow for round local variables (reinitialized each time)
 
 
@@ -30,7 +29,6 @@
         message
         timeout
         defaultHandler
-- reduce memory footprint
 - more predictable performances when overloaded
 
 
@@ -45,7 +43,6 @@
     * which invariant we can use to prove what property
     * add temporal elements to spec/formula
 - allow pure functions in the send method
-- extraction of initial state: if a variable is not initialized in the process, take the default value in the declaration
 - uses https://github.com/dzufferey/scala-smtlib-interface for the smtlib interface (code duplication)
 - parsing model:
   * better support for CVC4
