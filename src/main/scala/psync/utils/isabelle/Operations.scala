@@ -10,4 +10,6 @@ object Operations {
 
   val prove = Operation.implicitly[(Term, Option[String]), Option[String]]("prove")
 
+  val prettyPrint = Operation.implicitly[Term, String]("pretty_print")
+
 }

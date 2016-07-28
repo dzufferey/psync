@@ -12,6 +12,7 @@ import edu.tum.cs.isabelle._
 import edu.tum.cs.isabelle.api._
 import edu.tum.cs.isabelle.setup._
 import edu.tum.cs.isabelle.pure.{Type => IType, _}
+import edu.tum.cs.isabelle.ProverResult._
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
@@ -137,6 +138,17 @@ class Session {
     }
     Logger("isabelle.Session", Debug, "isabelle formula: " + lem)
     runCommand(Operations.prove, lem -> proof)
+  }
+
+  def prettyPrint(t: Term): String = {
+    runCommand(Operations.prettyPrint, t) match {
+      case Success(str) => str
+      case other => Logger.logAndThrow("isabelle.Session", Error, other.toString)
+    }
+  }
+
+  def prettyPrint(t: Formula): String = {
+    prettyPrint(TranslateFormula(t))
   }
 
   //TODO commands and stuffs

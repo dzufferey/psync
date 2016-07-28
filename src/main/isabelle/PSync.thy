@@ -16,5 +16,6 @@ ML_file "operations.ml"
 
 operation_setup (auto) start_theory = \<open>Ops.start_theory\<close>
 operation_setup (auto) prove = \<open>Ops.prove\<close>
+operation_setup (auto) pretty_print = \<open>Ops.pretty_print\<close>
 
 end

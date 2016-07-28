@@ -10,6 +10,11 @@ signature OPS = sig
    * TODO more structured output than string
    *)
   val prove: term * string option -> string option
+
+  (* pretty print.
+   * useful to start a manual proof.
+   * TODO how to get the type annotations ? *)
+  val pretty_print: term -> string
 end
 
 structure Ops: OPS = struct
@@ -76,5 +81,8 @@ fun prove (t, method) =
       try (Goal.prove lthy [] [] prop) (fn {context, ...} => tac context)
       |> Option.map (print_thm lthy)
     end)
+
+fun pretty_print t =
+  access_loaded (fn lthy => print_term lthy t)
 
 end

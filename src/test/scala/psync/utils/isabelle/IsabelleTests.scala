@@ -121,4 +121,26 @@ class IsabelleTests extends FunSuite {
     }
   }
 
+  test("pretty print test 1") {
+    val s = new Session
+    s.start
+    val a = UnInterpreted("a")
+    val x = Variable("x").setType(a)
+    val n = Variable("n").setType(Int)
+    val f = UnInterpretedFct("f", Some(a ~> a))
+    try {
+      s.newTheory("Pretty1")
+      val tests = Seq(
+        (FSome(x) !== FNone(), "Some x \\<noteq> None" ),
+        (n < (Comprehension(List(x), f(x) === Variable("c1").setType(a) ).card * 2), "n < card {x. f x = c1} * Suc (Suc 0)")
+      )
+      tests.foreach{ case (f, expected) =>
+        val result = s.prettyPrint(f)
+        assert(result == expected)
+      }
+    } finally {
+      s.stop
+    }
+  }
+
 }
