@@ -29,16 +29,10 @@ class UDPPacketServer(
 
   Logger.assert(options.protocol == NetworkProtocol.UDP, "UDPPacketServer", "transport layer: only UDP supported")
 
-  private val group: EventLoopGroup = options.group match {
-    case NetworkGroup.NIO => new NioEventLoopGroup()
-    case NetworkGroup.OIO => new OioEventLoopGroup()
-    case NetworkGroup.EPOLL => new EpollEventLoopGroup()
-  }
-
   def close {
     dispatcher.clear
     try {
-      group.shutdownGracefully
+      evtGroup.shutdownGracefully
     } finally {
       chan.close()
       chan = null
@@ -48,7 +42,7 @@ class UDPPacketServer(
   def start {
     val packetSize = options.packetSize
     val b = new Bootstrap()
-    b.group(group)
+    b.group(evtGroup)
     options.group match {
       case NetworkGroup.NIO =>   b.channel(classOf[NioDatagramChannel])
       case NetworkGroup.OIO =>   b.channel(classOf[OioDatagramChannel])
@@ -66,7 +60,16 @@ class UDPPacketServer(
     chan = b.bind(port).sync().channel()
   }
 
-  def send(pkt: DatagramPacket) {
+  def send(pid: ProcessID, buf: ByteBuf) {
+    val grp = group
+    val dst = grp.idToInet(pid)
+    val pkt =
+      if (grp.contains(grp.self)) {
+        val src = grp.idToInet(grp.self)
+        new DatagramPacket(buf, dst, src)
+      } else {
+        new DatagramPacket(buf, dst)
+      }
     chan.writeAndFlush(pkt, chan.voidPromise())
   }
 
@@ -81,8 +84,8 @@ class UDPPacketServerHandler(
   //in Netty version 5.0 will be called: channelRead0 will be messageReceived
   override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
     try {
-    if (!dispatcher.dispatch(pkt))
-      defaultHandler(pkt)
+      if (!dispatcher.dispatch(pkt))
+        defaultHandler(pkt)
     } catch {
       case t: Throwable =>
         Logger("UDPPacketServerHandler", Warning, "got " + t)

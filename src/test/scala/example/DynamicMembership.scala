@@ -123,7 +123,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
 
   //the current view nbr (needed if we want to combine it with another algorithm that take care of doing actual work)
   private var viewNbr = 0
-  private var view: Directory = null
+  private var view = new Directory(null)
 
   //when is the last time we heard of some guy (ProcessID → last heart beat)
   private val lastHearOf = Array.ofDim[Long](64)
@@ -189,7 +189,8 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
             //the new replica gets a new ID
             val newId = view.firstAvailID //this is a deterministic operation
             lastHearOf(newId.id) = java.lang.System.currentTimeMillis()
-            view.addReplica(Replica(newId, address, Set(port)))
+            view.addReplica(Replica(newId, address, port))
+            rt.updateGroup(view.group)
             viewNbr += 1
             sendRecoveryInfo(newId)
             Logger("DynamicMembership", Info, "current view (#"+viewNbr+"):" + view)
@@ -202,6 +203,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
             Logger("DynamicMembership", Notice, "removing replica " + id)
             view.removeReplica(id)
             view.compact //this is a deterministic operation
+            rt.updateGroup(view.group)
             initTO
             viewNbr += 1
             Logger("DynamicMembership", Info, "current view (#"+viewNbr+"):" + view)
@@ -401,13 +403,13 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
     _id = if (isMaster) 0 else -1
     _peers =
       if (isMaster) {
-        List(Replica(new ProcessID(id), address, Set(port)))
+        List(Replica(new ProcessID(id), address, port))
       } else {
-        List(Replica(new ProcessID(0), masterAddress.get, Set(masterPort.get)))
+        List(Replica(new ProcessID(0), masterAddress.get, masterPort.get))
       }
     rt = new psync.runtime.Runtime(new MConsensus, this, defaultHandler(_))
     rt.startService
-    view = rt.directory
+    view.group = rt.getGroup
     if (isMaster) {
       Logger("DynamicMembership", Info, "Starting as master")
       initTO

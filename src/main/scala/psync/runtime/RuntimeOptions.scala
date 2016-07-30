@@ -37,6 +37,7 @@ trait RuntimeOptions {
   def port = _port
   def dispatch = _dispatch
   def connectionRestartPeriod = _connectionRestartPeriod
+  def acceptUnknownConnection = _acceptUnknownConnection
 
   protected var _peers = List[Replica]()
   protected var _id: Short = -1
@@ -54,6 +55,7 @@ trait RuntimeOptions {
   protected var _port = -1
   protected var _dispatch = 7
   protected var _connectionRestartPeriod = 250
+  protected var _acceptUnknownConnection = false
 
 }
 
@@ -83,6 +85,7 @@ abstract class RTOptions extends DefaultOptions with RuntimeOptions {
   newOption("--port",                   Int( i => _port = i ),                      "port number, in case we don't know which replica we are.")
   newOption("--dispatch",               Int( i => _dispatch = i ),                  "log₂ fan out of the dispatcher (default: 7).")
   newOption("--connectionRestartPeriod",Int( i => _connectionRestartPeriod= i ),    "waiting time before trying to reconnecting for TCP (default: 250).")
+  newOption("--acceptUnknownConnection",Bool( b => _acceptUnknownConnection = b ),  "accpect TCP connection from unkown replicas (default: false).")
 
   def processConFile(s: java.lang.String) {
     val (ps, opts) = Config.parse(s)

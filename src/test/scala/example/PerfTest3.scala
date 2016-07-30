@@ -216,7 +216,7 @@ class PerfTest3(options: RuntimeOptions,
   
   def wakeupOthers(inst: Short) {
     //TODO better way
-    val dir = rt.directory
+    val dir = rt.getGroup
     for (o <- dir.others) {
       val payload = PooledByteBufAllocator.DEFAULT.buffer()
       payload.writeLong(8)

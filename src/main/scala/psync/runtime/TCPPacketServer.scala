@@ -18,21 +18,38 @@ import io.netty.channel.ChannelHandler.Sharable
 import io.netty.handler.codec.{LengthFieldBasedFrameDecoder,LengthFieldPrepender}
 import io.netty.handler.ssl._
 import io.netty.handler.ssl.util._
-import java.net.InetSocketAddress
+import java.net.{InetSocketAddress,InetAddress}
 import java.util.concurrent.{Executors, TimeUnit}
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.{Map, SynchronizedMap, HashMap}
+import java.nio.charset.StandardCharsets.UTF_8
 
 class TCPPacketServer(
     executor: java.util.concurrent.Executor,
     port: Int,
-    val initGroup: Group,
+    initGroup: Group,
     _defaultHandler: Message => Unit,
     options: RuntimeOptions) extends PacketServer(executor, port, initGroup, _defaultHandler, options)
 {
 
-  val recipientMap: Map[Short, Channel] = new TrieMap[Short, Channel]// with SynchronizedMap[ProcessID, Channel]
-  private val recipients: Set[ProcessID] = initGroup.replicas.map(_.id).toSet - initGroup.self
+  val recipientMap: Map[ProcessID, Channel] = new TrieMap
+  val unknownSender = new java.util.concurrent.ConcurrentLinkedQueue[(InetSocketAddress,Channel)]
+  protected[runtime] def addChannel(addr: InetSocketAddress, chan: Channel) {
+    group.getSafe(addr) match {
+      case Some(r) =>
+        recipientMap.update(r.id, chan)
+      case None =>
+        unknownSender.add(addr -> chan)
+    }
+  }
+  protected[runtime] def removeChannel(addr: InetSocketAddress) {
+    group.getSafe(addr) match {
+      case Some(r) =>
+        recipientMap.remove(r.id)
+      case None =>
+        Logger("TCPPacketServer", Debug, "No channel to remove for " + addr)
+    }
+  }
 
   Logger.assert(options.protocol == NetworkProtocol.TCP || options.protocol == NetworkProtocol.TCP_SSL,
                 "TCPPacketServer", "transport layer: only TCP supported")
@@ -48,26 +65,74 @@ class TCPPacketServer(
     SslContextBuilder.forClient().trustManager(InsecureTrustManagerFactory.INSTANCE).build();
   } else null
 
-  private val group: EventLoopGroup = new NioEventLoopGroup()
+  override def group_=(grp: Group) {
+    val oldGroup = grp
+    super.group_=(grp)
+    //TODO concurrent
+    val snapShot = recipientMap.toSeq
+    recipientMap.clear
+    // the old channed reuse or close
+    snapShot.foreach{ case (id, chan) =>
+      val addr = oldGroup.get(id).netAddress
+      grp.getSafe(addr) match {
+        case Some(id2) =>
+          recipientMap.update(id2.id, chan)
+        case None =>
+          //not needed anymore
+          chan.close
+      }
+    }
+    // check if pending
+    var ac = unknownSender.poll
+    while (ac != null) {
+      val (addr, chan) = ac
+      grp.getSafe(addr) match {
+        case Some(id2) =>
+          recipientMap.update(id2.id, chan)
+        case None =>
+          //not needed
+          chan.close
+      }
+      ac = unknownSender.poll
+    }
+    // start connecting the new guys
+    grp.others.foreach( replica => {
+      if (!recipientMap.contains(replica.id)) {
+        startConnection(replica)
+      }
+    })
+  }
+
+  protected def getAddress: InetSocketAddress = {
+    if (group contains group.self) {
+      val addr = group.idToInet(group.self)
+      assert(addr.getPort == port)
+      addr
+    } else {
+      new InetSocketAddress(InetAddress.getLocalHost(), port)
+    }
+  }
 
   def close {
     dispatcher.clear
     try {
-      group.shutdownGracefully
+      evtGroup.shutdownGracefully
     } finally {
       recipientMap.foreach {
-        case (pid, channel) =>
+        case (_, channel) =>
           channel.close()
       }
     }
   }
 
-  val outerThis = this
-
   def startListener() {
     val bootstrap = new ServerBootstrap()
-    bootstrap.group(group)
-    bootstrap.channel(classOf[NioServerSocketChannel])
+    bootstrap.group(evtGroup)
+    options.group match {
+      case NetworkGroup.NIO =>   bootstrap.channel(classOf[NioServerSocketChannel])
+      case NetworkGroup.OIO =>   bootstrap.channel(classOf[OioServerSocketChannel])
+      case NetworkGroup.EPOLL => bootstrap.channel(classOf[EpollServerSocketChannel])
+    }
     bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT); //make sure we use the default pooled allocator
     bootstrap.childHandler(new ChannelInitializer[SocketChannel] {
       override def initChannel(ch: SocketChannel) {
@@ -80,28 +145,39 @@ class TCPPacketServer(
             new LengthFieldPrepender(2)
           )
         }
-        pipeline.addLast(new TCPPacketServerHandler(outerThis))
+        val srv = TCPPacketServer.this
+        val unk = options.acceptUnknownConnection
+        pipeline.addLast(new TCPPacketServerHandler(srv, getAddress, unk))
       }
     })
     bootstrap.bind(port).sync()
   }
 
-  def delayedStartConnection(id: ProcessID) {
-    if (group.isShuttingDown())
-      return
-    val loop = group.next()
-    loop.schedule(new Runnable() {
-      override def run() {
-        startConnection(id)
-      }
-    }, options.connectionRestartPeriod, TimeUnit.MILLISECONDS)
+  def delayedStartConnection(replica: Replica) {
+    if (!evtGroup.isShuttingDown()) {
+      val loop = evtGroup.next()
+      loop.schedule(new Runnable() {
+        override def run() {
+          startConnection(replica)
+        }
+      }, options.connectionRestartPeriod, TimeUnit.MILLISECONDS)
+    }
   }
 
-  def startConnection(id: ProcessID) {
+  def startConnection(replica: Replica) {
+    // check if replica still in the group
+    if (group.getSafe(replica.netAddress).isEmpty) {
+      return // the group has changed
+    }
+    //
     val bootstrap = new Bootstrap()
-    val inet = initGroup.idToInet(id)
-    bootstrap.group(group)
-    bootstrap.channel(classOf[NioSocketChannel])
+    val inet = replica.netAddress
+    bootstrap.group(evtGroup)
+    options.group match {
+      case NetworkGroup.NIO =>   bootstrap.channel(classOf[NioSocketChannel])
+      case NetworkGroup.OIO =>   bootstrap.channel(classOf[OioSocketChannel])
+      case NetworkGroup.EPOLL => bootstrap.channel(classOf[EpollSocketChannel])
+    }
     bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT); //make sure we use the default pooled allocator
     bootstrap.handler(new ChannelInitializer[SocketChannel] {
       override def initChannel(ch: SocketChannel) {
@@ -114,14 +190,14 @@ class TCPPacketServer(
             new LengthFieldPrepender(2)
           )
         }
-        pipeline.addLast(new TCPPacketClientHandler(outerThis, initGroup.self, id))
+        pipeline.addLast(new TCPPacketClientHandler(TCPPacketServer.this, getAddress, replica))
       }
     })
     bootstrap.connect(inet).addListener(new ChannelFutureListener() {
       override def operationComplete(future: ChannelFuture) {
         if (future.cause() != null) {
           Logger("TCPPacketServer", Warning, "Couldn't connect, trying again...")
-          delayedStartConnection(id)
+          delayedStartConnection(replica)
         }
       }
     })
@@ -129,67 +205,103 @@ class TCPPacketServer(
 
   def start {
     startListener()
-    recipients.foreach { recipient =>
-      if (initGroup.self.id < recipient.id)
+    group.others.foreach { recipient =>
+      if (directory.self.id < recipient.id.id)
         startConnection(recipient)
     }
     Thread.sleep(1000)
   }
 
-  def send(pkt: DatagramPacket) {
-    val recipientAddress = pkt.recipient
-    val recipientID = initGroup.get(recipientAddress).id
-    val chanOption = recipientMap.get(recipientID.id)
+  def send(to: ProcessID, buf: ByteBuf) {
+    val chanOption = recipientMap.get(to)
     chanOption match {
       case Some(chan) =>
-        chan.writeAndFlush(pkt.content, chan.voidPromise())
+        chan.writeAndFlush(buf, chan.voidPromise())
       case None =>
         Logger("TCPPacketServer", Info, "Tried to send packet, but no channel was available.")
-        // Todo: have some sort of queue that waits for the client to come back up?
-        //       Drop the packet?
-    }
-  }
-
-  def receive(process: ProcessID, buf: ByteBuf) {
-    val inet = initGroup.idToInet(process)
-    val src = initGroup.idToInet(initGroup.self)
-    val pkt = new DatagramPacket(buf, src, inet)
-    try {
-      if (!dispatcher.dispatch(pkt))
-        defaultHandler(pkt)
-    } catch {
-      case t: Throwable =>
-        Logger("TCPPacketServerHandler", Warning, "got " + t + "\n  " + t.getStackTrace.mkString("\n  "))
     }
   }
 
 }
 
 class TCPPacketServerHandler(
-    packetServer: TCPPacketServer
+    packetServer: TCPPacketServer,
+    localAddress: InetSocketAddress,
+    acceptUnknownConnection: Boolean
   ) extends SimpleChannelInboundHandler[ByteBuf](false) {
 
-  var processID: Option[ProcessID] = None
+  var remoteAddress: InetSocketAddress = null
 
   override def channelActive(ctx: ChannelHandlerContext) {
-    Logger("TCPPacketServerHandler", Debug, "Someone connected.")
+    Logger("TCPPacketServerHandler", Debug, "Someone connected to " + localAddress)
   }
 
   override def channelInactive(ctx: ChannelHandlerContext) {
     Logger("TCPPacketServerHandler", Debug, "Someone disconneted")
-    if (processID.isDefined)
-      packetServer.recipientMap.remove(processID.get.id)
+    if (remoteAddress != null)
+      packetServer.removeChannel(remoteAddress)
+  }
+
+  protected def readAddress(buf: ByteBuf): Option[InetSocketAddress] = {
+    val size = buf.readInt
+    val string = buf.readCharSequence(size, UTF_8).toString
+    buf.release
+    val split = string.lastIndexOf(':')
+    if (split < 0) {
+      None
+    } else {
+      try {
+        val host = string.substring(0, split)
+        val port = string.substring(split + 1).toInt
+        val address = new InetSocketAddress(host, port)
+        Some(address)
+      } catch {
+        case t: Throwable =>
+          None
+      }
+    }
   }
 
   override def channelRead0(ctx: ChannelHandlerContext, buf: ByteBuf) {
-    if (processID.isEmpty) {
-      // First message is always a processID
-      processID = Some(new ProcessID(buf.getShort(0)))
-      buf.release
-      packetServer.recipientMap.update(processID.get.id, ctx.channel())
-      Logger("TCPPacketServerHandler", Info, "Client " + processID.get.id + " connected to server " + packetServer.initGroup.self.id)
+    if (remoteAddress == null) {
+      // First message is an InetSocketAddress
+      readAddress(buf) match {
+        case Some(addr) =>
+          Logger("TCPPacketServerHandler", Info, {
+            val selfId = packetServer.group.self.id
+            addr + " is connecting to " + selfId + "(" + localAddress + ")" })
+          remoteAddress = addr
+          packetServer.group.getSafe(remoteAddress) match {
+            case Some(replica) =>
+              packetServer.addChannel(remoteAddress, ctx.channel())
+              Logger("TCPPacketServerHandler", Info, {
+                val selfId = packetServer.group.self.id
+                "<- Client " + replica.id.id + " connected to Server " + selfId })
+            case None =>
+              if (acceptUnknownConnection) {
+                packetServer.addChannel(remoteAddress, ctx.channel())
+                Logger("TCPPacketServerHandler", Info, {
+                  val selfId = packetServer.group.self.id
+                  "Client " + remoteAddress + " connected to Server " + selfId })
+              } else {
+                ctx.close()
+                Logger("TCPPacketServerHandler", Info, "unknown connection " + remoteAddress + " closing.")
+              }
+          }
+        case None =>
+          Logger("TCPPacketServerHandler", Info, "failed to parse/resolve connecting address, closing.")
+          ctx.close()
+      }
     } else {
-      packetServer.receive(processID.get, buf)
+      //normal protocol messages
+      val pkt = new DatagramPacket(buf, localAddress, remoteAddress)
+      try {
+        if (!packetServer.dispatcher.dispatch(pkt))
+          packetServer.defaultHandler(pkt)
+      } catch {
+        case t: Throwable =>
+          Logger("TCPPacketServerHandler", Warning, "got " + t + "\n  " + t.getStackTrace.mkString("\n  "))
+      }
     }
   }
 
@@ -200,27 +312,37 @@ class TCPPacketServerHandler(
 
 class TCPPacketClientHandler(
     packetServer: TCPPacketServer,
-    localID: ProcessID,
-    remoteID: ProcessID
+    localAddress: InetSocketAddress,
+    remote: Replica
   ) extends SimpleChannelInboundHandler[ByteBuf](false) {
 
   override def channelRead0(ctx: ChannelHandlerContext, buf: ByteBuf) {
-    packetServer.receive(remoteID, buf)
+    val pkt = new DatagramPacket(buf, localAddress, remote.netAddress)
+    try {
+      if (!packetServer.dispatcher.dispatch(pkt))
+        packetServer.defaultHandler(pkt)
+    } catch {
+      case t: Throwable =>
+        Logger("TCPPacketClientHandler", Warning, "got " + t + "\n  " + t.getStackTrace.mkString("\n  "))
+    }
   }
 
   override def channelActive(ctx: ChannelHandlerContext) {
-    Logger("TCPPacketClientHandler", Debug, "Someone connected.")
+    Logger("TCPPacketClientHandler", Debug, "connecting from " + localAddress + " to " + remote)
+    val payload = ctx.alloc().buffer()
+    payload.writeInt(-1)
+    val length = payload.writeCharSequence(localAddress.toString, UTF_8)
+    payload.setInt(0, length)
     val chan = ctx.channel()
-    packetServer.recipientMap.update(remoteID.id, chan)
-    val payload = PooledByteBufAllocator.DEFAULT.buffer()
-    payload.writeShort(localID.id)
     chan.writeAndFlush(payload, chan.voidPromise())
+    packetServer.addChannel(remote.netAddress, chan)
+    Logger("TCPPacketClientHandler", Info, "-> Client " + packetServer.group.self.id + " connected to " + remote.id.id)
   }
 
   override def channelInactive(ctx: ChannelHandlerContext) {
     Logger("TCPPacketClientHandler", Debug, "Someone disconneted.")
-    packetServer.recipientMap.remove(remoteID.id)
-    packetServer.delayedStartConnection(remoteID)
+    packetServer.removeChannel(remote.netAddress)
+    packetServer.delayedStartConnection(remote)
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {

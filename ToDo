@@ -18,17 +18,22 @@
 # runtime
 
 - reduce number of threads, improve pooling:
-    could we use ForkJoinTask as queue of thing to do (instead of the current queue of message)
-    a new task join on the previous task (do we need locking to avoid weak memory model problem, TODO make some test)
-    use an java.util.concurrent.atomic.AtomicReference to store the tail of the task queue
-        compareAndSet for cleanUp
-        getAndSet for adding a new task
-    what are the tasks:
-        start
-        stop
-        message
-        timeout
-        defaultHandler
+    The tricky part is how to deal with contention, i.e., many messages getting at the same time to the same instance.
+    We need some kind of hand-over protocol.
+    There are a few alternatives:
+    * We could we use ForkJoinTask as queue of thing to do.
+      A new task join on the previous task using a java.util.concurrent.atomic.AtomicReference that stores the tail of the task queue.
+      `getAndSet` can be use to adding a new tasks, `compareAndSet` for cleanUp.
+      (do we need locking to avoid weak memory model problem, TODO make some test)
+    * Just use lock (and hope for the best)
+    * Homemade solution lock-free solution
+    The tasks are:
+    * start (prepare)
+    * stop (interrupt/stop)
+    * message (inside run)
+    * timeout (inside run)
+    * defaultHandler (default)
+    Before starting each task, we need to check the instance number
 - more predictable performances when overloaded
 
 

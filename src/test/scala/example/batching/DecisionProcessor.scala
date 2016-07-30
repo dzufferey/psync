@@ -109,9 +109,9 @@ trait DecisionProcessor {
     private def lateThreshold = reorderingQueue.size > options.rate * options.late
     private def askDecision {
       //pick someone to ask
-      var askingTo = scala.util.Random.nextInt(rt.directory.size)
+      var askingTo = scala.util.Random.nextInt(rt.getGroup.size)
       while (askingTo == id) {
-        askingTo = scala.util.Random.nextInt(rt.directory.size)
+        askingTo = scala.util.Random.nextInt(rt.getGroup.size)
       }
       val payload = PooledByteBufAllocator.DEFAULT.buffer()
       payload.writeLong(8)

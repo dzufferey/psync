@@ -66,7 +66,7 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
     srv match {
       case Some(s) =>
         //an instance is actually encapsulated by one process
-        val grp = s.directory.group
+        val grp = s.group
         val process = getProcess
         val messages2 = messages.filter( m => {
           if (!Flags.userDefinable(m.flag) && m.flag != Flags.dummy) {
@@ -104,13 +104,13 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
     //create the group
     val me = new ProcessID(options.id)
     val grp = Group(me, options.peers)
+    Logger("Runtime", Info, "replica " + me.id + " has group:\n  " + grp.asList.mkString("\n  "))
 
     //start the server
-    val ports =
-      if (grp contains me) grp.get(me).ports
-      else Set(options.port)
-    val port = ports.iterator.next()
-    Logger("Runtime", Info, "starting service on ports: " + ports.mkString(", "))
+    val port =
+      if (grp contains me) grp.get(me).port
+      else options.port
+    Logger("Runtime", Info, "starting service on port: " + port)
     val pktSrv = options.protocol match {
       case NetworkProtocol.UDP =>
         new UDPPacketServer(executor, port, grp, defaultHandler, options)
@@ -149,22 +149,18 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
   def sendMessage(dest: ProcessID, tag: Tag, payload: ByteBuf) = {
     assert(Flags.userDefinable(tag.flag) || tag.flag == Flags.dummy) //TODO in the long term, we might want to remove the dummy
     assert(srv.isDefined)
-    val grp = srv.get.directory
-    val dst = grp.idToInet(dest, tag.instanceNbr)
     payload.setLong(0, tag.underlying)
-    val pkt =
-      if (grp.contains(grp.self)) {
-        val src = grp.idToInet(grp.self)
-        new DatagramPacket(payload, dst, src)
-      } else {
-        new DatagramPacket(payload, dst)
-      }
-    srv.get.send(pkt)
+    srv.get.send(dest, payload)
   }
 
-  def directory = {
+  def getGroup = {
     assert(srv.isDefined)
-    srv.get.directory
+    srv.get.group
+  }
+
+  def updateGroup(grp: Group) {
+    assert(srv.isDefined)
+    srv.get.group = grp
   }
 
   /* Try to deliver a message.

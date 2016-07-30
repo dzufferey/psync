@@ -297,7 +297,7 @@ class PerfTest2(options: RuntimeOptions,
   def wakeupOthers(inst: Short, initValue: Int) {
     //TODO better way
     if (algorithm == "lv" || algorithm == "slv") {
-      val dir = rt.directory
+      val dir = rt.getGroup
       for (o <- dir.others) {
         val payload = PooledByteBufAllocator.DEFAULT.buffer()
         payload.writeLong(8)

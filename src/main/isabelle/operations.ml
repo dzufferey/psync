@@ -78,6 +78,12 @@ fun prove (t, method) =
         | SOME src => HEADGOAL (method_tac @{here} src ctxt)
     in
       (* Assumption: all proofs are sequential *)
+      (* Goal.prove ctxt xs As C tac
+            states goal C in the context augmented by
+            fixed variables xs
+            and assumptions As,
+            and applies tactic tac to solve it.
+      *)
       try (Goal.prove lthy [] [] prop) (fn {context, ...} => tac context)
       |> Option.map (print_thm lthy)
     end)

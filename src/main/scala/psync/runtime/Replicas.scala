@@ -6,12 +6,14 @@ import dzufferey.utils.LogLevel._
 
 import java.net.InetSocketAddress
 
-case class Replica(id: ProcessID, address: String, ports: Set[Int]) {
-  assert(!ports.isEmpty, "replica cannot have an empty list of ports")
+case class Replica(id: ProcessID, address: String, port: Int) {
 
-  lazy val netAddresses = ports.toArray.map( p => new InetSocketAddress(address, p) )
-  def netAddress: InetSocketAddress = netAddresses(0)
-  def netAddress(i: Int): InetSocketAddress = netAddresses(i.abs % netAddresses.size)
+  lazy val netAddress: InetSocketAddress = new InetSocketAddress(address, port)
+
+  def normalize = {
+    val ip = netAddress.getAddress.getHostAddress
+    new Replica(id, ip, port)
+  }
 
 }
 
@@ -35,25 +37,29 @@ class Group(val self: ProcessID, val replicas: Array[Replica]) {
   
   def get(pid: ProcessID): Replica = replicas(pid.id)
 
-  //TODO a map ?
   def getSafe(address: InetSocketAddress): Option[Replica] = {
-    val ip = address.getAddress.getHostAddress
+    var ip: String = null
+    if (address.isUnresolved) {
+      ip = address.getHostString
+      //this is strange
+      if (ip.startsWith("/")) {
+        ip = ip.substring(1)
+      }
+    } else {
+      ip = address.getAddress.getHostAddress
+    }
     val port = address.getPort
-    replicas.find( r => r != null && r.address == ip && r.ports(port) )
+    val res = replicas.find( r => r != null && r.address == ip && r.port == port )
+    Logger("Replica", Debug, address + " has " + ip + " and " + port +
+                             " is " + res +
+                             " in\n  " + asList.mkString("\n  "))
+    res
   }
 
   def idToInet(pid: ProcessID) = {
     replicas(pid.id).netAddress
   }
   
-  def idToInet(pid: ProcessID, i: Int) = {
-    replicas(pid.id).netAddress(i)
-  }
-
-  def idToInets(pid: ProcessID) = {
-    replicas(pid.id).netAddresses
-  }
-
   def inetToId(address: InetSocketAddress): ProcessID = get(address).id
 
   def size: Int = {
@@ -67,7 +73,7 @@ class Group(val self: ProcessID, val replicas: Array[Replica]) {
 
   def add(r: Replica) = {
     assert( r.id != self &&
-            replicas.forall( r2 => r2.id != r.id && (r2.address != r.address || r2.ports != r.ports))
+            replicas.forall( r2 => r2.id != r.id && (r2.address != r.address || r2.port != r.port))
           )
     val maxIdx = math.max(r.id.id, replicas.filter(_ != null).map(_.id.id).max)
     val a2 = Array.ofDim[Replica](maxIdx+1)
@@ -112,7 +118,7 @@ object Group {
     val sorted = lst.sortWith( (a, b) => a.id.id < b.id.id ).zipWithIndex
     val idMap = sorted.foldLeft(Map.empty[ProcessID,ProcessID])( (acc, p) => acc + (p._1.id -> new ProcessID(p._2.toShort)))
     val renamed = sorted.map{ case (r, id) =>
-        if (r.id.id != id.toShort) Replica(idMap(r.id), r.address, r.ports) else r }
+        if (r.id.id != id.toShort) Replica(idMap(r.id), r.address, r.port) else r }
     (renamed, idMap)
   }
 
@@ -157,10 +163,6 @@ class Directory(private var g: Group) {
 
   def idToInet(processId: ProcessID) = g.idToInet(processId)
   
-  def idToInet(processId: ProcessID, i: Int) = g.idToInet(processId, i)
-
-  def idToInets(processId: ProcessID) = g.idToInets(processId)
-
   def inetToId(address: InetSocketAddress) = g.inetToId(address)
 
   def addReplica(r: Replica) = sync{ g = g.add(r) }

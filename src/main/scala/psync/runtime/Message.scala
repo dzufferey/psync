@@ -16,7 +16,7 @@ class Message(val packet: DatagramPacket, dir: Group){
   def payload: ByteBuf = packet.content
   def receiverId: ProcessID = dir.self
   lazy val senderId: ProcessID =  try { dir.inetToId(packet.sender) }
-                                    catch { case _: Exception => new ProcessID(-1) }
+                                  catch { case _: Exception => new ProcessID(-1) }
   lazy val tag: Tag = new Tag(payload.getLong(0))
 
   def flag = tag.flag

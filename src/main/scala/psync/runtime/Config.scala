@@ -6,9 +6,11 @@ import psync._
 object Config {
 
   private def parseReplica(e: Node) = {
-    Replica(new ProcessID((e \ "id").text.toShort),
-            (e \ "address").text,
-            (e \\ "port").map(_.text.toInt).toSet)
+    val id = new ProcessID((e \ "id").text.toShort)
+    val address = (e \ "address").text
+    val port = (e \ "port").text.toInt
+    val raw = Replica(id, address, port)
+    raw.normalize
   }
 
   private def parseOption(e: Node): (String, String) = {

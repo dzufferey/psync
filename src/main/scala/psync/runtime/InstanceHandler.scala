@@ -27,9 +27,13 @@ import java.util.concurrent.TimeUnit
 //  - used a discounted sum / geometric serie: coeff, window, expected RTT
 //  - step increment/decrement
 //  - fixed
-//TODO if making a TCP RT we cannot use DatagramPacket anymore ?
 trait InstHandler {
+  /** Handle packets received from this instance */
   def newPacket(dp: DatagramPacket): Unit
+  /** This instance should stop.
+   *  Since there might be multiple threads working. It might take
+   *  some time after this call returns until the instance actually
+   *  finishes. */
   def interrupt(inst: Int): Unit
 }
 
@@ -73,41 +77,46 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     rt.submitTask(new Runnable { def run = defaultHandler(pkt) })
   }
 
-  /** Allocate new buffers if needed */
-  protected def checkResources {
+  /** Prepare the handler for a execution.
+   *  call this just before giving it to the executor */
+  def prepare(io: IO, g: Group, inst: Short, msgs: Set[Message]) {
+    // clear the buffer
+    freeRemainingMessages
+
+    // init the process
+    proc.setGroup(g)
+    proc.init(io)
+
+    // init this
+    instance = inst
+    grp = g
+    n = g.size
+    currentRound = 0
+
+    // checkResources
     if (from == null || from.size != n) {
       from = Array.ofDim[Boolean](n)
       for (i <- 0 until n) from(i) = false
     }
+
+    // enqueue pending messages
+    msgs.foreach(p => newPacket(p.packet))
+
+    // register
+    dispatcher.add(inst, this)
   }
 
-  /** Prepare the handler for a execution.
-   *  call this just before giving it to the executor */
-  def prepare(io: IO, g: Group, inst: Short, msgs: Set[Message]) {
-    //clear the buffer
+  protected def freeRemainingMessages {
     var pkt = buffer.poll
     while(pkt != null) {
       pkt.release
       pkt = buffer.poll
     }
-    freeRemainingMessages
-
-    instance = inst
-    proc.setGroup(g)
-    proc.init(io)
-
-    grp = g
-    n = g.size
-    currentRound = 0
-    checkResources
-
-    msgs.foreach(p => newPacket(p.packet))
-    dispatcher.add(inst, this)
-  }
-
-  protected def freeRemainingMessages {
-    //TODO more efficient way to write in bulk
-    for (i <- 0 until n) from(i) = false
+    var i = 0
+    while (i < n) {
+      from(i) = false
+      i += 1
+    }
   }
 
   protected def stop {
@@ -170,21 +179,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
             // check that we have a message that we can handle
             if (msg != null) {
               didTimeOut -= 1
-              val tag = Message.getTag(msg.content)
-              if (instance != tag.instanceNbr) { // wrong instance
-                msg.release
-                msg = null
-              } else if (tag.flag == Flags.normal) {
-                // nothing to do we are fine
-              } else if (tag.flag == Flags.dummy) {
-                Logger("InstanceHandler", Debug, grp.self.id + ", " + instance + "dummy flag (ignoring)")
-                msg.release
-                msg = null
-              } else {
-                if (tag.flag == Flags.error) {
-                  Logger("InstanceHandler", Warning, "error flag (pushing to user)")
-                }
-                default(msg)
+              if (!checkInstanceAndTag(msg)) {
                 msg = null
               }
             } else {
@@ -209,7 +204,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
             } // else we need to catch-up
           }
         }
-        again &= deliver
+        again &= update
         currentRound += 1
       }
     } catch {
@@ -228,6 +223,28 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   // current round //
   ///////////////////
 
+  // responsible for freeing the msg if returns false
+  protected def checkInstanceAndTag(msg: DatagramPacket): Boolean = {
+    val tag = Message.getTag(msg.content)
+    if (instance != tag.instanceNbr) { // wrong instance
+      msg.release
+      false
+    } else if (tag.flag == Flags.normal) {
+      // nothing to do we are fine
+      true
+    } else if (tag.flag == Flags.dummy) {
+      Logger("InstanceHandler", Debug, grp.self.id + ", " + instance + "dummy flag (ignoring)")
+      msg.release
+      false
+    } else {
+      if (tag.flag == Flags.error) {
+        Logger("InstanceHandler", Warning, "error flag (pushing to user)")
+      }
+      default(msg)
+      false
+    }
+  }
+
   protected def storePacket(sender: ProcessID, buf: ByteBuf) {
     val id = sender.id
     if (!from(id)) {
@@ -240,22 +257,18 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     }
   }
 
-  protected def deliver = {
+  protected def update = {
     Logger("InstanceHandler", Debug, grp.self.id + ", " + instance + " delivering for round " + currentRound) // + " -> " + received)
-    clear
-    proc.update
-  }
-
-  protected def clear {
+    // clean
     roundHasEnoughMessages = false
     for (i <- 0 until n) {
       from(i) = false
     }
+    // update
+    proc.update
   }
 
-
   protected def send {
-    val src = grp.idToInet(grp.self)
     val tag = Tag(instance, currentRound)
     var sent = 0
     def sending(pid: ProcessID, payload: ByteBuf) {
@@ -263,9 +276,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       if (pid == grp.self) {
         storePacket(pid, payload)
       } else {
-        val dst = grp.idToInet(pid, instance)
-        val pkt = new DatagramPacket(payload, dst, src)
-        pktServ.send(pkt)
+        pktServ.send(pid, payload)
       }
       sent += 1
     }
