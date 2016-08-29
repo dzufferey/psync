@@ -1,8 +1,8 @@
 package psync.utils.isabelle
 
 import psync.formula._
-import edu.tum.cs.isabelle._
-import edu.tum.cs.isabelle.pure.{Type => IType, _}
+import info.hupel.isabelle._
+import info.hupel.isabelle.pure.{Type => IType, _}
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 

@@ -8,11 +8,11 @@ import psync.formula._
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
-import edu.tum.cs.isabelle._
-import edu.tum.cs.isabelle.api._
-import edu.tum.cs.isabelle.setup._
-import edu.tum.cs.isabelle.pure.{Type => IType, _}
-import edu.tum.cs.isabelle.ProverResult._
+import info.hupel.isabelle._
+import info.hupel.isabelle.api._
+import info.hupel.isabelle.setup._
+import info.hupel.isabelle.pure.{Type => IType, _}
+import info.hupel.isabelle.ProverResult._
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
@@ -51,7 +51,12 @@ class Session {
     }
     Logger("isabelle.Session", logLevel, "Setup done")
 
-    val resources = Resources.dumpIsabelleResources()
+    val resources = Resources.dumpIsabelleResources() match {
+      case cats.data.Xor.Left(err) =>
+        sys.error(err.toString)
+      case cats.data.Xor.Right(r) =>
+        r
+    }
     import java.nio.file.Paths
     val paths = List(Paths.get("src/main/isabelle"))
     val config = resources.makeConfiguration(paths, "PSync")

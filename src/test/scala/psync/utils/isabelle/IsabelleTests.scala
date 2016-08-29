@@ -2,7 +2,7 @@ package psync.utils.isabelle
 
 import psync.formula._
 import psync.formula.InlineOps._
-import edu.tum.cs.isabelle.ProverResult._
+import info.hupel.isabelle.ProverResult._
 import org.scalatest._
 
 class IsabelleTests extends FunSuite {
