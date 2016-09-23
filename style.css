@@ -1,0 +1,34 @@
+body {
+    width: 90vw;
+    padding-left: 5vw;
+}
+dl {
+    padding: 0.5em;
+}
+dt {
+    font-weight: bold;
+}
+dd {
+    padding: 0 0 0.5em 0;
+}
+h1 {
+    padding-top: 2em;
+    padding-bottom: 1em;
+}
+h2 {
+    padding-top: 3em;
+}
+h3 {
+    padding-top: 2em;
+}
+h4 {
+    padding-left: 1em;
+}
+td,th {
+    padding: 1px 10px;
+    border-bottom: 1px solid;
+}
+table {
+    padding: 1ex;
+}
+

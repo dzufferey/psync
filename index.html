@@ -1,0 +1,426 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <title>PSync POPL 16 artifact</title>
+  </head>
+  <body>
+    <h1>PSync POPL 16 artifact</h1>
+
+    <h3>Table of Content</h3>
+
+    <ul>
+      <li><a href="#intro">Introduction</a></li>
+      <li><a href="#dep">Dependencies</a></li>
+      <li><a href="#compile">Compiling</a></li>
+      <li><a href="#rt">Runtime</a></li>
+        <ul>
+          <li><a href="#rt-loc">Local setup</a></li>
+          <li><a href="#rt-dis">Distributed setup</a></li>
+        </ul>
+      <li><a href="#verif">Verification</a></li>
+      <li><a href="#compare">Comparison to other DSLs for distributed systems</a></li>
+    </ul>
+
+    <h2 id="intro">Introduction</h2>
+
+    <p>
+    This artifact contains the files necessary to reproduce the experiments for the paper <em>PSync: a partially synchronous language for fault-tolerant distributed algorithms</em>.
+    PSync is a framework for writing and verifying high-level implementations of fault-tolerant distributed algorithms.
+    PSync is based on the Heard-Of model and provides communication-closed rounds as primitive, which both simplifies the implementation of the fault-tolerant systems, and makes them more amenable to automated verification.
+    The focus on the paper is on the programming model and runtime of PSync.
+    </p>
+
+    <p>
+    This file explains how to
+    <ol>
+    <li>Build PSync</li>
+    <li>Run PSync locally</li>
+    <li>Run Psync in a distributed system</li>
+    <li>Run the verifier</li>
+    </ol>
+    </p>
+
+    <p>
+    The current repository of the project is <a href="https://github.com/dzufferey/psync">https://github.com/dzufferey/psync</a> and further development of the project will be available at this address.
+    </p>
+
+    <p>
+    Since the submission of the paper, the implementation of PSync has changed according to received feedback, the reviews among other.
+    From the perspective of the implementation, the most significant is about the signature of the mailboxes.
+    To clarify that the model restrict the number of messages per process per round, we decided to change the type of the mailbox
+    from <code>Set[(T,ProcessID)]</code> to <code>Map[ProcessID,T]</code> where <code>T</code> is the type of the payload for any given round.
+    <br/>
+    The runtime and the examples have been updated to reflect this change.
+    However, we did not had the time to finish the extraction of the transition relation for the verification and the reasoning about maps.
+    Therefore, the tests for the verification uses and older version still using the set abstractions.
+    This artifact contains the two version.
+    The older version is also available online in the <a href="https://github.com/dzufferey/psync/tree/old_verification">old_verification branch</a> of the repository.
+    The older version is named round, an earlier name for the PSync project.
+    In this artifact, we keep the old name for the older version to avoid confusion between the two versions.
+    </p>
+
+    <p>
+      The artifact contains the following files:
+    <pre>
+.
+│       <em>This file</em>
+├── index.html
+├── style.css
+│
+│       <em>Scripts to build PSync and run the experiments</em>
+├── build.sh
+├── check_dependencies.sh
+├── local.sh
+├── distributed.sh
+├── verification.sh
+│
+│       <em>The source code</em>
+├── sources
+│   ├── psync-runtime.zip
+│   └── psync-verification.zip
+│
+│       <em>Configuration files</em>
+├── conf
+│   ├── local.conf
+│   └── distributed.conf
+│
+│       <em>Pre-compiled binaries</em>
+├── binaries
+│   ├── psync_2.11-0.2-SNAPSHOT-tests.jar
+│   ├── psync-assembly-0.2-SNAPSHOT.jar
+│   ├── round_2.11-0.1-SNAPSHOT-tests.jar
+│   └── round-assembly-0.1-SNAPSHOT.jar
+│
+│       <em>Expected output of the verifier</em>
+├── sample_verification_output
+│   ├── report_otr.html
+│   └── report_lv.html
+│
+│       <em>Build tool: <a href="http://www.scala-sbt.org/">http://www.scala-sbt.org/</a></em>
+└── sbt
+    ├── sbt
+    └── sbt-launch.jar
+</pre>
+    All the commands in this explanation are run in the root of the uncompressed archive.
+    </p>
+
+    <h2 id="dep">Dependencies</h2>
+
+    <p>PSync requires:</p>
+
+    <dl>
+      <dt>Internet connection</dt>
+        <dd>The build tool will automatically download dependencies from the internet.</dd>
+      <dt>Java 7 or newer (Java 8 recommended)</dt>
+        <dd><a href="http://www.oracle.com/technetwork/java/javase/downloads/index.html">Oracle JDK 8</a> or <a href="http://openjdk.java.net/install/">OpenJDK 8</a></dd>
+      <dt>bash (with coreutils)</dt>
+        <dd>The scripts to run the experiments require a bash shell. (For Windows, we recommend using <a href="http://cygwin.com/">cygwin</a>.)</dd>
+      <dt>Z3</dt>
+        <dd>Z3 can be downloaded from <a href="https://github.com/Z3Prover/z3/releases">https://github.com/Z3Prover/z3/releases</a>. The z3 executable must be in the path for the verification tests.</dd>
+      <dt>clusterssh (optional)</dt>
+        <dd>clusterssh is not required but it simplifies running PSync on multiple machines. Many linux distribution package clusterssh. Otherwise, it is available at <a href="https://github.com/duncs/clusterssh">https://github.com/duncs/clusterssh</a>.</dd>
+      <dt>unzip (optional)</dt>
+        <dd>unzip can be used to simplify some of the setup steps.</dd>
+      <dt>gawk (optional)</dt>
+        <dd>gawk is required for the setup of additional examples (going beyond what is presented in the paper).</dd>
+    </dl>
+
+    <h2 id="compile">Compiling</h2>
+
+    <p>If you want to use the pre-compiled binaries, you can skip this step.
+    The pre-compiled jars are:
+    <ul>
+    <li>
+    for the runtime experiments:
+    <a href="binaries/psync-assembly-0.2-SNAPSHOT.jar">binaries/psync-assembly-0.2-SNAPSHOT.jar</a> and
+    <a href="binaries/psync_2.11-0.2-SNAPSHOT-tests.jar">binaries/psync_2.11-0.2-SNAPSHOT-tests.jar</a>;
+    </li>
+    <li>
+    for the verification experiments:
+    <a href="binaries/round-assembly-0.1-SNAPSHOT.jar">binaries/round-assembly-0.1-SNAPSHOT.jar</a> and
+    <a href="binaries/round_2.11-0.1-SNAPSHOT-tests.jar">binaries/round_2.11-0.1-SNAPSHOT-tests.jar</a>.
+    </li>
+    </ul>
+    </p>
+
+
+    <p>
+    To compile PSync:
+    <ol>
+    <li>Run the <code>check_dependencies.sh</code> script and check that everything is fine.</li>
+    <li>If unzip is not present, you should first decompile the two archives (<a href="sources/psync-runtime.zip">1</a>,<a href="sources/psync-verification.zip">2</a>) in the sources folder and put the result in the root folder.</li>
+    <li>Run the <code>build.sh</code> script to compile and package PSync.</li>
+    </ol>
+    </p>
+    <p>
+    </p>
+
+    <p>
+    If the compilation is successful the following jars are produced:
+    <ul>
+    <li>
+    for the runtime experiments:
+    <a href="psync/psync-assembly-0.2-SNAPSHOT.jar">psync/psync-assembly-0.2-SNAPSHOT.jar</a> and
+    <a href="psync/psync_2.11-0.2-SNAPSHOT-tests.jar">psync/psync_2.11-0.2-SNAPSHOT-tests.jar</a>;
+    </li>
+    <li>
+    for the verification experiments:
+    <a href="psync-old_verification/round-assembly-0.1-SNAPSHOT.jar">psync-old_verification/round-assembly-0.1-SNAPSHOT.jar</a> and
+    <a href="psync-old_verification/round_2.11-0.1-SNAPSHOT-tests.jar">psync-old_verification/round_2.11-0.1-SNAPSHOT-tests.jar</a>.
+    </li>
+    </ul>
+    </p>
+
+    <h2 id="rt">Runtime</h2>
+    
+    <p>
+    We first explain how to test PSync locally to make sure everything is fine.
+    Then we explain how to run PSync in a distributed system.
+    For the second part, we require three machines.
+    </p>
+
+    <h3 id="rt-loc">Local setup</h3>
+    
+    <p>
+    This part is just designed to check that everything is working fine and explain how to configure and run PSync.
+    PSync is built on top of netty which comes with its own memory management which takes a significant amount of memory.
+    Therefore, we recommend to use a machine with at least 4 GB of RAM (8 GB recommended) and a 4 core CPU.
+    </p>
+
+    <p>
+    We go through the following steps: 
+    <ol>
+    <li>the configuration file</li>
+    <li>the script to run the test</li>
+    <li>running the tests</li>
+    <li>checking the output</li>
+    </ol>
+    </p>
+
+    <h4>Configuration file</h4>
+    
+    <p>
+    The configuration file for this part is <a href="conf/local.conf">conf/local.conf</a>.
+    The file has two parts: (1) parameters for the runtime and (2) the address of the processes.
+    The parameters <code>protocol</code> and <code>group</code> should keep the current values.
+    The other parameters may be changed to alter the performance.
+    The default parameters in this file should give reasonable performance in a wide variety of setting.
+    </p>
+    
+    <p>
+    The value of the parameters may also by changed with command line arguments.
+    For instance, the <code>timeout</code> may be changed to 5 millisecond by calling PSync with the arguments <code>--timeout 5</code>.
+    </p>
+
+    <h4>Script to run the test</h4>
+    
+    <p>
+    The script to run the LastVoting locally is <a href="local.sh">local.sh</a>.
+    If you modified the location of the configuration file or the jar files, you need to update some path inside that file (follow the comments).
+    By default the file will use the pre-compiled binaries.
+    </p>
+
+    <h4>Running the test</h4>
+
+    <p>
+    Execute <code>./local.sh</code>.
+    The output should look like:
+<pre>
+running 3 LastVoting with batching replicas for 60 seconds
+stopping ...
+#decisions = 64125000, Δt = 60, throughput = 1068750
+#decisions = 64119600, Δt = 60, throughput = 1068660
+#decisions = 64117800, Δt = 60, throughput = 1068630
+</pre>
+    The throughput will depend on your machine.
+    Varying the timeout, usually decreasing it, may improve the performance (see remark below for more information).
+    </p>
+
+
+    <p>
+    To check that the algorithms is indeed correct, it is possible to log the decisions and save them to a file on the disk.
+    To do so, run with the <code>--log prefix</code> option, i.e., <code>./local.sh --log dec</code>.
+    This will produce the files <code>dec_0.log</code>, <code>dec_1.log</code>, and <code>dec_2.log</code>.
+    The index in the filename corresponds to the id of the process.
+    The next section explains how to interpret these files.
+    </p>
+
+    <p id="remark-timeout">
+    <strong>Remark about the timeout.</strong>
+    The timeout (combination of Δ and Θ) is a critical parameter of the runtime algorithm.
+    To decrease this reliance, the PSync runtime has some optimizations that allow it to progress faster and not always wait for the timeout to occur.
+    Therefore, the timeout parameter is a <em>conservative over-approximation</em> of the timeout as presented in the paper.
+    This explain the relatively high value found in the default configuration file.
+    </p>
+
+    <p>
+    <strong>Additional examples.</strong>
+    In the paper, we focus on the LastVoting with batching.
+    However, if you wish to go further, we have more examples.
+    If want to test them, you should look into the <code>test_scripts</code> folder in the sources of PSync.
+    This folder contains scripts to run other examples.
+    Some examples, in particular the ε-agreement, require specific options due small mismatch between the safety assumptions of these algorithms and the guarantees provided by PSync.
+    Please contact the authors if you have any questions.
+    </p>
+
+    <h4>Checking the output</h4>
+
+    <p>
+    The logs generated by <code>./local.sh --log dec</code> record the update of the distributed key-value store which uses the PSync algorithm.
+    The log is in the form:
+<pre>
+inst    key     value
+1       29      1963695310
+1       26      -2035825470
+...
+</pre>
+    The inst(ance) is the number of the batch in which the update is made, the key and the value denotes the key and its value.
+    The logs of the different replicas should agree on those.
+    </p>
+
+    <p>
+    Due to transient faults, i.e., the system not being synchronous/recovery/etc., its is possible that some replicas process batches in different order.
+    Assuming a replica has already process batch <em>i+1</em>, it currently processes the batch <em>i</em>.
+    Only the keys which have not been written in the batch <em>i+1</em> are kept.
+    </p>
+
+    <h3 id="rt-dis">Distributed setup</h3>
+    
+    <p>
+    Running PSync in a distributed system, is very similar to running it locally.
+    The main difference is that every machine should have its own local copies of PSync and the configuration files.
+    Then Psync needs to be run simultaneously on all the machines.
+    For this experiment, we need 3 machines connected together through an network.
+    </p>
+
+    <p>
+    The first step is to adapt the configuration file <a href="conf/distributed.conf">conf/distributed.conf</a> and the script <a href="distributed.sh">distributed.sh</a> to your configuration.
+    </p>
+    
+    <p>
+    For each machine, you should decide which id it will have (0/1/2).
+    Then put its IP address in <a href="conf/distributed.conf">conf/distributed.conf</a> and hostname in <a href="distributed.sh">distributed.sh</a> at the right place (follow the comments in each file).
+    </p>
+
+    <p>
+    To run PSync, execute the <code>./distributed.sh</code> script on the 3 machines.
+    </p>
+
+    <p>
+    To help running the script, we recommend using clusterssh (<code>cssh</code>).
+    Clusterssh allows you to connect through ssh on a set of machines and execute commands simultaneously on all the machines.
+    </p>
+
+    <p>
+    The script contains a <code>-delay 5000</code> option.
+    This option tells the system to wait 5 seconds before making requests.
+    This delays let you run launch the script on each machine and give the machines enough time load the JVM and run PSync.
+    You may adapt this constant to your need.
+    (Only required to achieve high performance.)
+    </p>
+
+    <p>
+    Other options that have a large influence on the performances are the <a href="#remark-timeout">timeout</a> and the batch size (<code>-b</code> options).
+    The default batch size is 300, increasing that size further may require to also increase the <code>packetSize</code>.
+    </p>
+
+    <h2 id="verif">Verification</h2>
+    
+    <p>
+    The focus on this paper is the programming model and runtime of PSync.
+    The implementation of the verification is a proof-of-concept about replicating in PSync <a href="http://dx.doi.org/10.1007/978-3-642-54013-4_10">earlier results</a> about verification of algorithms in the Heard-Of model.
+    There is ongoing work to improve the verification engine.
+    </p>
+
+    <p>
+    To execute the tests, run the <a href="verification.sh">verification.sh</a> script.
+    If you modified the location of the configuration file or the jar files, you need to update some path inside that file (follow the comments).
+    By default the file will use the pre-compiled binaries.
+    </p>
+    
+    <p>
+    The script should produce two files <a href="report_otr.html">report_otr.html</a> and <a href="report_lv.html">report_lv.html</a>.
+    You can compare these files with the expected output <a href="sample_verification_output/report_otr.html">sample_verification_output/report_otr.html</a> and <a href="sample_verification_output/report_lv.html">sample_verification_output/report_lv.html</a>.
+    </p>
+
+    <h2 id="compare">Comparison to other DSLs for distributed systems</h2>
+    
+    <p>
+    When evaluating algorithms implemented in PSync and comparing them to other DSLs we use the number of lines of code as metric.
+    We count the number of lines of code without comments or blank lines.
+    Also we focus on the algorithm itself (the <em>Process</em> class) and remove boilerplates like include statements.
+    </p>
+
+    <p>
+    Our sources are in the <a href="psync/src/test/scala/example/">psync/src/test/scala/example/</a> folder (after the sources are decompressed).
+    As explained in the introduction, our implementation of PSync changed.
+    Here are the new count for the line of code:
+    <table>
+      <tr>  <th>Algorithm</th>                                  <th>LOC</th></tr>
+      <tr>  <td>Last voting</td>                                <td> 89</td></tr>
+      <tr>  <td>One third rule</td>                             <td> 50</td></tr>
+      <tr>  <td>Flood min consensus</td>                        <td> 22</td></tr>
+      <tr>  <td>Ben-Or randomized consensus</td>                <td> 58</td></tr>
+      <tr>  <td><em>k</em>-set agreement</td>                   <td> 39</td></tr>
+      <tr>  <td><em>k</em>-set agreement early stopping</td>    <td> 30</td></tr>
+      <tr>  <td>Lattice agreement</td>                          <td> 30</td></tr>
+      <tr>  <td>ε-agreement</td>                                <td> 49</td></tr>
+      <tr>  <td>Two phases commit</td>                          <td> 53</td></tr>
+      <tr>  <td>Eager reliable broadcast</td>                   <td> 27</td></tr>
+      </tr>
+    </table> 
+    </p>
+
+    
+    <p>
+    For the count of Paxos in other DSLs, we used the following sources:
+    <dl>
+      <dt>DistAlgo</dt>
+        <dd>
+        <a href="https://github.com/DistAlgo/distalgo/blob/master/examples/lapaxos/orig.da">
+        https://github.com/DistAlgo/distalgo/blob/master/examples/lapaxos/orig.da
+        </a>
+        </dd>
+      <dt>Distal</dt>
+        <dd>
+        <a href="https://github.com/distal/distal-examples/blob/master/src/main/scala/ch/epfl/lsr/paxos/parliament.scala">
+        https://github.com/distal/distal-examples/blob/master/src/main/scala/ch/epfl/lsr/paxos/parliament.scala
+        </a>
+        </dd>
+      <dt>Bloom</dt>
+        <dd>
+        <a href="https://github.com/bloom-lang/bud-sandbox/tree/master/paxos">
+        https://github.com/bloom-lang/bud-sandbox/tree/master/paxos
+        </a>
+        </dd>
+      <dt>Overlog</dt>
+        <dd>
+        <a href="https://bitbucket.org/neilconway/overlog-paxos/src/tip/src/olg/core/election.olg">
+        https://bitbucket.org/neilconway/overlog-paxos/src/tip/src/olg/core/election.olg
+        </a>
+        </dd>
+      <dt>IO Automata</dt>
+        <dd>
+        in the IO-Automata toolkit at
+        <a href="http://groups.csail.mit.edu/tds/ioa/">
+        http://groups.csail.mit.edu/tds/ioa/
+        </a>
+        </dd>
+      <dt>TLA+</dt>
+        <dd>
+        <a href="https://github.com/fintler/tlaplus/blob/master/examples/Paxos/Paxos.tla">
+        https://github.com/fintler/tlaplus/blob/master/examples/Paxos/Paxos.tla
+        </a>
+        </dd>
+      <dt>Verdi</dt>
+        <dd>The number comes from <a href="http://dx.doi.org/10.1145/2813885.2737958">Verdi: A Framework for Implementing and
+        Formally Verifying Distributed Systems</a></dd>
+      <dt>EventML</dt>
+        <dd>The number comes from <a href="http://dx.doi.org/10.1109/DSN.2014.45">Developing Correctly Replicated Databases Using Formal Tools</dd>
+    </dl>
+    </p>
+
+  </body>
+</html>
