@@ -1,6 +1,7 @@
 # PSync
 
 ![Version 0.2 SNAPSHOT](https://img.shields.io/badge/version-0.2_SNAPSHOT-green.svg)
+[![Build Status](https://travis-ci.org/dzufferey/psync.svg?branch=master)](https://travis-ci.org/dzufferey/psync)
 [![Apache licensed](https://img.shields.io/badge/license-Apache-blue.svg)](https://raw.githubusercontent.com/dzufferey/psync/master/LICENSE)
 
 Fault-tolerant distributed systems play an important role in many critical applications.
