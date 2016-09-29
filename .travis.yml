@@ -11,10 +11,8 @@ scala:
 jdk:
   - oraclejdk8
   
-addons:
-  apt:
-    packages:
-    - lib32stdc++6
+before_install:
+  - sudo apt-get -qq install lib32stdc++6
 
 install:
   - ./.ci/install_z3.sh
@@ -26,7 +24,6 @@ script:
   - sbt ++$TRAVIS_SCALA_VERSION test
 
 cache:
-  apt
   directories:
     - $HOME/.ivy2/cache
     - $HOME/.sbt/boot
