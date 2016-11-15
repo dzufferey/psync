@@ -118,25 +118,22 @@ class IncrementalGenerator( axioms: Iterable[Formula],
   protected def addGen(g: Gen) = {
     //println("adding: " + g)
     assert(!g.isResult)
-    findSimilar(g) match {
-      case None =>
-        gens.append(g)
-        val index = gens.size - 1
-        val buffer = hashFilter.getOrElseUpdate(g.hashCode, ArrayBuffer[Int]())
+    findSimilar(g).getOrElse({
+      gens.append(g)
+      val index = gens.size - 1
+      val buffer = hashFilter.getOrElseUpdate(g.hashCode, ArrayBuffer[Int]())
+      buffer += index
+      g.vs.foreach( v => {
+        val buffer = idx.getOrElseUpdate(v.tpe, ArrayBuffer[Int]())
         buffer += index
-        g.vs.foreach( v => {
-          val buffer = idx.getOrElseUpdate(v.tpe, ArrayBuffer[Int]())
-          buffer += index
-        })
-        if (gens.size % 1000 == 0) {
-          Logger("IncrementalGenerator", Debug, "#generator: " + gens.size)
-        }
-        logger.addNode(index, ForAll(g.vs.toList, g.f),
-                       FormulaUtils.collectGroundTerms(ForAll(g.vs.toList, g.f)) -- cc.groundTerms)
-        index
-      case Some(index) =>
-        index
-    }
+      })
+      if (gens.size % 1000 == 0) {
+        Logger("IncrementalGenerator", Debug, "#generator: " + gens.size)
+      }
+      logger.addNode(index, ForAll(g.vs.toList, g.f),
+                     FormulaUtils.collectGroundTerms(ForAll(g.vs.toList, g.f)) -- cc.groundTerms)
+      index
+    })
   }
 
   def generate(term: Formula): List[Formula] = {

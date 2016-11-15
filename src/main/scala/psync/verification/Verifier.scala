@@ -236,7 +236,7 @@ class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P])(implicit tag: Type
       "Initial state implies invariant 0",
       ForAll(List(procI), localize(procLocalVars /*++ procGhostVars*/, procI, procInitState)),
       Eq(r, Literal(0)),
-      removeInitPrefix(removeOldPrefix(spec.invariants(0))),
+      removeInitPrefix(removeOldPrefix(spec.invariants.head)),
       additionalAxioms
     )
 

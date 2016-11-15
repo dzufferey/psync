@@ -94,8 +94,9 @@ abstract class TransformerWithScope {
 class Mapper(fct: Formula => Formula) extends Transformer {
   override def transform(f: Formula): Formula = f match {
     case b @ Binding(bt, vs, f) =>
-      def fct2(f: Formula): Formula = {
-        if (vs.contains(f)) f else fct(f)
+      def fct2(f: Formula): Formula = f match {
+        case v @ Variable(_) => if (vs.contains(v)) v else fct(v)
+        case _ => fct(f)
       }
       val m2 = new Mapper(fct2)
       fct(Copier.Binding(b, bt, vs, m2.transform(f)))
@@ -129,8 +130,9 @@ class TopDownMapper(fct: Formula => Formula) extends Transformer {
     } else {
       f match {
         case b @ Binding(bt, vs, f) =>
-          def fct2(f: Formula): Formula = {
-            if (vs.contains(f)) f else fct(f)
+          def fct2(f: Formula): Formula = f match {
+            case v @ Variable(_) => if (vs.contains(v)) v else fct(v)
+            case _ => fct(f)
           }
           val m2 = new TopDownMapper(fct2)
           Copier.Binding(b, bt, vs, m2.transform(f))
@@ -145,9 +147,10 @@ class StubornTopDownMapper(fct: Formula => Formula) extends Transformer {
   override def transform(f: Formula): Formula = {
     fct(f) match {
       case b @ Binding(bt, vs, f) =>
-        def fct2(f: Formula): Formula = {
-          if (vs.contains(f)) f else fct(f)
-        }
+          def fct2(f: Formula): Formula = f match {
+            case v @ Variable(_) => if (vs.contains(v)) v else fct(v)
+            case _ => fct(f)
+          }
         val m2 = new StubornTopDownMapper(fct2)
         Copier.Binding(b, bt, vs, m2.transform(f))
       case other =>

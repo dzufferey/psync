@@ -318,17 +318,14 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
   }
 
   def trySendDecision(msg: Message) {
-    getDec(msg.instance) match {
-      case Some(d) =>
-        val tag = Tag(msg.instance,0,Decision,0)
-        val payload = PooledByteBufAllocator.DEFAULT.buffer()
-        payload.writeLong(8)
-        val array = d.pickle.value
-        payload.writeBytes(array)
-        rt.sendMessage(msg.senderId, tag, payload)
-      case None =>
-        //otherwise the replica will have to recover by other means
-    }
+    getDec(msg.instance).foreach(d => {
+      val tag = Tag(msg.instance,0,Decision,0)
+      val payload = PooledByteBufAllocator.DEFAULT.buffer()
+      payload.writeLong(8)
+      val array = d.pickle.value
+      payload.writeBytes(array)
+      rt.sendMessage(msg.senderId, tag, payload)
+    })
   }
 
   ////////////////

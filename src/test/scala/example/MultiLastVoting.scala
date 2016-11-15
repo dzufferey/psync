@@ -122,7 +122,7 @@ class MultiLastVoting extends Algorithm[MlvIO,MlvProcess] {
   def process = new MlvProcess
 
   def dummyIO = new MlvIO{
-   val initialValue = Right(0)
+    val initialValue: Either[ProcessID,Int] = Right(0)
     def decide(value: Option[Int]) { }
   }
 }

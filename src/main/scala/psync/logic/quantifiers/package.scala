@@ -55,7 +55,7 @@ package object quantifiers {
 
       Logger("quantifiers", Debug, "fix uniquely defined universal defs: " + defs.mkString(", "))
       val eqs2 = defs.map{ case (a,b) => Eq(a, b) }
-      val withDefs = And(f3 +: eqs2.toSeq :_*)
+      val withDefs = And(f3 +: eqs2 :_*)
       val withPrefix = FormulaUtils.restoreQuantifierPrefix(prefix, withDefs)
 
 

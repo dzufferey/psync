@@ -119,11 +119,7 @@ class CongruenceClosure(initialDomain: Iterable[Formula] = Nil) extends CC {
 
   def withSymbol(s: Symbol) = {
     val builder = new scala.collection.immutable.VectorBuilder[Formula]()
-    symbolToNodes.get(s) match {
-      case Some(nodes) =>
-        nodes.foreach( n => builder += n.formula )
-      case None => ()
-    }
+    symbolToNodes.get(s).foreach( nodes => nodes.foreach( n => builder += n.formula ) )
     builder.result
   }
 

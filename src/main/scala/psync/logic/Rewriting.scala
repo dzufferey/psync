@@ -43,13 +43,10 @@ case class RewriteRule(freeVariables: Set[Variable],
       case Some(m) =>
         //checks that the types matches
         val init: Option[Map[TypeVariable,Type]] = Some(Map.empty)
-        val typeMap = m.foldLeft(init)( (acc, kv) => acc match {
-          case Some(m) =>
-            val tm = Typer.unify(kv._1.tpe, kv._2.tpe)
-            Typer.mergeTypeMap(m, tm)
-          case None =>
-            None
-        })
+        val typeMap = m.foldLeft(init)( (acc, kv) => acc.flatMap( m => {
+          val tm = Typer.unify(kv._1.tpe, kv._2.tpe)
+          Typer.mergeTypeMap(m, tm)
+        }))
         assert(typeMap.isDefined, "RewriteRule or formula is ill-typed ?")
         val rhs2 = FormulaUtils.copyAndType(typeMap.get, rhs)
         //do the substitution 

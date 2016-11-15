@@ -155,7 +155,7 @@ object Typer {
         (Product(argsT), TrivialCstr)
       case Fst =>
         argsT match {
-          case List(Product(t)) => (t(0), TrivialCstr)
+          case List(Product(t)) => (t.head, TrivialCstr)
           case other => (Type.freshTypeVar, TrivialCstr)
         }
       case Snd =>

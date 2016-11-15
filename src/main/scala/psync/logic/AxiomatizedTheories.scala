@@ -64,7 +64,7 @@ object TupleAxioms extends AxiomatizedTheory {
     val size = ts.size
     if (size >= 1) {
       //acc ::= ForAll(args, Eq(Fst(app).setType(ts(0)), args(0)))
-      acc ::= ForAll(tpl::args, Implies(Eq(tpl, app), Eq(Fst(tpl).setType(ts(0)), args(0))))
+      acc ::= ForAll(tpl::args, Implies(Eq(tpl, app), Eq(Fst(tpl).setType(ts.head), args.head)))
     }
     if (size >= 2) {
       //acc ::= ForAll(args, Eq(Snd(app).setType(ts(1)), args(1)))

@@ -94,7 +94,7 @@ class BenOr extends Algorithm[BinaryConsensusIO,BenOrProcess] {
   val V = new Domain[Boolean]
   val spec = new Spec {
     override val safetyPredicate: Formula = P.forall( p => p.HO.size > n/2 ) //TODO might need something stronger like crash-fault
-    val livenessPredicate = List( )
+    val livenessPredicate = Nil
     val invariants = List[Formula](
         P.forall( i => !i.decided && !i.canDecide )
       ||

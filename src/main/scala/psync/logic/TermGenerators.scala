@@ -21,8 +21,7 @@ class TermGenerator(vars: List[Variable],
     val gts2 = gts.toVector.groupBy(_.tpe)
     val candidates = vars.toVector.map( v => {
       gts2.toVector.flatMap{ case (tpe, ts) => Typer.unify(v.tpe, tpe) match {
-        case Some(map) =>
-          ts.toVector.map(map -> _)
+        case Some(map) => ts.map(map -> _)
         case None => Vector.empty
       }}
     })
@@ -47,17 +46,15 @@ class TermGenerator(vars: List[Variable],
     var terms = Set[Formula]()
     while (tuplified.hasNext) {
       val (subst, ts) = tuplified.next.unzip
-      mergeMap(subst) match {
-        case Some(s) =>
-          val map = vars.view.map(FormulaUtils.copyAndType(s, _)).zip(ts).toMap[Formula,Formula]
-          val expr2 = FormulaUtils.copyAndType(s, expr)
-          val t = FormulaUtils.map( f => map.getOrElse(f, f), expr2)
-          assert(Typer(t).success)
-          if (!gts.contains(t)) {
-            terms += t
-          }
-        case None => ()
-      }
+      mergeMap(subst).foreach( s => {
+        val map = vars.view.map(FormulaUtils.copyAndType(s, _)).zip(ts).toMap[Formula,Formula]
+        val expr2 = FormulaUtils.copyAndType(s, expr)
+        val t = FormulaUtils.map( f => map.getOrElse(f, f), expr2)
+        assert(Typer(t).success)
+        if (!gts.contains(t)) {
+          terms += t
+        }
+      })
     }
     terms
   }

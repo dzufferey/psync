@@ -142,10 +142,7 @@ case class UnInterpretedFct(symbol: String,
   def stripType = UnInterpretedFct(symbol)
 
   override val typeParams = tParam
-  val typeWithParams = _tpe match { 
-    case Some(t) => t
-    case None => Wildcard
-  }
+  val typeWithParams = _tpe.getOrElse(Wildcard)
 
   override val priority = 20
 
@@ -368,7 +365,7 @@ case object Fst extends InterpretedFct("_1") {
   override val priority = 20
   override def instanciateType(ts: List[Type]) =
     if (ts == Nil) Wildcard ~> Wildcard
-    else Product(ts) ~> ts(0)
+    else Product(ts) ~> ts.head
   override def apply(args: Formula*): Formula = {
     val app = Application(this, args.toList)
     if (args.length == 1) {

@@ -124,19 +124,17 @@ class PerfTest2(options: RuntimeOptions,
         case None =>
           instance
       }
-      running(idx) match {
-        case Some(ran) =>
-          if (Instance.leq(ran, myInst)) {
-            //Logger("PerfTest", Info, myInst + " decide: " + idx + ", " + v)
-            pushDecision(myInst, value)
-            versions(idx) = myInst
-            values(idx) = v
-            firstTime = true
-            //releases resources
-            running(idx) = None
-          }
-        case None =>
-      }
+      running(idx).foreach( ran => {
+        if (Instance.leq(ran, myInst)) {
+          //Logger("PerfTest", Info, myInst + " decide: " + idx + ", " + v)
+          pushDecision(myInst, value)
+          versions(idx) = myInst
+          values(idx) = v
+          firstTime = true
+          //releases resources
+          running(idx) = None
+        }
+      })
     } finally {
       l.unlock
     }

@@ -123,13 +123,11 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
   }
 
   def shutdown {
-    srv match {
-      case Some(s) =>
-        Logger("Runtime", Info, "stopping service")
-        s.close
-        executor.shutdownNow
-      case None =>
-    }
+    srv.foreach( s => {
+      Logger("Runtime", Info, "stopping service")
+      s.close
+      executor.shutdownNow
+    })
     srv = None
   }
 

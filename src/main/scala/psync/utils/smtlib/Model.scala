@@ -135,10 +135,7 @@ object Model {
         case other => List(other)
       }
       val args3 = args2.map( _ match {
-        case eq @ Eq(v1, v2) => tryParseVal(v2).orElse(tryParseVal(v1)) match {
-            case Some(vd) => vd
-            case None => sys.error("could not parse: " + eq.toStringFull)
-          }
+        case eq @ Eq(v1, v2) => tryParseVal(v2).orElse(tryParseVal(v1)).getOrElse(sys.error("could not parse: " + eq.toStringFull))
         case other => sys.error("expected Eq, found: " + other)
       })
       val (args4, retParsed) = ret match {
@@ -160,12 +157,10 @@ object Model {
     def tryParseFun(d: DefineFun): Option[(Symbol, Def)] = {
       val sym = getSym(d.id)
       val (cases, default) = collectCases(d.body)
-      tryParseVal(default) match {
-        case Some(v) =>
-          val cases2 = cases map { case (args, v) => parseCase(args, v) }
-          Some(sym, if (cases2.isEmpty) v else FunDef(cases2, v) )
-        case None => None
-      }
+      tryParseVal(default).flatMap( v => {
+        val cases2 = cases map { case (args, v) => parseCase(args, v) }
+        Some(sym, if (cases2.isEmpty) v else FunDef(cases2, v) )
+      })
     }
 
     var rest = cmds collect { case d: DefineFun => d }

@@ -43,18 +43,18 @@ class Session {
     Logger.assert(system == null, "isabelle.Session", "session has already started")
 
     Logger("isabelle.Session", logLevel, "Starting Isabelle")
-    val setup = Setup.defaultSetup(version) match {
-      case cats.data.Xor.Left(err) =>
+    val setup = Setup.default(version) match {
+      case Left(err) =>
         sys.error(err.toString)
-      case cats.data.Xor.Right(future) =>
-        await(future)
+      case Right(setup) =>
+        setup
     }
     Logger("isabelle.Session", logLevel, "Setup done")
 
     val resources = Resources.dumpIsabelleResources() match {
-      case cats.data.Xor.Left(err) =>
+      case Left(err) =>
         sys.error(err.toString)
-      case cats.data.Xor.Right(r) =>
+      case Right(r) =>
         r
     }
     import java.nio.file.Paths
