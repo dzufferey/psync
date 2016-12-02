@@ -37,7 +37,8 @@
 - more predictable performances when overloaded
 
 
-# verification
+# verificationshare the ByteBuf allocator between the channel and the send
+===================
 
 - reimplement the extraction using scala-meta
 - Formula:

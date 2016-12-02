@@ -147,14 +147,16 @@ class CLSuite extends FunSuite {
     assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
   }
 
-  //TODO better way to handle singletons
   //from https://github.com/psuter/bapa-z3/blob/master/src/main/scala/bapa/Main.scala
   test("BAPA 2") {
+  val singleton = UnInterpretedFct("singleton",Some(pid ~> FSet(pid)))
     val fs = List(
-      Eq(a, Comprehension(List(i), Eq(i,p1))),
-      Eq(b, Comprehension(List(i), Eq(i,p2))),
-      Eq(Cardinality(a), Literal(1)), //added because we don't have singletons
-      Eq(Cardinality(b), Literal(1)), //added because we don't have singletons
+      ForAll(List(i), And(
+        singleton(i) === Comprehension(List(j), Eq(i,j)),
+        singleton(i).card === 1
+      )),
+      a === singleton(p1),
+      b === singleton(p2),
       Not(Eq(a,b)),
       SubsetEq(b,c),
       Lt(Cardinality(c), Cardinality(a))
