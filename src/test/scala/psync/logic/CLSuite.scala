@@ -2,7 +2,6 @@ package psync.logic
 
 import psync.formula._
 import psync.formula.InlineOps._
-import psync.utils.smtlib._
 import dzufferey.utils.Logger
 import TestCommon._
 

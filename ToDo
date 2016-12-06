@@ -37,8 +37,7 @@
 - more predictable performances when overloaded
 
 
-# verificationshare the ByteBuf allocator between the channel and the send
-===================
+# verification
 
 - reimplement the extraction using scala-meta
 - Formula:
@@ -50,9 +49,6 @@
     * add temporal elements to spec/formula
 - allow pure functions in the send method
 - uses https://github.com/dzufferey/scala-smtlib-interface for the smtlib interface (code duplication)
-- parsing model:
-  * better support for CVC4
-  * use the smtlib eval command as alternative (once we know the domain)
 - Isabelle
   * how to have specific proof strategies
   * how to call our tactic (tryAddVennFact, singleVennIntroNoForce, etc.)

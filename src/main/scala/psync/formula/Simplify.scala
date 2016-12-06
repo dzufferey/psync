@@ -59,7 +59,7 @@ object Simplify {
   }
 
   protected def mkDeBruijnVar(tpe: Type, idx: Int) = {
-    val prefix = psync.utils.smtlib.Names.tpe(tpe)
+    val prefix = Names.tpe(tpe)
     Variable(prefix + "_" + idx).setType(tpe)
   }
 

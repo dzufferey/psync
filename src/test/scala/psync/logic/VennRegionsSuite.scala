@@ -1,7 +1,6 @@
 package psync.logic
 
 import psync.formula._
-import psync.utils.smtlib._
 
 import org.scalatest._
 

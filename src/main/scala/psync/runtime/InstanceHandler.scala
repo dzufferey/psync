@@ -28,13 +28,16 @@ import java.util.concurrent.TimeUnit
 //  - step increment/decrement
 //  - fixed
 trait InstHandler {
+
   /** Handle packets received from this instance */
   def newPacket(dp: DatagramPacket): Unit
+
   /** This instance should stop.
    *  Since there might be multiple threads working. It might take
    *  some time after this call returns until the instance actually
    *  finishes. */
   def interrupt(inst: Int): Unit
+
 }
 
 class InstanceHandler[IO,P <: Process[IO]](proc: P,
@@ -258,7 +261,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   }
 
   protected def update = {
-    Logger("InstanceHandler", Debug, grp.self.id + ", " + instance + " delivering for round " + currentRound) // + " -> " + received)
+    Logger("InstanceHandler", Debug, grp.self.id + ", " + instance + " delivering for round " + currentRound)
     // clean
     roundHasEnoughMessages = false
     for (i <- 0 until n) {

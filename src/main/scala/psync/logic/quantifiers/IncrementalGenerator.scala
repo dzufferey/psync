@@ -258,7 +258,7 @@ class IncrementalGenerator( axioms: Iterable[Formula],
   }
 
   protected def mkGenVar(v: Variable) = {
-    val suffix = psync.utils.smtlib.Names.tpe(v.tpe)
+    val suffix = Names.tpe(v.tpe)
     Variable(Namer("_genExt_"+suffix)).setType(v.tpe)
   }
   

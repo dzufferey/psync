@@ -31,7 +31,7 @@ import dzufferey.utils.LogLevel._
 object ReduceOrdered {
 
   def sym(t: Type) = {
-    val suffix = psync.utils.smtlib.Names.tpe(t)
+    val suffix = Names.tpe(t)
     UnInterpretedFct("_lt_" + suffix, Some(t ~> t ~> Bool), Nil)
   }
 

@@ -5,10 +5,11 @@ import Utils._
 import dzufferey.report._
 import psync.formula._
 import psync.logic._
-import psync.utils.smtlib._
+import psync.utils.SmtSolver
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 import dzufferey.utils.Namer
+import dzufferey.smtlib.{Sat, UnSat, Unknown, Failure, Result, Solver}
 
 abstract class VC {
 
@@ -56,9 +57,10 @@ class SingleVC( description: String,
         val h0 = Simplify.simplify( And(hypothesis, transition, And(additionalAxioms:_*)) )
         val c0 = Simplify.simplify( conclusion )
         reduced = cl.entailment(h0, c0)
-        solver = if (VerificationOptions.dumpVcs) Solver(UFLIA, fName)
-                 else Solver(UFLIA)
-        status = solver.testWithModel(reduced)
+        solver = if (VerificationOptions.dumpVcs) SmtSolver(fName)
+                 else SmtSolver()
+        val converted = SmtSolver.convert(SmtSolver.uninterpretSymbols(reduced))
+        status = solver.testWithModel(converted)
         solved = true
       } catch { case e: Exception =>
         status = Failure("Exception: " + e.getMessage + "\n  " + e.getStackTrace.mkString("\n  "))

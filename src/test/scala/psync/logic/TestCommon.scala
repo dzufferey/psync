@@ -2,8 +2,9 @@ package psync.logic
 
 import psync.formula._
 import psync.logic.quantifiers._
-import psync.utils.smtlib._
+import psync.utils.SmtSolver
 import psync.verification.VerificationOptions
+import dzufferey.smtlib.Sat
 import dzufferey.utils.Logger
 
 object TestCommon {
@@ -68,9 +69,10 @@ object TestCommon {
                   reducer: ClConfig = cl,
                   fname: Option[String] = None, 
                   useCvcMf: Boolean = false) {
-    val f1 = reduce(reducer, conjuncts, debug)
-    val solver = if (useCvcMf) Solver.cvc4mf(UFLIA, fname, to)
-                 else Solver(UFLIA, fname, to)
+    val f0 = reduce(reducer, conjuncts, debug)
+    val f1 = SmtSolver.convert(SmtSolver.uninterpretSymbols(f0))
+    val solver = if (useCvcMf) SmtSolver.cvc4mf(fname, to)
+                 else SmtSolver.z3(fname, to)
     try {
       assert(!solver.testB(f1), "unsat formula")
     } catch {
@@ -90,9 +92,10 @@ object TestCommon {
                 reducer: ClConfig = cl,
                 fname: Option[String] = None,
                 useCvcMf: Boolean = false) {
-    val f1 = reduce(reducer, conjuncts, debug)
-    val solver = if (useCvcMf) Solver.cvc4mf(UFLIA, fname, to)
-                 else Solver(UFLIA, fname, to)
+    val f0 = reduce(reducer, conjuncts, debug)
+    val f1 = SmtSolver.convert(SmtSolver.uninterpretSymbols(f0))
+    val solver = if (useCvcMf) SmtSolver.cvc4mf(fname, to)
+                 else SmtSolver.z3(fname, to)
     assert( solver.testB(f1), "sat formula")
   }
   
@@ -106,8 +109,9 @@ object TestCommon {
                to: Long = 10000,
                reducer: ClConfig = cl,
                fname: Option[String] = None) {
-    val f1 = reduce(reducer, conjuncts, true)
-    val solver = Solver(UFLIA, fname, to)
+    val f0 = reduce(reducer, conjuncts, true)
+    val f1 = SmtSolver.convert(SmtSolver.uninterpretSymbols(f0))
+    val solver = SmtSolver(fname, to)
     solver.testWithModel(f1) match {
       case Sat(Some(model)) =>
         Console.println(model.toString)

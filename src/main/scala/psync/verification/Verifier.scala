@@ -359,7 +359,7 @@ class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P])(implicit tag: Type
     report.add(rVcs)
 
     //TODO better way to do that
-    psync.utils.smtlib.Solver.executor.shutdown
+    dzufferey.smtlib.Solver.executor.shutdown
 
     report
   }

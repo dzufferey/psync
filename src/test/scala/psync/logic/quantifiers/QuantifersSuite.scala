@@ -2,7 +2,6 @@ package psync.logic.quantifiers
 
 import psync.logic._
 import psync.formula._
-import psync.utils.smtlib._
 
 import org.scalatest._
 

@@ -16,7 +16,7 @@ import dzufferey.utils.LogLevel._
 object TranslateFormula {
 
   def cleanName(id: String): String = {
-    psync.utils.smtlib.Printer.printable(id)
+    dzufferey.smtlib.Printer.printable(id)
   }
 
   def mkConst(what: String) = Const(what, Typ.dummyT)
