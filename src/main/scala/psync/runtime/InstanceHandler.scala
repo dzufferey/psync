@@ -16,9 +16,6 @@ import java.util.concurrent.TimeUnit
 //- def newPacket(dp: DatagramPacket): Unit
 //- def interrupt(inst: Short): Unit or stop(inst: Short)
 //TODO options
-//-TO:
-//  - non-strict: proceed as soon as there is enough messages
-//  - strict: wait until TO to proceed
 //-catch-up:
 //  - eager: as soon as one message from the next round is received start catching up
 //  - new round: after the current round finishes

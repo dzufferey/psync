@@ -1,6 +1,5 @@
 # general
 
-- expected number of messages for a round: inferred from the send function
 - locally testable safety/liveness conditions: of the form ∀ p. QF-φ(p)
 - split the sources into multiple parts/sub-projects
   * cleaner separation between the runtime and the declarations
@@ -48,7 +47,6 @@
     * which invariant we can use to prove what property
     * add temporal elements to spec/formula
 - allow pure functions in the send method
-- uses https://github.com/dzufferey/scala-smtlib-interface for the smtlib interface (code duplication)
 - Isabelle
   * how to have specific proof strategies
   * how to call our tactic (tryAddVennFact, singleVennIntroNoForce, etc.)
