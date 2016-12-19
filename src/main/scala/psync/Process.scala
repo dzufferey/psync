@@ -76,5 +76,9 @@ abstract class RtProcess {
   protected[psync] final def update: Boolean = {
     currentRound.finishRound
   }
+  
+  final protected[psync] def cleanUp {
+    currentRound.cleanUp
+  }
 
 }

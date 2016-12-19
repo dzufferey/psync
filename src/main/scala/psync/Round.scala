@@ -111,6 +111,10 @@ abstract class RoundWrapper extends RtRound {
     r.getContinue
   }
 
+  final protected[psync] def cleanUp {
+    mailbox = Map.empty
+  }
+
 }
 
 /** RtRound is the interface of rounds used by the runtime. */
@@ -130,6 +134,7 @@ abstract class RtRound {
    * @returns indicates whether to terminate this instance
    */
   protected[psync] def finishRound: Boolean
+  protected[psync] def cleanUp: Unit
 
   protected[psync] def setOptions(options: runtime.RuntimeOptions): Unit
   protected[psync] def setGroup(g: psync.runtime.Group): Unit

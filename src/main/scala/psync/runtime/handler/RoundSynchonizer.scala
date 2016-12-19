@@ -68,7 +68,7 @@ abstract class RoundSynchonizer[IO,P <: Process[IO]](
    *  Since there might be multiple threads working. It might take
    *  some time after this call returns until the instance actually
    *  finishes.
-   * @returns true if the instance has stopped and should be recycled. false if it will take care of itself in the near future.
+   * @returns true if the instance has stopped and should be recycled. false if it is the wrong instance or if it will take care of itself in the near future.
    */
   def interrupt(inst: Short): Boolean
 
@@ -84,7 +84,6 @@ abstract class RoundSynchonizer[IO,P <: Process[IO]](
 
   //messages for the current round
   protected var from: Array[Boolean] = null
-  protected var roundHasEnoughMessages = false
   
   //timeout options: they are persisted across instance execution
   protected var currentTimeout = options.timeout
@@ -138,23 +137,25 @@ abstract class RoundSynchonizer[IO,P <: Process[IO]](
     }
   }
   
-  //store a packet for the current round and perform duplicate check
-  protected def storePacket(sender: ProcessID, buf: ByteBuf) {
+  /** store a packet for the current round and perform duplicate check
+   * @returns true if there is enough messages to go to the next round
+   */
+  protected def storePacket(sender: ProcessID, buf: ByteBuf) = {
     val id = sender.id
     if (!from(id)) {
       from(id) = true
       assert(Message.getTag(buf).roundNbr == currentRound, Message.getTag(buf).roundNbr + " vs " + currentRound)
-      roundHasEnoughMessages = proc.receive(sender, buf)
+      proc.receive(sender, buf)
     } else {
       // duplicate packet
       buf.release
+      false
     }
   }
 
   protected def update = {
     Logger("RoundSynchonizer", Debug, grp.self.id + ", " + instance + " delivering for round " + currentRound)
     // clean
-    roundHasEnoughMessages = false
     for (i <- 0 until n) {
       from(i) = false
     }
@@ -179,29 +180,24 @@ abstract class RoundSynchonizer[IO,P <: Process[IO]](
       grp.self.id + ", " + instance + " sending for round " + currentRound + " -> " + sent + "\n")
   }
 
-}
-/* benign version is
-  on prepare:
-    clean-up and init the resources
-    if delayFirstSend
-    then delay
-    else 0
-  on start:
-    send
-    timeout
-  on message:
-    if wrong tag or wrong instance or late message
-      discard message
-      return
-    while early message {
-      update
+  /** update followed by send */
+  protected def toNextRound = {
+    if (proc.update) {
+      currentRound += 1
       send
+      true
+    } else {
+      false
     }
-    update
-    send
-  on timeout:
-    update
-    send
-  on interrupt:
-    ???
-*/
+  }
+
+  protected def toNextAndAdapt = {
+    if (toNextRound) {
+      adaptTimeout
+      new TO(currentTimeout)
+    } else {
+      new TO(-1l)
+    }
+  }
+
+}

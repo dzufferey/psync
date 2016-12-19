@@ -123,6 +123,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     Logger("InstanceHandler", Info, "stopping instance " + instance)
     dispatcher.remove(instance)
     freeRemainingMessages
+    proc.cleanUp
     rt.recycle(this)
   }
 
