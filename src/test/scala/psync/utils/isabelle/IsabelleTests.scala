@@ -112,7 +112,7 @@ class IsabelleTests extends FunSuite {
       val hyp1 = (Comprehension(List(x), f(x) === cst1 ).card * 2) > n
       val hyp2 = (Comprehension(List(x), f(x) === cst2 ).card * 2) > n
       val concl = cst1 === cst2
-      val proof2 = Some("(auto, rule ccontr, singleVennIntroNoForce \"{(x::'a). (f x) = c1}\" \"{(x::'a). (f x) = c2}\", force, tryAddVennFacts, simp)")
+      val proof2 = Some("(auto, rule ccontr, singleVennIntroNoForce \"{(x::'a). (f x) = c1}\" \"{(x::'a). (f x) = c2}\", force, tryAddVennFacts, rule emptyCardIntro[of \"{(x::'a). (f x) = c1} \\<inter> {(x::'a). (f x) = c2}\"], force, simp)")
       val expected2 = "finite UNIV \\<and> n = card UNIV \\<and> n < card {x. f x = c1} * Suc (Suc 0) \\<and> n < card {x. f x = c2} * Suc (Suc 0) \\<longrightarrow> c1 = c2"
       prove("majority", List(hyp1, hyp2), concl, proof2, expected2)
 

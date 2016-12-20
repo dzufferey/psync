@@ -19,13 +19,11 @@ end
 
 structure Ops: OPS = struct
 
-fun try_timeout' f = try_timeout 5 f (* global timeout for auxiliary operations *)
-
 fun err_timeout msg f x =
   case try_timeout 5 f x of
     Exn.Res r => r
-  | Exn.Exn TimeLimit.TimeOut => raise Timeout msg
-  | Exn.Exn exn => reraise exn
+  | Exn.Exn (Timeout.TIMEOUT _) => raise Timeout msg
+  | Exn.Exn exn => Exn.reraise exn
 
 type state = local_theory option
 val empty_state = NONE: state

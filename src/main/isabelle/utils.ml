@@ -7,7 +7,7 @@ fun try_timeout secs f x =
   let
    val time = Time.fromSeconds secs
   in
-   Exn.capture (TimeLimit.timeLimit time f) x
+   Exn.capture (Timeout.apply time f) x
   end
 
 fun print_position pos =
@@ -15,7 +15,7 @@ fun print_position pos =
     val print_file = Path.implode o Path.base o Path.explode
   in
     case (Position.file_of pos, Position.line_of pos) of
-      (SOME file, SOME line) => print_file file ^ ":" ^ Markup.print_int line
+      (SOME file, SOME line) => print_file file ^ ":" ^ signed_string_of_int line
     | (SOME file, NONE) => print_file file
     | _ => "<unknown>"
   end
@@ -56,7 +56,7 @@ fun register_terms ts lthy =
 
 val unvarify_typ =
   let
-    fun aux (TVar ((name, idx), sort)) = TFree (name ^ Markup.print_int idx, sort)
+    fun aux (TVar ((name, idx), sort)) = TFree (name ^ signed_string_of_int idx, sort)
     | aux t = t
   in
     map_atyps aux
@@ -64,7 +64,7 @@ val unvarify_typ =
 
 val unvarify =
   let
-    fun aux (Var ((name, idx), typ)) = Free (name ^ Markup.print_int idx, typ)
+    fun aux (Var ((name, idx), typ)) = Free (name ^ signed_string_of_int idx, typ)
     | aux t = t
   in
     map_aterms aux o map_types unvarify_typ
