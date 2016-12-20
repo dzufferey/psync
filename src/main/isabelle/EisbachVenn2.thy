@@ -36,7 +36,7 @@ method vennCard for A B :: "'a set" = (
     match premises in
       "card (A \<inter> B) + card (A \<inter> -B) = card A" (cut) \<Rightarrow> \<open> fail \<close>
     \<bar> "card (B \<inter> A) + card (B \<inter> -A) = card B" (cut) \<Rightarrow> \<open> fail \<close>
-    \<bar> L:"finite (UNIV::'a set)" (cut) \<Rightarrow> \<open> rule cardIntro[of A B], simp add:L \<close>
+    \<bar> L:"finite (UNIV::'a set)" (cut) \<Rightarrow> \<open> rule cardIntro[of A B], fastforce intro:L \<close>
     \<bar> _ (cut) \<Rightarrow> \<open> fail \<close>
   )
 
@@ -66,11 +66,11 @@ method allVennIntro1 =
  * calling this multiple times (or with '+') is _really slow_  *)
 method allVennIntro = allVennIntro1
 
-lemma emptyCardIntro: "\<lbrakk> A = {}; card A = 0 \<Longrightarrow> P \<rbrakk> \<Longrightarrow> P" by simp
+lemma emptyCardIntro: "\<lbrakk> A = {}; card A = 0 \<Longrightarrow> P \<rbrakk> \<Longrightarrow> P" by force
 method emptyCardIntro =
   ( match premises in "finite (UNIV::'a set)" \<Rightarrow>
     \<open> match premises in L:"A = {}" for A::"'a set" \<Rightarrow>
-      \<open> not_in_premises "card A = 0", rule emptyCardIntro[of A], (simp add:L) \<close> \<close> )
+      \<open> not_in_premises "card A = 0", rule emptyCardIntro[of A], (fastforce intro:L) \<close> \<close> )
 method allEmptyCardIntro = emptyCardIntro+
 
 
