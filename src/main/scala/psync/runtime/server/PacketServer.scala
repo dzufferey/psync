@@ -1,6 +1,7 @@
-package psync.runtime
+package psync.runtime.server
 
-import psync._
+import psync.runtime._
+import psync.ProcessID
 import io.netty.channel.Channel
 import io.netty.channel.socket.DatagramPacket
 import io.netty.buffer.ByteBuf

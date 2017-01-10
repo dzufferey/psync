@@ -1,6 +1,7 @@
-package psync.runtime
+package psync.runtime.server
 
-import psync._
+import psync.runtime._
+import psync.ProcessID
 import psync.utils.Timer
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._

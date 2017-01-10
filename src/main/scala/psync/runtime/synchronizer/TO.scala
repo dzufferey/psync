@@ -1,4 +1,4 @@
-package psync.runtime.handler
+package psync.runtime.synchronizer
 
 class TO(val nextTimeout: Long) extends AnyVal {
 
