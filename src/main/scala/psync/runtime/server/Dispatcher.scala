@@ -5,11 +5,13 @@ import dzufferey.utils.LogLevel._
 import io.netty.channel.socket._
 import java.util.concurrent.locks.ReentrantLock
 
-/** a dispatcher that scales better than putting all the instance in the pipeline */
-class InstanceDispatcher(options: RuntimeOptions)
+/** a dispatcher that scales better than putting all the instance in the pipeline
+ * @param dispatchExponent log₂ fan out of the dispatcher (recommended ~6)
+ */
+class Dispatcher(dispatchExponent: Int)
 {
 
-  private val exp = options.dispatch
+  private val exp = dispatchExponent
   assert(exp >= 0)
 
   private val mask = {

@@ -343,7 +343,10 @@ class TCPPacketClientHandler(
   override def channelInactive(ctx: ChannelHandlerContext) {
     Logger("TCPPacketClientHandler", Debug, "Someone disconneted.")
     packetServer.removeChannel(remote.netAddress)
-    packetServer.delayedStartConnection(remote)
+    try { packetServer.delayedStartConnection(remote)
+    } catch { case e: java.util.concurrent.RejectedExecutionException =>
+      // it means we are shutting down, so just ignore ...
+    }
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {

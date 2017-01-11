@@ -38,7 +38,13 @@ abstract class PacketServer(
   }
 
 
-  protected[psync] val dispatcher = new InstanceDispatcher(options)
+  protected[psync] val dispatcher = new Dispatcher(options.dispatch)
+  protected[psync] def addToDispatch(inst: Short, handler: InstHandler) {
+    dispatcher.add(inst, handler)
+  }
+  protected[psync] def removeFromDispatch(instance: Short) {
+    dispatcher.remove(instance)
+  }
 
   def close: Unit
 

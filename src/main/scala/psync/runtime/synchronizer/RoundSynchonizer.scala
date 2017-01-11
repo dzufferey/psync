@@ -14,9 +14,8 @@ import java.util.concurrent.TimeUnit
  */
 abstract class RoundSynchonizer[IO,P <: Process[IO]](
   proc: P,
-  pktServ: PacketServer, // to send the messages
+  pktSrv: PacketServer, // to send the messages
   rt: psync.runtime.Runtime[IO,P],
-  defaultHandler: DatagramPacket => Unit,
   options: RuntimeOptions)
 {
 
@@ -100,7 +99,7 @@ abstract class RoundSynchonizer[IO,P <: Process[IO]](
 
   /** Forward the packet to the defaultHandler */
   protected def default(pkt: DatagramPacket) {
-    rt.submitTask(new Runnable { def run = defaultHandler(pkt) })
+    rt.submitTask(new Runnable { def run = pktSrv.defaultHandler(pkt) })
   }
   
   protected def adaptTimeout {
@@ -172,7 +171,7 @@ abstract class RoundSynchonizer[IO,P <: Process[IO]](
       if (pid == grp.self) {
         storePacket(pid, payload)
       } else {
-        pktServ.send(pid, payload)
+        pktSrv.send(pid, payload)
       }
       sent += 1
     }

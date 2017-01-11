@@ -50,10 +50,10 @@ trait RuntimeOptions {
   protected var _adaptative = false
   protected var _packetSize = -1
   protected var _bufferSize = 64
-  protected var _processPool = 64
+  protected var _processPool = 32
   protected var _workers: Workers = Adapt
   protected var _port = -1
-  protected var _dispatch = 7
+  protected var _dispatch = 6
   protected var _connectionRestartPeriod = 250
   protected var _acceptUnknownConnection = false
 
@@ -80,10 +80,10 @@ abstract class RTOptions extends DefaultOptions with RuntimeOptions {
   newOption("--adaptative",             Bool( b => _adaptative = b ),               "adaptative timeout (default: false).")
   newOption("--packetSize",             Int( i => _packetSize = i ),                "max packet size for the memory allocator (default: what netty provides).")
   newOption("--bufferSize",             Int( i => _bufferSize = i ),                "size of the buffer for each instancer (default: 64).")
-  newOption("--processPool",            Int( i => _processPool = i ),               "how many processes are allocated at start (default: 64).")
+  newOption("--processPool",            Int( i => _processPool = i ),               "how many processes are allocated at start (default: 32).")
   newOption("--workers",                String( s => _workers = parseWorkers(s) ),  "number of workers: adaptative/\\d(fixed)/\\dx(coeff on #CPU) (default: adaptative).")
   newOption("--port",                   Int( i => _port = i ),                      "port number, in case we don't know which replica we are.")
-  newOption("--dispatch",               Int( i => _dispatch = i ),                  "log₂ fan out of the dispatcher (default: 7).")
+  newOption("--dispatch",               Int( i => _dispatch = i ),                  "log₂ fan out of the dispatcher (default: 6).")
   newOption("--connectionRestartPeriod",Int( i => _connectionRestartPeriod= i ),    "waiting time before trying to reconnecting for TCP (default: 250).")
   newOption("--acceptUnknownConnection",Bool( b => _acceptUnknownConnection = b ),  "accpect TCP connection from unkown replicas (default: false).")
 

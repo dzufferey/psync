@@ -34,6 +34,7 @@
     * defaultHandler (default)
     Before starting each task, we need to check the instance number
 - more predictable performances when overloaded
+- replace pickling by [kryo](https://github.com/EsotericSoftware/kryo) if it does not get maintained
 
 
 # verification

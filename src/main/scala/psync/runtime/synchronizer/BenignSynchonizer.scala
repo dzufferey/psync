@@ -14,10 +14,9 @@ import java.util.concurrent.TimeUnit
  */
 class BenignSynchonizer[IO,P <: Process[IO]](
   proc: P,
-  pktServ: PacketServer, // to send the messages
+  pktSrv: PacketServer, // to send the messages
   rt: psync.runtime.Runtime[IO,P],
-  defaultHandler: DatagramPacket => Unit,
-  options: RuntimeOptions) extends RoundSynchonizer(proc, pktServ, rt, defaultHandler, options)
+  options: RuntimeOptions) extends RoundSynchonizer(proc, pktSrv, rt, options)
 {
 
   protected var running = false

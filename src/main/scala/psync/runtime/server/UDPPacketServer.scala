@@ -79,7 +79,7 @@ class UDPPacketServer(
 @Sharable
 class UDPPacketServerHandler(
     defaultHandler: DatagramPacket => Unit,
-    dispatcher: InstanceDispatcher
+    dispatcher: Dispatcher
   ) extends SimpleChannelInboundHandler[DatagramPacket](false) {
 
   //in Netty version 5.0 will be called: channelRead0 will be messageReceived

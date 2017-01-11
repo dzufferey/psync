@@ -16,7 +16,6 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
 
   private var srv: Option[PacketServer] = None
 
-  //TODO try a stack for better locality
   private val processPool = new ArrayBlockingQueue[InstanceHandler[IO,P]](options.processPool)
 
   private val executor = options.workers match {
@@ -38,9 +37,7 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
     val p = alg.process
     p.setOptions(options)
     p.setAllocator( PooledByteBufAllocator.DEFAULT )
-    val dispatcher = srv.get.dispatcher
-    val defaultHandler = srv.get.defaultHandler(_)
-    new InstanceHandler(p, this, srv.get, dispatcher, defaultHandler, options)
+    new InstanceHandler(p, this, srv.get, options)
   }
 
   private def getProcess: InstanceHandler[IO,P] = {
@@ -53,7 +50,7 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
     }
   }
 
-  def recycle(p: InstanceHandler[IO,P]) {
+  protected[psync] def recycle(p: InstanceHandler[IO,P]) {
     processPool.offer(p)
   }
 

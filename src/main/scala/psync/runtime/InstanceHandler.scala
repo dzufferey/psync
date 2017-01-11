@@ -41,9 +41,7 @@ trait InstHandler {
 
 class InstanceHandler[IO,P <: Process[IO]](proc: P,
                           rt: psync.runtime.Runtime[IO,P],
-                          pktServ: PacketServer,
-                          dispatcher: InstanceDispatcher,
-                          defaultHandler: DatagramPacket => Unit,
+                          pktSrv: PacketServer,
                           options: RuntimeOptions) extends Runnable with InstHandler {
 
   protected val buffer = new ArrayBlockingQueue[DatagramPacket](options.bufferSize)
@@ -76,7 +74,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
 
   /** Forward the packet to the defaultHandler */
   protected def default(pkt: DatagramPacket) {
-    rt.submitTask(new Runnable { def run = defaultHandler(pkt) })
+    rt.submitTask(new Runnable { def run = pktSrv.defaultHandler(pkt) })
   }
 
   /** Prepare the handler for a execution.
@@ -105,7 +103,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     msgs.foreach(p => newPacket(p.packet))
 
     // register
-    dispatcher.add(inst, this)
+    pktSrv.addToDispatch(inst, this)
   }
 
   protected def freeRemainingMessages {
@@ -123,7 +121,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
 
   protected def stop {
     Logger("InstanceHandler", Info, "stopping instance " + instance)
-    dispatcher.remove(instance)
+    pktSrv.removeFromDispatch(instance)
     freeRemainingMessages
     proc.cleanUp
     rt.recycle(this)
@@ -279,7 +277,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       if (pid == grp.self) {
         storePacket(pid, payload)
       } else {
-        pktServ.send(pid, payload)
+        pktSrv.send(pid, payload)
       }
       sent += 1
     }
