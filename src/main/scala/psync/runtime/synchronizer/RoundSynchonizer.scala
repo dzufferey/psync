@@ -182,7 +182,7 @@ abstract class RoundSynchonizer[IO,P <: Process[IO]](
 
   /** update followed by send */
   protected def toNextRound = {
-    if (proc.update) {
+    if (update) {
       currentRound += 1
       send
       true

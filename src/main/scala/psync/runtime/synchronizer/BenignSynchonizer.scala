@@ -34,15 +34,19 @@ class BenignSynchonizer[IO,P <: Process[IO]](
    * @returns the new timeout
    */
   def message(dp: DatagramPacket): TO = {
+    Logger("BenignSynchonizer", Debug, "message")
     // discard wrong tag, wrong instance
     if (!running) {
+      Logger("BenignSynchonizer", Debug, "not running")
       new TO(-1l)
     } else if (!checkInstanceAndTag(dp)) {
+      Logger("BenignSynchonizer", Debug, "wrong tag / instance")
       new TO(0l)
     } else {
       val msgRound = Message.getTag(dp.content).roundNbr
       var late = msgRound - currentRound
       if (late < 0) {
+        Logger("BenignSynchonizer", Debug, "late")
         // late message, ignore
         dp.release
         new TO(0l)
@@ -50,6 +54,7 @@ class BenignSynchonizer[IO,P <: Process[IO]](
         var more = true
         // catching up
         while (more && late > 0) {
+          Logger("BenignSynchonizer", Debug, "catching up")
           if (sendWhenCatchingUp) {
             more = toNextRound
           } else {
@@ -59,14 +64,18 @@ class BenignSynchonizer[IO,P <: Process[IO]](
           late -= 1
         }
         if (!more) {
+          Logger("BenignSynchonizer", Debug, "finished")
+          dp.release
           new TO(-1l)
         } else {
           val sender = grp.inetToId(dp.sender)
           val hasEnoughMessages = storePacket(sender, dp.content)
           if (hasEnoughMessages && earlyMoving) {
+            Logger("BenignSynchonizer", Debug, "enough messages")
             // enough message to go ahead
             toNextAndAdapt
           } else {
+            Logger("BenignSynchonizer", Debug, "need more")
             // still waiting for more messages
             new TO(0l)
           }
