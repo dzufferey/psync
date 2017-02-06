@@ -7,7 +7,7 @@ package psync.utils.isabelle
 import psync.formula._
 import scala.concurrent._
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
+import monix.execution.Scheduler.Implicits.global
 import info.hupel.isabelle._
 import info.hupel.isabelle.api._
 import info.hupel.isabelle.setup._
@@ -49,7 +49,7 @@ class Session {
       case Right(setup) =>
         setup
     }
-    Logger("isabelle.Session", logLevel, "Setup done")
+    Logger("isabelle.Session", logLevel, "Getting resources")
 
     val resources = Resources.dumpIsabelleResources() match {
       case Left(err) =>
@@ -59,9 +59,8 @@ class Session {
     }
     import java.nio.file.Paths
     val paths = List(Paths.get("src/main/isabelle"))
-    val config = resources.makeConfiguration(paths, "PSync")
-    val env = await(setup.makeEnvironment)
-    Logger("isabelle.Session", logLevel, "Environement done")
+    val config = Configuration(paths, "PSync")
+    val env = await(setup.makeEnvironment(resources))
     Logger("isabelle.Session", logLevel, "Building session")
     if (!System.build(env, config)) {
       Logger.logAndThrow("isabelle.Session", Error, "Build failed")
