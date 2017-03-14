@@ -18,10 +18,6 @@ import java.util.concurrent.TimeUnit
 //- var roundDuration: Long //TO is roundStart+roundDuration
 //- def newPacket(dp: DatagramPacket): Unit
 //- def interrupt(inst: Short): Unit or stop(inst: Short)
-//TODO options
-//-catch-up:
-//  - eager: as soon as one message from the next round is received start catching up
-//  - new round: after the current round finishes
 //TODO break it into smaller parts
 //-for learning TO/roundDuration
 //  - used a discounted sum / geometric serie: coeff, window, expected RTT

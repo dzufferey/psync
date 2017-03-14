@@ -18,7 +18,7 @@ import dzufferey.utils.LogLevel._
 
 object Session {
 
-  final val version = Version("2016-1")
+  final val version = Version.Stable("2016-1")
   final val timeout = Duration.Inf
   final val _10s = Duration(10, SECONDS)
 
