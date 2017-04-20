@@ -2,7 +2,7 @@ name := "psync"
 
 version := "0.2-SNAPSHOT"
 
-scalaVersion := "2.11.8"
+scalaVersion := "2.11.11"
 
 scalacOptions in Compile ++= Seq(
     "-unchecked",
@@ -23,7 +23,7 @@ libraryDependencies ++=  Seq(
     "org.scala-lang" % "scala-reflect" % scalaVersion.value,
     "org.scala-lang" % "scala-compiler" % scalaVersion.value,
     "org.scala-lang.modules" %% "scala-xml" % "1.0.6",
-    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4",
+    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.5",
     "org.scalatest" %% "scalatest" % "3.0.1" % "test",
     "org.scalacheck" %% "scalacheck" % "1.13.4" % "test",
     "org.scala-lang.modules" %% "scala-pickling" % "0.10.1",

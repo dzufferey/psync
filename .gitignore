@@ -4,3 +4,4 @@ test_scripts/deps
 *.smt2
 *.thy~
 certs/
+project/build.properties
