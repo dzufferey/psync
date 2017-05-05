@@ -20,6 +20,9 @@ install:
 env:
   - PATH="$HOME/z3/z3-4.4.1-x64-ubuntu-14.04/bin/:$PATH"
 
+before_script:
+  - sudo chmod +x /usr/local/bin/sbt
+
 script:
   - travis_wait 20 sbt ++$TRAVIS_SCALA_VERSION test
 
