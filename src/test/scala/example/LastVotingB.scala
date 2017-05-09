@@ -73,7 +73,7 @@ class LVBProcess(wholeCohort: Boolean) extends Process[BConsensusIO] {
         if (id == coord(r/4) && commit) {
           broadcast(vote)
         } else {
-          Map.empty
+          Map.empty[ProcessID,Array[Byte]]
         }
       }
 
@@ -94,7 +94,7 @@ class LVBProcess(wholeCohort: Boolean) extends Process[BConsensusIO] {
         if ( ts == (r/4) ) {
           Map( coord(r/4) -> 0 )
         } else {
-          Map.empty
+          Map.empty[ProcessID,Int]
         }
       }
 
@@ -114,7 +114,7 @@ class LVBProcess(wholeCohort: Boolean) extends Process[BConsensusIO] {
         if (id == coord(r/4) && ready) {
           broadcast(vote)
         } else {
-          Map.empty
+          Map.empty[ProcessID,Array[Byte]]
         }
       }
 

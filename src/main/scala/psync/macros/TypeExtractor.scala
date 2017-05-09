@@ -51,6 +51,13 @@ trait TypeExtractor {
       case _ => None
     }
   }
+  
+  object IsNone {
+    def unapply(t: Type): Boolean = t match {
+      case TypeRef(_, tRef, List()) if showRaw(tRef) == "scala.None" => true
+      case _ => false
+    }
+  }
 
   object IsUnit {
     def unapply(t: Type): Boolean = t match {
@@ -77,7 +84,8 @@ trait TypeExtractor {
         case IsTuple(args) => Product(args map extractType)
         case IsSet(arg) => FSet(extractType(arg))
         case IsMap(k,v) => FMap(extractType(k),extractType(v))
-        case IsOption(arg) =>  FOption(extractType(arg))
+        case IsOption(arg) => FOption(extractType(arg))
+        case IsNone() => FOption(Wildcard)
         case IsUnit() => UnitT()
         case MethodType(args, returnT) =>
           psync.formula.Function(args.map(arg => extractType(arg.typeSignature)), extractType(returnT))
@@ -87,7 +95,10 @@ trait TypeExtractor {
           val str = t.toString
           if (str == "psync.ProcessID" || str.endsWith("this.P")) psync.verification.Utils.procType
           else if (str == "psync.Time") psync.verification.Utils.timeType
-          else UnInterpreted(str)
+          else {
+            //c.warning(null, "UnInterpreted 1: " + showRaw(t))
+            UnInterpreted(str)
+          }
         case t @ TypeRef(a, b, List(_)) if t.toString.startsWith("psync.Process[") =>
           psync.verification.Utils.procType
         case SingleType(_, _) =>
@@ -121,8 +132,12 @@ trait TypeExtractor {
           case AppliedTypeTree(Ident(TypeName("Set")), List(tpe)) => FSet(extractType(tpe))
           case AppliedTypeTree(Ident(TypeName("Map")), List(k,v)) => FMap(extractType(k), extractType(v))
           case Ident(TypeName("ProcessID")) => psync.verification.Utils.procType
-          case Select(Ident(pkg), TypeName(tn)) => UnInterpreted(pkg.toString + "." + tn)
-          case Ident(TypeName(tn)) => UnInterpreted(tn)
+          case Select(Ident(pkg), TypeName(tn)) =>
+            //c.warning(t.pos, "UnInterpreted 2: " + showRaw(t))
+            UnInterpreted(pkg.toString + "." + tn)
+          case Ident(TypeName(tn)) =>
+            //c.warning(t.pos, "UnInterpreted 3: " + showRaw(t))
+            UnInterpreted(tn)
           case _ =>
             c.warning(t.pos, "TODO extractType from tree: " + showRaw(t) + "(" + t.tpe + ") currently Wildcard")
             Wildcard

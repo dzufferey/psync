@@ -30,7 +30,7 @@ class TpcProcess extends Process[TpcIO] {
     new Round[Boolean]{ //place holder for PrepareCommit
       def send(): Map[ProcessID,Boolean] = {
         if (id == coord) broadcast(true)
-        else Map.empty
+        else Map.empty[ProcessID,Boolean] //otherwise the compiler give Map[ProcessID,Int] !?
       }
       override def expectedNbrMessages = 1
       def update(mailbox: Map[ProcessID,Boolean]) {
@@ -60,8 +60,8 @@ class TpcProcess extends Process[TpcIO] {
     new Round[Boolean]{
 
       def send(): Map[ProcessID,Boolean] = {
-        if (id == coord) broadcast((decision: Option[Boolean]).get)
-        else Map.empty
+        if (id == coord) broadcast(decision.get)
+        else Map.empty[ProcessID,Boolean] //otherwise the compiler give Map[ProcessID,Int] !?
       }
 
       override def expectedNbrMessages = 1

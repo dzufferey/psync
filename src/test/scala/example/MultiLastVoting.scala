@@ -34,7 +34,7 @@ class MlvProcess extends Process[MlvIO] {
         if (x.isDefined) {
           broadcast(x.get)
         } else {
-          Map.empty
+          Map.empty[ProcessID,Int]
         }
       }
 
@@ -67,7 +67,7 @@ class MlvProcess extends Process[MlvIO] {
         if ( x.isDefined && coord.isDefined ) {
           Map( coord.get -> x.get )
         } else {
-          Map.empty
+          Map.empty[ProcessID,Int]
         }
       }
 
@@ -89,7 +89,7 @@ class MlvProcess extends Process[MlvIO] {
         if (ready) {
           broadcast(x.get)
         } else {
-          Map.empty
+          Map.empty[ProcessID,Int]
         }
       }
 

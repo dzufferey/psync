@@ -134,7 +134,7 @@ class LVProcess extends Process[ConsensusIO]{
         if (id == coord && commit) {
           broadcast(vote)
         } else {
-          Map.empty
+          Map.empty[ProcessID,Int]
         }
       }
 
@@ -156,7 +156,7 @@ class LVProcess extends Process[ConsensusIO]{
         if ( ts == (r/4) ) {
           Map( coord -> x )
         } else {
-          Map.empty
+          Map.empty[ProcessID,Int]
         }
       }
 
@@ -176,7 +176,7 @@ class LVProcess extends Process[ConsensusIO]{
         if (id == coord && ready) {
           broadcast(vote)
         } else {
-          Map.empty
+          Map.empty[ProcessID,Int]
         }
       }
 

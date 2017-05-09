@@ -7,6 +7,7 @@ import io.netty.buffer.PooledByteBufAllocator
 import org.scalacheck._
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
+import scala.language.existentials
 
 class SerializationSuite extends Properties("Serialization") {
 

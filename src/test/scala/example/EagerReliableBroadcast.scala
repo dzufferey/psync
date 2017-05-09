@@ -23,7 +23,8 @@ class ErbProcess extends Process[BroadcastIO] {
     new Round[Int]{
     
       def send: Map[ProcessID,Int] = {
-        if (x.isDefined) broadcast(x.get) else Map.empty
+        if (x.isDefined) broadcast(x.get)
+        else Map.empty[ProcessID,Int]
       }
 
       def update(mailbox: Map[ProcessID,Int]) {

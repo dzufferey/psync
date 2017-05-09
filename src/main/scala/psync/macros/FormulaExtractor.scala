@@ -339,11 +339,16 @@ trait FormulaExtractor {
       
       case q"scala.this.Predef.Map.empty[$t1,$t2]" =>
         val t = typeOfTree(e)
-        val v = Variable(c.freshName("emptyMap")).setType(t)
-        val elt = Variable(c.freshName("v")).setType(extractType(t1))
-        addCstr(Eq(KeySet(v), Comprehension(List(elt), False())))
+        val emp = Variable(c.freshName("emptyMap")).setType(t)
+        val _t1 = extractType(t1)
+        val _t2 = extractType(t2)
+        if (t != FMap(_t1, _t2)) {
+          c.warning(e.pos, "type mismatch: " + t + " ≠ " + FMap(_t1, _t2))
+        }
+        val elt = Variable(c.freshName("elt")).setType(_t1)
+        addCstr(Eq(KeySet(emp), Comprehension(List(elt), False())))
         // LookUp is unconstrained
-        v
+        emp
       case q"scala.this.Predef.Map.apply[$t1,$t2](..$args)" =>
         val t = typeOfTree(e)
         val m = Variable(c.freshName("applyMap")).setType(t)
@@ -393,7 +398,17 @@ trait FormulaExtractor {
         }
         val h = UnInterpretedFct(c.freshName("head"), Some(st ~> t), Nil)
         val res = Application(h, List(s)).setType(t)
-        addCstr( In(res, s) )
+        // that applies for both set and map
+        st match {
+          case FSet(_) =>
+            addCstr( In(res, s) )
+          case FMap(_,_) =>
+            addCstr( IsDefinedAt(s, Fst(res)) )
+            addCstr( Eq(LookUp(s, Fst(res)), Snd(res)) )
+          case other =>
+            c.warning(set.pos, "head called on " + other + " right now supporting only Set and Map.")
+            addCstr( In(res, s) )
+        }
         res
       case q"$set.find( $v => $expr )" =>
         val t = extractType(e.tpe)
