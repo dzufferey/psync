@@ -27,7 +27,7 @@ libraryDependencies ++=  Seq(
     "org.scalatest" %% "scalatest" % "3.0.1" % "test",
     "org.scalacheck" %% "scalacheck" % "1.13.4" % "test",
     "org.scala-lang.modules" %% "scala-pickling" % "0.10.1",
-    "io.netty" % "netty-all" % "4.1.10.Final",
+    "io.netty" % "netty-all" % "4.1.11.Final",
     "com.twitter" %% "chill" % "0.9.2",
     "info.hupel" %% "libisabelle" % "0.8.0",
     "info.hupel" %% "libisabelle-setup" % "0.8.0",
