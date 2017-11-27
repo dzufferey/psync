@@ -441,6 +441,13 @@ case object Size extends InterpretedFct("mapCard", "size") {
   val typeWithParams = FMap(fvA, fvB) ~> Int
   override val priority = 9
 }
+case object Updated extends InterpretedFct("updated") {
+  private val fvA = Type.freshTypeVar
+  private val fvB = Type.freshTypeVar
+  override val typeParams = List(fvA, fvB)
+  val typeWithParams = FMap(fvA, fvB) ~> fvA ~> fvB ~> FMap(fvA, fvB)
+  override val priority = 9
+}
 
 
 object InterpretedFct {
@@ -506,6 +513,7 @@ object InterpretedFct {
   add( LookUp )
   add( IsDefinedAt )
   add( Size )
+  add( Updated )
 }
 
 

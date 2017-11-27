@@ -43,7 +43,7 @@ class Session {
     Logger.assert(system == null, "isabelle.Session", "session has already started")
 
     Logger("isabelle.Session", logLevel, "Starting Isabelle")
-    val setup = Setup.default(version) match {
+    val setup = Setup.default(version, false) match {
       case Left(err) =>
         sys.error(err.toString)
       case Right(setup) =>
@@ -60,7 +60,7 @@ class Session {
     import java.nio.file.Paths
     val paths = List(Paths.get("src/main/isabelle"))
     val config = Configuration(paths, "PSync")
-    val env = await(setup.makeEnvironment(resources))
+    val env = await(setup.makeEnvironment(resources, Nil))
     Logger("isabelle.Session", logLevel, "Building session")
     if (!System.build(env, config)) {
       Logger.logAndThrow("isabelle.Session", Error, "Build failed")

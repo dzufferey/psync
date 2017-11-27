@@ -66,7 +66,8 @@ object TranslateFormula {
     case FNone =>       "Option.option.None"
     case Get =>         "Option.option.the"
     case IsEmpty =>     "Option.is_none"
-    case KeySet =>      "Map.dom"
+    case KeySet =>      "Finite_Map.fmdom"
+    case Updated =>     "Finite_Map.fmupd"
     case other =>
         Logger.logAndThrow("isabelle.TranslateFormula.interpreted",
                            Error,
@@ -167,12 +168,19 @@ object TranslateFormula {
     case LookUp(f1, f2) =>
       val t1 = to(f1, bound)
       val t2 = to(f2, bound)
+      val l = interpreted(LookUp)
       val get = interpreted(Get)
-      App(get, App(t1, t2))
+      App(get, App(App(l, t1), t2))
     case IsDefinedAt(f1, f2) =>
       to(In(f2,KeySet(f1)), bound)
     case Size(f1) =>
       to(Cardinality(KeySet(f1)), bound)
+    case Updated(map, key, value) =>
+      val m = to(map, bound)
+      val k = to(key, bound)
+      val v = to(value, bound)
+      val u = interpreted(Updated)
+      App(App(App(u, v), k), m)
     case FNone() =>
       interpreted(FNone)
     case Application(i: InterpretedFct, fs) =>

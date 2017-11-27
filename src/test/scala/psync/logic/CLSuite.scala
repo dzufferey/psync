@@ -488,4 +488,26 @@ class CLSuite extends FunSuite {
     assertSat(fs, cln(1, new quantifiers.Guided, 1, false))
   }
 
+  test("map simple updates") {
+    val k = UnInterpreted("K")
+    val v = UnInterpreted("v")
+    val k1 = Variable("k1").setType(k)
+    val k2 = Variable("k2").setType(k)
+    val v1 = Variable("v1").setType(v)
+    val v2 = Variable("v2").setType(v)
+    val m1 = Variable("M1").setType(FMap(k, v))
+    val m2 = Variable("M2").setType(FMap(k, v))
+
+    val sats = List(
+      m1.updated(k1, v1).lookUp(k1) === v1,
+      m1.updated(k1, v1).lookUp(k1) === v2,
+      m1.updated(k1, v1).lookUp(k2) !== v1
+    )
+    val unsats = List(
+      m1.updated(k1, v1).lookUp(k1) !== v1
+    )
+    sats.foreach( f => assertSat(List(f)) )
+    unsats.foreach( f => assertUnsat(List(f)) )
+  }
+
 }

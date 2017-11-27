@@ -13,7 +13,8 @@ object AxiomatizedTheory extends AxiomatizedTheory {
   val theories = List(
     OptionAxioms,
     TupleAxioms,
-    SetOperationsAxioms
+    SetOperationsAxioms,
+    MapUpdateAxioms
   )
 
   def getAxioms(conjuncts: List[Formula]): List[Formula] = {
@@ -177,5 +178,74 @@ object SetOperationsAxioms extends AxiomatizedTheory {
     setAxioms
   }
 
+}
 
+object MapUpdateAxioms extends AxiomatizedTheory {
+  
+  //∀ M,k,v. LookUp(Updated(m,k,v), k) = v
+  //∀ M,k1,v,k2. k1≠k2 ⇒ LookUp(Updated(m,k1,v), k2) = LookUp(m,k2)
+
+  def update1(kt: Type, vt: Type) = {
+    val m = Variable("M").setType(FMap(kt, vt))
+    val k = Variable("k").setType(kt)
+    val v = Variable("v").setType(vt)
+    ForAll(List(m,k,v),
+      Eq(LookUp(Updated(m,k,v), k), v))
+  }
+  
+  def update1flat(kt: Type, vt: Type) = {
+    val m1 = Variable("M1").setType(FMap(kt, vt))
+    val m2 = Variable("M2").setType(FMap(kt, vt))
+    val k = Variable("k").setType(kt)
+    val v = Variable("v").setType(vt)
+    ForAll(List(m1,m2,k,v),
+      Implies(
+        Eq(Updated(m1, k, v), m2),
+        Eq(LookUp(m2, k), v)))
+  }
+  
+  def update2(kt: Type, vt: Type) = {
+    val m = Variable("M").setType(FMap(kt, vt))
+    val k1 = Variable("k1").setType(kt)
+    val k2 = Variable("k2").setType(kt)
+    val v = Variable("v").setType(vt)
+    ForAll(List(m,k1,k2,v),
+      Implies(
+        Not(Eq(k1, k2)),
+        Eq(LookUp(Updated(m,k1,v), k2), LookUp(m,k2))))
+  }
+  
+  def update2flat(kt: Type, vt: Type) = {
+    val m1 = Variable("M1").setType(FMap(kt, vt))
+    val m2 = Variable("M2").setType(FMap(kt, vt))
+    val k1 = Variable("k1").setType(kt)
+    val k2 = Variable("k2").setType(kt)
+    val v = Variable("v").setType(vt)
+    ForAll(List(m1,m2,k1,k2,v),
+      Implies(
+        And(
+          Not(Eq(k1, k2)),
+          Eq(Updated(m1, k1, v), m2)
+        ),
+        Eq(LookUp(m2, k2), LookUp(m1,k2))))
+  }
+  
+  def getAxioms(conjuncts: List[Formula]): List[Formula] = {
+    val f = And(conjuncts:_*)
+    val updates = FormulaUtils.collectSymbolsWithParams(f).collect{
+        case p @ (Updated, _) => p
+      }
+    val updAxioms = updates.toList.flatMap{
+      case (Updated, List(kt, vt)) =>
+        List(
+          //update1(kt, vt),
+          //update2(kt, vt)
+          update1flat(kt, vt),
+          update2flat(kt, vt)
+        )
+      case err =>
+        Logger.logAndThrow("CL", Error, "map update: " + err)
+    }
+    updAxioms
+  }
 }

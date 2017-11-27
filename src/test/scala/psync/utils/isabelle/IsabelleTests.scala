@@ -143,4 +143,6 @@ class IsabelleTests extends FunSuite {
     }
   }
 
+  //TODO tests for Maps
+
 }

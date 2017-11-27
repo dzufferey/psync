@@ -41,6 +41,7 @@ case object Int extends Type {
   def alpha(subst: Map[TypeVariable, Type]) = this 
 }
 
+// Finite sets
 case class FSet(arg: Type) extends Type {
   override def toString = "Set("+arg+")"
   def freeParameters = arg.freeParameters
@@ -50,6 +51,7 @@ case class FSet(arg: Type) extends Type {
   }
 }
 
+// Finite maps
 case class FMap(key: Type, value: Type) extends Type {
   override def toString = "Map("+key+","+value+")"
   def freeParameters = key.freeParameters ++ value.freeParameters

@@ -414,6 +414,11 @@ trait FormulaExtractor {
         val t = extractType(e.tpe)
         c.warning(e.pos, "TODO formula for $set.find")
         FNone().setType(t)
+      case q"$map.updated($key, $value)" =>
+        val m = tree2Formula(map)
+        val k = tree2Formula(key)
+        val v = tree2Formula(value)
+        Updated(m, k, v)
 
       // tuples
       case q"scala.Tuple2.apply[..$tpt](..$args)" =>

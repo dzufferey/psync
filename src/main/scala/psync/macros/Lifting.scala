@@ -72,6 +72,7 @@ trait Lifting {
     case KeySet => q"psync.formula.KeySet"
     case LookUp => q"psync.formula.LookUp"
     case IsDefinedAt => q"psync.formula.IsDefinedAt"
+    case Updated => q"psync.formula.Updated"
     case Size => q"psync.formula.Size"
   }
 

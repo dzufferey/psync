@@ -160,7 +160,7 @@ object SmtSolver {
     case a @ Application(s @ (Union | Intersection | SubsetEq | SupersetEq |
                               In | Contains | Cardinality | FSome | FNone |
                               IsDefined | IsEmpty | Get | Tuple | Fst | Snd |
-                              Trd | KeySet | LookUp | IsDefinedAt | Size), args) =>
+                              Trd | KeySet | LookUp | IsDefinedAt | Updated | Size), args) =>
       val params = FormulaUtils.typeParams(a)
       val nme = params.map(Names.tpe).mkString(name(s) + "_", "_", "")
       val s1 = UnInterpretedFct(nme, Some(Function( args.map(_.tpe), a.tpe)), Nil)

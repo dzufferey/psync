@@ -2,7 +2,7 @@ name := "psync"
 
 version := "0.2-SNAPSHOT"
 
-scalaVersion := "2.11.11"
+scalaVersion := "2.11.12"
 
 scalacOptions in Compile ++= Seq(
     "-unchecked",
@@ -23,14 +23,14 @@ libraryDependencies ++=  Seq(
     "org.scala-lang" % "scala-reflect" % scalaVersion.value,
     "org.scala-lang" % "scala-compiler" % scalaVersion.value,
     "org.scala-lang.modules" %% "scala-xml" % "1.0.6",
-    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.5",
-    "org.scalatest" %% "scalatest" % "3.0.1" % "test",
+    "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.6",
+    "org.scalatest" %% "scalatest" % "3.0.4" % "test",
     "org.scalacheck" %% "scalacheck" % "1.13.4" % "test",
     "org.scala-lang.modules" %% "scala-pickling" % "0.10.1",
-    "io.netty" % "netty-all" % "4.1.13.Final",
+    "io.netty" % "netty-all" % "4.1.17.Final",
     "com.twitter" %% "chill" % "0.9.2",
-    "info.hupel" %% "libisabelle" % "0.8.3",
-    "info.hupel" %% "libisabelle-setup" % "0.8.3",
+    "info.hupel" %% "libisabelle" % "0.9.0",
+    "info.hupel" %% "libisabelle-setup" % "0.9.0",
     "ch.qos.logback" % "logback-classic" % "1.1.7",
     "io.github.dzufferey" %% "scala-arg" % "0.1-SNAPSHOT",
     "io.github.dzufferey" %% "report" % "0.1-SNAPSHOT",
