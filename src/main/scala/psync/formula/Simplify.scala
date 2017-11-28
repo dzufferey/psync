@@ -531,6 +531,10 @@ object Simplify {
   def simplifyBool(f: Formula): Formula = {
     import FormulaUtils._
     def fct(f: Formula) = f match {
+      case Eq(Literal(b: Boolean), other) =>
+        if (b) other else Copier.Application(f, Not, List(other))
+      case Eq(other, Literal(b: Boolean)) =>
+        if (b) other else Copier.Application(f, Not, List(other))
       case e @ Eq(a, b) =>
         if (a == b) True()
         else if (FormulaOrdering.compare(a, b) <= 0) e
