@@ -218,7 +218,7 @@ class TCPPacketServer(
       case Some(chan) =>
         chan.writeAndFlush(buf, chan.voidPromise())
       case None =>
-        Logger("TCPPacketServer", Info, "Tried to send packet, but no channel was available.")
+        Logger("TCPPacketServer", Warning, "Tried to send packet to " + to.id + ", but no channel was available.")
     }
   }
 
@@ -246,12 +246,14 @@ class TCPPacketServerHandler(
     val size = buf.readInt
     val string = buf.readCharSequence(size, UTF_8).toString
     buf.release
+    Logger("TCPPacketServerHandler", Debug, "readAddress: " + string)
     val split = string.lastIndexOf(':')
     if (split < 0) {
       None
     } else {
       try {
-        val host = string.substring(0, split)
+        val start = if (string(0) == '/') 1 else 0
+        val host = string.substring(start, split)
         val port = string.substring(split + 1).toInt
         val address = new InetSocketAddress(host, port)
         Some(address)
@@ -289,7 +291,7 @@ class TCPPacketServerHandler(
               }
           }
         case None =>
-          Logger("TCPPacketServerHandler", Info, "failed to parse/resolve connecting address, closing.")
+          Logger("TCPPacketServerHandler", Warning, "failed to parse/resolve connecting address, closing.")
           ctx.close()
       }
     } else {
