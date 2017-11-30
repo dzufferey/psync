@@ -8,6 +8,7 @@ import dzufferey.utils.LogLevel._
 
 // sometime, instead of axiomatizing theories, we can rewrite them.
 // for instance, `(a,b)._1` can be rewritten to `a` rather than introducing `∀ a, b. (a,b)._1 = a`
+// RewriteRule assumes that the formula is in NNF
 
 //TODO add sanity check: test for matching loops
 
@@ -95,7 +96,24 @@ object Rewriting {
       // options
       RewriteRule(Set(x),
                   Get(FSome(x)),
-                  x)
+                  x),
+      RewriteRule(Set(x),
+                  IsEmpty(x),
+                  Not(IsDefined(x))),
+      // sets
+      RewriteRule(Set(x,y),
+                  SupersetEq(x,y),
+                  SubsetEq(y,x)),
+      RewriteRule(Set(x,y),
+                  Contains(x,y),
+                  In(y,x)),
+      // map
+      RewriteRule(Set(x,y),
+                  IsDefinedAt(x,y),
+                  In(y, KeySet(x))),
+      RewriteRule(Set(x),
+                  Size(x),
+                  Cardinality(KeySet(x)))
       // TODO some more rules, e.g., simplifications can also be expressed as rules
     )
   }

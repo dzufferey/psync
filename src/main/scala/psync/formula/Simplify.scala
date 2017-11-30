@@ -13,11 +13,6 @@ object Simplify {
     case Geq(a,b) => Copier.Application(f, Not, List(Copier.Application(f, Lt, List(a,b))))
     case Leq(a,b) => Copier.Application(f, Not, List(Copier.Application(f, Lt, List(b,a))))
     case Gt(a,b) =>  Copier.Application(f, Lt, List(b,a))
-    case SupersetEq(a,b) => Copier.Application(f, SubsetEq, List(b,a))
-    case Contains(a,b) => Copier.Application(f, In, List(b,a))
-    case IsEmpty(a) => Copier.Application(f, Not, List(Copier.Application(f, IsDefined, List(a))))
-    case IsDefinedAt(a, b) => In(b, KeySet(a))
-    case Size(a) => Cardinality( KeySet(a))
     case other => other
   }
 
@@ -391,6 +386,7 @@ object Simplify {
       case SubsetEq(Comprehension(_, False()), _) => True()
       case SubsetEq(x, y) if x == y => True()
       case SubsetEq(x, Union(lst @ _*)) if lst contains x => True()
+      case SubsetEq(Intersection(lst @ _*), x) if lst contains x => True()
       case other => other
     }
     val f2 = FormulaUtils.map(flattenSet, f)

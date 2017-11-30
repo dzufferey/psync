@@ -158,6 +158,31 @@ class CL(config: ClConfig) {
     leftOver ::: generated
   }
 
+  protected def remove2ndOrderNeq(f: Formula): Formula = {
+    def process(f: Formula): Formula = f match {
+      case Not(Eq(s1,s2)) => s1.tpe match {
+        case FSet(elt) =>
+          val w = Variable("witness").setType(elt)
+          assert(!s1.freeVariables(w) && !s2.freeVariables(w))
+          Exists(List(w), Not(Eq(In(w,s1), In(w,s2))))
+        case FMap(kt,vt) =>
+          val w = Variable("witness").setType(kt)
+          assert(!s1.freeVariables(w) && !s2.freeVariables(w))
+          Exists(List(w), Or(Not(Eq(In(w,KeySet(s1)), In(w,KeySet(s2)))), And(In(w, s1), Not(Eq(LookUp(s1, w), LookUp(s2, w))))))
+        case _ => f
+      }
+      case Not(SubsetEq(s1,s2)) => s1.tpe match {
+        case FSet(elt) =>
+          val w = Variable("witness").setType(elt)
+          assert(!s1.freeVariables(w) && !s2.freeVariables(w))
+          Exists(List(w), And(In(w,s1), Not(In(w,s2))))
+        case _ => f
+      }
+      case _ => f
+    }
+    FormulaUtils.stubornMapTopDown(process, f)
+  }
+
 
   def reduce(formula: Formula): Formula = {
 
@@ -170,18 +195,20 @@ class CL(config: ClConfig) {
     //remove the top level ∃ quantifiers (sat query)
     val (query1, _) = getExistentialPrefix(query)
     val clauses0 = FormulaUtils.getConjuncts(query1)
-    val clauses = clauses0.map( f => {
+    val clauses1 = clauses0.map( f => {
       val f2 = Simplify.lazyPnf(f)
       val f3 = fixUniquelyDefinedUniversal(f2)
-      val f4 = FormulaUtils.map({
+      FormulaUtils.map({
         case c @ Comprehension(_, _) =>
           val (sym, d, args) = symbolizeComprehension(c)
           symbols += (sym -> d)
           sym(args:_*)
         case other => other
       }, f3)
-      skolemize(f4)
     })
+    val clauses2 = clauses1.map(remove2ndOrderNeq)
+    val clauses3 = FormulaUtils.getConjuncts(getExistentialPrefix(normalize(And(clauses2:_*)))._1)
+    val clauses = clauses3.map(skolemize)
 
     val cc = new CongruenceClosure //incremental CC
     Stats("CL create CC", {

@@ -505,39 +505,29 @@ class CLSuite extends FunSuite {
     )
     val unsats = List(
       m1.updated(k1, v1).lookUp(k1) !== v1,
-      Not(k1 ∈ m1.updated(k1, v1).keySet)//,
-      //Not(SubsetEq(m1.keySet, m1.updated(k1, v1).keySet))
+      Not(k1 ∈ m1.updated(k1, v1).keySet),
+      Not(SubsetEq(m1.keySet, m1.updated(k1, v1).keySet))
     )
     sats.foreach( f => assertSat(List(f)) )
     unsats.foreach( f => assertUnsat(List(f)) )
   }
 
-  /*
-
-  to deal with that we need to add differentiating elements / witnesses.
-  This could be done with quantifiers and intantiation of depth 1.
-
-  test("extensionality") {
+  test("sets not equal") {
     val t = UnInterpreted("T")
     val s1 = Variable("S1").setType(FSet(t))
     val s2 = Variable("S2").setType(FSet(t))
     assertUnsat(List(
         s1 === s2,
+        Not(s1 === s2)
+      ))
+    assertUnsat(List(
+        s1 === s2,
         Not(s1 ⊆ s2)
-      ), debug = true)
+      ))
+    assertSat(List(
+        Not(s2 ⊆ s1),
+        Not(s1 ⊆ s2)
+      ))
   }
-  
-  test("map ...") {
-    val k = UnInterpreted("K")
-    val v = UnInterpreted("V")
-    val k1 = Variable("k1").setType(k)
-    val k2 = Variable("k2").setType(k)
-    val v1 = Variable("v1").setType(v)
-    val v2 = Variable("v2").setType(v)
-    val m1 = Variable("M1").setType(FMap(k, v))
-    val m2 = Variable("M2").setType(FMap(k, v))
-    assertUnsat(List(Not(SubsetEq(m1.keySet, m1.updated(k1, v1).keySet))), debug = true)
-  }
-  */
 
 }
