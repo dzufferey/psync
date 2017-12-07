@@ -27,6 +27,7 @@ class CLSuite extends FunSuite {
   val k = Variable("K").setType(FSet(pid)) 
 
   val x = Variable("x").setType(Int) 
+  val y = Variable("y").setType(Int) 
 
   val data = UnInterpretedFct("data",Some(pid ~> Int))
   val decision = UnInterpretedFct("decision", Some(pid ~> Int))
@@ -528,6 +529,24 @@ class CLSuite extends FunSuite {
         Not(s2 ⊆ s1),
         Not(s1 ⊆ s2)
       ))
+  }
+
+  test("arrays as maps with int keys") {
+    val v = UnInterpreted("V")
+    val v1 = Variable("v1").setType(v)
+    val m1 = Variable("M1").setType(FMap(Int, v))
+    val m2 = Variable("M2").setType(FMap(Int, v))
+    val common = List(
+      // x = max keyset
+      m1.isDefinedAt(x),
+      ForAll(List(y), m1.isDefinedAt(y) ==> y ≤ x),
+      // update x+1
+      m2 === m1.updated(x+1, v1)
+    )
+    // agree on keys less than x
+    val valid = ForAll(List(y), ((y ≤ x) ∧ m1.isDefinedAt(y)) ==> (m1.lookUp(y) === m2.lookUp(y)) )
+    assertUnsat(common :+ Not(valid)) // take negation for unsat
+    assertSat(common :+ valid) // sanity check
   }
 
 }

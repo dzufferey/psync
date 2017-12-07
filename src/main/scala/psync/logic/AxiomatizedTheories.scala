@@ -202,7 +202,8 @@ object MapUpdateAxioms extends AxiomatizedTheory {
         Implies(
           And(
             Not(Eq(k1, k2)),
-            Eq(Updated(m1, k1, v), m2)
+            Eq(Updated(m1, k1, v), m2),
+            In(k2, KeySet(m1))
           ),
           Eq(LookUp(m2, k2), LookUp(m1,k2)))),
       //∀ m,k,v. KeySet(Updated(m,k,v)) = KeySet(m) ∪ {k}
@@ -214,15 +215,16 @@ object MapUpdateAxioms extends AxiomatizedTheory {
       ForAll(List(m1,m2,k1,k2,v),
         Implies(
           Eq(m2, Updated(m1, k1, v)),
-          Geq(Cardinality(KeySet(m1)), Cardinality(KeySet(m2)))
+          Leq(Cardinality(KeySet(m1)), Cardinality(KeySet(m2)))
         )),
+      //the next axiom has a funny shape to be local (hopefully)
       ForAll(List(m1,m2,k1,k2,v,i),
         Implies(
           And(
             Eq(m2, Updated(m1, k1, v)),
-            Lt(Literal(0), i)
+            Lt(Cardinality(KeySet(m1)), i)
           ),
-          Geq(Cardinality(KeySet(m2)), Plus(Cardinality(KeySet(m1)), i))
+          Leq(Cardinality(KeySet(m2)), i)
         ))
     )
   }
