@@ -91,6 +91,9 @@ object SetOperationsAxioms extends AxiomatizedTheory {
 
   //TODO should we have reflexivity, symmetry, etc., ?
 
+  //We don't need to speak about cardinality here, just membership.
+  //The cardinality constraints follow from the Venn region an membership.
+
   //∀ x,S,T. x ∈ S∪T ⇔ x ∈ S ∨ x ∈ T 
   def unionAxiom(tpe: Type) = {
     val x = Variable("x").setType(tpe)
@@ -98,15 +101,6 @@ object SetOperationsAxioms extends AxiomatizedTheory {
     val t = Variable("S2").setType(FSet(tpe))
     ForAll(List(x,s,t),
       Eq(In(x, Union(s,t)), Or(In(x, s), In(x, t))))
-  }
-
-  //∀ S,T,U. U = S∪T ⇒ |S∪T| ≥ |S| ∧ |S∪T| ≥ |T|
-  def unionCardAxiom(tpe: Type) = {
-    val s = Variable("S1").setType(FSet(tpe))
-    val t = Variable("S2").setType(FSet(tpe))
-    ForAll(List(s,t),
-      And(Geq(Cardinality(Union(s,t)),Cardinality(s)),
-          Geq(Cardinality(Union(s,t)),Cardinality(t))))
   }
 
   //∀ x,S,T. x ∈ S∩T ⇔ x ∈ S ∧ x ∈ T 
@@ -118,15 +112,6 @@ object SetOperationsAxioms extends AxiomatizedTheory {
       Eq(In(x, Intersection(s,t)), And(In(x, s), In(x, t))))
   }
 
-  //∀ S,T,U. U = S∩T ⇒ |U| ≤ |S| ∧ |U| ≤ |T| 
-  def intersectionCardAxiom(tpe: Type) = {
-    val s = Variable("S1").setType(FSet(tpe))
-    val t = Variable("S2").setType(FSet(tpe))
-    ForAll(List(s,t),
-      And(Leq(Cardinality(Intersection(s,t)),Cardinality(s)),
-          Leq(Cardinality(Intersection(s,t)),Cardinality(t))))
-  }
-
   //∀ x,S,T. x∈S ∧ S⊆T ⇒ x∈T
   def subsetAxiom(tpe: Type) = {
     val x = Variable("x").setType(tpe)
@@ -136,43 +121,24 @@ object SetOperationsAxioms extends AxiomatizedTheory {
       Implies(And(In(x,s), SubsetEq(s,t)), In(x,t)))
   }
 
-  //∀ S,T. S⊆T ⇒ |S| ≤ |T|
-  def subsetCardAxiom(tpe: Type) = {
-    val s = Variable("S1").setType(FSet(tpe))
-    val t = Variable("S2").setType(FSet(tpe))
-    ForAll(List(s,t),
-      Implies(SubsetEq(s, t),
-              Leq(Cardinality(s),Cardinality(t))))
-  }
-  
   def getAxioms(conjuncts: List[Formula]): List[Formula] = {
     val f = And(conjuncts:_*)
     val setOps = FormulaUtils.collectSymbolsWithParams(f).collect{
         case p @ (Union | Intersection | SubsetEq | SupersetEq, _) => p
       }
-    val setAxioms = setOps.toList.flatMap{ case (sym, params) =>
+    val setAxioms = setOps.toList.map{ case (sym, params) =>
       sym match {
         case Union => 
           assert(params.size == 1)
-          List(
-            SetOperationsAxioms.unionCardAxiom(params.head),
-            SetOperationsAxioms.unionAxiom(params.head)
-          )
+          SetOperationsAxioms.unionAxiom(params.head)
         case Intersection => 
           assert(params.size == 1)
-          List(
-            SetOperationsAxioms.intersectionCardAxiom(params.head),
-            SetOperationsAxioms.intersectionAxiom(params.head)
-          )
+          SetOperationsAxioms.intersectionAxiom(params.head)
         case SubsetEq =>
           assert(params.size == 1)
-          List(
-            SetOperationsAxioms.subsetCardAxiom(params.head),
-            SetOperationsAxioms.subsetAxiom(params.head)
-          )
+          SetOperationsAxioms.subsetAxiom(params.head)
         case _ =>
-          Logger("CL", Warning, "TODO addSetAxioms for " + (sym,params))
-          Nil
+          Logger.logAndThrow("CL", Error, "missing set axioms for " + (sym,params))
       }
     }
     setAxioms
@@ -211,11 +177,6 @@ object MapUpdateAxioms extends AxiomatizedTheory {
         Implies(
           Eq(m2, Updated(m1, k1, v)),
           Eq(In(k2, KeySet(m2)), Or(In(k2, KeySet(m1)), Eq(k1, k2)))
-        )),
-      ForAll(List(m1,m2,k1,k2,v),
-        Implies(
-          Eq(m2, Updated(m1, k1, v)),
-          Leq(Cardinality(KeySet(m1)), Cardinality(KeySet(m2)))
         )),
       //the next axiom has a funny shape to be local (hopefully)
       ForAll(List(m1,m2,k1,k2,v,i),
