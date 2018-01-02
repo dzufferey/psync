@@ -94,6 +94,7 @@ object Typer {
   def apply(e: Formula): TypingResult[Formula] = {
     //(1) scope and symbols of the Formula
     Logger("Typer", level1, "starting to type " + e)
+    Logger("Typer", level1, "starting to type " + e.toStringFull)
     val e2 = Simplify.boundVarUnique(e)
     //(2) extract type equations
     val (e3, eqs) = extractEquations(e2)
@@ -138,7 +139,7 @@ object Typer {
         val oldTpe = varToType.getOrElse(v.name, v.tpe)
         varToType += (v.name -> oldTpe)
         val cstr = SingleCstr(v.tpe, oldTpe).normalize
-        Logger("Typer", level1, "variable " + v + " -> " + cstr)
+        Logger("Typer", level1, "variable " + v + ":" + v.tpe + " -> " + cstr)
         (TypingSuccess(v), cstr)
       }
     }
@@ -146,11 +147,12 @@ object Typer {
     def processSym(s: Symbol, argsT: List[Type]): (Type, TypeConstraints) = s match {
       case And | Or => //allows variable arity
         val cstr = variableArity(Bool, argsT)
+        Logger("Typer", level1, "function: " + s + ":Bool -> " + cstr)
         (Bool, cstr)
       case Plus | Times => //allows variable arity
         val cstr = variableArity(Int, argsT)
+        Logger("Typer", level1, "function: " + s + ":Int -> " + cstr)
         (Int, cstr)
-      //TODO
       case Tuple =>
         (Product(argsT), TrivialCstr)
       case Fst =>
@@ -169,7 +171,7 @@ object Typer {
           case other => (Type.freshTypeVar, TrivialCstr)
         }
       case _ =>
-        s.tpe match {
+        val (r, cstr) = s.tpe match {
           case Wildcard =>
             symbolToType.get(s.toString) match {
               case Some(Function(a, r)) =>
@@ -186,6 +188,8 @@ object Typer {
           case other =>
             (other, fixedArity(Nil, argsT))
         }
+        Logger("Typer", level1, "function: " + s + ":" + r + " -> " + cstr)
+        (r, cstr)
     }
     
     def fixedArity(tpe: List[Type], args: List[Type]) = {
@@ -215,7 +219,7 @@ object Typer {
             val (returnT, cstr) = processSym(fct, argsTypes)
             val cstrs = if (a.tpe == Wildcard) cstr :: argsCstr
                         else SingleCstr(returnT, a.tpe) :: cstr :: argsCstr
-            //val a2 = Application(fct, unwrappedArgs) setType returnT
+            //Logger("Typer", level1, "constraints for : " + a + "\n\tcstr: " + cstrs + "\n\ta.tpe: " + a.tpe)
             val a2 = a setType returnT
             (TypingSuccess(a2), ConjCstr(cstrs).normalize)
         }

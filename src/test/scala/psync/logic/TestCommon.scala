@@ -42,6 +42,7 @@ object TestCommon {
       if(debug) {
         println("=======before reduce ")
         c1.foreach( f => println("  " + f) )
+        c1.foreach( f => println("  " + f.toStringFull) )
       }
       val f0 = And(c1 :_*)
       val f1 = cl.reduce(f0)

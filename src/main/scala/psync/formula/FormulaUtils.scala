@@ -36,6 +36,9 @@ object FormulaUtils {
     val lstOrdering = Ordering.Iterable(this)
 
     def compareLiteralContent(a: Any, b: Any): Int = (a, b) match {
+      case (l1: Int, l2: Int) => l1 compare l2
+      case (l1: Long, l2: Int) => l1 compare l2.toLong
+      case (l1: Int, l2: Long) => l1.toLong compare l2
       case (l1: Long, l2: Long) => l1 compare l2
       case (d1: Double, d2: Double) => d1 compare d2
       case (other1, other2) =>
@@ -43,7 +46,7 @@ object FormulaUtils {
         else {
           val h1 = other1.hashCode
           val h2 = other2.hashCode
-          assert(h1 != h2, "don't know how to compare " + other1 + " and " + other2)
+          assert(h1 != h2, "don't know how to compare " + other1 + " and " + other2 + " with " + other1.getClass + " and " + other2.getClass)
           h1 compare h2
         }
     }

@@ -55,7 +55,9 @@ case class RewriteRule(freeVariables: Set[Variable],
           case v @ Variable(_) => m.getOrElse(v, v)
           case e => e
         }
-        FormulaUtils.map(fct, rhs2)
+        val res = FormulaUtils.map(fct, rhs2)
+        Logger.assert(Typer(res).success, "Rewriting", "not well typed: " + res)
+        res
       case None =>
         f
     }
@@ -75,6 +77,9 @@ object Rewriting {
     val x = Variable("x").setType(TypeVariable("A"))
     val y = Variable("y").setType(TypeVariable("B"))
     val z = Variable("z").setType(TypeVariable("C"))
+    val s1 = Variable("s1").setType(FSet(TypeVariable("A")))
+    val s2 = Variable("s2").setType(FSet(TypeVariable("A")))
+    val m1 = Variable("m1").setType(FMap(TypeVariable("A"),TypeVariable("B")))
     List(
       // pairs
       RewriteRule(Set(x,y),
@@ -101,19 +106,19 @@ object Rewriting {
                   IsEmpty(x),
                   Not(IsDefined(x))),
       // sets
-      RewriteRule(Set(x,y),
-                  SupersetEq(x,y),
-                  SubsetEq(y,x)),
-      RewriteRule(Set(x,y),
-                  Contains(x,y),
-                  In(y,x)),
+      RewriteRule(Set(s1,s2),
+                  SupersetEq(s1,s2),
+                  SubsetEq(s2,s1)),
+      RewriteRule(Set(x,s1),
+                  Contains(s1,x),
+                  In(x,s1)),
       // map
-      RewriteRule(Set(x,y),
-                  IsDefinedAt(x,y),
-                  In(y, KeySet(x))),
-      RewriteRule(Set(x),
-                  Size(x),
-                  Cardinality(KeySet(x)))
+      RewriteRule(Set(x,m1),
+                  IsDefinedAt(m1,x),
+                  In(x, KeySet(m1))),
+      RewriteRule(Set(m1),
+                  Size(m1),
+                  Cardinality(KeySet(m1)))
       // TODO some more rules, e.g., simplifications can also be expressed as rules
     )
   }
