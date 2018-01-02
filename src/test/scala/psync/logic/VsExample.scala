@@ -122,7 +122,7 @@ class VsExample extends FunSuite {
   }
   
   test("Sanity check 6") {
-    assertSat(List(r1))
+    assertSat(List(r1), to = 60000)
   }
 
   ignore("More complex example with maps...") {
