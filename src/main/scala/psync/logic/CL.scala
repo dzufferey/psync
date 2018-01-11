@@ -168,7 +168,7 @@ class CL(config: ClConfig) {
         case FMap(kt,vt) =>
           val w = Variable("witness").setType(kt)
           assert(!s1.freeVariables(w) && !s2.freeVariables(w))
-          Exists(List(w), Or(Not(Eq(In(w,KeySet(s1)), In(w,KeySet(s2)))), And(In(w, s1), Not(Eq(LookUp(s1, w), LookUp(s2, w))))))
+          Exists(List(w), Or(Not(Eq(In(w,KeySet(s1)), In(w,KeySet(s2)))), And(In(w, KeySet(s1)), Not(Eq(LookUp(s1, w), LookUp(s2, w))))))
         case _ => f
       }
       case Not(SubsetEq(s1,s2)) => s1.tpe match {

@@ -52,7 +52,7 @@ class VsExample extends FunSuite {
   val inv1 = And(
     logCommit0(coord).isDefinedAt(li0-1),
     logCommit0(coord).lookUp(li0-1),
-    act0.card > (n/2),
+    //act0.card > (n/2),
     ForAll(List(i), (i ∈ act0) ==> And(
       logValue0(i).lookUp(li0-1) === logValue0(coord).lookUp(li0-1),
       Not(logCommit0(i).lookUp(li0-1))
@@ -121,8 +121,18 @@ class VsExample extends FunSuite {
     assertUnsat(List(i, Not(i)))
   }
   
-  test("Sanity check 6") {
+  ignore("Sanity check 6") {
     assertSat(List(r1), to = 60000)
+  }
+
+  ignore("Sanity check 7") {
+    assertUnsat(List(r1, Not(r1)), to = 60000)
+  }
+
+  test("Sanity check 8") {
+    assertSat(List(r1, inv0, inv1, inv2),
+              reducer = cln(1, new quantifiers.Guided, 1, true),
+              to = 60000)
   }
 
   ignore("More complex example with maps...") {
