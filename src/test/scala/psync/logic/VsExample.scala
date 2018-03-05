@@ -20,16 +20,13 @@ class VsExample extends FunSuite {
 
   val li0 = Variable("li0").setType(key)
   val li1 = Variable("li1").setType(key)
-  val logValue0 = UnInterpretedFct("logValue0", Some(pid ~> FMap(key, pld)))
-  val logValue1 = UnInterpretedFct("logValue1", Some(pid ~> FMap(key, pld)))
-  val logCommit0 = UnInterpretedFct("logCommit0", Some(pid ~> FMap(key, Bool)))
-  val logCommit1 = UnInterpretedFct("logCommit1", Some(pid ~> FMap(key, Bool)))
+  val log0 = UnInterpretedFct("log0", Some(pid ~> FMap(key, Product(pld, Bool))))
+  val log1 = UnInterpretedFct("log1", Some(pid ~> FMap(key, Product(pld, Bool))))
   val act0 = Variable("Act0").setType(FSet(pid))
   val act1 = Variable("Act1").setType(FSet(pid))
 
   val primeMapS = Map[Symbol,Symbol](
-    logValue0 -> logValue1,
-    logCommit0 -> logCommit1
+    log0 -> log1
   )
   val primeMapV = Map[Variable, Variable](
     li0 -> li1,
@@ -43,27 +40,25 @@ class VsExample extends FunSuite {
 
   // Spec
   val inv0 = And(
-    //the log is split into separate log for commits and value
-    ForAll(List(i), logValue0(i).keySet === logCommit0(i).keySet),
-    ForAll(List(i, idx), logCommit0(i).isDefinedAt(idx) ==> And(idx ≤ li0, idx ≥ 1)),
-    ForAll(List(i), logValue0(i).size ≤ li0)
+    ForAll(List(i, idx), log0(i).isDefinedAt(idx) ==> And(idx ≤ li0, idx ≥ 1)),
+    ForAll(List(i), log0(i).size ≤ li0)
   )
 
   val inv1 = And(
-    logCommit0(coord).isDefinedAt(li0-1),
-    logCommit0(coord).lookUp(li0-1),
+    log0(coord).isDefinedAt(li0-1),
+    log0(coord).lookUp(li0-1)._2,
     //act0.card > (n/2),
     ForAll(List(i), (i ∈ act0) ==> And(
-      logValue0(i).lookUp(li0-1) === logValue0(coord).lookUp(li0-1),
-      Not(logCommit0(i).lookUp(li0-1))
+      log0(i).lookUp(li0-1)._1 === log0(coord).lookUp(li0-1)._1,
+      Not(log0(i).lookUp(li0-1)._2)
     ))
   )
 
   val inv2 = {
     And(
       Comprehension(List(i), And(
-        logCommit0(i).size === logCommit0(coord).size,
-        Not(logCommit0(i).lookUp(li0)),
+        log0(i).size === log0(coord).size,
+        Not(log0(i).lookUp(li0)._2),
         i ∈ act0
       )).card ≥ (n/2)
     )
@@ -75,26 +70,26 @@ class VsExample extends FunSuite {
     val sendCond = And(
       i ∈ act0,
       i === coord,
-      logValue0(i).isDefinedAt(li0)
+      log0(i).isDefinedAt(li0)
     )
     val send = And(
-      ForAll(List(i, j), sendCond ==> And(mailbox(j).isDefinedAt(i), mailbox(j).lookUp(i) === logValue0(i).lookUp(li0))),
+      ForAll(List(i, j), sendCond ==> And(mailbox(j).isDefinedAt(i), mailbox(j).lookUp(i) === log0(i).lookUp(li0)._1)),
       ForAll(List(i, j), Not(sendCond) ==> Not(mailbox(j).isDefinedAt(i)))
     )
     val updateCondA = And(i ∈ act0, mailbox(i).isDefinedAt(coord))
-    val updateCondB = And(li0 > 0, logValue0(i).isDefinedAt(li0 - 1))
+    val updateCondB = And(li0 > 0, log0(i).isDefinedAt(li0 - 1))
     val update = And(
       li1 === li0,
       ForAll(List(i), updateCondA ==> And(
         i ∈ act1,
-        logValue1(i) === logValue0(i).updated(li0, mailbox(i).lookUp(coord)),
-        updateCondB ==> (logCommit1(i) === logCommit0(i).updated(li0, False()).updated(li0-1, True())),
-        Not(updateCondB) ==> (logCommit1(i) === logCommit0(i).updated(li0, False()))
+        updateCondB ==>
+          (log1(i) === log0(i).updated(li0, Tuple(mailbox(i).lookUp(coord), False())).updated(li0-1, Tuple(log0(i).lookUp(li0-1)._1, True()))),
+        Not(updateCondB) ==>
+          (log1(i) === log0(i).updated(li0, Tuple(mailbox(i).lookUp(coord), False())))
       )),
       ForAll(List(i), Not(updateCondA) ==> And(
         Not(i ∈ act1),
-        logValue1(i) === logValue0(i),
-        logCommit1(i) === logCommit0(i)
+        log1(i) === log0(i)
       ))
     )
     send ∧ update
@@ -121,7 +116,7 @@ class VsExample extends FunSuite {
     assertUnsat(List(i, Not(i)))
   }
   
-  ignore("Sanity check 6") {
+  test("Sanity check 6") {
     assertSat(List(r1), to = 60000)
   }
 

@@ -37,35 +37,6 @@ trait RoundRewrite {
   }
   
 
-//def findTypeParam(parents: List[Tree]) = {
-//  parents.collectFirst{ case tq"psync.Round[$tpt]" => tpt }.get
-//  //body.collectFirst{ case td @ TypeDef(_, TypeName("A"), _, tpt) => tpt }.get
-//}
-
-//object insideRound extends Transformer {
-//  override def transform(tree: Tree): Tree = {
-//    super.transform(tree) match {
-//      case cd @ ClassDef(mods, name, tparams, tmpl @ Template(parents, self, body)) if parents exists extendsRound =>
-//        val (snd, upd, aux) = traverseBody(body)
-//        val tr = processSendUpdate(snd, upd)
-//        val sndS = snd.toString
-//        val updS = upd.toString
-//        val s = q"override def sendStr: String = $sndS"
-//        val u = q"override def updtStr: String = $updS"
-//        val valTR = q"override def rawTR: psync.verification.RoundTransitionRelation = $tr"
-//        val treeAuxMap = mkAuxMap(aux)
-//        val valAuxMap = q"override def auxSpec: Map[String, psync.verification.AuxiliaryMethod] = $treeAuxMap"
-//        val tpt = findTypeParam(parents)
-//        val serialization = serializationMethods(tpt)
-//        serialization.foreach(c.typecheck(_))
-//        val body2 = /*s :: u :: valTR :: valAuxMap ::*/ body /*::: serialization*/
-//        val tmpl2 = treeCopy.Template(tmpl, parents, self, body2)
-//        treeCopy.ClassDef(cd, mods, name, tparams, tmpl2)
-//      case other => other
-//    }
-//  }
-//}
-
   protected def wrapRound(tree: Tree) = tree match {
     case q"new psync.Round[$tpt] { ..$body }" =>
       val (snd, upd, aux) = traverseBody(body)
@@ -90,9 +61,8 @@ trait RoundRewrite {
 
 
   protected def processRound(t: Tree) = {// t match {
-      //val tree = insideRound.transform(t)
       val tree = wrapRound(t)
-      //println("generated psync: " + show(tree))
+      //println("generated round: " + show(tree))
       //c.typecheck(tree)
       tree
   }

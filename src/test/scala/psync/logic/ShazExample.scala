@@ -66,28 +66,28 @@ class ShazExample extends FunSuite {
     assertUnsat(List(i, Not(i)))
   }
 
-////TODO be more considerate in the quantifier inst. this really blows up.
-//test("Reclaim") {
-//  val fs = List(
-//    memAssumptions,
-//    memAddrDef,
-//    threadAssumptions,
-//    tid === gcPid,
-//    invariant(numFreeAtOrAfter, allocatingAtOrAfter, free, freeSpace),
-//    loc ∈ memAddr,
-//    Not(loc ∈ free),
-//    freeSpace1 === (freeSpace + 1),
-//    free1 === Comprehension(List(l1), (l1 ∈ free) || l1 === loc),
-//    ForAll(List(l1), ite( And(memLo <= l1, l1 <= loc),
-//                          numFreeAtOrAfter1.lookUp(l1) === (numFreeAtOrAfter.lookUp(l1) + 1),
-//                          numFreeAtOrAfter1.lookUp(l1) === numFreeAtOrAfter.lookUp(l1))
-//    ),
-//    Not(invariant(numFreeAtOrAfter1, allocatingAtOrAfter, free1, freeSpace1))
-//  )
-//  assertSat(fs, cln(2, new quantifiers.Eager, 2, true))
-//  //assertUnsat(fs, 10000, true)
-//  //assertUnsat(fs, 20000, true, cl2_2, Some("test2_2.smt2"))
-//}
+  //TODO be more considerate in the quantifier inst. this really blows up.
+  ignore("Reclaim") {
+    val fs = List(
+      memAssumptions,
+      memAddrDef,
+      threadAssumptions,
+      tid === gcPid,
+      invariant(numFreeAtOrAfter, allocatingAtOrAfter, free, freeSpace),
+      loc ∈ memAddr,
+      Not(loc ∈ free),
+      freeSpace1 === (freeSpace + 1),
+      free1 === Comprehension(List(l1), (l1 ∈ free) || l1 === loc),
+      ForAll(List(l1), ite( And(memLo <= l1, l1 <= loc),
+                            numFreeAtOrAfter1.lookUp(l1) === (numFreeAtOrAfter.lookUp(l1) + 1),
+                            numFreeAtOrAfter1.lookUp(l1) === numFreeAtOrAfter.lookUp(l1))
+      ),
+      Not(invariant(numFreeAtOrAfter1, allocatingAtOrAfter, free1, freeSpace1))
+    )
+    assertSat(fs, cln(2, new quantifiers.Eager, 2, true))
+    //assertUnsat(fs, 10000, true)
+    //assertUnsat(fs, 20000, true, cl2_2, Some("test2_2.smt2"))
+  }
 
 
   //TODO Malloc(tid: X) part 1

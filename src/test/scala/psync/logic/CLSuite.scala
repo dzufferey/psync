@@ -58,33 +58,17 @@ class CLSuite extends FunSuite {
   }
 */
 
-/* TODO explicit bound on n will be hard to catch unless we build a complete model
+  //explicit bound on n is hard to catch unless we build a complete model but ok when there are enough constants
   test("i notIn HO(i) > 0 and n=1"){
     val fs = List(
-      Eq(a, Comprehension(List(i), Not(In(p, ho(i))))),
-      ForAll(List(i), Geq(Cardinality(ho(i)), Literal(1))),
-      ForAll(List(i), Not(In(i,ho(i)))), 
-      Geq(Cardinality(a),Literal(1)),
-      Eq(n, Literal(1))
-    )
-    assertSat(fs)
-  }
-*/
-
-/* TODO explicit bound on n will be hard to catch unless we build a complete model
-  test("epr and card(a) = n and n>2"){
-    val fs = List(
-      //Eq(data(i), Literal(3)),
-      //Eq(Cardinality(ho(i)),Literal(1)),
-      ForAll(List(i), Eq(i,p)),
-      Eq(n,Literal(2)), 
-      Eq(Cardinality(a), n), 
-      Eq(Cardinality(b), n)
+      a === Comprehension(List(i), Not(p ∈ ho(i))),
+      ForAll(List(i), ho(i).card ≥ 1),
+      a.card ≥ 1,
+      n === 1
     )
     assertUnsat(fs)
   }
-*/
-  
+
   test("sat 1"){
     val fs = List(
       Exists(List(i), Eq(data(i),Literal(2))), 
@@ -443,9 +427,9 @@ class CLSuite extends FunSuite {
     assertSat(fs)
   }
 
-/* TODO distinct membership will be hard to catch unless we build a complete model
   //from https://github.com/CVC4/CVC4/blob/master/test/regress/regress0/sets/card-5.smt2
-  test("cvc4-card-5") {
+  //TODO distinct membership will be hard to catch unless we build a complete model
+  ignore("cvc4-card-5") {
     val fs = List(
       (a ∪ b).card >= 8,
       (a ∪ c).card >= 8,
@@ -466,7 +450,6 @@ class CLSuite extends FunSuite {
     )
     assertUnsat(fs)
   }
-*/
 
   //from https://github.com/CVC4/CVC4/blob/master/test/regress/regress0/sets/card-6.smt2
   test("cvc4-card-6") {
