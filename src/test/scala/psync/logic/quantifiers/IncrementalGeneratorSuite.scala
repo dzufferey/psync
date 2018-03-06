@@ -27,7 +27,7 @@ class IncrementalGeneratorSuite extends FunSuite {
   )
 
   test("formula 1, generate"){
-    val itg = new IncrementalGenerator(f1, new Eager, new CongruenceClosure)
+    val itg = new IncrementalGenerator(f1, new Eager(None), new CongruenceClosure)
     val g1 = itg.generate(p1)
     assert(g1.size == 1)
     assert(g1 contains Eq(IntLit(0), rp1))
@@ -44,8 +44,8 @@ class IncrementalGeneratorSuite extends FunSuite {
     cc.repr(IntLit(0))
     cc.repr(p1)
     cc.repr(p2)
-    val itg = new IncrementalGenerator(f1, new Eager, cc)
-    val res = itg.saturate(Some(1), false)
+    val itg = new IncrementalGenerator(f1, new Eager(Some(1)), cc)
+    val res = itg.saturate(false)
     assert(res.size == 3)
     //println(res)
   }
@@ -55,8 +55,8 @@ class IncrementalGeneratorSuite extends FunSuite {
     cc.repr(IntLit(0))
     cc.repr(p1)
     cc.repr(p2)
-    val itg = new IncrementalGenerator(f1, new Eager, cc)
-    val res = itg.saturate(Some(2), false)
+    val itg = new IncrementalGenerator(f1, new Eager(Some(2)), cc)
+    val res = itg.saturate(false)
     assert(res.size == 3)
     //println(res)
   }
@@ -66,8 +66,8 @@ class IncrementalGeneratorSuite extends FunSuite {
     cc.repr(IntLit(0))
     cc.repr(p1)
     cc.repr(p2)
-    val itg = new IncrementalGenerator(f1, new Guided, cc)
-    val res = itg.saturate(Some(1), false)
+    val itg = new IncrementalGenerator(f1, new Guided(Some(1)), cc)
+    val res = itg.saturate(false)
     assert(res.size == 0)
     //println(res)
   }
@@ -77,8 +77,8 @@ class IncrementalGeneratorSuite extends FunSuite {
     cc.repr(IntLit(0))
     cc.repr(p1)
     cc.repr(p2)
-    val itg = new IncrementalGenerator(f1, new Guided, cc)
-    val res = itg.saturate(Some(2), false)
+    val itg = new IncrementalGenerator(f1, new Guided(Some(2)), cc)
+    val res = itg.saturate(false)
     assert(res.size == 0)
     //println(res)
   }
@@ -86,8 +86,8 @@ class IncrementalGeneratorSuite extends FunSuite {
   test("formula 2: eager,1,false"){
     val cc = new CongruenceClosure
     cc.repr(p1)
-    val itg = new IncrementalGenerator(f2, new Eager, cc)
-    val res = itg.saturate(Some(1), false)
+    val itg = new IncrementalGenerator(f2, new Eager(Some(1)), cc)
+    val res = itg.saturate(false)
     assert(res.size == 1)
     //println(res)
   }
@@ -95,8 +95,8 @@ class IncrementalGeneratorSuite extends FunSuite {
   test("formula 2: eager,2,false"){
     val cc = new CongruenceClosure
     cc.repr(p1)
-    val itg = new IncrementalGenerator(f2, new Eager, cc)
-    val res = itg.saturate(Some(2), false)
+    val itg = new IncrementalGenerator(f2, new Eager(Some(2)), cc)
+    val res = itg.saturate(false)
     assert(res.size == 1)
     //println(res)
   }
@@ -104,8 +104,8 @@ class IncrementalGeneratorSuite extends FunSuite {
   test("formula 2: guided,1,false,a"){
     val cc = new CongruenceClosure
     cc.repr(p1)
-    val itg = new IncrementalGenerator(f2, new Guided, cc)
-    val res = itg.saturate(Some(1), false)
+    val itg = new IncrementalGenerator(f2, new Guided(Some(1)), cc)
+    val res = itg.saturate(false)
     assert(res.size == 0)
     //println(res)
   }
@@ -114,31 +114,18 @@ class IncrementalGeneratorSuite extends FunSuite {
     val cc = new CongruenceClosure
     cc.repr(p1)
     cc.repr(qp1)
-    val itg = new IncrementalGenerator(f2, new Guided, cc)
-    val res = itg.saturate(Some(1), false)
+    val itg = new IncrementalGenerator(f2, new Guided(Some(1)), cc)
+    val res = itg.saturate(false)
     assert(res.size == 1)
     //println(res)
   }
 
-  /* XXX simplification makes that test obsolete
-  test("formula 3: eager,0..9,false"){
-    for (i <- 0 until 10) {
-      val cc = new CongruenceClosure
-      cc.repr(IntLit(1))
-      val itg = new IncrementalGenerator(f3, new Eager, cc)
-      val res = itg.saturate(Some(i), false)
-      assert(res.size == i+1)
-      //println(res)
-    }
-  }
-  */
-  
   test("formula 4: guided,0,true"){
     val cc = new CongruenceClosure
     cc.repr(p1)
     cc.repr(qp1)
-    val itg = new IncrementalGenerator(f2, new Guided, cc)
-    val res = itg.saturate(Some(0), true)
+    val itg = new IncrementalGenerator(f2, new Guided(Some(0)), cc)
+    val res = itg.saturate(true)
     assert(res.size == 1)
     //println(res)
   }
@@ -147,8 +134,8 @@ class IncrementalGeneratorSuite extends FunSuite {
     val cc = new CongruenceClosure
     cc.repr(p1)
     cc.repr(qp1)
-    val itg = new IncrementalGenerator(f2, new Guided, cc)
-    val res = itg.saturate(Some(0), false)
+    val itg = new IncrementalGenerator(f2, new Guided(Some(0)), cc)
+    val res = itg.saturate(false)
     assert(res.size == 0)
     //println(res)
   }
@@ -157,15 +144,15 @@ class IncrementalGeneratorSuite extends FunSuite {
     val cc = new CongruenceClosure
     cc.repr(p1)
     cc.repr(qp1)
-    val itg = new IncrementalGenerator(f2, new Guided, cc)
-    val res = itg.saturate(Some(1), false)
+    val itg = new IncrementalGenerator(f2, new Guided(Some(1)), cc)
+    val res = itg.saturate(false)
     assert(res.size == 1)
     //println(res)
   }
 
   test("stratification 1"){
     def mkItg(f: Formula) = {
-      new IncrementalGenerator(List(f), new Guided, new CongruenceClosure, TypeStratification)
+      new IncrementalGenerator(List(f), new Guided(None), new CongruenceClosure, TypeStratification)
     }
     val itg1 = mkItg(ForAll(List(p1), Eq(rp1, IntLit(0))))
     assert(itg1.leftOver.size == 1)
@@ -177,9 +164,9 @@ class IncrementalGeneratorSuite extends FunSuite {
     val cc = new CongruenceClosure
     cc.repr(p1)
     cc.repr(p2)
-    val itg = new IncrementalGenerator(List(ForAll(List(p1,p2), Neq(qp1, p2))), new Eager, cc, TypeStratification)
+    val itg = new IncrementalGenerator(List(ForAll(List(p1,p2), Neq(qp1, p2))), new Eager(Some(1)), cc, TypeStratification)
     assert(itg.leftOver.size == 0)
-    val res = itg.saturate(Some(1), true)
+    val res = itg.saturate(true)
     assert(res.size == 2)
   }
 

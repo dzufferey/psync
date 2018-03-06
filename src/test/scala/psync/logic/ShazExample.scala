@@ -84,7 +84,7 @@ class ShazExample extends FunSuite {
       ),
       Not(invariant(numFreeAtOrAfter1, allocatingAtOrAfter, free1, freeSpace1))
     )
-    assertSat(fs, cln(2, new quantifiers.Eager, 2, true))
+    assertSat(fs, cln(2, new quantifiers.Eager(Some(2)), true))
     //assertUnsat(fs, 10000, true)
     //assertUnsat(fs, 20000, true, cl2_2, Some("test2_2.smt2"))
   }

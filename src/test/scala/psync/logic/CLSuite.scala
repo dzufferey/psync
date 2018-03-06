@@ -78,8 +78,8 @@ class CLSuite extends FunSuite {
       Or(ForAll(List(i), Eq(data(i), Literal(1))), Eq(data(p),Literal(3)))
     )
     assertSat(fs)
-    assertSat(fs, cln(2, new quantifiers.Eager, 2, true))
-    assertSat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertSat(fs, c2e2)
+    assertSat(fs, c2g2)
   }
 
   test("Size of comprehension bigger than two"){
@@ -94,8 +94,8 @@ class CLSuite extends FunSuite {
       ForAll(List(i), Implies(In(i,ho(p2)), Lt(data(p2), data(i))))
     )
     assertUnsat(fs)
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertUnsat(fs, c2e2)
+    assertUnsat(fs, c2g2)
   }
 
   test("Comprehension introduces new nodes"){
@@ -105,8 +105,8 @@ class CLSuite extends FunSuite {
       Eq(n, Literal(1))
     )
     assertUnsat(fs)
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertUnsat(fs, c2e2)
+    assertUnsat(fs, c2g2)
   }
 
   test("BAPA 0") {
@@ -127,8 +127,8 @@ class CLSuite extends FunSuite {
       Lt(Cardinality(b), Cardinality(Union(a, b)))
     )
     assertUnsat(fs)
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertUnsat(fs, c2e2)
+    assertUnsat(fs, c2g2)
   }
 
   //from https://github.com/psuter/bapa-z3/blob/master/src/main/scala/bapa/Main.scala
@@ -146,8 +146,8 @@ class CLSuite extends FunSuite {
       Lt(Cardinality(c), Cardinality(a))
     )
     assertUnsat(fs)
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertUnsat(fs, c2e2)
+    assertUnsat(fs, c2g2)
   }
 
   test("universe cardinality ⇒ ∀ (1)") {
@@ -156,8 +156,8 @@ class CLSuite extends FunSuite {
       ForAll(List(i), Eq(data(i), Literal(0)))
     )
     assertUnsat(fs)
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertUnsat(fs, c2e2)
+    assertUnsat(fs, c2g2)
   }
 
   test("universe cardinality ⇒ ∀ (2)") {
@@ -166,8 +166,8 @@ class CLSuite extends FunSuite {
       Eq(data(j), Literal(0))
     )
     assertUnsat(fs)
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertUnsat(fs, c2e2)
+    assertUnsat(fs, c2g2)
   }
 
   test("cardinality two comprehensions intersect"){
@@ -178,8 +178,8 @@ class CLSuite extends FunSuite {
        Gt(Cardinality(b), nOver2)
     )        
     assertUnsat(fs)
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertUnsat(fs, c2e2)
+    assertUnsat(fs, c2g2)
   }
 
   test("cardinality three comprehensions"){
@@ -193,8 +193,8 @@ class CLSuite extends FunSuite {
       Gt(Cardinality(c), twonOver3)
     )        
     assertUnsat(fs)
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertUnsat(fs, c2e2)
+    assertUnsat(fs, c2g2)
   }
 
   test("process j and one comprehension"){
@@ -204,8 +204,8 @@ class CLSuite extends FunSuite {
       Eq(Cardinality(a),n)
     )        
     assertUnsat(fs)
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertUnsat(fs, c2e2)
+    assertUnsat(fs, c2g2)
   }
 
   test("HO test: universals and comprehension"){
@@ -215,8 +215,8 @@ class CLSuite extends FunSuite {
       ForAll(List(i), Lt(Cardinality(ho(i)), Literal(1)))
     )      
     assertUnsat(fs)
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertUnsat(fs, c2e2)
+    assertUnsat(fs, c2g2)
   }
 
   test("In Kernel and not in its HO"){
@@ -227,8 +227,8 @@ class CLSuite extends FunSuite {
       Gt(Cardinality(k), nOver2)
     )
     assertUnsat(fs)
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertUnsat(fs, c2e2)
+    assertUnsat(fs, c2g2)
   }
 
   test("Instantiate univ on set intersection"){
@@ -240,8 +240,8 @@ class CLSuite extends FunSuite {
       ForAll(List(i), Not(Eq(data(i), Literal(2))))
     )
     assertUnsat(fs)
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertUnsat(fs, c2e2)
+    assertUnsat(fs, c2g2)
   } 
 
   test("n = 0") {
@@ -270,8 +270,8 @@ class CLSuite extends FunSuite {
       )
     )
     assertSat(fs)
-    assertSat(fs, cln(2, new quantifiers.Eager, 2, true))
-    assertSat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertSat(fs, c2e2)
+    assertSat(fs, c2g2)
   }
 
   test("options 2") {
@@ -287,8 +287,8 @@ class CLSuite extends FunSuite {
       )
     )
     assertUnsat(fs)
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertUnsat(fs, c2e2)
+    assertUnsat(fs, c2g2)
   }
   
   test("ordered") {
@@ -308,13 +308,13 @@ class CLSuite extends FunSuite {
     )
     unsat.foreach( fs => {
       assertUnsat(fs) 
-      assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
-      assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
+      assertUnsat(fs, c2e2)
+      assertUnsat(fs, c2g2)
     })
     sat.foreach( fs => {
       assertSat(fs) 
-      assertSat(fs, cln(2, new quantifiers.Eager, 2, true))
-      assertSat(fs, cln(2, new quantifiers.Guided, 2, true))
+      assertSat(fs, c2e2)
+      assertSat(fs, c2g2)
     })
   }
 
@@ -333,8 +333,8 @@ class CLSuite extends FunSuite {
       d1 !== d2
     )
     assertUnsat(fs)
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 2, true))
+    assertUnsat(fs, c2e2)
+    assertUnsat(fs, c2g2)
   }
 
   test("majority is a quorum") {
@@ -347,7 +347,7 @@ class CLSuite extends FunSuite {
       majority(b),
       !quorum(a, b)
     )
-    assertUnsat(fs, /*10000, true,*/ cln(2, new quantifiers.Guided, 1, false))
+    assertUnsat(fs, /*10000, true,*/ cln(2, new quantifiers.Guided(Some(1)), false))
   }
   
   test("2/3 majority is a fast quorum") {
@@ -361,7 +361,7 @@ class CLSuite extends FunSuite {
       majority(c),
       !quorum(a, b, c)
     )
-    assertUnsat(fs, cln(3, new quantifiers.Guided, 1, true))
+    assertUnsat(fs, cln(3, new quantifiers.Guided(Some(1)), true))
   }
 
   test("pairs 0") {
@@ -406,7 +406,7 @@ class CLSuite extends FunSuite {
       a.card <= 5,
       (b ∩ c) === Comprehension(List(i), False())
     )
-    assertUnsat(fs, cln(10, new quantifiers.Guided, 1, false))
+    assertUnsat(fs, cln(10, new quantifiers.Guided(Some(1)), false))
   }
 
   //from https://github.com/CVC4/CVC4/blob/master/test/regress/regress0/sets/card-4.smt2
@@ -460,7 +460,7 @@ class CLSuite extends FunSuite {
       a.card <= 2,
       b.card <= 2
     )
-    assertUnsat(fs, cln(10, new quantifiers.Guided, 1, false))
+    assertUnsat(fs, cln(10, new quantifiers.Guided(Some(1)), false))
   }
 
   //from https://github.com/CVC4/CVC4/blob/master/test/regress/regress0/sets/card-7.smt2
@@ -469,7 +469,7 @@ class CLSuite extends FunSuite {
     val ac = as.map( a => a.card )
     val ac1 = ac.map( ac => ac === 1 )
     val fs = (Plus(ac:_*) === 20) :: ac1.toList
-    assertSat(fs, cln(1, new quantifiers.Guided, 1, false))
+    assertSat(fs, cln(1, new quantifiers.Guided(Some(1)), false))
   }
 
   test("map simple updates") {

@@ -14,7 +14,7 @@ class VCSuite extends FunSuite {
   test("Tcp") {
     import psync.logic.TpcExample._
 
-    val cl = new CL(cln(1, new Eager,  1, true))
+    val cl = new CL(cln(1, new Eager(Some(1)), true))
 
     val vcs = Seq(
       new SingleVC("invariant implies agreement", invariant1, True(), agreement, Nil, cl),
@@ -34,8 +34,8 @@ class VCSuite extends FunSuite {
   test("Otr") {
     import psync.logic.OtrExample._
 
-    val cl = new CL(cln(2, new Guided,  1, true))
-    val cl2 = new CL( cln(3, new Sequence(new Eager, new Guided), 2, true))
+    val cl = new CL(cln(2, new Guided(Some(1)), true))
+    val cl2 = new CL( cln(3, new Sequence(new Eager(Some(1)), new Guided(Some(1))), true))
 
     val vcs = Seq(
       new SingleVC("invariant implies agreement", invariantAgreement, True(), agreement, Nil, cl),

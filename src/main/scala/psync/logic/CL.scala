@@ -130,11 +130,11 @@ class CL(config: ClConfig) {
   protected def quantifierInstantiation(strat: QStrategy, fs: List[Formula], cc: CongruenceClosure): (List[Formula], Generator) = {
     Logger("CL", Debug, "instantiation strategy: " + strat)
     strat match {
-      case QStrategy(t, bnd, local) =>
+      case QStrategy(t, local) =>
         val gen = new IncrementalGenerator(fs, t, cc, TypeStratification)
         val leftOver = gen.leftOver
         Logger("CL", Debug, "leftOver:\n  " + leftOver.mkString("\n  "))
-        val generated = gen.saturate(bnd, local)
+        val generated = gen.saturate(local)
         Logger("CL", Debug, "generated: \n  " + generated.mkString("\n  "))
         val res = leftOver ::: generated
         //gen.log(Debug)
@@ -151,8 +151,7 @@ class CL(config: ClConfig) {
     Logger("CL", Debug, "local leftOver:\n  " + leftOver.mkString("\n  "))
     Logger("CL", Debug, "local axioms:\n  " + axioms.mkString("\n  "))
     Logger("CL", Debug, "local cc:\n" + cc)
-    val gen = new IncrementalGenerator(axioms, new Eager, cc)
-    //val generated = gen.saturate(Some(0), true)
+    val gen = new IncrementalGenerator(axioms, new Eager(Some(0)), cc)
     val generated = gen.locallySaturate
     Logger("CL", Debug, "local generated:\n  " + generated.mkString("\n  "))
     leftOver ::: generated

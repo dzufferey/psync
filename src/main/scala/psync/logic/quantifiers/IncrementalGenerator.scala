@@ -25,10 +25,10 @@ class IncrementalGenerator( axioms: Iterable[Formula],
   }
   def logger = _logger
 
-  def saturate(depth: Option[Int], local: Boolean): List[Formula] = {
+  def saturate(local: Boolean): List[Formula] = {
     val buffer = scala.collection.mutable.Set[Formula]()
 
-    tactic.init(depth.getOrElse(1000), cc)
+    tactic.init(cc)
     
     while (tactic.hasNext) {
       val t = tactic.next

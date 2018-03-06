@@ -126,7 +126,7 @@ class VsExample extends FunSuite {
 
   test("Sanity check 8") {
     assertSat(List(r1, inv0, inv1, inv2),
-              reducer = cln(1, new quantifiers.Guided, 1, true),
+              reducer = cln(1, new quantifiers.Guided(Some(1)), true),
               to = 60000)
   }
 

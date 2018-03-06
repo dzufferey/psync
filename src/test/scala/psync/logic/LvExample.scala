@@ -241,19 +241,19 @@ class LvExample extends FunSuite {
 
   test("initial state implies invariant") {
     val fs = List(initialState, Not(invariant1))
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))
+    assertUnsat(fs, cln(2, new quantifiers.Eager(Some(1)), true))
   }
 
   test("invariant implies agreement") {
     val fs = List(invariant1, Not(agreement))
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
+    assertUnsat(fs, cln(2, new quantifiers.Eager(Some(1)), true))
+    assertUnsat(fs, cln(2, new quantifiers.Guided(Some(1)), true))
   }
   
   test("validity holds initially") {
     val fs = List(initialState, Not(validity))
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
+    assertUnsat(fs, cln(2, new quantifiers.Eager(Some(1)), true))
+    assertUnsat(fs, cln(2, new quantifiers.Guided(Some(1)), true))
   }
 
   test("maxTS") {
@@ -272,7 +272,7 @@ class LvExample extends FunSuite {
     )
     //getModel(fs)
     //assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true)) //XXX this should be strictly more terms than Guided
-    assertUnsat(fs, /*10000, true,*/ cln(2, new quantifiers.Guided, 2, true))
+    assertUnsat(fs, /*10000, true,*/ cln(2, new quantifiers.Guided(Some(2)), true))
   }
 
   //TODO those completely blow-up

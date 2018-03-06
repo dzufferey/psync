@@ -97,26 +97,26 @@ class OtrExampleNoMailbox extends FunSuite {
   
   test("initial state implies invariant") {
     val fs = List(initialState, Not(invariantAgreement))
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
+    assertUnsat(fs, c2e1)
+    assertUnsat(fs, c2g1)
   }
 
   test("invariant implies agreement") {
     val fs = List(invariantAgreement, Not(agreement))
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
+    assertUnsat(fs, c2e1)
+    assertUnsat(fs, c2g1)
   }
   
   test("invariant implies termination") {
     val fs = List(invariantProgress2, Not(termination))
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
+    assertUnsat(fs, c2e1)
+    assertUnsat(fs, c2g1)
   }
 
   test("validity holds initially") {
     val fs = List(ForAll(List(i), Eq(data0(i), data(i))), Not(validity))
-    assertUnsat(fs, cln(2, new quantifiers.Eager, 1, true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided, 1, true))
+    assertUnsat(fs, c2e1)
+    assertUnsat(fs, c2g1)
   }
 
   test("mmor unsat") {
@@ -128,8 +128,8 @@ class OtrExampleNoMailbox extends FunSuite {
       //negated prop: ¬(∀ k. mmor(k) == v)
       mmor(k) !== v
     )
-    assertUnsat(fs, cln(3, new quantifiers.Eager, 1, true))
-    assertUnsat(fs, cln(3, new quantifiers.Guided, 1, true))
+    assertUnsat(fs, c3e1)
+    assertUnsat(fs, c3g1)
   }
   
 //test("invariant is inductive") {
@@ -171,7 +171,7 @@ class OtrExampleNoMailbox extends FunSuite {
       Not(prime(invariantProgress2))
     )
     //assertUnsat(fs, cln(3, new quantifiers.Eager, 2, true))
-    assertUnsat(fs, cln(3, new quantifiers.Sequence(new quantifiers.Eager, new quantifiers.Guided), 2, true))
+    assertUnsat(fs, cln(3, new quantifiers.Sequence(new quantifiers.Eager(Some(1)), new quantifiers.Guided(Some(1))), true))
   }
 
   test("invariant 2 is inductive") {
@@ -181,7 +181,7 @@ class OtrExampleNoMailbox extends FunSuite {
       Not(prime(invariantProgress2))
     )
     //assertUnsat(fs, cln(1, new quantifiers.Eager, 2, true))
-    assertUnsat(fs, cln(1, new quantifiers.Sequence(new quantifiers.Eager, new quantifiers.Guided), 2, true))
+    assertUnsat(fs, cln(1, new quantifiers.Sequence(new quantifiers.Eager(Some(1)), new quantifiers.Guided(Some(1))), true))
   }
 
   test("integrity") {
@@ -192,7 +192,7 @@ class OtrExampleNoMailbox extends FunSuite {
       Not(integrity)
     )
     //assertUnsat(fs, cln(3, new quantifiers.Eager, 1, true))
-    assertUnsat(fs, to = 60000, reducer = cln(3, new quantifiers.Guided, 1, true))
+    assertUnsat(fs, to = 60000, reducer = cln(3, new quantifiers.Guided(Some(1)), true))
   }
 
   test("validity is inductive") {
@@ -203,8 +203,8 @@ class OtrExampleNoMailbox extends FunSuite {
       tr,
       Not(prime(validity))
     )
-    assertUnsat(fs, cln(1, new quantifiers.Eager, 1, true))
-    assertUnsat(fs, cln(1, new quantifiers.Guided, 1, true))
+    assertUnsat(fs, c1e1)
+    assertUnsat(fs, c1g1)
   }
 
 }

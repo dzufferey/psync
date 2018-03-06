@@ -15,7 +15,7 @@ import scala.collection.mutable.ListBuffer
 
 trait Tactic {
 
-  def init(depth: Int, cc: CongruenceClosure): Unit
+  def init(cc: CongruenceClosure): Unit
 
   def clear: Unit
 
@@ -31,9 +31,8 @@ trait Tactic {
 
 }
 
-abstract class TacticCommon extends Tactic {
+abstract class TacticCommon(depth: Option[Int]) extends Tactic {
   
-  protected var depth = 0
   protected var cc: CongruenceClosure = null
   protected var queue = PriorityQueue[(Int,Formula)]()
   protected var done = MSet[Formula]()
@@ -43,7 +42,7 @@ abstract class TacticCommon extends Tactic {
   protected def isDone(t: Formula) = done(t) || done(cc.repr(t))
 
   protected def enqueue(d: Int, t: Formula) {
-    if (d < depth && !isDone(t)) {
+    if (depth.map(d < _).getOrElse(true) && !isDone(t)) {
       Logger("Tactic", Debug, "depth "+d+": " + t)
       queue.enqueue( -d -> t )
     }/* else {
@@ -55,7 +54,6 @@ abstract class TacticCommon extends Tactic {
     queue.clear
     done.clear
     buffer.clear
-    depth = 0
     currentDepth = 0
     cc = null
   }
@@ -79,26 +77,22 @@ abstract class TacticCommon extends Tactic {
     term
   }
 
-  def init(_depth: Int, _cc: CongruenceClosure) {
+  def init(_cc: CongruenceClosure) {
     clear
-    depth = _depth
     cc = _cc
     for (gt <- cc.groundTerms) enqueue(0, gt)
-    if (depth < 0) {
-      Logger("Tactic", Warning, "depth "+depth+" should be ≥ 0")
-    }
   }
   
   def result: Iterable[Formula] = buffer.toList
 
 }
 
-class Eager extends TacticCommon {
+class Eager(depth: Option[Int]) extends TacticCommon(depth) {
 
   def generatorResult(fs: Iterable[Formula]) {
     buffer.appendAll(fs)
     val newDepth = currentDepth + 1
-    if (newDepth < depth) {
+    if (depth.map(newDepth < _).getOrElse(true)) {
       fs.foreach( f => {
         val ts = FormulaUtils.collectGroundTerms(f)
         val ts2 = ts.filter(t => !cc.contains(t))
@@ -112,7 +106,7 @@ class Eager extends TacticCommon {
 
 }
 
-class Guided extends TacticCommon {
+class Guided(depth: Option[Int]) extends TacticCommon(depth) {
 
   protected var currentTerm: Formula = null
   protected val keptBack = MMap[Formula,List[Formula]]()
@@ -173,22 +167,16 @@ class Guided extends TacticCommon {
 class Sequence(t1: Tactic, t2: Tactic) extends Tactic {
 
   protected var first = true
-  protected var d1 = 0
-  protected var d2 = 0
   protected var cc: CongruenceClosure = null
 
-  def init(depth: Int, _cc: CongruenceClosure) {
+  def init(_cc: CongruenceClosure) {
     clear
     cc = _cc
-    d1 = depth / 2 + depth % 2
-    d2 = depth / 2
-    t1.init(d1, cc)
+    t1.init(cc)
   }
 
   def clear {
     first = true
-    d1 = 0
-    d2 = 0
     t1.clear
     t2.clear
   }
@@ -199,7 +187,7 @@ class Sequence(t1: Tactic, t2: Tactic) extends Tactic {
         true
       } else {
         first = false
-        t2.init(d2, cc)
+        t2.init(cc)
         t2.hasNext
       }
     } else {

@@ -22,15 +22,10 @@ trait Generator {
     buffer.result
   }
 
-  /** saturate starting with the groundTerms (representative in cc), up to a certain depth.
-   * @param depth bound on the recursion depth
+  /** saturate starting with the groundTerms (representative in cc)
    * @param local at the end staturate without generating new terms
    * @return applications of the axioms */
-  def saturate(depth: Option[Int], local: Boolean): List[Formula]
-  
-  def saturate(depth: Option[Int]): List[Formula] = saturate(depth, true)
-
-  def saturate: List[Formula] = saturate(None, true)
+  def saturate(local: Boolean = true): List[Formula]
 
   def clone(cc2: CongruenceClosure): Generator
   override def clone: Generator = clone(cc.copy)
@@ -52,6 +47,7 @@ object InstGen {
    * @param additionalTerms (optional) set of terms to add to the terms present in the formulas
    */
   def makeGenerator( axioms: List[Formula],
+                     depth: Option[Int],
                      cClasses: CC,
                      additionalTerms: Iterable[Formula]): IncrementalGenerator = {
     val cc = cClasses.mutable
@@ -60,7 +56,7 @@ object InstGen {
     FormulaUtils.collectGroundTerms(And(axioms:_*)).foreach(cc.repr)
     //make sure formula is taken into account
     cc.addConstraints(axioms)
-    new IncrementalGenerator(axioms, new Eager, cc)
+    new IncrementalGenerator(axioms, new Eager(depth), cc)
   }
   
   /** instantiate all the universally quantified variables with the provided ground terms.
@@ -69,9 +65,10 @@ object InstGen {
    * @param additionalTerms (optional) set of terms to add to the terms present in the formulas
    */
   def makeGenerator( axioms: Formula,
+                     depth: Option[Int] = None,
                      cClasses: CC = new CongruenceClosure,
                      additionalTerms: Iterable[Formula] = Nil): IncrementalGenerator = {
-    makeGenerator(FormulaUtils.getConjuncts(axioms), cClasses, additionalTerms)
+    makeGenerator(FormulaUtils.getConjuncts(axioms), depth, cClasses, additionalTerms)
   }
   
   /** instantiate all the universally quantified variables with the provided ground terms.
@@ -88,14 +85,14 @@ object InstGen {
                     additionalTerms: Set[Formula] = Set()): Formula = {
     val fs = FormulaUtils.getConjuncts(formula)
     val (axioms, leftOver) = fs.partition(hasFAnotInComp)
-    val gen = makeGenerator(axioms, cClasses, mandatoryTerms ++ additionalTerms)
+    val gen = makeGenerator(axioms, depth, cClasses, mandatoryTerms ++ additionalTerms)
     val cc = gen.cc
     val mRepr = mandatoryTerms.map(cc.repr)
     //ignore things without mandatoryTerms
     cc.groundTerms.view.map(cc.repr).filterNot(mRepr).foreach(gen.generate)
 
     //saturate with the remaining terms
-    val insts = gen.saturate(depth)
+    val insts = gen.saturate()
     val res = And(leftOver ++ insts :_*)
     postprocess(res)
   }
@@ -113,12 +110,13 @@ object InstGen {
     val fs = FormulaUtils.getConjuncts(formula)
     val (axioms, leftOver) = fs.partition(hasFAnotInComp)
     val ts = additionalTerms ++ FormulaUtils.collectGroundTerms(And(leftOver:_*))
-    val gen = makeGenerator(axioms, cClasses, ts)
-    val insts = gen.saturate(depth)
+    val gen = makeGenerator(axioms, depth, cClasses, ts)
+    val insts = gen.saturate()
     And(leftOver ++ insts :_*)
   }
   
   def makeGuidedGenerator( axioms: List[Formula],
+                           depth: Option[Int],
                            cClasses: CC,
                            additionalTerms: Iterable[Formula]): IncrementalGenerator = {
     val cc = cClasses.mutable
@@ -127,13 +125,14 @@ object InstGen {
     FormulaUtils.collectGroundTerms(And(axioms:_*)).foreach(cc.repr)
     //make sure formula is taken into account
     cc.addConstraints(axioms)
-    new IncrementalGenerator(axioms, new Guided, cc)
+    new IncrementalGenerator(axioms, new Guided(depth), cc)
   }
 
   def makeGuidedGenerator( axioms: Formula,
+                           depth: Option[Int] = None,
                            cClasses: CC = new CongruenceClosure,
                            additionalTerms: Iterable[Formula] = Nil): IncrementalGenerator = {
-    makeGuidedGenerator(FormulaUtils.getConjuncts(axioms), cClasses, additionalTerms)
+    makeGuidedGenerator(FormulaUtils.getConjuncts(axioms), depth, cClasses, additionalTerms)
   }
  
 }
