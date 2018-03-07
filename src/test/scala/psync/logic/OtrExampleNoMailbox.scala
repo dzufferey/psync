@@ -160,7 +160,7 @@ class OtrExampleNoMailbox extends FunSuite {
 //    Not(prime(invariantProgress1))
 //  )
 //  //assertUnsat(fs,  120000, true, cln(3, new quantifiers.Eager, 2, true))
-//  assertUnsat(fs,  120000, true, cln(3, new quantifiers.Sequence(new quantifiers.Eager, new quantifiers.Guided), 2, true))
+//  assertUnsat(fs, to = 240000, reducer = cln(3, new quantifiers.Sequence(new quantifiers.Eager(Some(1)), new quantifiers.Guided(Some(1))), true))
 //}
 
   test("2nd magic round") {
@@ -170,7 +170,6 @@ class OtrExampleNoMailbox extends FunSuite {
       tr,
       Not(prime(invariantProgress2))
     )
-    //assertUnsat(fs, cln(3, new quantifiers.Eager, 2, true))
     assertUnsat(fs, cln(3, new quantifiers.Sequence(new quantifiers.Eager(Some(1)), new quantifiers.Guided(Some(1))), true))
   }
 
@@ -180,7 +179,6 @@ class OtrExampleNoMailbox extends FunSuite {
       tr,
       Not(prime(invariantProgress2))
     )
-    //assertUnsat(fs, cln(1, new quantifiers.Eager, 2, true))
     assertUnsat(fs, cln(1, new quantifiers.Sequence(new quantifiers.Eager(Some(1)), new quantifiers.Guided(Some(1))), true))
   }
 
@@ -191,8 +189,7 @@ class OtrExampleNoMailbox extends FunSuite {
       tr,
       Not(integrity)
     )
-    //assertUnsat(fs, cln(3, new quantifiers.Eager, 1, true))
-    assertUnsat(fs, to = 120000, reducer = cln(3, new quantifiers.Guided(Some(1)), true))
+    assertUnsat(fs, to = 120000, reducer = c3g1)
   }
 
   test("validity is inductive") {

@@ -175,20 +175,18 @@ class OtrExample extends FunSuite {
 //    tr,
 //    Not(prime(invariantProgress1))
 //  )
-//  //assertUnsat(fs, 30000, true, cle(3,2))
-//  assertUnsat(fs, 30000, true, clh(3,1,2))
+//  assertUnsat(fs, to = 240000, reducer = cln(3, new quantifiers.Sequence(new quantifiers.Eager(Some(1)), new quantifiers.Guided(Some(1))), true))
 //}
 
-//test("2nd magic round") {
-//  val fs = List(
-//    invariantProgress1,
-//    magicRound,
-//    tr,
-//    Not(prime(invariantProgress2))
-//  )
-//  //assertUnsat(fs, cln(3, new quantifiers.Eager, 2, true))
-//  assertUnsat(fs, cln(3, new quantifiers.Sequence(new quantifiers.Eager, new quantifiers.Guided), 2, true))
-//}
+  test("2nd magic round") {
+    val fs = List(
+      invariantProgress1,
+      magicRound,
+      tr,
+      Not(prime(invariantProgress2))
+    )
+    assertUnsat(fs, to = 240000, reducer = cln(3, new quantifiers.Sequence(new quantifiers.Eager(Some(1)), new quantifiers.Guided(Some(1))), true))
+  }
 
   test("invariant 2 is inductive") {
     val fs = List(
@@ -196,21 +194,19 @@ class OtrExample extends FunSuite {
       tr,
       Not(prime(invariantProgress2))
     )
-    //assertUnsat(fs, cln(1, new quantifiers.Eager, 2, true))
     assertUnsat(fs, cln(1, new quantifiers.Sequence(new quantifiers.Eager(Some(1)), new quantifiers.Guided(Some(1))), true))
   }
 
-//XXX used to work, the quantifier instantiation seems too expensive right now
-//test("integrity") {
-//  val fs = List(
-//    invariantAgreement,
-//    prime(invariantAgreement),
-//    tr,
-//    Not(integrity)
-//  )
-//  assertUnsat(fs, 60000, false, cln(3, new quantifiers.Eager, 2, true))
-//  //assertUnsat(fs, cln(3, new quantifiers.Guided, 1, true))
-//}
+  test("integrity") {
+    val fs = List(
+      invariantAgreement,
+      prime(invariantAgreement),
+      tr,
+      Not(integrity)
+    )
+    assertUnsat(fs, to = 240000, reducer = c3e1)
+    assertUnsat(fs, to = 600000, reducer = c3g1)
+  }
 
   test("validity is inductive") {
     val fs = List(

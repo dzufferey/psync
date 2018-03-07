@@ -36,6 +36,8 @@ object TestCommon {
   val c2g2 = cln(2, new quantifiers.Guided(Some(2)), true)
   val c3e1 = cln(3, new quantifiers.Eager(Some(1)), true)
   val c3g1 = cln(3, new quantifiers.Guided(Some(1)), true)
+  val c3e2 = cln(3, new quantifiers.Eager(Some(2)), true)
+  val c3g2 = cln(3, new quantifiers.Guided(Some(2)), true)
   
 
   def reduce(clc: ClConfig, conjuncts: List[Formula], debug: Boolean): Formula = {

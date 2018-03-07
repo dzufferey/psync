@@ -212,20 +212,20 @@ class LvExampleNoMailbox extends FunSuite {
 
   test("initial state implies invariant") {
     val fs = List(initialState, Not(invariant1))
-    assertUnsat(fs, cln(2, new quantifiers.Eager(Some(1)), true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided(Some(1)), true))
+    assertUnsat(fs, c2e1)
+    assertUnsat(fs, c2g1)
   }
 
   test("invariant implies agreement") {
     val fs = List(invariant1, Not(agreement))
-    assertUnsat(fs, cln(2, new quantifiers.Eager(Some(1)), true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided(Some(1)), true))
+    assertUnsat(fs, c2e1)
+    assertUnsat(fs, c2g1)
   }
   
   test("validity holds initially") {
     val fs = List(initialState, Not(validity))
-    assertUnsat(fs, cln(2, new quantifiers.Eager(Some(1)), true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided(Some(1)), true))
+    assertUnsat(fs, c2e1)
+    assertUnsat(fs, c2g1)
   }
 
   test("maxTS") {
@@ -237,8 +237,8 @@ class LvExampleNoMailbox extends FunSuite {
       majorityS(ho(i)),
       Neq(maxTS(i), v)
     )
-    assertUnsat(fs, cln(2, new quantifiers.Eager(Some(1)), true))
-    assertUnsat(fs, cln(2, new quantifiers.Guided(Some(1)), true))
+    assertUnsat(fs, c2e1)
+    assertUnsat(fs, c2g1)
   }
 
   //TODO those completely blow-up
@@ -283,7 +283,7 @@ class LvExampleNoMailbox extends FunSuite {
 //    Not(prime(invariant1))
 //  )
 //  //assertUnsat(fs, 30000, true, cln(1, new quantifiers.Eager, 2, true)) //XXX bug here
-//  assertUnsat(fs, 30000, true, cln(1, new quantifiers.Guided, 2, false))
+//  assertUnsat(fs, 30000, true, cln(1, new quantifiers.Guided(Some(2)), true))
 //}
 
 }
