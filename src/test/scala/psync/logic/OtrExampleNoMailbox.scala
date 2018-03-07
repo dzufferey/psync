@@ -192,7 +192,7 @@ class OtrExampleNoMailbox extends FunSuite {
       Not(integrity)
     )
     //assertUnsat(fs, cln(3, new quantifiers.Eager, 1, true))
-    assertUnsat(fs, to = 60000, reducer = cln(3, new quantifiers.Guided(Some(1)), true))
+    assertUnsat(fs, to = 120000, reducer = cln(3, new quantifiers.Guided(Some(1)), true))
   }
 
   test("validity is inductive") {
