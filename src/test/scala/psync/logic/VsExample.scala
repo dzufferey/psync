@@ -47,7 +47,6 @@ class VsExample extends FunSuite {
   val inv1 = And(
     log0(coord).isDefinedAt(li0-1),
     log0(coord).lookUp(li0-1)._2,
-    //act0.card > (n/2),
     ForAll(List(i), (i ∈ act0) ==> And(
       log0(i).lookUp(li0-1)._1 === log0(coord).lookUp(li0-1)._1,
       Not(log0(i).lookUp(li0-1)._2)
@@ -130,8 +129,23 @@ class VsExample extends FunSuite {
               to = 60000)
   }
 
-  ignore("More complex example with maps...") {
-    ???
+  test("inv0 inductive") {
+    assertUnsat(List(r1, inv0, inv1, inv2, Not(prime(inv0))),
+                reducer = cln(1, new quantifiers.Guided(Some(1)), true),
+                to = 60000)
+  }
+
+  test("inv1 inductive") {
+    assertUnsat(List(r1, inv0, inv1, inv2, Not(prime(inv1))),
+                reducer = cln(1, new quantifiers.Guided(Some(1)), true),
+                to = 60000)
+  }
+
+  //need higher bound -> lots of memory...
+  ignore("inv2 inductive") {
+    assertUnsat(List(r1, inv0, inv1, inv2, Not(prime(inv2))),
+                reducer = cln(2, new quantifiers.Guided(Some(1)), true),
+                to = 60000)
   }
 
 }

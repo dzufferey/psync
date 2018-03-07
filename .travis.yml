@@ -24,7 +24,7 @@ before_script:
   - sudo chmod +x /usr/local/bin/sbt
 
 script:
-  - travis_wait 20 sbt ++$TRAVIS_SCALA_VERSION test
+  - travis_wait 20 sbt -mem 2048 ++$TRAVIS_SCALA_VERSION test
 
 cache:
   directories:
