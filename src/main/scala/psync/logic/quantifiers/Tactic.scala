@@ -31,7 +31,7 @@ trait Tactic {
 
 }
 
-abstract class TacticCommon(depth: Option[Int]) extends Tactic {
+abstract class TacticCommon(depth: Map[Type,Int]) extends Tactic {
   
   protected var cc: CongruenceClosure = null
   protected var queue = PriorityQueue[(Int,Formula)]()
@@ -42,7 +42,7 @@ abstract class TacticCommon(depth: Option[Int]) extends Tactic {
   protected def isDone(t: Formula) = done(t) || done(cc.repr(t))
 
   protected def enqueue(d: Int, t: Formula) {
-    if (depth.map(d < _).getOrElse(true) && !isDone(t)) {
+    if (d < depth(t.tpe) && !isDone(t)) {
       Logger("Tactic", Debug, "depth "+d+": " + t)
       queue.enqueue( -d -> t )
     }/* else {
@@ -87,18 +87,20 @@ abstract class TacticCommon(depth: Option[Int]) extends Tactic {
 
 }
 
-class Eager(depth: Option[Int]) extends TacticCommon(depth) {
+class Eager(depth: Map[Type,Int]) extends TacticCommon(depth) {
+
+  def this(depth: Option[Int]) = this(Map[Type,Int]().withDefaultValue(depth.getOrElse(1000000)))
 
   def generatorResult(fs: Iterable[Formula]) {
     buffer.appendAll(fs)
     val newDepth = currentDepth + 1
-    if (depth.map(newDepth < _).getOrElse(true)) {
-      fs.foreach( f => {
+    fs.foreach( f => {
+      if (newDepth < depth(f.tpe)) {
         val ts = FormulaUtils.collectGroundTerms(f)
         val ts2 = ts.filter(t => !cc.contains(t))
         ts2.foreach(enqueue(newDepth, _))
-      })
-    }
+      }
+    })
     fs.foreach(cc.addConstraints)
   }
 
@@ -106,10 +108,12 @@ class Eager(depth: Option[Int]) extends TacticCommon(depth) {
 
 }
 
-class Guided(depth: Option[Int]) extends TacticCommon(depth) {
+class Guided(depth:  Map[Type,Int]) extends TacticCommon(depth) {
 
   protected var currentTerm: Formula = null
   protected val keptBack = MMap[Formula,List[Formula]]()
+
+  def this(depth: Option[Int]) = this(Map[Type,Int]().withDefaultValue(depth.getOrElse(1000000)))
 
   override def clear {
     super.clear
