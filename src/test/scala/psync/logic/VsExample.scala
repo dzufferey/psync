@@ -47,9 +47,8 @@ class VsExample extends FunSuite {
   val inv1 = And(
     log0(coord).isDefinedAt(li0-1),
     log0(coord).lookUp(li0-1)._2,
-    ForAll(List(i), (i ∈ act0) ==> And(
-      log0(i).lookUp(li0-1)._1 === log0(coord).lookUp(li0-1)._1,
-      Not(log0(i).lookUp(li0-1)._2)
+    ForAll(List(i), (i ∈ act0) ==> (
+      log0(i).lookUp(li0-1)._1 === log0(coord).lookUp(li0-1)._1
     ))
   )
 
@@ -76,7 +75,7 @@ class VsExample extends FunSuite {
       ForAll(List(i, j), Not(sendCond) ==> Not(mailbox(j).isDefinedAt(i)))
     )
     val updateCondA = And(i ∈ act0, mailbox(i).isDefinedAt(coord))
-    val updateCondB = And(li0 > 0, log0(i).isDefinedAt(li0 - 1))
+    val updateCondB = Not(log0(i).lookUp(li0-1)._2)
     val update = And(
       li1 === li0,
       ForAll(List(i), updateCondA ==> And(
@@ -119,23 +118,23 @@ class VsExample extends FunSuite {
     assertSat(List(r1), to = 60000)
   }
 
-  ignore("Sanity check 7") {
-    assertUnsat(List(r1, Not(r1)), to = 60000)
-  }
-
-  test("Sanity check 8") {
+  test("Sanity check 7") {
     assertSat(List(r1, inv0, inv1, inv2),
               reducer = cln(1, new quantifiers.Guided(Some(1)), true),
               to = 60000)
   }
 
-  test("inv0 inductive") {
+  //DZ: needs to look deeper in the following ...
+
+  ignore("inv0 inductive") {
     assertUnsat(List(r1, inv0, inv1, inv2, Not(prime(inv0))),
-                reducer = cln(1, new quantifiers.Guided(Some(1)), true),
-                to = 60000)
+                reducer = cln(1, new quantifiers.Eager(Some(2)), true),
+                to = 60000,
+                fname = Some("inv0.smt2"),
+                debug = true)
   }
 
-  test("inv1 inductive") {
+  ignore("inv1 inductive") {
     assertUnsat(List(r1, inv0, inv1, inv2, Not(prime(inv1))),
                 reducer = cln(1, new quantifiers.Guided(Some(1)), true),
                 to = 60000)

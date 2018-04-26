@@ -253,6 +253,7 @@ class PerfTest3(options: RuntimeOptions,
   }
 
   def shutdown: Long = {
+    rate.drainPermits() // try to reduce the error messages when shutting down
     rt.shutdown
     reqProcessor.interrupt
     if (log != null) {
