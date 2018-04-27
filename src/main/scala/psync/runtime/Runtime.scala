@@ -38,7 +38,6 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
     p.setOptions(options)
     p.setAllocator( PooledByteBufAllocator.DEFAULT )
     val dispatcher = srv.get.dispatcher
-    val defaultHandler = srv.get.defaultHandler(_)
     new InstanceHandler(p, this, srv.get, dispatcher, defaultHandler, options)
   }
 

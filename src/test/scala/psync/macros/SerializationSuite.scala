@@ -18,8 +18,14 @@ class SerializationSuite extends Properties("Serialization") {
     try {
       r.setGroup(group)
       val mailbox = scala.collection.mutable.Map[ProcessID, ByteBuf]()
-      r.packSend(allocator, mailbox.update )
-      mailbox.foreach{ case (sender, payload) => r.receiveMsg(sender, payload) }
+      val tag = Tag(0, 0)
+      def getBuffer() = {
+        val buffer = allocator.buffer()
+        buffer.writeLong(tag.underlying)
+        buffer
+      }
+      r.packSend(getBuffer, mailbox.update)
+      mailbox.foreach{ case (sender, payload) => r.receiveMsg(sender, Message.moveAfterTag(payload)) }
       r.finishRound
     } catch { case t: Throwable =>
       Logger("SerializationSuite", Error, t.getMessage)

@@ -147,7 +147,7 @@ class PerfTest3(options: RuntimeOptions,
   def defaultHandler(msg: Message) {
     lck.lock
     try {
-      val flag = msg.tag.flag
+      val flag = msg.flag
       if (flag == Flags.normal || flag == Flags.dummy) {
         val inst = msg.instance
         if (Instance.lt(started, inst)) {
@@ -175,8 +175,7 @@ class PerfTest3(options: RuntimeOptions,
         }
       } else if (flag == Decision) {
         val inst = msg.instance
-        val p = msg.payload
-        p.readLong //skip tag
+        val p = msg.bufferAfterTag
         val s = p.readInt
         val d = Array.ofDim[Byte](s)
         p.readBytes(d)
@@ -186,6 +185,7 @@ class PerfTest3(options: RuntimeOptions,
         Logger("PerfTest3", Debug, "received decision for " + inst)
       } else if (flag == Late) {
         val inst = msg.instance
+        msg.release
         rt.stopInstance(inst)
         proposeDecision(inst, null)
         Logger("PerfTest3", Debug, "received late for " + inst)
@@ -195,23 +195,6 @@ class PerfTest3(options: RuntimeOptions,
     } finally {
       lck.unlock
     }
-  }
-  
-  def sendRecoveryInfo(m: Message) = {
-    val inst = m.instance
-    val payload = PooledByteBufAllocator.DEFAULT.buffer()
-    val sender = m.senderId
-    payload.writeLong(8)
-    var tag = Tag(0,0)
-    getDec(inst) match {
-      case Some(d) =>
-        tag = Tag(inst,0,Decision,0)
-        payload.writeInt(d.size)
-        payload.writeBytes(d)
-      case None =>
-        Tag(inst,0,Late,0)
-    }
-    rt.sendMessage(sender, tag, payload)
   }
   
   def wakeupOthers(inst: Short) {
