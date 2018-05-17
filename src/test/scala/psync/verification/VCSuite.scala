@@ -4,7 +4,7 @@ import psync.formula._
 import psync.formula.InlineOps._
 import psync.logic.CL
 import psync.logic.TestCommon._
-import psync.logic.quantifiers.{Eager, Guided, Sequence}
+import psync.logic.quantifiers.Eager
 import dzufferey.utils.Logger
 
 import org.scalatest._
@@ -34,8 +34,8 @@ class VCSuite extends FunSuite {
   test("Otr") {
     import psync.logic.OtrExample._
 
-    val cl = new CL(cln(2, new Guided(Some(1)), true))
-    val cl2 = new CL( cln(3, new Sequence(new Eager(Some(1)), new Guided(Some(1))), true))
+    val cl = new CL(cln(2, new Eager(Some(1)), true))
+    val cl2 = new CL( cln(3, new Eager(Some(2)), true))
 
     val vcs = Seq(
       new SingleVC("invariant implies agreement", invariantAgreement, True(), agreement, Nil, cl),

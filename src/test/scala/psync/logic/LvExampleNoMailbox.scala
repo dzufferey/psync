@@ -213,19 +213,16 @@ class LvExampleNoMailbox extends FunSuite {
   test("initial state implies invariant") {
     val fs = List(initialState, Not(invariant1))
     assertUnsat(fs, c2e1)
-    assertUnsat(fs, c2g1)
   }
 
   test("invariant implies agreement") {
     val fs = List(invariant1, Not(agreement))
     assertUnsat(fs, c2e1)
-    assertUnsat(fs, c2g1)
   }
   
   test("validity holds initially") {
     val fs = List(initialState, Not(validity))
     assertUnsat(fs, c2e1)
-    assertUnsat(fs, c2g1)
   }
 
   test("maxTS") {
@@ -238,7 +235,6 @@ class LvExampleNoMailbox extends FunSuite {
       Neq(maxTS(i), v)
     )
     assertUnsat(fs, c2e1)
-    assertUnsat(fs, c2g1)
   }
 
   //TODO those completely blow-up

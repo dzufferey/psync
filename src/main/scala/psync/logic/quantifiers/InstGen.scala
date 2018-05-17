@@ -115,24 +115,4 @@ object InstGen {
     And(leftOver ++ insts :_*)
   }
   
-  def makeGuidedGenerator( axioms: List[Formula],
-                           depth: Option[Int],
-                           cClasses: CC,
-                           additionalTerms: Iterable[Formula]): IncrementalGenerator = {
-    val cc = cClasses.mutable
-    //push all the terms to be sure
-    additionalTerms.foreach(cc.repr)
-    FormulaUtils.collectGroundTerms(And(axioms:_*)).foreach(cc.repr)
-    //make sure formula is taken into account
-    cc.addConstraints(axioms)
-    new IncrementalGenerator(axioms, new Guided(depth), cc)
-  }
-
-  def makeGuidedGenerator( axioms: Formula,
-                           depth: Option[Int] = None,
-                           cClasses: CC = new CongruenceClosure,
-                           additionalTerms: Iterable[Formula] = Nil): IncrementalGenerator = {
-    makeGuidedGenerator(FormulaUtils.getConjuncts(axioms), depth, cClasses, additionalTerms)
-  }
- 
 }

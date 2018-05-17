@@ -120,7 +120,7 @@ class VsExample extends FunSuite {
 
   test("Sanity check 7") {
     assertSat(List(r1, inv0, inv1, inv2),
-              reducer = cln(1, new quantifiers.Guided(Some(1)), true),
+              reducer = cln(1, new quantifiers.Eager(Some(1)), true),
               to = 60000)
   }
 
@@ -136,14 +136,14 @@ class VsExample extends FunSuite {
 
   ignore("inv1 inductive") {
     assertUnsat(List(r1, inv0, inv1, inv2, Not(prime(inv1))),
-                reducer = cln(1, new quantifiers.Guided(Some(1)), true),
+                reducer = cln(1, new quantifiers.Eager(Some(1)), true),
                 to = 60000)
   }
 
   //need higher bound -> lots of memory...
   ignore("inv2 inductive") {
     assertUnsat(List(r1, inv0, inv1, inv2, Not(prime(inv2))),
-                reducer = cln(2, new quantifiers.Guided(Some(1)), true),
+                reducer = cln(2, new quantifiers.Eager(Some(1)), true),
                 to = 60000)
   }
 
