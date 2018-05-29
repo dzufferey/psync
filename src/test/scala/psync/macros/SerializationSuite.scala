@@ -2,6 +2,7 @@ package psync.macros
 
 import psync._
 import psync.runtime._
+import psync.utils.serialization._
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.PooledByteBufAllocator
 import org.scalacheck._
@@ -166,26 +167,23 @@ class SerializationSuite extends Properties("Serialization") {
   }
 
   val serializer = KryoSerializer.serializer
-  val kryoOut = new ByteBufInputKryoOutput(null)
-  val kryoIn = new ByteBufInputKryoInput(null)
+  val kryoOut = new KryoByteBufOutput(null)
+  val kryoIn = new KryoByteBufInput(null)
   serializer.register(classOf[Byte])
   serializer.register(classOf[Int])
   serializer.register(classOf[String])
-  serializer.register(classOf[Array[_]])
   serializer.register(classOf[Array[Byte]])
   serializer.register(classOf[Seq[_]])
-  serializer.register(classOf[Option[_]])
-  serializer.register(classOf[Some[_]])
   serializer.register(classOf[Tuple1[_]])
   serializer.register(classOf[Tuple2[_,_]])
   serializer.register(classOf[Tuple3[_,_,_]])
-  serializer.register(None.getClass)
   serializer.register(Nil.getClass)
 
   //Try custom serializers
   import com.esotericsoftware.kryo.io.{Input, Output}
   import com.esotericsoftware.kryo.{Kryo, Serializer}
   class TreeSerializer extends Serializer[Tree] {
+    setImmutable(true)
     def write(kryo: Kryo, output: Output, t: Tree) = t match {
       case Leaf =>
         output.writeByte(-1)
@@ -207,11 +205,39 @@ class SerializationSuite extends Properties("Serialization") {
       }
     }
   }
-  serializer.register(classOf[Tree], new TreeSerializer)
-  serializer.register(Leaf.getClass, new TreeSerializer)
-  serializer.register(classOf[Node], new TreeSerializer)
+
+  implicit lazy val treeSerializer: Serializer[Tree] = new TreeSerializer 
+
+  serializer.register(classOf[Tree], treeSerializer)
+  serializer.register(Leaf.getClass, treeSerializer)
+  serializer.register(classOf[Node], treeSerializer)
 
   import scala.reflect.ClassTag
+
+  class OptionSerializer extends Serializer[Option[_]] {
+    setImmutable(true)
+    def write(kryo: Kryo, output: Output, opt: Option[_]) = opt match {
+      case None =>
+        output.writeByte(-1)
+      case Some(v) =>
+        output.writeByte(0)
+        kryo.writeClassAndObject(output, v)
+    }
+    def read(kryo: Kryo, input: Input, ct: Class[Option[_]]): Option[_] = {
+      val b = input.readByte()
+      if (b != 0) {
+        None
+      } else {
+        val v = kryo.readClassAndObject(input)
+        Some(v)
+      }
+    }
+  }
+
+  serializer.register(classOf[Option[_]], new OptionSerializer)
+  serializer.register(classOf[Some[_]], new OptionSerializer)
+  serializer.register(None.getClass, new OptionSerializer)
+
 
   implicit lazy val arbSome: Arbitrary[Some[Int]] = Arbitrary(for {v <- Arbitrary.arbitrary[Int]} yield Some(v))
 
@@ -253,7 +279,7 @@ class SerializationSuite extends Properties("Serialization") {
   property("String with Kryo") = Prop forAll { (value: String) => kryoTest(value) }
   property("Some[Int] with Kryo") = Prop forAll { (value: Some[Int]) => kryoTest(value) }
   property("Array[Byte] with Kryo") = Prop forAll { (value: Array[Byte]) => kryoTest(value, compareArray[Byte]) }
-  //property("Option[Int] with Kryo") = Prop forAll { (value: Option[Int]) => kryoTest(value) }
+  property("Option[Int] with Kryo") = Prop forAll { (value: Option[Int]) => kryoTest(value) }
   //property("Seq[Byte] with Kryo") = Prop forAll { (value: Seq[Byte]) => kryoTest(value) }
   property("Tree with Kryo") = Prop forAll { (value: Tree) => kryoTest(value) }
 
