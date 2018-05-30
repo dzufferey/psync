@@ -147,4 +147,32 @@ class VsExample extends FunSuite {
                 to = 60000)
   }
 
+  test("check 0") {
+    val log0 = UnInterpretedFct("log0", Some(pid ~> FMap(key, Product(Int, Bool))))
+    val log1 = UnInterpretedFct("log1", Some(pid ~> FMap(key, Product(Int, Bool))))
+    val f = And(
+      log0(coord).isDefinedAt(li0-1),
+      log0(coord).lookUp(li0-1)._2,
+      log1(coord).isDefinedAt(li1-1),
+      Not(log1(coord).lookUp(li1-1)._2),
+      li0 === li1,
+      log1(coord) === log0(coord).updated(li0, Tuple(1, False()))
+    )
+    assertUnsat(List(f))
+  }
+
+  test("check 1") {
+    val newlog0 = UnInterpretedFct("log0", Some(pid ~> FMap(key, Bool)))
+    val newlog1 = UnInterpretedFct("log1", Some(pid ~> FMap(key, Bool)))
+    val f = And(
+      newlog0(coord).isDefinedAt(li0-1),
+      newlog0(coord).lookUp(li0-1),
+      newlog1(coord).isDefinedAt(li1-1),
+      Not(newlog1(coord).lookUp(li1-1)),
+      li0 === li1,
+      newlog1(coord) === newlog0(coord).updated(li0, False())
+    )
+    assertUnsat(List(f))
+  }
+
 }

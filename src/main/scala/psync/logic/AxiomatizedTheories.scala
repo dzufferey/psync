@@ -155,6 +155,7 @@ object MapUpdateAxioms extends AxiomatizedTheory {
     val k = Variable("k").setType(kt)
     val k1 = Variable("k1").setType(kt)
     val k2 = Variable("k2").setType(kt)
+    val k3 = Variable("k3").setType(kt)
     val v = Variable("v").setType(vt)
     val i = Variable("i").setType(Int)
     List(
@@ -164,14 +165,15 @@ object MapUpdateAxioms extends AxiomatizedTheory {
           Eq(Updated(m1, k, v), m2),
           Eq(LookUp(m2, k), v))),
       //∀ m,k1,v,k2. k1≠k2 ⇒ LookUp(Updated(m,k1,v), k2) = LookUp(m,k2)
-      ForAll(List(m1,m2,k1,k2,v),
+      ForAll(List(m1,m2,k1,k2,k3,v),
         Implies(
           And(
             Not(Eq(k1, k2)),
+            Eq(k2, k3),
             Eq(Updated(m1, k1, v), m2),
             In(k2, KeySet(m1))
           ),
-          Eq(LookUp(m2, k2), LookUp(m1,k2)))),
+          Eq(LookUp(m2, k2), LookUp(m1,k3)))),
       //∀ m,k,v. KeySet(Updated(m,k,v)) = KeySet(m) ∪ {k}
       ForAll(List(m1,m2,k1,k2,v),
         Implies(
