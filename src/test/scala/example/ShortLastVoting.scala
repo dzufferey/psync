@@ -7,6 +7,7 @@ package example
 import psync._
 import psync.Time._
 import psync.macros.Macros._
+import psync.utils.serialization._
 
 class SlvProcess extends Process[ConsensusIO] {
 

@@ -4,6 +4,7 @@ import psync._
 import psync.Time._
 import psync.formula._
 import psync.macros.Macros._
+import psync.utils.serialization._
 
 class LastVoting extends Algorithm[ConsensusIO, LVProcess] {
 

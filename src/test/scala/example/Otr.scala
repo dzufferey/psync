@@ -4,6 +4,7 @@ import psync._
 import psync.formula._
 import psync.macros.Macros._
 import psync.verification.{requires,ensures}
+import psync.utils.serialization._
 
 //like OTR but uses a boolean flag instead of an option for the decision
 

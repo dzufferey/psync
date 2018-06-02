@@ -3,6 +3,7 @@ package example
 import psync._
 import psync.runtime._
 import psync.macros.Macros._
+import psync.utils.serialization._
 
 class CgolIO(val id: Int, val rows: Int, val cols: Int, val init: Boolean) { }
 

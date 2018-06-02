@@ -11,6 +11,8 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.ConcurrentSkipListSet
 import scala.util.Random
 import io.netty.buffer.PooledByteBufAllocator
+import scala.reflect.ClassTag
+import psync.utils.serialization._
 
 class PerfTest2(options: RuntimeOptions,
                 nbrValues: Short,
@@ -54,11 +56,9 @@ class PerfTest2(options: RuntimeOptions,
   val selfStarted = new ConcurrentSkipListSet[Short]()
 
   def getValue(msg: Message): Int = {
-    import scala.pickling._
-    import scala.pickling.Defaults._
-    import binary._
     if ( (algorithm == "lv" && msg.round % 4 == 0) ||
          (algorithm == "slv" &&  msg.round % 3 == 0) ) {
+      //XXX
       msg.getContent[(Int,Time)]._1
     } else {
       msg.getContent[Int]

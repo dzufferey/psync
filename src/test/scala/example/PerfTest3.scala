@@ -12,6 +12,8 @@ import java.util.concurrent.ConcurrentSkipListSet
 import java.util.concurrent.TimeUnit
 import scala.util.Random
 import io.netty.buffer.PooledByteBufAllocator
+import scala.reflect.ClassTag
+import psync.utils.serialization._
 
 class PerfTest3(options: RuntimeOptions,
                 nbrValues: Int,

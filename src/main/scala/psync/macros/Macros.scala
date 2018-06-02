@@ -14,7 +14,6 @@ class Impl(val c: Context) extends Lifting
                            with TrExtractor
                            with ProcessRewrite 
                            with RoundRewrite
-                           with Serialization
 {
   import c.universe._
 
@@ -34,22 +33,6 @@ class Impl(val c: Context) extends Lifting
     res2
   }
 
-  /*
-  //def process(e: c.Expr[Process]): c.Expr[Process] = {
-  def process[T <: Process[_]](e: c.Expr[T]): c.Expr[T] = {
-    try {
-      val res = processRewrite(e.tree)
-      val res2 = c.Expr[T](q"$res")
-      //println(res2)
-      res2
-    } catch {
-      case e: Throwable =>
-        e.printStackTrace
-        c.abort(c.enclosingPosition, e.toString)
-    }
-  }
-  */
-  
   def init/*[IO](io: c.Expr[IO])*/(e: c.Expr[Unit]): c.Expr[Unit] = {
     try {
       val res = extractInit(/*io.tree,*/ e.tree)

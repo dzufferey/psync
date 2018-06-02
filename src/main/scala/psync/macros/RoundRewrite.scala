@@ -36,19 +36,16 @@ trait RoundRewrite {
     case _ => false
   }
   
-
-  protected def wrapRound(tree: Tree) = tree match {
-    case q"new psync.Round[$tpt] { ..$body }" =>
+  /*
+  protected def addVerifAnnot(tree: Tree) = tree match {
+    case q"new psync.Round[$tpt](implicit $i1: scala.reflect.ClassTag[_], implicit $i2: psync.utils.serialization.KryoRegistration[_]) { ..$body }" =>
       val (snd, upd, aux) = traverseBody(body)
       val tr = processSendUpdate(snd, upd)
       val sndS = snd.toString
       val updS = upd.toString
       val treeAuxMap = mkAuxMap(aux)
-      val serialization = serializationMethods(tpt)
-      q"""new psync.RoundWrapper {
-        type A = $tpt
-        val r = $tree
-        ..$serialization
+      q"""new psync.Round[$tpt](implicit $i1: scala.reflect.ClassTag[$tpt], implicit $i2: psync.utils.serialization.KryoRegistration[$tpt]) {
+        ..$body
         override def sendStr: String = $sndS
         override def updtStr: String = $updS
         override def rawTR: psync.verification.RoundTransitionRelation = $tr
@@ -58,13 +55,18 @@ trait RoundRewrite {
       //TODO if it is not a "new Round" we can still wrap it, the only difference is that we cannot get the spec!
       c.abort(tree.pos, "expected new Round[A], found: " + tree)
   }
+  */
 
 
-  protected def processRound(t: Tree) = {// t match {
-      val tree = wrapRound(t)
+  protected def processRound(t: Tree): Tree = {// t match {
+      /*
+      val tree = addVerifAnnot(t)
       //println("generated round: " + show(tree))
       //c.typecheck(tree)
       tree
+      */
+      c.echo(t.pos, "TODO generate info for verification")
+      t
   }
 
 }
