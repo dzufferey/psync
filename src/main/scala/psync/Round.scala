@@ -60,13 +60,7 @@ abstract class Round[A: ClassTag: KryoRegistration] extends RtRound {
     group = g
   }
   
-  protected val serializer = {
-    val kryo = KryoSerializer.serializer
-    val reg = implicitly[KryoRegistration[A]]
-    reg.registerClasses.foreach( kryo.register(_) )
-    reg.registerClassesWithSerializer.foreach{ case (c, s) => kryo.register(c, s) }
-    kryo
-  }
+  protected val serializer = implicitly[KryoRegistration[A]].register(KryoSerializer.serializer)
   protected val kryoOut = new KryoByteBufOutput(null) //TODO could be shared at the process level or threadlocal
   protected val kryoIn = new KryoByteBufInput(null) //TODO could be shared at the process level or threadlocal
   

@@ -13,6 +13,7 @@ import scala.util.Random
 import io.netty.buffer.PooledByteBufAllocator
 import scala.reflect.ClassTag
 import psync.utils.serialization._
+import com.esotericsoftware.kryo.Kryo
 
 class PerfTest2(options: RuntimeOptions,
                 nbrValues: Short,
@@ -55,13 +56,16 @@ class PerfTest2(options: RuntimeOptions,
   val nbr = new AtomicLong(0l)
   val selfStarted = new ConcurrentSkipListSet[Short]()
 
+  val kryo = new ThreadLocal[Kryo] {
+    override def initialValue = regIntTimePair.register(KryoSerializer.serializer)
+  }
+
   def getValue(msg: Message): Int = {
     if ( (algorithm == "lv" && msg.round % 4 == 0) ||
          (algorithm == "slv" &&  msg.round % 3 == 0) ) {
-      //XXX
-      msg.getContent[(Int,Time)]._1
+      msg.getContent[(Int,Time)](kryo.get)._1
     } else {
-      msg.getContent[Int]
+      msg.getContent[Int](kryo.get)
     }
   }
 

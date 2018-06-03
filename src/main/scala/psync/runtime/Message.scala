@@ -7,6 +7,7 @@ import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import io.netty.buffer.ByteBuf
 import psync.utils.serialization.{KryoRegistration, KryoSerializer, KryoByteBufInput, KryoByteBufOutput}
+import com.esotericsoftware.kryo.Kryo
 import scala.reflect.ClassTag
 
 import dzufferey.utils.Logger
@@ -27,12 +28,14 @@ class Message(val packet: DatagramPacket, dir: Group){
   def round = tag.roundNbr
   
   def getContent[A: ClassTag: KryoRegistration]: A = {
+    val kryo = KryoSerializer.serializer
+    implicitly[KryoRegistration[A]].register(kryo)
+    getContent[A](kryo)
+  }
+
+  def getContent[A: ClassTag](kryo: Kryo): A = {
     val idx: Int = payload.readerIndex()
     payload.readerIndex(idx + tag.size)
-    val kryo = KryoSerializer.serializer
-    val reg = implicitly[KryoRegistration[A]]
-    reg.registerClasses.foreach( kryo.register(_) )
-    reg.registerClassesWithSerializer.foreach{ case (c, s) => kryo.register(c, s) }
     val kryoIn = new KryoByteBufInput(payload)
     val result = kryo.readObject(kryoIn, implicitly[ClassTag[A]].runtimeClass).asInstanceOf[A]
     payload.readerIndex(idx)
@@ -93,12 +96,14 @@ object Message {
   }
 
   def setContent[A: KryoRegistration](tag:Tag, buffer: ByteBuf, value: A) {
+    val kryo = KryoSerializer.serializer
+    implicitly[KryoRegistration[A]].register(kryo)
+    setContent(kryo, tag, buffer, value)
+  }
+
+  def setContent[A](kryo: Kryo, tag:Tag, buffer: ByteBuf, value: A) {
     val idx: Int = buffer.writerIndex()
     buffer.writerIndex(idx + tag.size)
-    val kryo = KryoSerializer.serializer
-    val reg = implicitly[KryoRegistration[A]]
-    reg.registerClasses.foreach( kryo.register(_) )
-    reg.registerClassesWithSerializer.foreach{ case (c, s) => kryo.register(c, s) }
     val kryoOut = new KryoByteBufOutput(buffer)
     kryo.writeObject(kryoOut, value)
     buffer.writerIndex(idx)
