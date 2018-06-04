@@ -70,7 +70,7 @@ abstract class RtProcess {
       buffer.writeLong(tag.underlying)
       buffer
     }
-    currentRound.packSend(getBuffer, sending)
+    currentRound.packSend(() => getBuffer(), sending)
   }
 
   protected[psync] final def receive(sender: ProcessID, payload: io.netty.buffer.ByteBuf): Boolean = {
