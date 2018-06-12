@@ -13,6 +13,7 @@ import io.netty.channel.socket._
 import io.netty.channel.socket.nio._
 import io.netty.util.CharsetUtil
 import java.util.concurrent.Semaphore
+import psync.utils.serialization._
 
 
 class LockManager(self: Short,
@@ -81,9 +82,6 @@ class LockManager(self: Short,
 
     //get the initial value from the msg (to avoid defaulting on -1)
     val content: Int = {
-      import scala.pickling._
-      import scala.pickling.Defaults._
-      import binary._
       if (Main.lv) {
         msg.round % 4 match {
           case 0 | 1 | 3 => msg.getContent[(Int,Int)]._1

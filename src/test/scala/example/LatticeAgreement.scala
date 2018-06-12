@@ -3,6 +3,7 @@ package example
 import psync._
 import psync.runtime._
 import psync.macros.Macros._
+import psync.utils.serialization._
 
 /* A simple example of lattice.
  * Due to the way the serializatino code is generated, we need a concrete type
@@ -13,7 +14,15 @@ object Lattice {
   type T = Set[Int]
   def bottom: T = Set[Int]()
   def join(x: T, xs: T*): T = xs.foldLeft(x)(_ union _)
+  implicit val regLatticeT = new KryoRegistration[T] {
+    val setSerializer = new CollectionSerializer[Int, Set[Int]]
+    override def registerClassesWithSerializer = Seq(
+      classOf[T] -> setSerializer
+    )
+  }
 }
+
+import Lattice.regLatticeT
 
 abstract class LatticeIO {
   val initialValue: Lattice.T 

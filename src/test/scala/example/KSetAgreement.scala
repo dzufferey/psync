@@ -3,6 +3,20 @@ package example
 import psync._
 import psync.runtime._
 import psync.macros.Macros._
+import psync.utils.serialization._
+
+object KSetAgreementSerialization {
+  implicit val reg = new KryoRegistration[(Boolean,Map[ProcessID,Int])] {
+    val mapSerializer = new CollectionSerializer[(ProcessID,Int), Map[ProcessID,Int]]
+    override def registerClasses = Seq(classOf[Tuple2[_,_]])
+    override def registerClassesWithSerializer = Seq(
+      classOf[ProcessID] -> new ProcessIDSerializer,
+      classOf[Map[ProcessID,Int]] -> mapSerializer
+    )
+  }
+}
+
+import KSetAgreementSerialization.reg
 
 class KSetProcess(k: Int) extends Process[ConsensusIO] {
   

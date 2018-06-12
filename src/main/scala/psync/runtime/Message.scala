@@ -6,13 +6,12 @@ import io.netty.channel.socket.DatagramPacket
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import io.netty.buffer.ByteBuf
+import psync.utils.serialization.{KryoRegistration, KryoSerializer, KryoByteBufInput, KryoByteBufOutput}
+import com.esotericsoftware.kryo.Kryo
+import scala.reflect.ClassTag
 
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
-
-import scala.pickling._
-import scala.pickling.Defaults._
-import binary._
 
 class Message(val packet: DatagramPacket, dir: Group){
 
@@ -28,11 +27,17 @@ class Message(val packet: DatagramPacket, dir: Group){
   def instance = tag.instanceNbr
   def round = tag.roundNbr
   
-  def getContent[A: Pickler: Unpickler: FastTypeTag]: A = {
+  def getContent[A: ClassTag: KryoRegistration]: A = {
+    val kryo = KryoSerializer.serializer
+    implicitly[KryoRegistration[A]].register(kryo)
+    getContent[A](kryo)
+  }
+
+  def getContent[A: ClassTag](kryo: Kryo): A = {
     val idx: Int = payload.readerIndex()
     payload.readerIndex(idx + tag.size)
-    val pickle = BinaryPickle(new psync.macros.ByteBufInput(payload))
-    val result = pickle.unpickle[A]
+    val kryoIn = new KryoByteBufInput(payload)
+    val result = kryo.readObject(kryoIn, implicitly[ClassTag[A]].runtimeClass).asInstanceOf[A]
     payload.readerIndex(idx)
     result
   }
@@ -88,6 +93,20 @@ object Message {
     val idx: Int = buffer.readerIndex()
     buffer.readerIndex(idx + tag.size)
     buffer
+  }
+
+  def setContent[A: KryoRegistration](tag:Tag, buffer: ByteBuf, value: A) {
+    val kryo = KryoSerializer.serializer
+    implicitly[KryoRegistration[A]].register(kryo)
+    setContent(kryo, tag, buffer, value)
+  }
+
+  def setContent[A](kryo: Kryo, tag:Tag, buffer: ByteBuf, value: A) {
+    val idx: Int = buffer.writerIndex()
+    buffer.writerIndex(idx + tag.size)
+    val kryoOut = new KryoByteBufOutput(buffer)
+    kryo.writeObject(kryoOut, value)
+    buffer.writerIndex(idx)
   }
 
 }

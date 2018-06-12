@@ -77,9 +77,8 @@ class BatchingClient(val options: BatchingClient.type)
             //late: focus on recovery rather than starting instances
             //cheat a bit, if the message is a decision (round % 4 == 3) then process the decision anyway
             if (msg.round % 4 == 3) {
-              import scala.pickling._
-              import scala.pickling.Defaults._
-              import binary._
+              import scala.reflect.ClassTag
+              import psync.utils.serialization._
               val decision = msg.getContent[Array[Byte]]
               proposeDecision(msg.instance, decision)
             }

@@ -2,6 +2,7 @@ package example
 
 import psync._
 import psync.macros.Macros._
+import psync.utils.serialization._
 
 abstract class MlvIO{
   // Left(p) = acceptor, Right(v) = proposer+acceptor

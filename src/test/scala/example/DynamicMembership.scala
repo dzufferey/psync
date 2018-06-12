@@ -14,11 +14,11 @@ import io.netty.util.{TimerTask, Timeout}
 
 import java.util.concurrent.locks.ReentrantLock
 import java.util.concurrent.{Semaphore, ConcurrentLinkedQueue}
+
+import psync.utils.serialization._
+import com.esotericsoftware.kryo.{Kryo, Serializer}
+import com.esotericsoftware.kryo.io.{Input, Output}
     
-import scala.pickling._
-import scala.pickling.Defaults._
-import binary._
-          
 import scala.math.Ordered._
 
 sealed abstract class MembershipOp extends Ordered[MembershipOp] {
@@ -33,6 +33,48 @@ sealed abstract class MembershipOp extends Ordered[MembershipOp] {
 }
 case class AddReplica(address: String, port: Int) extends MembershipOp
 case class RemoveReplica(id: ProcessID) extends MembershipOp
+
+class MembershipOpSerializer extends Serializer[MembershipOp] {
+  setImmutable(true)
+  def write(kryo: Kryo, output: Output, mo: MembershipOp) = mo match {
+    case AddReplica(str, int) =>
+        output.writeByte(1)
+        kryo.writeObject(output, str)
+        output.writeInt(int)
+    case RemoveReplica(pid) =>
+        output.writeByte(2)
+        output.writeShort(pid.id)
+  }
+  def read(kryo: Kryo, input: Input, ct: Class[MembershipOp]): MembershipOp = {
+    val b = input.readByte()
+    if (b == 1) {
+      val str = kryo.readObject(input, classOf[String])
+      val int = input.readInt()
+      AddReplica(str, int)
+    } else if (b == 2) {
+      val s = input.readShort()
+      RemoveReplica(new ProcessID(s))
+    } else {
+      sys.error("unexptected tag: " + b)
+    }
+  }
+}
+
+object MembershipOpSerializer{
+  implicit val reg = new KryoRegistration[MembershipOp] {
+    override def registerClassesWithSerializer = Seq(
+      classOf[MembershipOp] -> new MembershipOpSerializer
+    )
+  }
+  implicit val reg1 = new KryoRegistration[(Int,Short,Short,List[Replica])] {
+    override def registerClasses = Seq(classOf[Tuple4[_,_,_,_]], classOf[Replica])
+    override def registerClassesWithSerializer = Seq(
+      classOf[List[Replica]] -> new CollectionSerializer[Replica, List[Replica]]
+    )
+  }
+}
+
+import MembershipOpSerializer.{reg, reg1}
 
 abstract class MembershipIO {
   val initialValue: MembershipOp
@@ -229,9 +271,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
       val expected = (instanceNbr + 1).toShort
 
       if (inst == expected) {
-        val bytes = msg.getPayLoad
-        val i = BinaryPickle(bytes).unpickle[MembershipOp]
-        //val i = msg.getContent[MembershipOp]
+        val i = msg.getContent[MembershipOp]
         startNextConsensus(Some(expected), Some(i), Set(msg))
 
       } else if (Instance.lt(expected, inst)) {
@@ -280,10 +320,8 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
     Logger("DynamicMembership", Notice, "sending recovery info to " + dest)
     val tag = Tag(0,0,View,0)
     val payload = PooledByteBufAllocator.DEFAULT.buffer()
-    payload.writeLong(8)
     val content = (viewNbr, instanceNbr, dest.id, view.asList)
-    val array = content.pickle.value
-    payload.writeBytes(array)
+    Message.setContent(tag, payload, content)
     rt.sendMessage(dest, tag, payload)
   }
 
@@ -304,9 +342,8 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
   def startRecovery(dest: ProcessID) {
     val tag = Tag(0,0,Recover,0)
     val payload = PooledByteBufAllocator.DEFAULT.buffer()
-    payload.writeLong(8)
-    val array = (address -> port).pickle.value
-    payload.writeBytes(array)
+    val content = (address -> port)
+    Message.setContent(tag, payload, content)
     rt.sendMessage(dest, tag, payload)
   }
 
@@ -321,9 +358,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
     getDec(msg.instance).foreach(d => {
       val tag = Tag(msg.instance,0,Decision,0)
       val payload = PooledByteBufAllocator.DEFAULT.buffer()
-      payload.writeLong(8)
-      val array = d.pickle.value
-      payload.writeBytes(array)
+      Message.setContent(tag, payload, d)
       rt.sendMessage(msg.senderId, tag, payload)
     })
   }
