@@ -19,7 +19,7 @@ object Process {
 /* The type indepent parts that are necessary for the runtime */
 abstract class RtProcess {
 
-  val rounds: Array[RtRound]
+  val rounds: Array[(RtRound,RoundSpec)]
 
   //use private variable to limit what the user can mess-up with
 
@@ -40,7 +40,7 @@ abstract class RtProcess {
     rr = new Time(-1)
     _r = -1
     _id = g.self
-    rounds.foreach(_.setGroup(g))
+    rounds.foreach(_._1.setGroup(g))
     _n = g.size
   }
 
@@ -56,7 +56,7 @@ abstract class RtProcess {
     }
   }
 
-  protected def currentRound: RtRound = rounds(_r)
+  protected def currentRound: RtRound = rounds(_r)._1
 
   protected var allocator: io.netty.buffer.ByteBufAllocator = null
   protected[psync] def setAllocator(a: io.netty.buffer.ByteBufAllocator) {

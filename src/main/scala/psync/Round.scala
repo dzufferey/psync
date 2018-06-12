@@ -116,6 +116,10 @@ abstract class RtRound {
 
   protected[psync] def setGroup(g: psync.runtime.Group): Unit
 
+}
+
+class RoundSpec {
+
   //////////////////////
   // for verification //
   //////////////////////

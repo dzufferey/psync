@@ -45,7 +45,7 @@ class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P])(implicit tag: Type
     spec.invariants.foreach(w)
     spec.properties.map(_._2).foreach(w)
     process.initState.map(w)
-    for(r <- process.rounds) {
+    for( (_,r) <- process.rounds) {
       val t = r.rawTR
       w(t.send)
       w(t.update)
@@ -102,7 +102,7 @@ class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P])(implicit tag: Type
     FormulaUtils.map( guessType2, f2)
   }
 
-  var roundsTR = process.rounds.map( r => (r.rawTR.retype(procAllVars), r.auxSpec) )
+  var roundsTR = process.rounds.map{ case (_,r) => (r.rawTR.retype(procAllVars), r.auxSpec) }
 
   val additionalAxioms = alg.axiomList.map(_.formula)
 
@@ -317,8 +317,8 @@ class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P])(implicit tag: Type
     val rnds = new List("Rounds")
     for ( i <- process.rounds.indices ) {
       val lst = new List("Round " + i)
-      lst.add(new Code("Send", process.rounds(i).sendStr))
-      lst.add(new Code("Update", process.rounds(i).updtStr))
+      lst.add(new Code("Send", process.rounds(i)._2.sendStr))
+      lst.add(new Code("Update", process.rounds(i)._2.updtStr))
       val tr = roundsTR(i)._1
       val aux = roundsTR(i)._2
       val f = tr.makeFullTr(procLocalVars /*++ procGhostVars*/, aux)
