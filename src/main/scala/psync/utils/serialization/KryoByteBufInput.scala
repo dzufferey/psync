@@ -58,22 +58,23 @@ class KryoByteBufInput(protected var bbuffer: ByteBuf) extends Input {
   override def readBytes(bytes: Array[Byte], offset: Int, count: Int) {
     bbuffer.readBytes(bytes, offset, count)
   }
+  // TODO variable encoding
   override def readInt(): Int = bbuffer.readInt
-  override def readInt(optimizePositive: Boolean): Int = bbuffer.readInt // TODO variable encoding
-  override def readVarInt (optimizePositive: Boolean): Int = bbuffer.readInt // TODO variable encoding
+  override def readInt(optimizePositive: Boolean): Int = bbuffer.readInt
+  override def readVarInt (optimizePositive: Boolean): Int = bbuffer.readInt
   override def canReadInt(): Boolean = available >= 4
   override def canReadLong(): Boolean = available >= 8
   override def readString() = bbuffer.toString(StandardCharsets.UTF_8)
   override def readStringBuilder () = new java.lang.StringBuilder(readString)
   override def readFloat() = bbuffer.readFloat
-  override def readFloat(precision: Float, optimizePositive: Boolean) = bbuffer.readFloat // TODO
+  override def readFloat(precision: Float, optimizePositive: Boolean) = bbuffer.readFloat
   override def readShort() = bbuffer.readShort
   override def readShortUnsigned() = bbuffer.readUnsignedShort
   override def readLong() = bbuffer.readLong
-  override def readLong(optimizePositive: Boolean) = bbuffer.readLong // TODO
-  override def readVarLong(optimizePositive: Boolean) = bbuffer.readLong // TODO
+  override def readLong(optimizePositive: Boolean) = bbuffer.readLong
+  override def readVarLong(optimizePositive: Boolean) = bbuffer.readLong 
   override def readBoolean() = bbuffer.readBoolean
   override def readChar() = bbuffer.readChar
   override def readDouble() = bbuffer.readDouble
-  override def readDouble(precision: Double, optimizePositive: Boolean) = bbuffer.readDouble // TODO
+  override def readDouble(precision: Double, optimizePositive: Boolean) = bbuffer.readDouble
 }

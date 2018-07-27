@@ -26,6 +26,7 @@ class KryoByteBufOutput(protected var bbuffer: ByteBuf) extends Output {
   }
   override def flush() {}
   override def close() {} 
+  // TODO variable encoding
   override def write(value: Int) = bbuffer.writeByte(value.toByte)
   override def write(bytes: Array[Byte]) = bbuffer.writeBytes(bytes)
   override def write(bytes: Array[Byte], offset: Int, length: Int) = bbuffer.writeBytes(bytes, offset, length)
@@ -34,20 +35,20 @@ class KryoByteBufOutput(protected var bbuffer: ByteBuf) extends Output {
   override def writeBytes(bytes: Array[Byte]) = bbuffer.writeBytes(bytes)
   override def writeBytes(bytes: Array[Byte], offset: Int, count: Int) = bbuffer.writeBytes(bytes, offset, count)
   override def writeInt(value: Int) = bbuffer.writeInt(value)
-  override def writeInt(value: Int, optimizePositive: Boolean) = { bbuffer.writeInt(value); 4 } // TODO
-  override def writeVarInt(value: Int, optimizePositive: Boolean) = { bbuffer.writeInt(value); 4 } // TODO
+  override def writeInt(value: Int, optimizePositive: Boolean) = { bbuffer.writeInt(value); 4 } // linter:ignore InvariantReturn
+  override def writeVarInt(value: Int, optimizePositive: Boolean) = { bbuffer.writeInt(value); 4 } // linter:ignore InvariantReturn
   override def writeString(value: String) = ByteBufUtil.writeUtf8(bbuffer, value)
   override def writeString(value: CharSequence) = ByteBufUtil.writeUtf8(bbuffer, value)
   override def writeAscii(value: String) =  ByteBufUtil.writeAscii(bbuffer, value)
   override def writeFloat(value: Float) = bbuffer.writeFloat(value)
-  override def writeFloat(value: Float, precision: Float, optimizePositive: Boolean) = { bbuffer.writeFloat(value); 4 } // TODO
+  override def writeFloat(value: Float, precision: Float, optimizePositive: Boolean) = { bbuffer.writeFloat(value); 4 } // linter:ignore InvariantReturn
   override def writeShort(value: Int) = bbuffer.writeShort(value.toShort)
   override def writeLong(value: Long) = bbuffer.writeLong(value)
-  override def writeLong(value: Long, optimizePositive: Boolean) = { bbuffer.writeLong(value); 8 } // TODO
-  override def writeVarLong(value: Long, optimizePositive: Boolean) = { bbuffer.writeLong(value); 8 } // TODO
+  override def writeLong(value: Long, optimizePositive: Boolean) = { bbuffer.writeLong(value); 8 } // linter:ignore InvariantReturn
+  override def writeVarLong(value: Long, optimizePositive: Boolean) = { bbuffer.writeLong(value); 8 } // linter:ignore InvariantReturn
   override def writeBoolean(value: Boolean) = bbuffer.writeBoolean(value)
   override def writeChar(value: Char) = bbuffer.writeChar(value)
   override def writeDouble(value: Double) = bbuffer.writeDouble(value)
-  override def writeDouble(value: Double, precision: Double, optimizePositive: Boolean) = { bbuffer.writeDouble(value); 8 } // TODO
+  override def writeDouble(value: Double, precision: Double, optimizePositive: Boolean) = { bbuffer.writeDouble(value); 8 } // linter:ignore InvariantReturn
 }
 

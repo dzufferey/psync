@@ -152,9 +152,9 @@ Currently broken (while we move toward a more robust encoding of the mailbox w.r
 
 ## Compiling
 
-This project requires java 7.
-You can build it using [sbt](http://www.scala-sbt.org/).
-To install sbt follow the instructions at [http://www.scala-sbt.org/release/tutorial/Setup.html](http://www.scala-sbt.org/release/tutorial/Setup.html).
+This project requires java 8.
+You can build it using [sbt](https://www.scala-sbt.org/).
+To install sbt follow the instructions at [https://www.scala-sbt.org/release/docs/Setup.html](https://www.scala-sbt.org/release/docs/Setup.html).
 
 Then, in a console, execute:
 ```
