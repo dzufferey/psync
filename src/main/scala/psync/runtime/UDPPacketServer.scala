@@ -91,7 +91,7 @@ class UDPPacketServerHandler(
         defaultHandler(pkt)
     } catch {
       case t: Throwable =>
-        Logger("UDPPacketServerHandler", Warning, "got " + t)
+        Logger("UDPPacketServerHandler", Error, "got " + t + "\n  " + t.getStackTrace.mkString("\n  "))
     }
   }
 

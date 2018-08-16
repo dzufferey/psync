@@ -197,6 +197,7 @@ class TCPPacketServer(
       override def operationComplete(future: ChannelFuture) {
         if (future.cause() != null) {
           Logger("TCPPacketServer", Warning, "Couldn't connect, trying again...")
+          future.channel.close
           delayedStartConnection(replica)
         }
       }

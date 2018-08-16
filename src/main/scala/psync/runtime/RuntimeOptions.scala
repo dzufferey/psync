@@ -54,7 +54,7 @@ trait RuntimeOptions {
   protected var _workers: Workers = Adapt
   protected var _port = -1
   protected var _dispatch = 7
-  protected var _connectionRestartPeriod = 250
+  protected var _connectionRestartPeriod = 1000
   protected var _acceptUnknownConnection = false
 
 }

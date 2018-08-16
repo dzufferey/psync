@@ -12,14 +12,19 @@ import io.netty.channel.nio._
 import io.netty.channel.socket._
 import io.netty.channel.socket.nio._
 import io.netty.util.CharsetUtil
-import java.util.concurrent.Semaphore
+import java.util.concurrent.locks.ReentrantLock
 import psync.utils.serialization._
+import com.esotericsoftware.kryo.Kryo
 
+/* A simple example that shows how to use PSync algorithm to accomplish in a "larger" system.
+ * However, the example is simpler than what it should be. For instance, it does not deal with
+ * overflow in the running/version number, the client request should have unique id, etc.
+ */
 
 class LockManager(self: Short,
                   clientPort: Int) {
  
-  type ProcessID = Short
+  final val Decision = 4
 
   ////////////////
   //local state //
@@ -27,51 +32,112 @@ class LockManager(self: Short,
   @volatile
   private var locked: Option[ProcessID] = None //who has the lock
   @volatile
-  private var versionNbr = 0
+  private var versionNbr: Short = 0
+  private var runningNbr: Short = 0
 
   ///////////////
   // Consensus //
   ///////////////
   
-  private val semaphore = new Semaphore(1, true) //at most one consensus at the time
+  private val lock = new ReentrantLock
+  
+  val kryo = new ThreadLocal[Kryo] {
+    override def initialValue = regIntTimePair.register(KryoSerializer.serializer)
+  }
 
   private val consensus: Runtime[ConsensusIO,_] = {
     if (Main.lv) new Runtime(new LastVoting, Main, defaultHandler(_))
     else new Runtime(new OTR, Main, defaultHandler(_))
   }
 
-  private def onDecideOther(decision: Option[ProcessID]) {
-    locked = decision
-    versionNbr += 1 
-    semaphore.release
+  private def onDecide(version: Short, decision: Option[ProcessID]) {
+    lock.lock
+    if (version > versionNbr) {
+      locked = decision
+      versionNbr = version
+      pendingRequest.foreach{ case (client, v) =>
+        if (v < version) {
+          client.reply(None)
+          pendingRequest = None
+        } else if (v == version) {
+          client.reply(decision)
+          pendingRequest = None
+        }
+      }
+      Logger("LockManager", Notice, "decision: " + locked + " @ " + versionNbr)
+    }
+    lock.unlock
   }
 
-  private def onDecideSelf(client: Client, decision: Option[ProcessID]) {
-    onDecideOther(decision)
-    client.reply(decision)
+  private def recover(msg: Message) {
+    lock.lock
+    for(potentiallyRunning <- (versionNbr+1) to runningNbr) {
+      consensus.stopInstance(potentiallyRunning.toShort)
+    }
+    val version = msg.instance
+    runningNbr = math.max(runningNbr, version).toShort
+    val state = msg.getContent[Int](kryo.get)
+    val dec = if (state == -1) None else Some(new ProcessID(state.toShort))
+    Logger("LockManager", Notice, "got recovery message " + state + " @ " + version)
+    onDecide(version, dec)
+    lock.unlock
   }
 
-  //TODO we can get some deadlock here!
-  private def startConsensus(expectedInstance: Short, io: ConsensusIO, msgs: Set[Message] = Set.empty) {
-    Logger("LockManager", Notice, "starting consensus with value " + io.initialValue)
+  private def sendRecoveryInfo(m: Message) = {
+    val tag = Tag(versionNbr, 0, Decision, 0)
+    val state: Int = if (locked == None) -1 else locked.get.id
+    val payload = m.payload
+    payload.clear
+    payload.retain
+    m.release
+    Message.setContent[Int](kryo.get, tag, payload, state)
+    val sender = m.senderId
+    Logger("LockManager", Notice, "sending decision " + state + " @ " + versionNbr + " to " + sender)
+    consensus.sendMessage(sender, tag, payload)
+  }
+
+  private def askRecoveryInfo(m: Message) = {
+    val tag = Tag(versionNbr, 0, Flags.dummy, 0)
+    val payload = m.payload
+    payload.clear
+    payload.retain
+    m.release
+    Message.setContent[Int](kryo.get, tag, payload, 0)
+    val sender = m.senderId
+    Logger("LockManager", Notice, "asking decision" + versionNbr + " to " + sender)
+    consensus.sendMessage(sender, tag, payload)
+  }
+
+  private def startConsensus(client: Option[Client], expectedInstance: Short, io: ConsensusIO, msgs: Set[Message] = Set.empty) {
     //enter critical section
-    semaphore.acquire
+    lock.lock
+    val nextInstance = (runningNbr + 1).toShort
     //check instanceNbr
-    if (expectedInstance == versionNbr + 1) {
+    if (expectedInstance == nextInstance) {
       //make the paramerter and start the instance
+      Logger("LockManager", Notice, "starting consensus " + expectedInstance + " with value " + io.initialValue)
       consensus.startInstance(expectedInstance, io, msgs)
+      runningNbr = expectedInstance
+      client.foreach( c => {
+        assert(pendingRequest == None)
+        pendingRequest = Some(c -> expectedInstance)
+      })
     } else if (expectedInstance <= versionNbr){
       //msg.sender is late
       //or race on receiving msg and the default handler (message was blocked in the pipeline)
       //our implementation should exclude the later case ...
+      msgs.foreach(sendRecoveryInfo)
+    } else if (expectedInstance == runningNbr){
+      //some funny interleaving happened but fine
       msgs.foreach(_.release)
-      semaphore.release
     } else { //if (expectedInstance > versionNbr+1){
-      //we are late
-      //start recovery ?
-      msgs.foreach(_.release)
-      semaphore.release
+      Logger("LockManager", Warning, "we are late " + runningNbr + " but should be at " + expectedInstance)
+      msgs.foreach(askRecoveryInfo)
+      client.foreach( c => {
+        c.reply(None)
+      })
     }
+    lock.unlock
   }
 
   //////////////////////////
@@ -79,29 +145,35 @@ class LockManager(self: Short,
   //////////////////////////
 
   def defaultHandler(msg: Message) = {
+    Logger("LockManager", Debug, "defaultHandler: " + msg.tag)
 
-    //get the initial value from the msg (to avoid defaulting on -1)
-    val content: Int = {
-      if (Main.lv) {
-        msg.round % 4 match {
-          case 0 | 1 | 3 => msg.getContent[(Int,Int)]._1
-          case 2 => -1
-          case _ => sys.error("???")
+    if (msg.flag == Decision) {
+      recover(msg)
+    } else {
+
+      //get the initial value from the msg (to avoid defaulting on -1)
+      val content: Int = {
+        if (Main.lv) {
+          msg.round % 4 match {
+            case 0 => msg.getContent[(Int,Time)](kryo.get)._1
+            case 1 | 2 | 3 => msg.getContent[Int](kryo.get)
+            case _ => sys.error("???")
+          }
+        } else {
+          msg.getContent[Int](kryo.get)
         }
-      } else {
-        msg.getContent[(Int,Int)]._1
       }
-    }
-
-    val io = new ConsensusIO {
-      val initialValue = content
-      def decide(value: Int) {
-        if (value == -1) onDecideOther(None)
-        else onDecideOther(Some(value.toShort))
+ 
+      val io = new ConsensusIO {
+        val initialValue = content
+        def decide(value: Int) {
+          if (value == -1) onDecide(msg.instance, None)
+          else onDecide(msg.instance, Some(new ProcessID(value.toShort)))
+        }
       }
+ 
+      startConsensus(None, msg.instance, io, Set(msg))
     }
-
-    startConsensus(msg.instance, io, Set(msg))
   }
 
   def shutDown {
@@ -124,46 +196,48 @@ class LockManager(self: Short,
   ////////////
   // Client //
   ////////////
-
-  private var clientChannel: Channel = null
-  private val reqAcquire = "acquire"
-  private val reqRelease = "release"
-
-  //TODO client over TCP ?
+  
   private class Client(val address: InetSocketAddress, val acquire: Boolean) {
     def reply(status: Option[ProcessID]) {
       val success = (status.isEmpty && !acquire) ||
-                    (status.isDefined && acquire && status.get == self)
+                    (status.isDefined && acquire && status.get.id == self)
       val message = if (success) "SUCCESS" else "FAILED"
       val pck = new DatagramPacket(Unpooled.copiedBuffer(message, CharsetUtil.UTF_8), address)
       clientChannel.writeAndFlush(pck).sync()
       Logger("LockManager", Notice, "reply to " + success + " to client " + address)
     }
-
   }
+
+  private var clientChannel: Channel = null
+  private val reqAcquire = "acquire"
+  private val reqRelease = "release"
+  private var pendingRequest: Option[(Client,Short)] = None
 
   private class ClientHandler extends SimpleChannelInboundHandler[DatagramPacket] {
     //in Netty version 5.0 will be called: channelRead0 will be messageReceived
     override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
       val request = pkt.content().toString(CharsetUtil.UTF_8).toLowerCase
       val sender = pkt.sender()
+      val inst = (runningNbr+1).toShort
       Logger("LockManager", Notice, "new client request " + request + " from " + sender)
       val initValue = request match {
         case `reqAcquire` => self.toInt
         case `reqRelease` => -1
-        case _ => sys.error("unnkown request")
+        case _ => sys.error("unkown request")
       }
       val client = new Client(sender, initValue != -1)
       val io = new ConsensusIO {
         val initialValue = initValue
         def decide(value: Int) {
-          val dec = if (value == -1) None else Some(value.toShort)
-          onDecideSelf(client, dec)
+          val dec = if (value == -1) None else Some(new ProcessID(value.toShort))
+          onDecide(inst, dec)
         }
       }
-      if ((request == reqAcquire && locked.isEmpty) || 
-          (request == reqRelease && locked.isDefined && locked.get == self)) {
-        startConsensus((versionNbr+1).toShort, io)
+      if (pendingRequest != None) {
+        client.reply(None) //at most one pending request -> fail
+      } else if ((request == reqAcquire && locked.isEmpty) || 
+                 (request == reqRelease && locked.isDefined && locked.get.id == self)) {
+        startConsensus(Some(client), inst, io)
       } else {
         client.reply(None) //fail
       }
