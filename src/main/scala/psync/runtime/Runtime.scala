@@ -13,7 +13,7 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
                   options: RuntimeOptions,
                   defaultHandler: Message => Unit) {
 
-  private var srv: Option[PacketServer] = None
+  private var srv: PacketServer = null
 
   //TODO try a stack for better locality
   private val processPool = new ArrayBlockingQueue[InstanceHandler[IO,P]](options.processPool)
@@ -33,10 +33,10 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
   }
 
   private def createProcess: InstanceHandler[IO,P] = {
-    assert(srv.isDefined)
+    assert(srv != null)
     val p = alg.process
-    val dispatcher = srv.get.dispatcher
-    new InstanceHandler(p, this, srv.get, dispatcher, defaultHandler, options)
+    val dispatcher = srv.dispatcher
+    new InstanceHandler(p, this, srv, dispatcher, defaultHandler, options)
   }
 
   private def getProcess: InstanceHandler[IO,P] = {
@@ -60,40 +60,38 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
       messages: Set[Message] = Set.empty)
   {
     Logger("Runtime", Info, "starting instance " + instanceId)
-    srv match {
-      case Some(s) =>
-        //an instance is actually encapsulated by one process
-        val grp = s.group
-        val process = getProcess
-        val messages2 = messages.filter( m => {
-          if (!Flags.userDefinable(m.flag) && m.flag != Flags.dummy) {
-            true
-          } else {
-            m.release
-            false
-          }
-        })
-        process.prepare(io, grp, instanceId, messages2)
-        submitTask(process)
-      case None =>
-        sys.error("service not running")
+    if (srv != null) {
+      //an instance is actually encapsulated by one process
+      val grp = srv.group
+      val process = getProcess
+      val messages2 = messages.filter( m => {
+        if (!Flags.userDefinable(m.flag) && m.flag != Flags.dummy) {
+          true
+        } else {
+          m.release
+          false
+        }
+      })
+      process.prepare(io, grp, instanceId, messages2)
+      submitTask(process)
+    } else {
+      Logger.logAndThrow("Runtime", Error, "service not running")
     }
   }
 
   /** Stop a running instance of the algorithm. */
   def stopInstance(instanceId: Short) {
     Logger("Runtime", Info, "stopping instance " + instanceId)
-    srv match {
-      case Some(s) =>
-        s.dispatcher.findInstance(instanceId).map(_.interrupt(instanceId))
-      case None =>
-        sys.error("service not running")
+    if (srv != null) {
+      srv.dispatcher.findInstance(instanceId).map(_.interrupt(instanceId))
+    } else {
+      Logger.logAndThrow("Runtime", Error, "service not running")
     }
   }
 
   /** Start the service that ... */
   def startService {
-    if (srv.isDefined) {
+    if (srv != null) {
       //already running
       return
     }
@@ -108,24 +106,23 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
       if (grp contains me) grp.get(me).port
       else options.port
     Logger("Runtime", Info, "starting service on port: " + port)
-    val pktSrv = options.protocol match {
+    srv = options.protocol match {
       case NetworkProtocol.UDP =>
         new UDPPacketServer(executor, port, grp, defaultHandler, options)
       case _ =>
         new TCPPacketServer(executor, port, grp, defaultHandler, options)
     }
-    srv = Some(pktSrv)
-    pktSrv.start
+    srv.start
     for (i <- 0 until options.processPool) processPool.offer(createProcess)
   }
 
   def shutdown {
-    srv.foreach( s => {
+    if (srv != null) {
       Logger("Runtime", Info, "stopping service")
-      s.close
+      srv.close
       executor.shutdownNow
-    })
-    srv = None
+      srv = null
+    }
   }
 
   def submitTask(fct: Runnable) = {
@@ -143,25 +140,26 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
    *  The first 8 bytes of the payload must be empty */
   def sendMessage(dest: ProcessID, tag: Tag, payload: ByteBuf) = {
     assert(Flags.userDefinable(tag.flag) || tag.flag == Flags.dummy) //TODO in the long term, we might want to remove the dummy
-    assert(srv.isDefined)
+    assert(srv != null)
     payload.setLong(0, tag.underlying)
-    srv.get.send(dest, payload)
+    srv.send(dest, payload)
   }
 
   def getGroup = {
-    assert(srv.isDefined)
-    srv.get.group
+    assert(srv != null)
+    srv.group
   }
 
+  /** BEWARE it is only safe to call this method when no instance is running! */
   def updateGroup(grp: Group) {
-    assert(srv.isDefined)
-    srv.get.group = grp
+    assert(srv != null)
+    srv.group = grp
   }
 
   /* Try to deliver a message.
    * Useful when multiple defaulthandlers interleave */
   def deliverMessage(m: Message): Boolean = {
-    srv.get.dispatcher.dispatch(m.packet)
+    srv.dispatcher.dispatch(m)
   }
 
 }

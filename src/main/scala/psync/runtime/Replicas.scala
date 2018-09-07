@@ -8,7 +8,7 @@ import java.net.InetSocketAddress
 
 case class Replica(id: ProcessID, address: String, port: Int) {
 
-  lazy val netAddress: InetSocketAddress = new InetSocketAddress(address, port)
+  val netAddress: InetSocketAddress = new InetSocketAddress(address, port)
 
   def normalize = {
     val ip = netAddress.getAddress.getHostAddress
@@ -61,6 +61,8 @@ class Group(val self: ProcessID, val replicas: Array[Replica]) {
   }
   
   def inetToId(address: InetSocketAddress): ProcessID = get(address).id
+
+  def inetToIdOrDefault(address: InetSocketAddress): ProcessID = getSafe(address).map(_.id).getOrElse(new ProcessID(-1))
 
   def size: Int = {
     var n = 0

@@ -13,12 +13,14 @@ import scala.reflect.ClassTag
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
-class Message(val packet: DatagramPacket, dir: Group){
+class Message(val receiverId: ProcessID, val senderId: ProcessID, val payload: ByteBuf) {
 
-  def payload: ByteBuf = packet.content
-  def receiverId: ProcessID = dir.self
-  lazy val senderId: ProcessID =  try { dir.inetToId(packet.sender) }
-                                  catch { case _: Exception => new ProcessID(-1) }
+  def this(pkt: DatagramPacket, dir: Group) = {
+    this(dir.self, dir.inetToIdOrDefault(pkt.sender), pkt.content)
+    payload.retain
+    pkt.release
+  }
+
   val tag: Tag = new Tag(payload.getLong(0))
 
   private var collected = false
@@ -63,7 +65,7 @@ class Message(val packet: DatagramPacket, dir: Group){
   }
 
   def release = {
-    packet.release
+    payload.release
     collected = true
   }
 

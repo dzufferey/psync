@@ -20,8 +20,8 @@ class UDPPacketServer(
     executor: java.util.concurrent.Executor,
     port: Int,
     initGroup: Group,
-    _defaultHandler: Message => Unit,
-    options: RuntimeOptions) extends PacketServer(executor, port, initGroup, _defaultHandler, options)
+    defaultHandler: Message => Unit,
+    options: RuntimeOptions) extends PacketServer(executor, port, initGroup, defaultHandler, options)
 {
 
   protected var chan: Channel = null
@@ -57,7 +57,7 @@ class UDPPacketServer(
       b.option(ChannelOption.RCVBUF_ALLOCATOR, new FixedRecvByteBufAllocator(packetSize))
     }
 
-    b.handler(new UDPPacketServerHandler(defaultHandler, dispatcher))
+    b.handler(new UDPPacketServerHandler(handlePacket))
     chan = b.bind(port).sync().channel()
   }
 
@@ -76,19 +76,22 @@ class UDPPacketServer(
     }
   }
 
+  def handlePacket(dp: DatagramPacket) {
+    val msg = new Message(dp, group)
+    if (!dispatcher.dispatch(msg)) {
+      defaultHandler(msg)
+    }
+  }
+
 }
 
 @Sharable
-class UDPPacketServerHandler(
-    defaultHandler: DatagramPacket => Unit,
-    dispatcher: InstanceDispatcher
-  ) extends SimpleChannelInboundHandler[DatagramPacket](false) {
+class UDPPacketServerHandler(handlePacket: DatagramPacket => Unit) extends SimpleChannelInboundHandler[DatagramPacket](false) {
 
   //in Netty version 5.0 will be called: channelRead0 will be messageReceived
   override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
     try {
-      if (!dispatcher.dispatch(pkt))
-        defaultHandler(pkt)
+      handlePacket(pkt)
     } catch {
       case t: Throwable =>
         Logger("UDPPacketServerHandler", Error, "got " + t + "\n  " + t.getStackTrace.mkString("\n  "))

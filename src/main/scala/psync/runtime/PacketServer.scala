@@ -13,7 +13,7 @@ abstract class PacketServer(
     executor: java.util.concurrent.Executor,
     port: Int,
     initGroup: Group,
-    _defaultHandler: Message => Unit, //defaultHandler is responsible for releasing the ByteBuf payload
+    defaultHandler: Message => Unit, //defaultHandler is responsible for releasing the ByteBuf payload
     options: RuntimeOptions)
 {
 
@@ -25,17 +25,11 @@ abstract class PacketServer(
     directory.group = grp
   }
 
-  protected[psync] def defaultHandler(pkt: DatagramPacket) {
-    val msg = new Message(pkt, directory.group)
-    _defaultHandler(msg)
-  }
-
   protected def evtGroup: EventLoopGroup = options.group match {
     case NetworkGroup.NIO => new NioEventLoopGroup(0, executor)
     case NetworkGroup.OIO => new OioEventLoopGroup(0, executor)
     case NetworkGroup.EPOLL => new EpollEventLoopGroup(0, executor)
   }
-
 
   protected[psync] val dispatcher = new InstanceDispatcher(options)
 
