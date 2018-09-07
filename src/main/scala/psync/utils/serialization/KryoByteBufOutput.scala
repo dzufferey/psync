@@ -6,6 +6,7 @@ import com.esotericsoftware.kryo.KryoException
 
 class KryoByteBufOutput(protected var bbuffer: ByteBuf) extends Output {
   def setBuffer(b: ByteBuf) = bbuffer = b
+  def getBBuffer: ByteBuf = bbuffer
   override def setOutputStream(outputStream: java.io.OutputStream) = ???
   override def setBuffer(buffer: Array[Byte]) = ???
   override def setBuffer(buffer: Array[Byte], maxBufferSize: Int) = ???

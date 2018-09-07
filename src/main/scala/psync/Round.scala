@@ -30,6 +30,10 @@ abstract class Round[A: ClassTag: KryoRegistration] extends RtRound {
     * This is not required but can be used by some runtime optimizations. */
   def expectedNbrMessages: Int = group.size
 
+  /** An upper bound to the number of byte requires for the payload (including tag.size).
+    * a negative value is ignored and the global configuration option is used instead. */
+  protected var sizeHint = -1
+
   ////////////////////
   // helper methods //
   ////////////////////
@@ -60,29 +64,27 @@ abstract class Round[A: ClassTag: KryoRegistration] extends RtRound {
     group = g
   }
   
+  protected var mailbox: Map[ProcessID, A] = Map.empty
+
   protected val serializer = implicitly[KryoRegistration[A]].register(KryoSerializer.serializer)
-  protected val kryoOut = new KryoByteBufOutput(null) //TODO could be shared at the process level or threadlocal
-  protected val kryoIn = new KryoByteBufInput(null) //TODO could be shared at the process level or threadlocal
   
-  final protected[psync] def packSend(alloc: () => ByteBuf, sending: (ProcessID, ByteBuf) => Unit) = {
+  final protected[psync] def packSend(alloc: Int => KryoByteBufOutput, sending: (ProcessID, KryoByteBufOutput) => Unit) = {
     val msgs = send()
     msgs.foreach{ case (dst, value) =>
-      val buf = alloc()
-      kryoOut.setBuffer(buf)
-      serializer.writeObject(kryoOut, value)
-      kryoOut.setBuffer(null: ByteBuf)
-      sending(dst, buf)
+      if (dst == group.self) {
+        //can we skip the (de)serialization when sending to self
+        mailbox += (dst -> value)
+      } else {
+        val kryoOut = alloc(sizeHint)
+        serializer.writeObject(kryoOut, value)
+        sending(dst, kryoOut)
+      }
     }
     mailbox.size >= expectedNbrMessages
   }
 
-  protected var mailbox: Map[ProcessID, A] = Map.empty
-
-  final protected[psync] def receiveMsg(sender: ProcessID, payload: ByteBuf): Boolean = {
-    kryoIn.setBuffer(payload)
+  final protected[psync] def receiveMsg(sender: ProcessID, kryoIn: KryoByteBufInput): Boolean = {
     val a = serializer.readObject(kryoIn, implicitly[ClassTag[A]].runtimeClass).asInstanceOf[A]
-    kryoIn.setBuffer(null: ByteBuf)
-    payload.release
     mailbox += (sender -> a)
     mailbox.size >= expectedNbrMessages
   }
@@ -104,11 +106,13 @@ abstract class RtRound {
    * @param sending the callback taking care of sendinf the packets
    * @returns whether we need to wait on messages or directly finish the round
    */
-  protected[psync] def packSend(alloc: () => ByteBuf, sending: (ProcessID, ByteBuf) => Unit): Boolean
+  protected[psync] def packSend(alloc: Int => KryoByteBufOutput, sending: (ProcessID, KryoByteBufOutput) => Unit): Boolean
+
   /** A message has been reveived. This method is responsible for releasing the Butebuf.
    * @returns indicates if we can terminate the round early (no need to wait for more messages)
    */
-  protected[psync] def receiveMsg(sender: ProcessID, payload: ByteBuf): Boolean
+  protected[psync] def receiveMsg(sender: ProcessID, payload: KryoByteBufInput): Boolean
+
   /** terminate the round (call the update method with the accumulated messages)
    * @returns indicates whether to terminate this instance
    */

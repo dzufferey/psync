@@ -3,10 +3,11 @@ package psync.runtime
 import psync._
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
-import io.netty.buffer.ByteBuf
+import io.netty.buffer.{ByteBuf,PooledByteBufAllocator}
 import io.netty.channel.socket._
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.TimeUnit
+import psync.utils.serialization.{KryoByteBufInput, KryoByteBufOutput}
 
 
 //TODO what should be the interface ?
@@ -59,6 +60,9 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected var from: Array[Boolean] = null
   protected var roundHasEnoughMessages = false
 
+  protected val globalSizeHint = options.packetSize
+  protected val kryoIn = new KryoByteBufInput(null) //TODO could be shared further
+  protected val kryoOut = new KryoByteBufOutput(null) //TODO could be shared further
 
   /** A new packet is received and should be processed */
   def newPacket(dp: DatagramPacket) = {
@@ -254,17 +258,14 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       val buffer = msg.bufferAfterTag
       buffer.retain
       msg.release
-      roundHasEnoughMessages = proc.receive(sender, buffer)
+      kryoIn.setBuffer(buffer)
+      roundHasEnoughMessages = proc.receive(sender, kryoIn)
+      kryoIn.setBuffer(null: ByteBuf)
+      buffer.release
     } else {
       // duplicate packet
       msg.release
     }
-  }
-
-  protected def storeSelfPacket(buf: ByteBuf) {
-    assert(!from(grp.self.id))
-    from(grp.self.id) = true
-    roundHasEnoughMessages = proc.receive(grp.self, Message.moveAfterTag(buf))
   }
 
   protected def update = {
@@ -281,15 +282,22 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected def send {
     val tag = Tag(instance, currentRound)
     var sent = 0
-    def sending(pid: ProcessID, payload: ByteBuf) {
-      if (pid == grp.self) {
-        storeSelfPacket(payload)
-      } else {
-        pktServ.send(pid, payload)
-      }
+    def alloc(sizeHint: Int): KryoByteBufOutput = {
+      val buffer = if (sizeHint > tag.size) PooledByteBufAllocator.DEFAULT.buffer(sizeHint)
+                   else if (globalSizeHint > tag.size) PooledByteBufAllocator.DEFAULT.buffer(globalSizeHint)
+                   else PooledByteBufAllocator.DEFAULT.buffer()
+      buffer.writeLong(tag.underlying)
+      kryoOut.setBuffer(buffer)
+      kryoOut
+    }
+    def sending(pid: ProcessID, payload: KryoByteBufOutput) {
+      val buffer = payload.getBBuffer
+      payload.setBuffer(null: ByteBuf)
+      assert(pid != grp.self)
+      pktServ.send(pid, buffer)
       sent += 1
     }
-    proc.send(tag, sending)
+    proc.send(alloc, sending)
     Logger("InstanceHandler", Debug, "Replica " + grp.self.id + ", instance " + instance + " sending for round " + currentRound + " -> " + sent + "\n")
   }
   

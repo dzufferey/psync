@@ -60,7 +60,8 @@ package object serialization {
   }
   
   implicit lazy val regByteArrayTimePair = new KryoRegistration[(Array[Byte],Time)] {
-    override def registerClasses = Seq(classOf[Tuple2[_,_]])
+    override def registerClasses = Seq(classOf[Array[Byte]], classOf[Tuple2[_,_]])
+    override def registerClassesWithSerializer = Seq(classOf[Time] -> new TimeSerializer)
   }
 
   //TODO automatic conversion from Serializer[A] tp KryoRegistration[A]

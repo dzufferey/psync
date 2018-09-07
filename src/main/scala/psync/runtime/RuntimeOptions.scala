@@ -42,7 +42,7 @@ trait RuntimeOptions {
   protected var _peers = List[Replica]()
   protected var _id: Short = -1
   protected var _group = NetworkGroup.NIO
-  protected var _protocol = NetworkProtocol.UDP
+  protected var _protocol = NetworkProtocol.TCP
   protected var _earlyMoving = true
   protected var _sendWhenCatchingUp = true
   protected var _delayFirstSend = -1
@@ -69,7 +69,7 @@ abstract class RTOptions extends DefaultOptions with RuntimeOptions {
   newOption("--group",                  Enum(NetworkGroup, (s: NetworkGroup.NetworkGroup) => _group = s),
                                                                                     "the network layer interface used by Netty: NIO/OIO/EPOLL (default: NIO).")
   newOption("--protocol",               Enum(NetworkProtocol, (s: NetworkProtocol.NetworkProtocol) => _protocol = s),
-                                                                                    "the network protocol: UDP/TCP/TCP_SSL (default: UDP).")
+                                                                                    "the network protocol: UDP/TCP/TCP_SSL (default: TCP).")
   newOption("-to",                      Int( i => _timeout = i.toLong ),            "default timeout for runtime (default: 10).")
   newOption("--timeout",                Int( i => _timeout = i.toLong ),            "default timeout for runtime (default: 10).")
   newOption("--earlyMoving",            Bool( b => _earlyMoving = b ),              "early moving optimization (default: true).")

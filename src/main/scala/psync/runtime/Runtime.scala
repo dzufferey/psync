@@ -35,8 +35,6 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
   private def createProcess: InstanceHandler[IO,P] = {
     assert(srv.isDefined)
     val p = alg.process
-    p.setOptions(options)
-    p.setAllocator( PooledByteBufAllocator.DEFAULT )
     val dispatcher = srv.get.dispatcher
     new InstanceHandler(p, this, srv.get, dispatcher, defaultHandler, options)
   }

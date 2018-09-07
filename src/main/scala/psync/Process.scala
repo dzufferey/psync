@@ -44,10 +44,6 @@ abstract class RtProcess {
     _n = g.size
   }
 
-  protected[psync] def setOptions(options: runtime.RuntimeOptions) {
-    packetSize = options.packetSize
-  }
-  
   protected def incrementRound {
     rr = rr.tick
     _r += 1
@@ -58,22 +54,12 @@ abstract class RtProcess {
 
   protected def currentRound: RtRound = rounds(_r)._1
 
-  protected var allocator: io.netty.buffer.ByteBufAllocator = null
-  protected[psync] def setAllocator(a: io.netty.buffer.ByteBufAllocator) {
-    allocator = a
-  }
-
-  protected[psync] final def send(tag: runtime.Tag, sending: (ProcessID, io.netty.buffer.ByteBuf) => Unit) = {
+  protected[psync] final def send(alloc: Int => psync.utils.serialization.KryoByteBufOutput, sending: (ProcessID, psync.utils.serialization.KryoByteBufOutput) => Unit) = {
     incrementRound
-    def getBuffer() = {
-      val buffer = if (packetSize >= 8) allocator.buffer(packetSize) else allocator.buffer()
-      buffer.writeLong(tag.underlying)
-      buffer
-    }
-    currentRound.packSend(() => getBuffer(), sending)
+    currentRound.packSend(alloc, sending)
   }
 
-  protected[psync] final def receive(sender: ProcessID, payload: io.netty.buffer.ByteBuf): Boolean = {
+  protected[psync] final def receive(sender: ProcessID, payload: psync.utils.serialization.KryoByteBufInput): Boolean = {
     currentRound.receiveMsg(sender, payload)
   }
 

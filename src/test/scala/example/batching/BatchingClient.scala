@@ -194,18 +194,14 @@ class BatchingClient(val options: BatchingClient.type)
       val initialValue = emp
       def decide(value: Array[Byte]) { }
     }
-    rt.startInstance(0, io, Set.empty)
-    rt.startInstance(1, io, Set.empty)
-    rt.startInstance(2, io, Set.empty)
-    rt.startInstance(3, io, Set.empty)
-    rt.startInstance(4, io, Set.empty)
+    for (i <- 0 until 10) {
+      rt.startInstance(i.toShort, io, Set.empty)
+    }
     //let it run for a while
     Thread.sleep(options.delay - 1000)
-    rt.stopInstance(0)
-    rt.stopInstance(1)
-    rt.stopInstance(2)
-    rt.stopInstance(3)
-    rt.stopInstance(4)
+    for (i <- 0 until 10) {
+      rt.stopInstance(i.toShort)
+    }
     Thread.sleep(1000)
     lck.lock
     try {
@@ -248,8 +244,6 @@ object BatchingClient extends RTOptions {
   final val ForwardedBatch = 6
   final val AskDecision = 7
 
-  var confFile = "src/test/resources/sample-conf.xml"
-  
   var logFile: Option[String] = None
   newOption("--log", dzufferey.arg.String(str => logFile = Some(str) ), "log file prefix")
 
