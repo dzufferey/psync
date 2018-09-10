@@ -1,5 +1,10 @@
 package psync
 
+import psync.runtime.Group
+import psync.utils.serialization.{KryoByteBufInput, KryoByteBufOutput}
+import com.esotericsoftware.kryo.Kryo
+import psync.formula.Formula
+
 abstract class Process[IO] extends RtProcess {
 
   //TODO rewrite with a macro to get the initial state
@@ -8,7 +13,7 @@ abstract class Process[IO] extends RtProcess {
   lazy val HO: Set[Process[IO]] = sys.error("used only for specification!")
 
   // for verification
-  protected[psync] var initState: Option[psync.formula.Formula] = None
+  protected[psync] var initState: Option[Formula] = None
 
 }
 
@@ -36,7 +41,7 @@ abstract class RtProcess {
 
   private var packetSize = -1
 
-  protected[psync] def setGroup(g: psync.runtime.Group): Unit = {
+  protected[psync] def setGroup(g: Group): Unit = {
     rr = new Time(-1)
     _r = -1
     _id = g.self
@@ -44,7 +49,7 @@ abstract class RtProcess {
     _n = g.size
   }
 
-  protected def incrementRound {
+  final protected def incrementRound {
     rr = rr.tick
     _r += 1
     if (_r >= rounds.length) {
@@ -52,15 +57,19 @@ abstract class RtProcess {
     }
   }
 
-  protected def currentRound: RtRound = rounds(_r)._1
+  final protected def currentRound: RtRound = rounds(_r)._1
 
-  protected[psync] final def send(alloc: Int => psync.utils.serialization.KryoByteBufOutput, sending: (ProcessID, psync.utils.serialization.KryoByteBufOutput) => Unit) = {
-    incrementRound
-    currentRound.packSend(alloc, sending)
+  final protected[psync] def registerSerializer(kryo: Kryo) = {
+    rounds.foreach(_._1.registerSerializer(kryo))
   }
 
-  protected[psync] final def receive(sender: ProcessID, payload: psync.utils.serialization.KryoByteBufInput): Boolean = {
-    currentRound.receiveMsg(sender, payload)
+  protected[psync] final def send(kryo: Kryo, alloc: Int => KryoByteBufOutput, sending: ProcessID => Unit): Boolean = {
+    incrementRound
+    currentRound.packSend(kryo, alloc, sending)
+  }
+
+  protected[psync] final def receive(kryo: Kryo, sender: ProcessID, payload: KryoByteBufInput): Boolean = {
+    currentRound.receiveMsg(kryo, sender, payload)
   }
 
   protected[psync] final def update: Boolean = {

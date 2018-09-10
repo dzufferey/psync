@@ -7,7 +7,7 @@ import io.netty.buffer.{ByteBuf,PooledByteBufAllocator}
 import io.netty.channel.socket._
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.TimeUnit
-import psync.utils.serialization.{KryoByteBufInput, KryoByteBufOutput}
+import psync.utils.serialization.{KryoSerializer, KryoByteBufInput, KryoByteBufOutput}
 
 
 //TODO what should be the interface ?
@@ -61,8 +61,14 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected var roundHasEnoughMessages = false
 
   protected val globalSizeHint = options.packetSize
-  protected val kryoIn = new KryoByteBufInput(null) //TODO could be shared further
-  protected val kryoOut = new KryoByteBufOutput(null) //TODO could be shared further
+  protected val kryoIn = new KryoByteBufInput(null)
+  protected val kryoOut = new KryoByteBufOutput(null)
+  protected val kryo = {
+    val k = KryoSerializer.serializer
+    proc.registerSerializer(k)
+    k
+  }
+  protected val allocator = PooledByteBufAllocator.DEFAULT
 
   /** A new packet is received and should be processed */
   def newPacket(msg: Message) = {
@@ -126,7 +132,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     rt.recycle(this)
   }
 
-  protected var again = true
+  @volatile protected var again = true
 
   def interrupt(inst: Int) {
     if (instance == inst)
@@ -250,16 +256,11 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       from(sender.id) = true
       assert(msg.round == currentRound, msg.round + " vs " + currentRound)
       val buffer = msg.bufferAfterTag
-      buffer.retain
-      msg.release
       kryoIn.setBuffer(buffer)
-      roundHasEnoughMessages = proc.receive(sender, kryoIn)
+      roundHasEnoughMessages = proc.receive(kryo, sender, kryoIn)
       kryoIn.setBuffer(null: ByteBuf)
-      buffer.release
-    } else {
-      // duplicate packet
-      msg.release
     }
+    msg.release
   }
 
   protected def update = {
@@ -276,22 +277,22 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected def send {
     val tag = Tag(instance, currentRound)
     var sent = 0
+    var buffer: ByteBuf = null
     def alloc(sizeHint: Int): KryoByteBufOutput = {
-      val buffer = if (sizeHint > tag.size) PooledByteBufAllocator.DEFAULT.buffer(sizeHint)
-                   else if (globalSizeHint > tag.size) PooledByteBufAllocator.DEFAULT.buffer(globalSizeHint)
-                   else PooledByteBufAllocator.DEFAULT.buffer()
+      buffer = if (sizeHint > tag.size) allocator.buffer(sizeHint)
+               else if (globalSizeHint > tag.size) allocator.buffer(globalSizeHint)
+               else allocator.buffer()
       buffer.writeLong(tag.underlying)
       kryoOut.setBuffer(buffer)
       kryoOut
     }
-    def sending(pid: ProcessID, payload: KryoByteBufOutput) {
-      val buffer = payload.getBBuffer
-      payload.setBuffer(null: ByteBuf)
+    def sending(pid: ProcessID) {
       assert(pid != self)
       pktServ.send(pid, buffer)
       sent += 1
     }
-    proc.send(alloc, sending)
+    proc.send(kryo, alloc, sending)
+    kryoOut.setBuffer(null: ByteBuf)
     Logger("InstanceHandler", Debug, "Replica " + self.id + ", instance " + instance + " sending for round " + currentRound + " -> " + sent + "\n")
   }
   

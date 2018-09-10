@@ -26,18 +26,9 @@ class Group(val self: ProcessID, val replicas: Array[Replica]) {
     i >= 0 && i < replicas.length && replicas(i) != null
   }
 
-  def get(address: InetSocketAddress): Replica = {
-    try getSafe(address).get
-    catch {
-      case e: Exception =>
-        Logger("Replica", Warning, "could not find replica " + address.getAddress.getHostAddress + ":" + address.getPort)
-        throw e
-    }
-  }
-  
   def get(pid: ProcessID): Replica = replicas(pid.id)
 
-  def getSafe(address: InetSocketAddress): Option[Replica] = {
+  protected def getUnsafe(address: InetSocketAddress): Replica = {
     var ip: String = null
     if (address.isUnresolved) {
       ip = address.getHostString
@@ -49,11 +40,31 @@ class Group(val self: ProcessID, val replicas: Array[Replica]) {
       ip = address.getAddress.getHostAddress
     }
     val port = address.getPort
-    val res = replicas.find( r => r != null && r.address == ip && r.port == port )
-    Logger("Replica", Debug, address + " has " + ip + " and " + port +
-                             " is " + res +
-                             " in\n  " + asList.mkString("\n  "))
-    res
+    var idx = 0
+    while (idx < replicas.size) {
+      val r = replicas(idx)
+      if (r != null && r.address == ip && r.port == port) {
+        Logger("Replica", Debug, address + " has " + ip + " and " + port +
+                                 " is " + r + " in\n  " + asList.mkString("\n  "))
+        return r
+      }
+      idx += 1
+    }
+    Logger("Replica", Debug, "could not find replica " + ip + ":" + port)
+    null
+  }
+
+  def get(address: InetSocketAddress): Replica = {
+    val res = getUnsafe(address)
+    if (res == null) {
+      Logger.logAndThrow("Replica", Warning, "could not find replica " + address.getAddress.getHostAddress + ":" + address.getPort)
+    } else {
+      res
+    }
+  }
+  
+  def getSafe(address: InetSocketAddress): Option[Replica] = {
+    Option(getUnsafe(address))
   }
 
   def idToInet(pid: ProcessID) = {
@@ -62,7 +73,11 @@ class Group(val self: ProcessID, val replicas: Array[Replica]) {
   
   def inetToId(address: InetSocketAddress): ProcessID = get(address).id
 
-  def inetToIdOrDefault(address: InetSocketAddress): ProcessID = getSafe(address).map(_.id).getOrElse(new ProcessID(-1))
+  def inetToIdOrDefault(address: InetSocketAddress): ProcessID = {
+    val res = getUnsafe(address)
+    if (res != null) res.id
+    else new ProcessID(-1)
+  }
 
   def size: Int = {
     var n = 0

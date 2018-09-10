@@ -3,6 +3,7 @@ package psync
 import io.netty.buffer.ByteBuf
 import psync.formula._
 import psync.utils.serialization.{KryoRegistration, KryoSerializer, KryoByteBufInput, KryoByteBufOutput}
+import com.esotericsoftware.kryo.Kryo
 import scala.reflect.ClassTag
 
 /** A Round is the logical unit of time and communication in PSync.
@@ -66,9 +67,11 @@ abstract class Round[A: ClassTag: KryoRegistration] extends RtRound {
   
   protected var mailbox: Map[ProcessID, A] = Map.empty
 
-  protected val serializer = implicitly[KryoRegistration[A]].register(KryoSerializer.serializer)
+  final protected[psync] def registerSerializer(kryo: Kryo) = {
+    implicitly[KryoRegistration[A]].register(kryo)
+  }
   
-  final protected[psync] def packSend(alloc: Int => KryoByteBufOutput, sending: (ProcessID, KryoByteBufOutput) => Unit) = {
+  final protected[psync] def packSend(kryo: Kryo, alloc: Int => KryoByteBufOutput, sending: ProcessID => Unit) = {
     val msgs = send()
     msgs.foreach{ case (dst, value) =>
       if (dst == group.self) {
@@ -76,15 +79,15 @@ abstract class Round[A: ClassTag: KryoRegistration] extends RtRound {
         mailbox += (dst -> value)
       } else {
         val kryoOut = alloc(sizeHint)
-        serializer.writeObject(kryoOut, value)
-        sending(dst, kryoOut)
+        kryo.writeObject(kryoOut, value)
+        sending(dst)
       }
     }
     mailbox.size >= expectedNbrMessages
   }
 
-  final protected[psync] def receiveMsg(sender: ProcessID, kryoIn: KryoByteBufInput): Boolean = {
-    val a = serializer.readObject(kryoIn, implicitly[ClassTag[A]].runtimeClass).asInstanceOf[A]
+  final protected[psync] def receiveMsg(kryo: Kryo, sender: ProcessID, kryoIn: KryoByteBufInput): Boolean = {
+    val a = kryo.readObject(kryoIn, implicitly[ClassTag[A]].runtimeClass).asInstanceOf[A]
     mailbox += (sender -> a)
     mailbox.size >= expectedNbrMessages
   }
@@ -101,17 +104,19 @@ abstract class Round[A: ClassTag: KryoRegistration] extends RtRound {
 /** RtRound is the interface of rounds used by the runtime. */
 abstract class RtRound {
   
+  protected[psync] def registerSerializer(kryo: Kryo): Unit
+
   /** send the messages
    * @param alloc the bytebuffer allocator to use
-   * @param sending the callback taking care of sendinf the packets
+   * @param sending the callback taking care of sending the packets it assumes the data is contained in the buffer given in alloc
    * @returns whether we need to wait on messages or directly finish the round
    */
-  protected[psync] def packSend(alloc: Int => KryoByteBufOutput, sending: (ProcessID, KryoByteBufOutput) => Unit): Boolean
+  protected[psync] def packSend(kryo: Kryo, alloc: Int => KryoByteBufOutput, sending: ProcessID => Unit): Boolean
 
   /** A message has been reveived. This method is responsible for releasing the Butebuf.
    * @returns indicates if we can terminate the round early (no need to wait for more messages)
    */
-  protected[psync] def receiveMsg(sender: ProcessID, payload: KryoByteBufInput): Boolean
+  protected[psync] def receiveMsg(kryo: Kryo, sender: ProcessID, payload: KryoByteBufInput): Boolean
 
   /** terminate the round (call the update method with the accumulated messages)
    * @returns indicates whether to terminate this instance

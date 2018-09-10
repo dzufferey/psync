@@ -267,8 +267,8 @@ abstract class TCPPacketHandler(val packetServer: TCPPacketServer, var selfId: P
       if (remote.id == new ProcessID(-1)) {
          Logger("TCPPacketServerHandler", Warning, "dropping message from unknown (" + remote + ")")
          msg.release
-      } else if (!packetServer.dispatcher.dispatch(msg)) {
-        packetServer.defaultHandler(msg)
+      } else {
+        packetServer.dispatch(msg)
       }
     } catch {
       case t: Throwable =>

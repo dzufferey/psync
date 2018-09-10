@@ -21,6 +21,8 @@ class Message(val receiverId: ProcessID, val senderId: ProcessID, val payload: B
     pkt.release
   }
 
+  assert(payload.readerIndex == 0)
+
   val tag: Tag = new Tag(payload.getLong(0))
 
   private var collected = false
@@ -36,11 +38,10 @@ class Message(val receiverId: ProcessID, val senderId: ProcessID, val payload: B
   }
 
   def getContent[A: ClassTag](kryo: Kryo): A = {
-    val idx: Int = payload.readerIndex()
-    payload.readerIndex(idx + tag.size)
+    payload.readerIndex(tag.size)
     val kryoIn = new KryoByteBufInput(payload)
     val result = kryo.readObject(kryoIn, implicitly[ClassTag[A]].runtimeClass).asInstanceOf[A]
-    payload.readerIndex(idx)
+    payload.readerIndex(0)
     result
   }
 
@@ -49,18 +50,16 @@ class Message(val receiverId: ProcessID, val senderId: ProcessID, val payload: B
   }
   
   def getPayLoad: Array[Byte] = {
-    val idx: Int = payload.readerIndex()
-    payload.readerIndex(idx + tag.size)
+    payload.readerIndex(tag.size)
     val length: Int = payload.readableBytes()
     val bytes = Array.ofDim[Byte](length)
     payload.readBytes(bytes)
-    payload.readerIndex(idx)
+    payload.readerIndex(0)
     bytes
   }
 
   def bufferAfterTag: ByteBuf = {
-    val idx: Int = payload.readerIndex()
-    payload.readerIndex(idx + tag.size)
+    payload.readerIndex(tag.size)
     payload
   }
 
@@ -92,8 +91,7 @@ object Message {
 
   def moveAfterTag(buffer: ByteBuf): ByteBuf = {
     val tag = getTag(buffer)
-    val idx: Int = buffer.readerIndex()
-    buffer.readerIndex(idx + tag.size)
+    buffer.readerIndex(tag.size)
     buffer
   }
 
@@ -106,11 +104,9 @@ object Message {
 
   // The tag is only needed to the size. It is not written.
   def setContent[A](kryo: Kryo, tag:Tag, buffer: ByteBuf, value: A) {
-    val idx: Int = buffer.writerIndex()
-    buffer.writerIndex(idx + tag.size)
+    buffer.writerIndex(tag.size)
     val kryoOut = new KryoByteBufOutput(buffer)
     kryo.writeObject(kryoOut, value)
-    //buffer.writerIndex(idx)
   }
 
 }

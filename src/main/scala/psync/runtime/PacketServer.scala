@@ -39,4 +39,10 @@ abstract class PacketServer(
 
   def send(to: ProcessID, buf: ByteBuf): Unit
 
+  def dispatch(msg: Message) {
+    if (Flags.userDefinable(msg.flag) || !dispatcher.dispatch(msg)) {
+      defaultHandler(msg)
+    }
+  }
+
 }

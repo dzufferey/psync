@@ -78,9 +78,7 @@ class UDPPacketServer(
 
   def handlePacket(dp: DatagramPacket) {
     val msg = new Message(dp, group)
-    if (!dispatcher.dispatch(msg)) {
-      defaultHandler(msg)
-    }
+    dispatch(msg)
   }
 
 }
