@@ -291,7 +291,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       pktServ.send(pid, buffer)
       sent += 1
     }
-    proc.send(kryo, alloc, sending)
+    roundHasEnoughMessages = proc.send(kryo, alloc, sending)
     kryoOut.setBuffer(null: ByteBuf)
     Logger("InstanceHandler", Debug, "Replica " + self.id + ", instance " + instance + " sending for round " + currentRound + " -> " + sent + "\n")
   }
