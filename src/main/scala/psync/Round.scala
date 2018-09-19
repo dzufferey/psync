@@ -13,16 +13,16 @@ import scala.reflect.ClassTag
  * extend this class and implement the `send` and `update` methods.
  * 
  * The round class provide some helper methods such as `broadcast`,
- * `exitAtEndOfRound`, and `terminate`.
+ * `exitAtEndOfRound`, and `expectedNbrMessages`.
  */
-abstract class Round[A: ClassTag: KryoRegistration] extends RtRound {
+abstract class Round[A: ClassTag: KryoRegistration] extends EventRound[A] {
 
   //////////////////////////
   // user-defined methods //
   //////////////////////////
 
-  /** The message sent by the process during this round.*/
-  def send(): Map[ProcessID,A]
+  //  /** The message sent by the process during this round.*/
+  //  def send(): Map[ProcessID,A]
 
   /** Update the local state according to the messages received.*/
   def update(mailbox: Map[ProcessID,A]): Unit
@@ -31,10 +31,6 @@ abstract class Round[A: ClassTag: KryoRegistration] extends RtRound {
     * This is not required but can be used by some runtime optimizations. */
   def expectedNbrMessages: Int = group.size
 
-  /** An upper bound to the number of byte requires for the payload (including tag.size).
-    * a negative value is ignored and the global configuration option is used instead. */
-  protected var sizeHint = -1
-
   ////////////////////
   // helper methods //
   ////////////////////
@@ -42,11 +38,6 @@ abstract class Round[A: ClassTag: KryoRegistration] extends RtRound {
   /** Terminates the PSync instance at the end of the round. */
   protected final def exitAtEndOfRound(): Unit = {
     _continue = false
-  }
-
-  /** Broadcast is a shortcut to send the same message to every participant. */
-  protected final def broadcast[A](msg: A): Map[ProcessID,A] = {
-    group.replicas.foldLeft(Map.empty[ProcessID,A])( (acc, r) => acc + (r.id -> msg) )
   }
 
   /////////////////////
@@ -60,53 +51,88 @@ abstract class Round[A: ClassTag: KryoRegistration] extends RtRound {
     c
   }
   
-  private var group: psync.runtime.Group = null
-  protected[psync] def setGroup(g: psync.runtime.Group) {
-    group = g
-  }
-  
   protected var mailbox: Map[ProcessID, A] = Map.empty
 
+  final def receive(sender: ProcessID, payload: A): Boolean = {
+    mailbox += (sender -> payload)
+    mailbox.size >= expectedNbrMessages
+  }
+
+  override final def finishRound: Boolean = {
+    update(mailbox)
+    mailbox = Map.empty
+    getContinue
+  }
+
+}
+
+/** 1st try at "deconstructing" rounds, i.e., keeping the communication-closure without the batching of messages.
+ *
+ * The rounds are parameterized by a type `A` which is the payload of the
+ * messages sent during the round.
+ *
+ * This version gives more control over how things evolves. The receive method
+ * processes messages one-by-one and returns `true` if the runtime can move ahead.
+ * 
+ * The round class provide some helper methods such as `broadcast` and `sizeHint`.
+ */
+abstract class EventRound[A: ClassTag: KryoRegistration] extends RtRound {
+
+  /** The message sent by the process during this round.*/
+  def send(): Map[ProcessID,A]
+
+  /** Processes a message and returns wether there have been enough messages to proceed. */
+  def receive(sender: ProcessID, payload: A): Boolean
+  
+  /** Finishes the round and returns whether to continue (or terminate). */
+  def finishRound(): Boolean = true
+
+  /** An upper bound to the number of byte required for the payload.
+    * a negative value is ignored and the global/default configuration option is used instead. */
+  protected var sizeHint = -1
+
+  /** Broadcast is a shortcut to send the same message to every participant. */
+  protected final def broadcast[A](msg: A): Map[ProcessID,A] = {
+    group.replicas.foldLeft(Map.empty[ProcessID,A])( (acc, r) => acc + (r.id -> msg) )
+  }
+  
   final protected[psync] def registerSerializer(kryo: Kryo) = {
     implicitly[KryoRegistration[A]].register(kryo)
   }
   
   final protected[psync] def packSend(kryo: Kryo, alloc: Int => KryoByteBufOutput, sending: ProcessID => Unit) = {
     val msgs = send()
+    var progress = false
     msgs.foreach{ case (dst, value) =>
       if (dst == group.self) {
         //can we skip the (de)serialization when sending to self
-        mailbox += (dst -> value)
+        progress = receive(dst, value)
       } else {
         val kryoOut = alloc(sizeHint)
         kryo.writeObject(kryoOut, value)
         sending(dst)
       }
     }
-    mailbox.size >= expectedNbrMessages
+    progress
   }
-
+  
   final protected[psync] def receiveMsg(kryo: Kryo, sender: ProcessID, kryoIn: KryoByteBufInput): Boolean = {
     val a = kryo.readObject(kryoIn, implicitly[ClassTag[A]].runtimeClass).asInstanceOf[A]
-    mailbox += (sender -> a)
-    mailbox.size >= expectedNbrMessages
+    receive(sender, a)
   }
-
-  final protected[psync] def finishRound: Boolean = {
-    update(mailbox)
-    mailbox = Map.empty
-    getContinue
-  }
+  
   
 }
 
 
-/** RtRound is the interface of rounds used by the runtime. */
+/** RtRound is the interface of rounds used by the runtime.
+ *  This interface does not expose the payload type to the runtime, i.e., not type parameter.
+ */
 abstract class RtRound {
-  
+
   protected[psync] def registerSerializer(kryo: Kryo): Unit
 
-  /** send the messages
+  /** Send the messages
    * @param alloc the bytebuffer allocator to use
    * @param sending the callback taking care of sending the packets it assumes the data is contained in the buffer given in alloc
    * @returns whether we need to wait on messages or directly finish the round
@@ -123,7 +149,11 @@ abstract class RtRound {
    */
   protected[psync] def finishRound: Boolean
 
-  protected[psync] def setGroup(g: psync.runtime.Group): Unit
+  protected var group: psync.runtime.Group = null
+  protected[psync] def setGroup(g: psync.runtime.Group) {
+    group = g
+  }
+  
 
 }
 

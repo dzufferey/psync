@@ -279,8 +279,8 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     var sent = 0
     var buffer: ByteBuf = null
     def alloc(sizeHint: Int): KryoByteBufOutput = {
-      buffer = if (sizeHint > tag.size) allocator.buffer(sizeHint)
-               else if (globalSizeHint > tag.size) allocator.buffer(globalSizeHint)
+      buffer = if (sizeHint > 0) allocator.buffer(sizeHint + tag.size)
+               else if (globalSizeHint > 0) allocator.buffer(globalSizeHint + tag.size)
                else allocator.buffer()
       buffer.writeLong(tag.underlying)
       kryoOut.setBuffer(buffer)
