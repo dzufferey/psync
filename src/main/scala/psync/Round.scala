@@ -5,6 +5,7 @@ import psync.formula._
 import psync.utils.serialization.{KryoRegistration, KryoSerializer, KryoByteBufInput, KryoByteBufOutput}
 import com.esotericsoftware.kryo.Kryo
 import scala.reflect.ClassTag
+import psync.runtime.Progress
 
 /** A Round is the logical unit of time and communication in PSync.
  *
@@ -20,6 +21,9 @@ abstract class Round[A: ClassTag: KryoRegistration] extends EventRound[A] {
   //////////////////////////
   // user-defined methods //
   //////////////////////////
+  
+  // /* The initial progress conditions: either GoAhead or Timeout */
+  def init: Progress = Progress.timeout(10) //FIXME a default value so we don't have to change everthing
 
   //  /** The message sent by the process during this round.*/
   //  def send(): Map[ProcessID,A]
@@ -53,9 +57,10 @@ abstract class Round[A: ClassTag: KryoRegistration] extends EventRound[A] {
   
   protected var mailbox: Map[ProcessID, A] = Map.empty
 
-  final def receive(sender: ProcessID, payload: A): Boolean = {
+  final def receive(sender: ProcessID, payload: A): Progress = {
     mailbox += (sender -> payload)
-    mailbox.size >= expectedNbrMessages
+    if (mailbox.size >= expectedNbrMessages) Progress.goAhead
+    else Progress.unchanged
   }
 
   override final def finishRound: Boolean = {
@@ -78,11 +83,14 @@ abstract class Round[A: ClassTag: KryoRegistration] extends EventRound[A] {
  */
 abstract class EventRound[A: ClassTag: KryoRegistration] extends RtRound {
 
+  // /* The initial progress conditions */
+  // def init: Progress
+
   /** The message sent by the process during this round.*/
   def send(): Map[ProcessID,A]
 
   /** Processes a message and returns wether there have been enough messages to proceed. */
-  def receive(sender: ProcessID, payload: A): Boolean
+  def receive(sender: ProcessID, payload: A): Progress
   
   /** Finishes the round and returns whether to continue (or terminate). */
   def finishRound(): Boolean = true
@@ -102,7 +110,7 @@ abstract class EventRound[A: ClassTag: KryoRegistration] extends RtRound {
   
   final protected[psync] def packSend(kryo: Kryo, alloc: Int => KryoByteBufOutput, sending: ProcessID => Unit) = {
     val msgs = send()
-    var progress = false
+    var progress = Progress.unchanged
     msgs.foreach{ case (dst, value) =>
       if (dst == group.self) {
         //can we skip the (de)serialization when sending to self
@@ -116,7 +124,7 @@ abstract class EventRound[A: ClassTag: KryoRegistration] extends RtRound {
     progress
   }
   
-  final protected[psync] def receiveMsg(kryo: Kryo, sender: ProcessID, kryoIn: KryoByteBufInput): Boolean = {
+  final protected[psync] def receiveMsg(kryo: Kryo, sender: ProcessID, kryoIn: KryoByteBufInput) = {
     val a = kryo.readObject(kryoIn, implicitly[ClassTag[A]].runtimeClass).asInstanceOf[A]
     receive(sender, a)
   }
@@ -132,17 +140,22 @@ abstract class RtRound {
 
   protected[psync] def registerSerializer(kryo: Kryo): Unit
 
+  /** The initial progress conditions
+   * @returns what is the default progress policy of this round
+   */
+  def init: Progress
+
   /** Send the messages
    * @param alloc the bytebuffer allocator to use
    * @param sending the callback taking care of sending the packets it assumes the data is contained in the buffer given in alloc
    * @returns whether we need to wait on messages or directly finish the round
    */
-  protected[psync] def packSend(kryo: Kryo, alloc: Int => KryoByteBufOutput, sending: ProcessID => Unit): Boolean
+  protected[psync] def packSend(kryo: Kryo, alloc: Int => KryoByteBufOutput, sending: ProcessID => Unit): Progress
 
   /** A message has been reveived. This method is responsible for releasing the Butebuf.
    * @returns indicates if we can terminate the round early (no need to wait for more messages)
    */
-  protected[psync] def receiveMsg(kryo: Kryo, sender: ProcessID, payload: KryoByteBufInput): Boolean
+  protected[psync] def receiveMsg(kryo: Kryo, sender: ProcessID, payload: KryoByteBufInput): Progress
 
   /** terminate the round (call the update method with the accumulated messages)
    * @returns indicates whether to terminate this instance

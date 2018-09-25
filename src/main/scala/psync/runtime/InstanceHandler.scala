@@ -43,13 +43,12 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
 
   protected val buffer = new ArrayBlockingQueue[Message](options.bufferSize)
 
-  protected var timeout = options.timeout
-  protected val earlyMoving = options.earlyMoving
-  protected val adaptative = options.adaptative
   protected val sendWhenCatchingUp = options.sendWhenCatchingUp
   protected val delayFirstSend = options.delayFirstSend
-
-  protected var didTimeOut = 0
+  
+  protected var timeout = options.timeout
+  protected var roundStart: Long = 0
+  protected var enoughMessages = false
 
   protected var instance: Short = 0
   protected var self: ProcessID = new ProcessID(-1)
@@ -58,7 +57,6 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected var currentRound = 0
 
   protected var from: Array[Boolean] = null
-  protected var roundHasEnoughMessages = false
 
   protected val globalSizeHint = options.packetSize
   protected val kryoIn = new KryoByteBufInput(null)
@@ -139,23 +137,9 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       again = false
   }
 
-  @inline
-  private def adaptTimeout {
-    if (adaptative) {
-      //TODO something amortized to avoid oscillations
-      if (didTimeOut > 5) {
-        didTimeOut = 0
-        timeout += 10
-      } else if (didTimeOut < -50) {
-        didTimeOut = 0
-        timeout -= 10
-      }
-    }
-  }
-
   @inline private final def more = again && !Thread.interrupted
   @inline private final def rndDiff(rnd: Int) = rnd - currentRound
-  @inline private final def enoughMessages = roundHasEnoughMessages || !earlyMoving
+  private final val block = Long.MinValue
 
   def run {
     Logger("InstanceHandler", Info, "starting instance " + instance)
@@ -168,6 +152,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       }
       // one round
       while(more) {
+        initRound
         // send the messages at the beginning of the round
         if (msg == null || sendWhenCatchingUp) {
           send
@@ -181,19 +166,25 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
         {
           // try receive a new message
           if (msg == null) {
-            msg = buffer.poll(timeout, TimeUnit.MILLISECONDS)
+            if (timeout == block) {
+              msg = buffer.take()
+            } else {
+              val to = roundStart + timeout - java.lang.System.currentTimeMillis()
+              if (to <= 0) {
+                timedout = true
+              } else {
+                msg = buffer.poll(timeout, TimeUnit.MILLISECONDS)
+              }
+            }
             // check that we have a message that we can handle
             if (msg != null) {
-              didTimeOut -= 1
               if (!checkInstanceAndTag(msg)) {
                 msg = null
               }
             } else {
               //Logger("InstanceHandler", Warning, instance + " timeout")
-              didTimeOut += 1
               timedout = true
             }
-            adaptTimeout
           }
           // process pending message
           if (msg != null) {
@@ -204,7 +195,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
               msg.release
               msg = null
             } else if (late == 0) {
-              storePacket(msg)
+              processPacket(msg)
               msg = null
             } // else we need to catch-up
           }
@@ -228,6 +219,35 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   // current round //
   ///////////////////
 
+  protected def checkProgress(p: Progress, init: Boolean) {
+    if (p.isTimeout) {
+      timeout = p.timeout
+    } else if (p.isGoAhead) {
+      enoughMessages = true
+    } else if (p.isWaitMessage) {
+      timeout = block
+    } else if (p.isUnchanged) {
+      if (init) {
+        Logger.logAndThrow("InstanceHandler", Error, "Progress of init should not be Unchanged.")
+      } else {
+        // nothing to do I guess
+      }
+    } else {
+      Logger.logAndThrow("InstanceHandler", Error, "Progress !?!?")
+    }
+  }
+
+  protected def initRound {
+    // clean
+    enoughMessages = false
+    for (i <- 0 until n) {
+      from(i) = false
+    }
+    //
+    roundStart = java.lang.System.currentTimeMillis()
+    checkProgress(proc.init, true)
+  }
+
   // responsible for freeing the msg if returns false
   protected def checkInstanceAndTag(msg: Message): Boolean = {
     val tag = msg.tag
@@ -250,14 +270,14 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     }
   }
 
-  protected def storePacket(msg: Message) {
+  protected def processPacket(msg: Message) {
     val sender = msg.senderId
     if (!from(sender.id)) {
       from(sender.id) = true
       assert(msg.round == currentRound, msg.round + " vs " + currentRound)
       val buffer = msg.bufferAfterTag
       kryoIn.setBuffer(buffer)
-      roundHasEnoughMessages = proc.receive(kryo, sender, kryoIn)
+      checkProgress(proc.receive(kryo, sender, kryoIn), false)
       kryoIn.setBuffer(null: ByteBuf)
     }
     msg.release
@@ -265,11 +285,6 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
 
   protected def update = {
     Logger("InstanceHandler", Debug, "Replica " + self.id + ", instance " + instance + " delivering for round " + currentRound)
-    // clean
-    roundHasEnoughMessages = false
-    for (i <- 0 until n) {
-      from(i) = false
-    }
     // update
     proc.update
   }
@@ -291,7 +306,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       pktServ.send(pid, buffer)
       sent += 1
     }
-    roundHasEnoughMessages = proc.send(kryo, alloc, sending)
+    checkProgress(proc.send(kryo, alloc, sending), false)
     kryoOut.setBuffer(null: ByteBuf)
     Logger("InstanceHandler", Debug, "Replica " + self.id + ", instance " + instance + " sending for round " + currentRound + " -> " + sent + "\n")
   }

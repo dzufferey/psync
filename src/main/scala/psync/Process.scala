@@ -4,6 +4,7 @@ import psync.runtime.Group
 import psync.utils.serialization.{KryoByteBufInput, KryoByteBufOutput}
 import com.esotericsoftware.kryo.Kryo
 import psync.formula.Formula
+import psync.runtime.Progress
 
 abstract class Process[IO] extends RtProcess {
 
@@ -62,13 +63,17 @@ abstract class RtProcess {
   final protected[psync] def registerSerializer(kryo: Kryo) = {
     rounds.foreach(_._1.registerSerializer(kryo))
   }
-
-  protected[psync] final def send(kryo: Kryo, alloc: Int => KryoByteBufOutput, sending: ProcessID => Unit): Boolean = {
+  
+  protected[psync] final def init(): Progress = {
     incrementRound
+    currentRound.init
+  }
+
+  protected[psync] final def send(kryo: Kryo, alloc: Int => KryoByteBufOutput, sending: ProcessID => Unit): Progress = {
     currentRound.packSend(kryo, alloc, sending)
   }
 
-  protected[psync] final def receive(kryo: Kryo, sender: ProcessID, payload: KryoByteBufInput): Boolean = {
+  protected[psync] final def receive(kryo: Kryo, sender: ProcessID, payload: KryoByteBufInput): Progress = {
     currentRound.receiveMsg(kryo, sender, payload)
   }
 

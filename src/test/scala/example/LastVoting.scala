@@ -5,8 +5,9 @@ import psync.Time._
 import psync.formula._
 import psync.macros.Macros._
 import psync.utils.serialization._
+import psync.runtime.Progress
 
-class LastVoting extends Algorithm[ConsensusIO, LVProcess] {
+class LastVoting(timeout: Long) extends Algorithm[ConsensusIO, LVProcess] {
 
   import SpecHelper._
 
@@ -67,7 +68,7 @@ class LastVoting extends Algorithm[ConsensusIO, LVProcess] {
     )
   }
   
-  def process = new LVProcess()
+  def process = new LVProcess(timeout)
   
   def dummyIO = new ConsensusIO{
     val initialValue = 0
@@ -75,7 +76,7 @@ class LastVoting extends Algorithm[ConsensusIO, LVProcess] {
   }
 }
   
-class LVProcess extends Process[ConsensusIO]{
+class LVProcess(timeout: Long) extends Process[ConsensusIO]{
 
   //variables
   var x = 0
@@ -107,11 +108,23 @@ class LVProcess extends Process[ConsensusIO]{
       var maxTime = new Time(-1)
       var maxVal = 0
 
+      def init = {
+        nMsg = 0
+        maxTime = new Time(-1)
+        maxVal = x
+        if (r == new Time(0) || id != coord) {
+          Progress.goAhead
+        } else {
+          Progress.timeout( timeout )
+        }
+      }
+
       def send(): Map[ProcessID,(Int, Time)] = {
-        nMsg = 0 // XXX
-        maxTime = new Time(-1) // XXX
-        maxVal = 0 // XXX
-        Map(coord -> (x, ts))
+        if (r == new Time(0)) {
+          Map.empty
+        } else {
+          Map(coord -> (x, ts))
+        }
       }
 
       def receive(sender: ProcessID, payload: (Int, Time)) = {
@@ -120,7 +133,8 @@ class LVProcess extends Process[ConsensusIO]{
           maxTime = payload._2
           maxVal = payload._1
         }
-        (nMsg > n/2 || r == new Time(0) || id != coord)
+        if (nMsg > n/2) Progress.goAhead
+        else Progress.unchanged
       }
       
       override def finishRound() = {
@@ -136,6 +150,11 @@ class LVProcess extends Process[ConsensusIO]{
 
     new EventRound[Int]{
 
+      def init = {
+        if (id == coord && !commit) Progress.goAhead
+        else Progress.timeout( timeout )
+      }
+
       def send(): Map[ProcessID,Int] = {
         if (id == coord && commit) {
           broadcast(vote)
@@ -149,9 +168,9 @@ class LVProcess extends Process[ConsensusIO]{
           x = payload
           ts = r/4
           assert(x != 0)
-          true
+          Progress.goAhead
         } else {
-          false
+          Progress.unchanged
         }
       }
 
@@ -161,8 +180,16 @@ class LVProcess extends Process[ConsensusIO]{
 
       var nMsg = 0
 
+      def init = {
+        nMsg = 0
+        if (id == coord) {
+          Progress.timeout( timeout )
+        } else {
+          Progress.goAhead
+        }
+      }
+
       def send(): Map[ProcessID,Int] = {
-        nMsg = 0 // XXX
         if ( ts == (r/4) ) {
           Map( coord -> x )
         } else {
@@ -172,7 +199,8 @@ class LVProcess extends Process[ConsensusIO]{
 
       def receive(sender: ProcessID, payload: Int) = {
         nMsg += 1
-        (nMsg > n/2 || id != coord) 
+        if (nMsg > n/2) Progress.goAhead
+        else Progress.unchanged
       }
 
       override def finishRound() = {
@@ -183,6 +211,11 @@ class LVProcess extends Process[ConsensusIO]{
     },
 
     new EventRound[Int]{
+
+      def init = {
+        if (id == coord && !ready) Progress.goAhead
+        else Progress.timeout( timeout )
+      }
 
       def send(): Map[ProcessID, Int] = {
         if (id == coord && ready) {
@@ -197,9 +230,9 @@ class LVProcess extends Process[ConsensusIO]{
           assert(payload != 0)
           decision = payload
           decided = true
-          true
+          Progress.goAhead
         } else {
-          false
+          Progress.unchanged
         }
       }
 
