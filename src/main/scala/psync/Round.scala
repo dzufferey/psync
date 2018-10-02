@@ -63,7 +63,7 @@ abstract class Round[A: ClassTag: KryoRegistration] extends EventRound[A] {
     else Progress.unchanged
   }
 
-  override final def finishRound: Boolean = {
+  override final def finishRound(didTimeout: Boolean): Boolean = {
     update(mailbox)
     mailbox = Map.empty
     getContinue
@@ -93,7 +93,7 @@ abstract class EventRound[A: ClassTag: KryoRegistration] extends RtRound {
   def receive(sender: ProcessID, payload: A): Progress
   
   /** Finishes the round and returns whether to continue (or terminate). */
-  def finishRound(): Boolean = true
+  def finishRound(didTimeout: Boolean): Boolean = true
 
   /** An upper bound to the number of byte required for the payload.
     * a negative value is ignored and the global/default configuration option is used instead. */
@@ -158,9 +158,10 @@ abstract class RtRound {
   protected[psync] def receiveMsg(kryo: Kryo, sender: ProcessID, payload: KryoByteBufInput): Progress
 
   /** terminate the round (call the update method with the accumulated messages)
+   * @param didTimeout indicates if finishRound was called following a timeout
    * @returns indicates whether to terminate this instance
    */
-  protected[psync] def finishRound: Boolean
+  protected[psync] def finishRound(didTimeout: Boolean): Boolean
 
   protected var group: psync.runtime.Group = null
   protected[psync] def setGroup(g: psync.runtime.Group) {

@@ -77,8 +77,8 @@ abstract class RtProcess {
     currentRound.receiveMsg(kryo, sender, payload)
   }
 
-  protected[psync] final def update: Boolean = {
-    currentRound.finishRound
+  protected[psync] final def update(didTimeout: Boolean): Boolean = {
+    currentRound.finishRound(didTimeout)
   }
 
 }

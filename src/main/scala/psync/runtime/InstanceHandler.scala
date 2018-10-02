@@ -200,7 +200,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
             } // else we need to catch-up
           }
         }
-        again &= update
+        again &= update(timedout || rndDiff(msgRound) > 0) //consider catching up as TO
         currentRound += 1
       }
     } catch {
@@ -283,10 +283,9 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     msg.release
   }
 
-  protected def update = {
-    Logger("InstanceHandler", Debug, "Replica " + self.id + ", instance " + instance + " delivering for round " + currentRound)
-    // update
-    proc.update
+  protected def update(didTimeout: Boolean) = {
+    Logger("InstanceHandler", Debug, "Replica " + self.id + ", instance " + instance + " delivering for round " + currentRound + (if (didTimeout) " with TO" else ""))
+    proc.update(didTimeout)
   }
 
   protected def send {

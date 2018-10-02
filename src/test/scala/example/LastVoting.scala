@@ -137,8 +137,8 @@ class LVProcess(timeout: Long) extends Process[ConsensusIO]{
         else Progress.unchanged
       }
       
-      override def finishRound() = {
-        if (id == coord && (r == new Time(0) || nMsg > n/2)) {
+      override def finishRound(didTimeout: Boolean) = {
+        if (id == coord && !didTimeout) {
           commit = true
           vote = maxVal
           assert(vote != 0)
@@ -203,8 +203,8 @@ class LVProcess(timeout: Long) extends Process[ConsensusIO]{
         else Progress.unchanged
       }
 
-      override def finishRound() = {
-        ready = (nMsg > n/2 && id == coord)
+      override def finishRound(didTimeout: Boolean) = {
+        ready = (!didTimeout && id == coord)
         true
       }
 
@@ -236,7 +236,7 @@ class LVProcess(timeout: Long) extends Process[ConsensusIO]{
         }
       }
 
-      override def finishRound() = {
+      override def finishRound(didTimeout: Boolean) = {
         ready = false
         commit = false
         if (decided) {

@@ -48,11 +48,9 @@ class TpcProcess(blocking: Boolean, timeout: Long) extends Process[TpcIO] {
     new EventRound[Boolean]{
 
       var nMsg = 0
-      var success = true
 
       def init = {
         nMsg = 0
-        success = true
         if (id != coord) Progress.goAhead
         else if (blocking) Progress.waitMessage
         else Progress.timeout(timeout)
@@ -64,14 +62,13 @@ class TpcProcess(blocking: Boolean, timeout: Long) extends Process[TpcIO] {
 
       def receive(sender: ProcessID, payload: Boolean) = {
         nMsg += 1
-        success &= payload
-        if (!success || nMsg == n) Progress.goAhead
+        if (!payload || nMsg == n) Progress.goAhead
         else Progress.unchanged
       }
 
-      override def finishRound = {
+      override def finishRound(didTimeout: Boolean) = {
         if (id == coord) {
-          decision = Some(success)
+          decision = Some(nMsg == n)
         }
         true
       }
@@ -95,7 +92,7 @@ class TpcProcess(blocking: Boolean, timeout: Long) extends Process[TpcIO] {
         Progress.goAhead
       }
 
-      override def finishRound = {
+      override def finishRound(didTimeout: Boolean) = {
         callback.decide(decision)
         false
       }
