@@ -220,6 +220,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   ///////////////////
 
   protected def checkProgress(p: Progress, init: Boolean) {
+    //TODO (non)strict
     if (p.isTimeout) {
       timeout = p.timeout
     } else if (p.isGoAhead) {

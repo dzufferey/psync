@@ -5,7 +5,6 @@ import psync.formula._
 import psync.utils.serialization.{KryoRegistration, KryoSerializer, KryoByteBufInput, KryoByteBufOutput}
 import com.esotericsoftware.kryo.Kryo
 import scala.reflect.ClassTag
-import psync.runtime.Progress
 
 /** A Round is the logical unit of time and communication in PSync.
  *

@@ -40,5 +40,3 @@ object InstanceChecks extends Properties("Instance# manipulation check") {
   }
 
 }
-
-

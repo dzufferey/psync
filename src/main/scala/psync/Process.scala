@@ -4,7 +4,7 @@ import psync.runtime.Group
 import psync.utils.serialization.{KryoByteBufInput, KryoByteBufOutput}
 import com.esotericsoftware.kryo.Kryo
 import psync.formula.Formula
-import psync.runtime.Progress
+
 
 abstract class Process[IO] extends RtProcess {
 

@@ -5,7 +5,7 @@ import psync.Time._
 import psync.formula._
 import psync.macros.Macros._
 import psync.utils.serialization._
-import psync.runtime.Progress
+
 
 class LastVoting(timeout: Long) extends Algorithm[ConsensusIO, LVProcess] {
 
