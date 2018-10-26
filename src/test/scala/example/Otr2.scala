@@ -3,6 +3,7 @@ package example
 import psync._
 import psync.formula._
 import psync.macros.Macros._
+import psync.utils.serialization._
 
 class Otr2Process(afterDecision: Int) extends Process[ConsensusIO]{
   

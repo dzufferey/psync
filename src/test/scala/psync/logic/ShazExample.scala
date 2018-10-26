@@ -89,31 +89,54 @@ class ShazExample extends FunSuite {
     //assertUnsat(fs, 20000, true, cl2_2, Some("test2_2.smt2"))
   }
 
+  //TODO look in Shaz's file. this looks funny...
 
-  //TODO Malloc(tid: X) part 1
-  //assume mutator(tid);
-  //assume invariant(NumFreeAtOrAfter, AllocatingAtOrAfter, Free, freeSpace);    
-  //assume (forall u: int :: !AllocatingAtOrAfter[u][tid]);
-  //var i: int;
-  //var spaceFound: bool;
-  ////YieldAlloc(tid, 0) precond
-  //assert mutator(tid);
-  //assert Invariant(NumFreeAtOrAfter, AllocatingAtOrAfter, Free, freeSpace);
-  //assert (forall u: int :: AllocatingAtOrAfter[u][tid] <==> memLo <= u && u <= 0);
+  ignore("malloc part 1") {
+    val fs = List(
+      memAssumptions,
+      memAddrDef,
+      threadAssumptions,
+      tid ∈ mutator,
+      invariant(numFreeAtOrAfter, allocatingAtOrAfter, free, freeSpace),
+      ForAll(List(loc), tid ∉ allocatingAtOrAfter.lookUp(loc)),
+      //var i: int;
+      //var spaceFound: bool;
+      ////YieldAlloc(tid, 0) precond
+      Or( tid ∉ mutator,
+          Not(invariant(numFreeAtOrAfter, allocatingAtOrAfter, free, freeSpace)),
+          Not(ForAll(List(loc), tid ∈ allocatingAtOrAfter.lookUp(loc) === And(memLo ≤ loc, loc ≤ 0) ))
+      )
+    )
+    assertUnsat(fs)
+  }
 
-  //TODO Malloc(tid: X) part 2
-  //assume mutator(tid);
-  //assume Invariant(NumFreeAtOrAfter, AllocatingAtOrAfter, Free, freeSpace);
-  //assume (forall u: int :: AllocatingAtOrAfter[u][tid] <==> memLo <= u && u <= 0);
-  //assert (forall v: int :: memAddr(v) ==> Subset(AllocatingAtOrAfter[v], AllocatingAtOrAfter[memLo]));
+  ignore("malloc part 2") {
+    val fs = List(
+      memAssumptions,
+      memAddrDef,
+      threadAssumptions,
+      tid ∈ mutator,
+      invariant(numFreeAtOrAfter, allocatingAtOrAfter, free, freeSpace),
+      ForAll(List(loc), (tid ∈ allocatingAtOrAfter.lookUp(loc)) === And(memLo ≤ loc, loc ≤ 0) ),
+      Not( ForAll(List(loc), (loc ∈ memAddr) ==>  (allocatingAtOrAfter.lookUp(loc) ⊆ allocatingAtOrAfter.lookUp(memLo))) )
+    )
+    assertUnsat(fs)
+  }
 
-  //TODO Malloc(tid: X) part 3
-  //assume mutator(tid);
-  //assume Invariant(NumFreeAtOrAfter, AllocatingAtOrAfter, Free, freeSpace);
-  //assume (forall u: int :: AllocatingAtOrAfter[u][tid] <==> memLo <= u && u <= 0);
-  //assume (forall v: int :: memAddr(v) ==> Subset(AllocatingAtOrAfter[v], AllocatingAtOrAfter[memLo]));
-  ////DecrementFreeSpace(tid) precond
-  //assert AllocatingAtOrAfter[memLo] == AllocatingAtOrAfter[memLo][tid := false];
+  ignore("malloc part 3") {
+    val fs = List(
+      memAssumptions,
+      memAddrDef,
+      threadAssumptions,
+      tid ∈ mutator,
+      invariant(numFreeAtOrAfter, allocatingAtOrAfter, free, freeSpace),
+      ForAll(List(loc), (tid ∈ allocatingAtOrAfter.lookUp(loc)) === And(memLo ≤ loc, loc ≤ 0) ),
+      ForAll(List(loc), (loc ∈ memAddr) ==> (allocatingAtOrAfter.lookUp(loc) ⊆ allocatingAtOrAfter.lookUp(memLo))),
+      ////DecrementFreeSpace(tid) precond
+      Not( tid ∈ allocatingAtOrAfter.lookUp(memLo) )//assert AllocatingAtOrAfter[memLo] == AllocatingAtOrAfter[memLo][tid := false]; XXX not sure I got the meaning of that...
+    )
+    assertUnsat(fs)
+  }
 
   //TODO Malloc(tid: X) part 4
   //assume mutator(tid);

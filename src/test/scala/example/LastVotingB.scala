@@ -3,6 +3,7 @@ package example
 import psync._
 import psync.Time._
 import psync.macros.Macros._
+import psync.utils.serialization._
 
 abstract class BConsensusIO {
   val phase: Int
@@ -20,6 +21,7 @@ class LVBProcess(wholeCohort: Boolean) extends Process[BConsensusIO] {
   var commit = false
   var vote: Array[Byte] = null
   var callback: BConsensusIO = null
+  var expectedMajority = 0
 
   def init(io: BConsensusIO) = i{
     callback = io
@@ -28,9 +30,9 @@ class LVBProcess(wholeCohort: Boolean) extends Process[BConsensusIO] {
     ts = -1
     ready = false
     commit = false
+    expectedMajority = if (wholeCohort) n else n/2 + 1
   }
 
-  def expectedMajority = if (wholeCohort) n else n/2 + 1
       
   def coord(phi: Int): ProcessID = new ProcessID(((phi + phase) % n).toShort)
 

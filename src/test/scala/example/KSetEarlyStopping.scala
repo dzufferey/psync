@@ -3,6 +3,7 @@ package example
 import psync._
 import psync.runtime._
 import psync.macros.Macros._
+import psync.utils.serialization._
 
 //http://link.springer.com/chapter/10.1007%2F11535294_5
 class KSetESProcess(t: Int, k: Int) extends Process[ConsensusIO] {

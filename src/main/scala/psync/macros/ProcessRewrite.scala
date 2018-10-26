@@ -88,27 +88,6 @@ trait ProcessRewrite {
     }
   }
 
-  def getInitState(ts: List[Tree]): Formula = {
-    findMethod(ts, "init") match {
-      case Some(ddef) =>
-        try {
-          //TODO capturing args
-          val f = makeConstraints(ddef.rhs)
-          FormulaUtils.map({
-            case v @ Variable(_) => removeProcTypeArg(v)
-            case other => other
-          }, f)
-        } catch {
-          case e: Exception =>
-            c.warning(ddef.pos, "error while extracting the initial state, leaving it unconstrained.\n" + e)
-            True()
-        }
-      case None =>
-        c.warning(ts.head.pos, "did not find 'init' method, leav the initial state unconstrained.")
-        True()
-    }
-  }
-
   def globalList(decls: List[MyVarDef]) = {
     decls.filter(!_.local).map( d => Variable(d.name).setType(extractType(d.tpe)))
   }
@@ -131,54 +110,6 @@ trait ProcessRewrite {
     }
   }
 
-  /*
-  def processRewrite(t: Tree): Tree = t match {
-    //TODO make sure it is a Process
-    //TODO can we add type parameters to allow generic consensus
-    case q"new ..$parents { ..$body }" =>
-      //TODO enclosingClass
-      val vars = getVariables(c.enclosingClass) ::: defaultVariables
-      val implVars = vars.filter( !_.ghost ) 
-      val (newDefs, idMap) = implVars.foldLeft((Nil: List[ValDef],Map.empty[String,Ident]))( (acc, mvd) => {
-        val (vdef, id) = mkLocalDecl(mvd)
-        (acc._1 :+ vdef, acc._2 + (mvd.name -> id))
-      })
-      val transformer = new InsideProcess(idMap)
-      //
-      val _f = getInitState(body)
-      val f = Typer(_f) match {
-        case Typer.TypingSuccess(f) =>
-          f
-        case Typer.TypingFailure(r) =>
-          c.warning(body.head.pos, "unable to type formula corresponding to initial state (leaving it unconstrained): " + _f.toStringFull)
-          True()
-        case Typer.TypingError(r) =>
-          c.abort(body.head.pos, "formula typer failed on formula corresponding to initial state: " + r)
-      }
-      val init = q"val initState: psync.formula.Formula = $f"
-      val v1 = globalList(vars).map(_liftF)
-      val v2 = localList(vars).map(_liftF)
-      val v3 = ghostList(vars).map(_liftF)
-      val _v1 = q"val globalVariables: List[psync.formula.Variable] = $v1" 
-      val _v2 = q"val localVariables: List[psync.formula.Variable] = $v2" 
-      val _v3 = q"val ghostVariables: List[psync.formula.Variable] = $v3" 
-      //
-      val body2 = init :: _v1 :: _v2 :: _v3 :: newDefs ::: defaultMethods ::: transformer.transformTrees(body)
-      val tree = q"new ..$parents { ..$body2 }"
-      //
-      val s1 = emitNonOverflowingString(t.toString)
-      val s2 = emitNonOverflowingString(tree.toString)
-      val _s1 = q"val beforeProcessing: String = $s1"
-      val _s2 = q"val afterProcessing: String = $s2"
-      //
-      val body3 = _s1 :: _s2 :: body2
-      val tree2 = q"new ..$parents { ..$body3 }"
-      c.untypecheck(tree2)
-    case _ =>
-      c.abort(c.enclosingPosition, "'p' should be applied to class definition: p(new Process{ ... })")
-  }
-  */
-
   def extractInit(/*arg: Tree,*/ body: Tree): Tree = {
     /*
     val initArg = tree2Formula(arg) match {
@@ -186,7 +117,13 @@ trait ProcessRewrite {
       case other => c.abort(arg.pos, "expected variable, found: " + other)
     }
     */
-    val _f = makeConstraints(body)
+    val _f = try {
+        makeConstraints(body)
+      } catch {
+        case e: Exception =>
+          c.warning(body.pos, "error while extracting the initial state, leaving it unconstrained.\n" + e)
+          True()
+      }
     val f = Typer(_f) match {
       case Typer.TypingSuccess(f) =>
         f

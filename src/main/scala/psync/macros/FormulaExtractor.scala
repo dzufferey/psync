@@ -326,18 +326,18 @@ trait FormulaExtractor {
         mapName
 
       // set construction
-      case q"scala.this.Predef.Set.empty[$tpt]" =>
+      case q"scala.Predef.Set.empty[$tpt]" =>
         val t = extractType(tpt)
         val v = Variable(c.freshName("v")).setType(t)
         Comprehension(List(v), False()).setType(FSet(t))
-      case q"scala.this.Predef.Set.apply[$tpt](..$args)" =>
+      case q"scala.Predef.Set.apply[$tpt](..$args)" =>
         val t = extractType(tpt)
         val v = Variable(c.freshName("v")).setType(t)
         val args2 = args map tree2Formula
         val f = Or(args2.map(Eq(v,_)):_*)
         Comprehension(List(v), f).setType(FSet(t))
       
-      case q"scala.this.Predef.Map.empty[$t1,$t2]" =>
+      case q"scala.Predef.Map.empty[$t1,$t2]" =>
         val t = typeOfTree(e)
         val emp = Variable(c.freshName("emptyMap")).setType(t)
         val _t1 = extractType(t1)
@@ -349,7 +349,7 @@ trait FormulaExtractor {
         addCstr(Eq(KeySet(emp), Comprehension(List(elt), False())))
         // LookUp is unconstrained
         emp
-      case q"scala.this.Predef.Map.apply[$t1,$t2](..$args)" =>
+      case q"scala.Predef.Map.apply[$t1,$t2](..$args)" =>
         val t = typeOfTree(e)
         val m = Variable(c.freshName("applyMap")).setType(t)
         val elt = Variable(c.freshName("v")).setType(extractType(t1))
@@ -425,7 +425,7 @@ trait FormulaExtractor {
         val tpt2 = tpt.map(extractType)
         val args2 = args.map(tree2Formula)
         Application(Tuple, args2).setType(Product(tpt2))
-      case q"scala.this.Predef.ArrowAssoc[$tpt1]($l).->[$tpt2]($r)" =>
+      case q"scala.Predef.ArrowAssoc[$tpt1]($l).->[$tpt2]($r)" =>
         val l2 = tree2Formula(l)
         val r2 = tree2Formula(r)
         val tl = extractType(tpt1)

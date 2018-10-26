@@ -19,11 +19,11 @@ object SmtSolver {
   }
 
   def z3(file: Option[String], timeout: Long): Solver = {
-    new Solver(UFLIA, Z3.solver, Z3.solverArg, true, true, file, timeout)
+    new Solver(UFLIA, Z3.solver, Z3.solverArg, true, false, file, timeout)
   }
 
   def cvc4mf(file: Option[String], timeout: Long): Solver = {
-    new Solver(UFLIA, CVC4MF.solver, CVC4MF.solverArg, true, true, file, timeout)
+    new Solver(UFLIA, CVC4MF.solver, CVC4MF.solverArg, true, false, file, timeout)
   }
 
   def apply(file: Option[String], timeout: Long): Solver = {

@@ -127,36 +127,33 @@ class OtrExampleNoMailbox extends FunSuite {
     assertUnsat(fs, c3e1)
   }
   
-//test("invariant is inductive") {
-//  val fs = List(
-//    invariantAgreement,
-//    tr,
-//    Not(prime(invariantAgreement))
-//  )
-//  //assertUnsat(fs, cln(3, new quantifiers.Eager, 2, true))
-//  assertUnsat(fs, cln(3, new quantifiers.Sequence(new quantifiers.Eager, new quantifiers.Guided), 2, true))
-//}
+  ignore("invariant is inductive") {
+    val fs = List(
+      invariantAgreement,
+      tr,
+      Not(prime(invariantAgreement))
+    )
+    assertUnsat(fs, to = 600000, reducer = c3e2)
+  }
 
-//test("1st magic round") {
-//  val fs = List(
-//    invariantAgreement,
-//    magicRound,
-//    tr,
-//    Not(prime(invariantProgress1))
-//  )
-//  //assertUnsat(fs, cln(3, new quantifiers.Eager, 2, true))
-//  assertUnsat(fs, cln(3, new quantifiers.Sequence(new quantifiers.Eager, new quantifiers.Guided), 2, true))
-//}
+  ignore("1st magic round") {
+    val fs = List(
+      invariantAgreement,
+      magicRound,
+      tr,
+      Not(prime(invariantProgress1))
+    )
+    assertUnsat(fs, to = 600000, reducer = c3e2)
+  }
 
-//test("invariant 1 is inductive") {
-//  val fs = List(
-//    invariantProgress1,
-//    tr,
-//    Not(prime(invariantProgress1))
-//  )
-//  //assertUnsat(fs,  120000, true, cln(3, new quantifiers.Eager, 2, true))
-//  assertUnsat(fs, to = 240000, reducer = cln(3, new quantifiers.Sequence(new quantifiers.Eager(Some(1)), new quantifiers.Guided(Some(1))), true))
-//}
+  ignore("invariant 1 is inductive") {
+    val fs = List(
+      invariantProgress1,
+      tr,
+      Not(prime(invariantProgress1))
+    )
+    assertUnsat(fs, to = 600000, reducer = c3e2)
+  }
 
   test("2nd magic round") {
     val fs = List(

@@ -3,10 +3,11 @@ package psync.runtime
 import psync._
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
-import io.netty.buffer.ByteBuf
+import io.netty.buffer.{ByteBuf,PooledByteBufAllocator}
 import io.netty.channel.socket._
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.TimeUnit
+import psync.utils.serialization.{KryoSerializer, KryoByteBufInput, KryoByteBufOutput}
 
 
 //TODO what should be the interface ?
@@ -23,7 +24,7 @@ import java.util.concurrent.TimeUnit
 trait InstHandler {
 
   /** Handle packets received from this instance */
-  def newPacket(dp: DatagramPacket): Unit
+  def newPacket(msg: Message): Unit
 
   /** This instance should stop.
    *  Since there might be multiple threads working. It might take
@@ -40,7 +41,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
                           defaultHandler: Message => Unit,
                           options: RuntimeOptions) extends Runnable with InstHandler {
 
-  protected val buffer = new ArrayBlockingQueue[DatagramPacket](options.bufferSize)
+  protected val buffer = new ArrayBlockingQueue[Message](options.bufferSize)
 
   protected var timeout = options.timeout
   protected val earlyMoving = options.earlyMoving
@@ -51,7 +52,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected var didTimeOut = 0
 
   protected var instance: Short = 0
-  protected var grp: Group = null
+  protected var self: ProcessID = new ProcessID(-1)
 
   protected var n = 0
   protected var currentRound = 0
@@ -59,16 +60,25 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected var from: Array[Boolean] = null
   protected var roundHasEnoughMessages = false
 
+  protected val globalSizeHint = options.packetSize
+  protected val kryoIn = new KryoByteBufInput(null)
+  protected val kryoOut = new KryoByteBufOutput(null)
+  protected val kryo = {
+    val k = KryoSerializer.serializer
+    proc.registerSerializer(k)
+    k
+  }
+  protected val allocator = PooledByteBufAllocator.DEFAULT
 
   /** A new packet is received and should be processed */
-  def newPacket(dp: DatagramPacket) = {
-    if (!buffer.offer(dp)) {
-      Logger("InstanceHandler", Warning, "Replica " + grp.self.id + " too many packets for instance " + instance)
-      dp.release
+  def newPacket(msg: Message) = {
+    if (!buffer.offer(msg)) {
+      Logger("InstanceHandler", Warning, "Replica " + self.id + " too many packets for instance " + instance)
+      msg.release
     }
   }
 
-  /** Forward the packet to the defaultHandler */
+  /** Forward the packet to the defaultHandler in another thread/task */
   protected def default(msg: Message) {
     rt.submitTask(new Runnable { def run = defaultHandler(msg) })
   }
@@ -85,7 +95,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
 
     // init this
     instance = inst
-    grp = g
+    self = g.self
     n = g.size
     currentRound = 0
 
@@ -96,12 +106,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     }
 
     // enqueue pending messages
-    msgs.foreach(p => {
-      val pkt = p.packet
-      pkt.retain
-      p.release
-      newPacket(pkt)
-    })
+    msgs.foreach(newPacket)
 
     // register
     dispatcher.add(inst, this)
@@ -127,7 +132,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     rt.recycle(this)
   }
 
-  protected var again = true
+  @volatile protected var again = true
 
   def interrupt(inst: Int) {
     if (instance == inst)
@@ -176,11 +181,10 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
         {
           // try receive a new message
           if (msg == null) {
-            val pkt = buffer.poll(timeout, TimeUnit.MILLISECONDS)
+            msg = buffer.poll(timeout, TimeUnit.MILLISECONDS)
             // check that we have a message that we can handle
-            if (pkt != null) {
+            if (msg != null) {
               didTimeOut -= 1
-              msg = new Message(pkt, grp)
               if (!checkInstanceAndTag(msg)) {
                 msg = null
               }
@@ -234,7 +238,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       // nothing to do we are fine
       true
     } else if (tag.flag == Flags.dummy) {
-      Logger("InstanceHandler", Debug, grp.self.id + ", " + instance + "dummy flag (ignoring)")
+      Logger("InstanceHandler", Debug, self.id + ", " + instance + "dummy flag (ignoring)")
       msg.release
       false
     } else {
@@ -252,23 +256,15 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       from(sender.id) = true
       assert(msg.round == currentRound, msg.round + " vs " + currentRound)
       val buffer = msg.bufferAfterTag
-      buffer.retain
-      msg.release
-      roundHasEnoughMessages = proc.receive(sender, buffer)
-    } else {
-      // duplicate packet
-      msg.release
+      kryoIn.setBuffer(buffer)
+      roundHasEnoughMessages = proc.receive(kryo, sender, kryoIn)
+      kryoIn.setBuffer(null: ByteBuf)
     }
-  }
-
-  protected def storeSelfPacket(buf: ByteBuf) {
-    assert(!from(grp.self.id))
-    from(grp.self.id) = true
-    roundHasEnoughMessages = proc.receive(grp.self, Message.moveAfterTag(buf))
+    msg.release
   }
 
   protected def update = {
-    Logger("InstanceHandler", Debug, "Replica " + grp.self.id + ", instance " + instance + " delivering for round " + currentRound)
+    Logger("InstanceHandler", Debug, "Replica " + self.id + ", instance " + instance + " delivering for round " + currentRound)
     // clean
     roundHasEnoughMessages = false
     for (i <- 0 until n) {
@@ -281,16 +277,23 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected def send {
     val tag = Tag(instance, currentRound)
     var sent = 0
-    def sending(pid: ProcessID, payload: ByteBuf) {
-      if (pid == grp.self) {
-        storeSelfPacket(payload)
-      } else {
-        pktServ.send(pid, payload)
-      }
+    var buffer: ByteBuf = null
+    def alloc(sizeHint: Int): KryoByteBufOutput = {
+      buffer = if (sizeHint > tag.size) allocator.buffer(sizeHint)
+               else if (globalSizeHint > tag.size) allocator.buffer(globalSizeHint)
+               else allocator.buffer()
+      buffer.writeLong(tag.underlying)
+      kryoOut.setBuffer(buffer)
+      kryoOut
+    }
+    def sending(pid: ProcessID) {
+      assert(pid != self)
+      pktServ.send(pid, buffer)
       sent += 1
     }
-    proc.send(tag, sending)
-    Logger("InstanceHandler", Debug, "Replica " + grp.self.id + ", instance " + instance + " sending for round " + currentRound + " -> " + sent + "\n")
+    roundHasEnoughMessages = proc.send(kryo, alloc, sending)
+    kryoOut.setBuffer(null: ByteBuf)
+    Logger("InstanceHandler", Debug, "Replica " + self.id + ", instance " + instance + " sending for round " + currentRound + " -> " + sent + "\n")
   }
   
 }

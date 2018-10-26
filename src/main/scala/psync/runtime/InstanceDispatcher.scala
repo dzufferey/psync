@@ -81,10 +81,9 @@ class InstanceDispatcher(options: RuntimeOptions)
     }
   }
 
-  def dispatch(pkt: DatagramPacket) = {
-    val tag = Message.getTag(pkt.content)
-    findInstance(tag.instanceNbr).exists( inst => {
-      inst.newPacket(pkt)
+  def dispatch(msg: Message) = {
+    findInstance(msg.instance).exists( inst => {
+      inst.newPacket(msg)
       true
     })
   }

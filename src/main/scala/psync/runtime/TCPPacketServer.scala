@@ -21,34 +21,37 @@ import io.netty.handler.ssl.util._
 import java.net.{InetSocketAddress,InetAddress}
 import java.util.concurrent.{Executors, TimeUnit}
 import scala.collection.concurrent.TrieMap
-import scala.collection.mutable.{Map, SynchronizedMap, HashMap}
+import scala.collection.mutable.Map
 import java.nio.charset.StandardCharsets.UTF_8
 
 class TCPPacketServer(
     executor: java.util.concurrent.Executor,
     port: Int,
     initGroup: Group,
-    _defaultHandler: Message => Unit,
-    options: RuntimeOptions) extends PacketServer(executor, port, initGroup, _defaultHandler, options)
+    val defaultHandler: Message => Unit,
+    options: RuntimeOptions) extends PacketServer(executor, port, initGroup, defaultHandler, options)
 {
 
   val recipientMap: Map[ProcessID, Channel] = new TrieMap
-  val unknownSender = new java.util.concurrent.ConcurrentLinkedQueue[(InetSocketAddress,Channel)]
-  protected[runtime] def addChannel(addr: InetSocketAddress, chan: Channel) {
-    group.getSafe(addr) match {
-      case Some(r) =>
-        recipientMap.update(r.id, chan)
-      case None =>
-        unknownSender.add(addr -> chan)
-    }
+  val unknownSender: Map[InetSocketAddress, Channel] = new TrieMap
+  val handlers: Map[TCPPacketHandler,Unit] = new TrieMap
+  protected[runtime] def addChannel(id: ProcessID, chan: Channel) {
+    recipientMap.update(id, chan)
   }
-  protected[runtime] def removeChannel(addr: InetSocketAddress) {
-    group.getSafe(addr) match {
-      case Some(r) =>
-        recipientMap.remove(r.id)
-      case None =>
-        Logger("TCPPacketServer", Debug, "No channel to remove for " + addr)
-    }
+  protected[runtime] def removeChannel(id: ProcessID) {
+    recipientMap.remove(id)
+  }
+  protected[runtime] def addUnknownChannel(addr: InetSocketAddress, chan: Channel) {
+    unknownSender.update(addr, chan)
+  }
+  protected[runtime] def removeUnknownChannel(addr: InetSocketAddress) {
+    unknownSender.remove(addr)
+  }
+  protected[runtime] def addHandler(hdl: TCPPacketHandler) {
+    handlers.update(hdl,())
+  }
+  protected[runtime] def removeHandler(hdl: TCPPacketHandler) {
+    handlers.remove(hdl)
   }
 
   Logger.assert(options.protocol == NetworkProtocol.TCP || options.protocol == NetworkProtocol.TCP_SSL,
@@ -69,6 +72,7 @@ class TCPPacketServer(
     val oldGroup = grp
     super.group_=(grp)
     //TODO concurrent
+    handlers.foreach{ case (h,_) => h.rename(grp) }
     val snapShot = recipientMap.toSeq
     recipientMap.clear
     // the old channed reuse or close
@@ -83,9 +87,7 @@ class TCPPacketServer(
       }
     }
     // check if pending
-    var ac = unknownSender.poll
-    while (ac != null) {
-      val (addr, chan) = ac
+    unknownSender.foreach{ case (addr, chan) =>
       grp.getSafe(addr) match {
         case Some(id2) =>
           recipientMap.update(id2.id, chan)
@@ -93,8 +95,8 @@ class TCPPacketServer(
           //not needed
           chan.close
       }
-      ac = unknownSender.poll
     }
+    unknownSender.clear
     // start connecting the new guys
     grp.others.foreach( replica => {
       if (!recipientMap.contains(replica.id)) {
@@ -147,7 +149,7 @@ class TCPPacketServer(
         }
         val srv = TCPPacketServer.this
         val unk = options.acceptUnknownConnection
-        pipeline.addLast(new TCPPacketServerHandler(srv, getAddress, unk))
+        pipeline.addLast(new TCPPacketServerHandler(srv, group.self, unk))
       }
     })
     bootstrap.bind(port).sync()
@@ -190,13 +192,14 @@ class TCPPacketServer(
             new LengthFieldPrepender(2)
           )
         }
-        pipeline.addLast(new TCPPacketClientHandler(TCPPacketServer.this, getAddress, replica))
+        pipeline.addLast(new TCPPacketClientHandler(TCPPacketServer.this, group.self, getAddress, replica))
       }
     })
     bootstrap.connect(inet).addListener(new ChannelFutureListener() {
       override def operationComplete(future: ChannelFuture) {
         if (future.cause() != null) {
           Logger("TCPPacketServer", Warning, "Couldn't connect, trying again...")
+          future.channel.close
           delayedStartConnection(replica)
         }
       }
@@ -224,23 +227,66 @@ class TCPPacketServer(
 
 }
 
-class TCPPacketServerHandler(
-    packetServer: TCPPacketServer,
-    localAddress: InetSocketAddress,
-    acceptUnknownConnection: Boolean
-  ) extends SimpleChannelInboundHandler[ByteBuf](false) {
+abstract class TCPPacketHandler(val packetServer: TCPPacketServer, var selfId: ProcessID, var remote: Replica) extends SimpleChannelInboundHandler[ByteBuf](false) {
 
-  var remoteAddress: InetSocketAddress = null
+  def rename(newGroup: Group) {
+    selfId = newGroup.self
+    if (remote != null) {
+      newGroup.getSafe(remote.netAddress) match {
+        case Some(r) =>
+          remote = r
+        case None =>
+          remote = new Replica(new ProcessID(-1), remote.address, remote.port)
+      }
+    }
+  }
 
   override def channelActive(ctx: ChannelHandlerContext) {
-    Logger("TCPPacketServerHandler", Debug, "Someone connected to " + localAddress)
+    Logger("TCPPacketHandler", Debug, "Someone connected to " + selfId.id)
+    packetServer.addHandler(this)
   }
 
   override def channelInactive(ctx: ChannelHandlerContext) {
-    Logger("TCPPacketServerHandler", Debug, "Someone disconneted")
-    if (remoteAddress != null)
-      packetServer.removeChannel(remoteAddress)
+    if (remote != null) {
+      if (remote.id != new ProcessID(-1)) {
+        packetServer.removeChannel(remote.id)
+        Logger("TCPPacketHandler", Debug, remote.id.id + " disconnected")
+      } else {
+        packetServer.removeUnknownChannel(remote.netAddress)
+        Logger("TCPPacketHandler", Debug, "unknown " + remote + " disconnected")
+      }
+    } else {
+      Logger("TCPPacketHandler", Debug, "Someone disconnected")
+    }
+    packetServer.removeHandler(this)
   }
+
+  override def channelRead0(ctx: ChannelHandlerContext, buf: ByteBuf) {
+    val msg = new Message(selfId, remote.id, buf)
+    try {
+      if (remote.id == new ProcessID(-1)) {
+         Logger("TCPPacketServerHandler", Warning, "dropping message from unknown (" + remote + ")")
+         msg.release
+      } else {
+        packetServer.dispatch(msg)
+      }
+    } catch {
+      case t: Throwable =>
+        Logger("TCPPacketHandler", Warning, "got " + t + "\n  " + t.getStackTrace.mkString("\n  "))
+    }
+  }
+
+  override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
+    cause.printStackTrace()
+  }
+
+}
+
+class TCPPacketServerHandler(
+    _packetServer: TCPPacketServer,
+    _selfId: ProcessID,
+    acceptUnknownConnection: Boolean
+  ) extends TCPPacketHandler(_packetServer, _selfId, null) {
 
   protected def readAddress(buf: ByteBuf): Option[InetSocketAddress] = {
     val size = buf.readInt
@@ -265,26 +311,22 @@ class TCPPacketServerHandler(
   }
 
   override def channelRead0(ctx: ChannelHandlerContext, buf: ByteBuf) {
-    if (remoteAddress == null) {
+    if (remote == null) {
       // First message is an InetSocketAddress
       readAddress(buf) match {
         case Some(addr) =>
-          Logger("TCPPacketServerHandler", Info, {
-            val selfId = packetServer.group.self.id
-            addr + " is connecting to " + selfId + "(" + localAddress + ")" })
-          remoteAddress = addr
+          Logger("TCPPacketServerHandler", Info, addr + " is connecting to " + selfId.id)
+          val remoteAddress = addr
           packetServer.group.getSafe(remoteAddress) match {
             case Some(replica) =>
-              packetServer.addChannel(remoteAddress, ctx.channel())
-              Logger("TCPPacketServerHandler", Info, {
-                val selfId = packetServer.group.self.id
-                "<- Client " + replica.id.id + " connected to Server " + selfId })
+              packetServer.addChannel(replica.id, ctx.channel())
+              Logger("TCPPacketServerHandler", Info, "<- Client " + replica.id + " connected to Server " + selfId.id)
+              remote = replica
             case None =>
               if (acceptUnknownConnection) {
-                packetServer.addChannel(remoteAddress, ctx.channel())
-                Logger("TCPPacketServerHandler", Info, {
-                  val selfId = packetServer.group.self.id
-                  "Client " + remoteAddress + " connected to Server " + selfId })
+                packetServer.addUnknownChannel(remoteAddress, ctx.channel())
+                Logger("TCPPacketServerHandler", Info, "Client " + remoteAddress + " connected to Server " + selfId.id)
+                remote = new Replica(new ProcessID(-1), addr.getHostName, addr.getPort)
               } else {
                 ctx.close()
                 Logger("TCPPacketServerHandler", Info, "unknown connection " + remoteAddress + " closing.")
@@ -295,41 +337,21 @@ class TCPPacketServerHandler(
           ctx.close()
       }
     } else {
-      //normal protocol messages
-      val pkt = new DatagramPacket(buf, localAddress, remoteAddress)
-      try {
-        if (!packetServer.dispatcher.dispatch(pkt))
-          packetServer.defaultHandler(pkt)
-      } catch {
-        case t: Throwable =>
-          Logger("TCPPacketServerHandler", Warning, "got " + t + "\n  " + t.getStackTrace.mkString("\n  "))
-      }
+      super.channelRead0(ctx, buf)
     }
   }
 
-  override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
-    cause.printStackTrace()
-  }
 }
 
 class TCPPacketClientHandler(
-    packetServer: TCPPacketServer,
+    _packetServer: TCPPacketServer,
+    _selfId: ProcessID,
     localAddress: InetSocketAddress,
-    remote: Replica
-  ) extends SimpleChannelInboundHandler[ByteBuf](false) {
-
-  override def channelRead0(ctx: ChannelHandlerContext, buf: ByteBuf) {
-    val pkt = new DatagramPacket(buf, localAddress, remote.netAddress)
-    try {
-      if (!packetServer.dispatcher.dispatch(pkt))
-        packetServer.defaultHandler(pkt)
-    } catch {
-      case t: Throwable =>
-        Logger("TCPPacketClientHandler", Warning, "got " + t + "\n  " + t.getStackTrace.mkString("\n  "))
-    }
-  }
+    _remote: Replica
+  ) extends TCPPacketHandler(_packetServer, _selfId, _remote) {
 
   override def channelActive(ctx: ChannelHandlerContext) {
+    super.channelActive(ctx)
     Logger("TCPPacketClientHandler", Debug, "connecting from " + localAddress + " to " + remote)
     val payload = ctx.alloc().buffer()
     payload.writeInt(-1)
@@ -337,18 +359,14 @@ class TCPPacketClientHandler(
     payload.setInt(0, length)
     val chan = ctx.channel()
     chan.writeAndFlush(payload, chan.voidPromise())
-    packetServer.addChannel(remote.netAddress, chan)
-    Logger("TCPPacketClientHandler", Info, "-> Client " + packetServer.group.self.id + " connected to " + remote.id.id)
+    packetServer.addChannel(remote.id, chan)
+    Logger("TCPPacketClientHandler", Info, "-> Client " + selfId.id + " connected to " + remote.id.id)
   }
 
   override def channelInactive(ctx: ChannelHandlerContext) {
-    Logger("TCPPacketClientHandler", Debug, "Someone disconneted.")
-    packetServer.removeChannel(remote.netAddress)
+    super.channelInactive(ctx)
     packetServer.delayedStartConnection(remote)
   }
 
-  override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
-    cause.printStackTrace()
-  }
 }
 

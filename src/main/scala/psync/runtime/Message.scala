@@ -6,20 +6,23 @@ import io.netty.channel.socket.DatagramPacket
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import io.netty.buffer.ByteBuf
+import psync.utils.serialization.{KryoRegistration, KryoSerializer, KryoByteBufInput, KryoByteBufOutput}
+import com.esotericsoftware.kryo.Kryo
+import scala.reflect.ClassTag
 
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
-import scala.pickling._
-import scala.pickling.Defaults._
-import binary._
+class Message(val receiverId: ProcessID, val senderId: ProcessID, val payload: ByteBuf) {
 
-class Message(val packet: DatagramPacket, dir: Group){
+  def this(pkt: DatagramPacket, dir: Group) = {
+    this(dir.self, dir.inetToIdOrDefault(pkt.sender), pkt.content)
+    payload.retain
+    pkt.release
+  }
 
-  def payload: ByteBuf = packet.content
-  def receiverId: ProcessID = dir.self
-  lazy val senderId: ProcessID =  try { dir.inetToId(packet.sender) }
-                                  catch { case _: Exception => new ProcessID(-1) }
+  assert(payload.readerIndex == 0)
+
   val tag: Tag = new Tag(payload.getLong(0))
 
   private var collected = false
@@ -28,12 +31,17 @@ class Message(val packet: DatagramPacket, dir: Group){
   def instance = tag.instanceNbr
   def round = tag.roundNbr
   
-  def getContent[A: Pickler: Unpickler: FastTypeTag]: A = {
-    val idx: Int = payload.readerIndex()
-    payload.readerIndex(idx + tag.size)
-    val pickle = BinaryPickle(new psync.macros.ByteBufInput(payload))
-    val result = pickle.unpickle[A]
-    payload.readerIndex(idx)
+  def getContent[A: ClassTag: KryoRegistration]: A = {
+    val kryo = KryoSerializer.serializer
+    implicitly[KryoRegistration[A]].register(kryo)
+    getContent[A](kryo)
+  }
+
+  def getContent[A: ClassTag](kryo: Kryo): A = {
+    payload.readerIndex(tag.size)
+    val kryoIn = new KryoByteBufInput(payload)
+    val result = kryo.readObject(kryoIn, implicitly[ClassTag[A]].runtimeClass).asInstanceOf[A]
+    payload.readerIndex(0)
     result
   }
 
@@ -42,23 +50,21 @@ class Message(val packet: DatagramPacket, dir: Group){
   }
   
   def getPayLoad: Array[Byte] = {
-    val idx: Int = payload.readerIndex()
-    payload.readerIndex(idx + tag.size)
+    payload.readerIndex(tag.size)
     val length: Int = payload.readableBytes()
     val bytes = Array.ofDim[Byte](length)
     payload.readBytes(bytes)
-    payload.readerIndex(idx)
+    payload.readerIndex(0)
     bytes
   }
 
   def bufferAfterTag: ByteBuf = {
-    val idx: Int = payload.readerIndex()
-    payload.readerIndex(idx + tag.size)
+    payload.readerIndex(tag.size)
     payload
   }
 
   def release = {
-    packet.release
+    payload.release
     collected = true
   }
 
@@ -85,9 +91,22 @@ object Message {
 
   def moveAfterTag(buffer: ByteBuf): ByteBuf = {
     val tag = getTag(buffer)
-    val idx: Int = buffer.readerIndex()
-    buffer.readerIndex(idx + tag.size)
+    buffer.readerIndex(tag.size)
     buffer
+  }
+
+  // The tag is only needed to the size. It is not written.
+  def setContent[A: KryoRegistration](tag:Tag, buffer: ByteBuf, value: A) {
+    val kryo = KryoSerializer.serializer
+    implicitly[KryoRegistration[A]].register(kryo)
+    setContent(kryo, tag, buffer, value)
+  }
+
+  // The tag is only needed to the size. It is not written.
+  def setContent[A](kryo: Kryo, tag:Tag, buffer: ByteBuf, value: A) {
+    buffer.writerIndex(tag.size)
+    val kryoOut = new KryoByteBufOutput(buffer)
+    kryo.writeObject(kryoOut, value)
   }
 
 }

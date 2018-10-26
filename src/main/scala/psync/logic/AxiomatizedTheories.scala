@@ -64,15 +64,12 @@ object TupleAxioms extends AxiomatizedTheory {
     var acc: List[Formula] = Nil
     val size = ts.size
     if (size >= 1) {
-      //acc ::= ForAll(args, Eq(Fst(app).setType(ts(0)), args(0)))
       acc ::= ForAll(tpl::args, Implies(Eq(tpl, app), Eq(Fst(tpl).setType(ts.head), args.head)))
     }
     if (size >= 2) {
-      //acc ::= ForAll(args, Eq(Snd(app).setType(ts(1)), args(1)))
       acc ::= ForAll(tpl::args, Implies(Eq(tpl, app), Eq(Snd(tpl).setType(ts(1)), args(1))))
     }
     if (size >= 3) {
-      //acc ::= ForAll(args, Eq(Trd(app).setType(ts(2)), args(2)))
       acc ::= ForAll(tpl::args, Implies(Eq(tpl, app), Eq(Trd(tpl).setType(ts(2)), args(2))))
     }
     acc
@@ -155,23 +152,28 @@ object MapUpdateAxioms extends AxiomatizedTheory {
     val k = Variable("k").setType(kt)
     val k1 = Variable("k1").setType(kt)
     val k2 = Variable("k2").setType(kt)
+    val k3 = Variable("k3").setType(kt)
     val v = Variable("v").setType(vt)
     val i = Variable("i").setType(Int)
     List(
       //∀ m,k,v. LookUp(Updated(m,k,v), k) = v
-      ForAll(List(m1,m2,k,v),
-        Implies(
-          Eq(Updated(m1, k, v), m2),
-          Eq(LookUp(m2, k), v))),
-      //∀ m,k1,v,k2. k1≠k2 ⇒ LookUp(Updated(m,k1,v), k2) = LookUp(m,k2)
       ForAll(List(m1,m2,k1,k2,v),
         Implies(
           And(
+            Eq(k1, k2),
+            Eq(Updated(m1, k1, v), m2)
+          ),
+          Eq(LookUp(m2, k2), v))),
+      //∀ m,k1,v,k2. k1≠k2 ⇒ LookUp(Updated(m,k1,v), k2) = LookUp(m,k2)
+      ForAll(List(m1,m2,k1,k2,k3,v),
+        Implies(
+          And(
             Not(Eq(k1, k2)),
+            Eq(k2, k3),
             Eq(Updated(m1, k1, v), m2),
             In(k2, KeySet(m1))
           ),
-          Eq(LookUp(m2, k2), LookUp(m1,k2)))),
+          Eq(LookUp(m2, k2), LookUp(m1,k3)))),
       //∀ m,k,v. KeySet(Updated(m,k,v)) = KeySet(m) ∪ {k}
       ForAll(List(m1,m2,k1,k2,v),
         Implies(

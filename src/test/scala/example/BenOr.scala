@@ -4,11 +4,26 @@ import psync._
 import psync.formula._
 import psync.runtime._
 import psync.macros.Macros._
+import psync.utils.serialization._
+import scala.language.existentials
 
 abstract class BinaryConsensusIO {
   val initialValue: Boolean
   def decide(value: Boolean): Unit
 }
+
+object BenOrSerialization {
+  implicit val regOptBool = new KryoRegistration[Option[Boolean]] {
+    val optionSerializer = new OptionSerializer[Boolean]
+    override def registerClassesWithSerializer = Seq(
+      classOf[Option[Int]] -> optionSerializer,
+      classOf[Some[Int]] -> optionSerializer,
+      None.getClass -> optionSerializer
+    )
+  }
+}
+
+import BenOrSerialization._
 
 //http://www.cs.utexas.edu/~lorenzo/corsi/cs380d/papers/p27-ben-or.pdf
 

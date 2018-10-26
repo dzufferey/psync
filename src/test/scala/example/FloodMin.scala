@@ -3,6 +3,7 @@ package example
 import psync._
 import psync.runtime._
 import psync.macros.Macros._
+import psync.utils.serialization._
 
 class FloodMinProcess(f: Int) extends Process[ConsensusIO] {
   

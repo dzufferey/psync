@@ -4,6 +4,7 @@ import psync._
 import psync.Time._
 import psync.runtime._
 import psync.macros.Macros._
+import psync.utils.serialization._
 
 abstract class RealConsensusIO {
   val initialValue: Double
