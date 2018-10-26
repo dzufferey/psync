@@ -247,13 +247,11 @@ class LvExample extends FunSuite {
   test("invariant implies agreement") {
     val fs = List(invariant1, Not(agreement))
     assertUnsat(fs, c2e1)
-    assertUnsat(fs, c2g1)
   }
   
   test("validity holds initially") {
     val fs = List(initialState, Not(validity))
     assertUnsat(fs, c2e1)
-    assertUnsat(fs, c2g1)
   }
 
   test("maxTS") {
@@ -271,8 +269,7 @@ class LvExample extends FunSuite {
       Neq(maxTS(mailbox1(i)), v)
     )
     //getModel(fs)
-    //assertUnsat(fs, cln(2, new quantifiers.Eager, 2, true)) //XXX this should be strictly more terms than Guided
-    assertUnsat(fs, c2g2)
+    assertUnsat(fs, c2e2)
   }
 
   //TODO those completely blow-up

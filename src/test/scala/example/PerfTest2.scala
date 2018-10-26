@@ -317,6 +317,7 @@ class PerfTest2(options: RuntimeOptions,
   }
 
   def shutdown: Long = {
+    rate.drainPermits() // try to reduce the error messages when shutting down
     rt.shutdown
     if (log != null) {
       log.close

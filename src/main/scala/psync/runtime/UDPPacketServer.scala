@@ -34,8 +34,9 @@ class UDPPacketServer(
     try {
       evtGroup.shutdownGracefully
     } finally {
-      chan.close()
+      val c = chan
       chan = null
+      c.close()
     }
   }
 
@@ -70,7 +71,9 @@ class UDPPacketServer(
       } else {
         new DatagramPacket(buf, dst)
       }
-    chan.writeAndFlush(pkt, chan.voidPromise())
+    if (chan != null) {
+      chan.writeAndFlush(pkt, chan.voidPromise())
+    }
   }
 
 }

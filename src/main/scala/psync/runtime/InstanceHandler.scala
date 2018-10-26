@@ -37,7 +37,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
                           rt: psync.runtime.Runtime[IO,P],
                           pktServ: PacketServer,
                           dispatcher: InstanceDispatcher,
-                          defaultHandler: DatagramPacket => Unit,
+                          defaultHandler: Message => Unit,
                           options: RuntimeOptions) extends Runnable with InstHandler {
 
   protected val buffer = new ArrayBlockingQueue[DatagramPacket](options.bufferSize)
@@ -63,14 +63,14 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   /** A new packet is received and should be processed */
   def newPacket(dp: DatagramPacket) = {
     if (!buffer.offer(dp)) {
-      Logger("InstanceHandler", Warning, "too many packets")
+      Logger("InstanceHandler", Warning, "Replica " + grp.self.id + " too many packets for instance " + instance)
       dp.release
     }
   }
 
   /** Forward the packet to the defaultHandler */
-  protected def default(pkt: DatagramPacket) {
-    rt.submitTask(new Runnable { def run = defaultHandler(pkt) })
+  protected def default(msg: Message) {
+    rt.submitTask(new Runnable { def run = defaultHandler(msg) })
   }
 
   /** Prepare the handler for a execution.
@@ -96,7 +96,12 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     }
 
     // enqueue pending messages
-    msgs.foreach(p => newPacket(p.packet))
+    msgs.foreach(p => {
+      val pkt = p.packet
+      pkt.retain
+      p.release
+      newPacket(pkt)
+    })
 
     // register
     dispatcher.add(inst, this)
@@ -150,7 +155,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   def run {
     Logger("InstanceHandler", Info, "starting instance " + instance)
     again = true
-    var msg: DatagramPacket = null
+    var msg: Message = null
     var msgRound = 0
     try {
       if (delayFirstSend > 0) {
@@ -171,10 +176,11 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
         {
           // try receive a new message
           if (msg == null) {
-            msg = buffer.poll(timeout, TimeUnit.MILLISECONDS)
+            val pkt = buffer.poll(timeout, TimeUnit.MILLISECONDS)
             // check that we have a message that we can handle
-            if (msg != null) {
+            if (pkt != null) {
               didTimeOut -= 1
+              msg = new Message(pkt, grp)
               if (!checkInstanceAndTag(msg)) {
                 msg = null
               }
@@ -187,15 +193,14 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
           }
           // process pending message
           if (msg != null) {
-            msgRound = Message.getTag(msg.content).roundNbr
+            msgRound = msg.round
             val late = rndDiff(msgRound)
             if (late < 0) {
               // late message, ignore
               msg.release
               msg = null
             } else if (late == 0) {
-              val sender = grp.inetToId(msg.sender)
-              storePacket(sender, msg.content)
+              storePacket(msg)
               msg = null
             } // else we need to catch-up
           }
@@ -220,8 +225,8 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   ///////////////////
 
   // responsible for freeing the msg if returns false
-  protected def checkInstanceAndTag(msg: DatagramPacket): Boolean = {
-    val tag = Message.getTag(msg.content)
+  protected def checkInstanceAndTag(msg: Message): Boolean = {
+    val tag = msg.tag
     if (instance != tag.instanceNbr) { // wrong instance
       msg.release
       false
@@ -241,20 +246,29 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     }
   }
 
-  protected def storePacket(sender: ProcessID, buf: ByteBuf) {
-    val id = sender.id
-    if (!from(id)) {
-      from(id) = true
-      assert(Message.getTag(buf).roundNbr == currentRound, Message.getTag(buf).roundNbr + " vs " + currentRound)
-      roundHasEnoughMessages = proc.receive(sender, buf)
+  protected def storePacket(msg: Message) {
+    val sender = msg.senderId
+    if (!from(sender.id)) {
+      from(sender.id) = true
+      assert(msg.round == currentRound, msg.round + " vs " + currentRound)
+      val buffer = msg.bufferAfterTag
+      buffer.retain
+      msg.release
+      roundHasEnoughMessages = proc.receive(sender, buffer)
     } else {
       // duplicate packet
-      buf.release
+      msg.release
     }
   }
 
+  protected def storeSelfPacket(buf: ByteBuf) {
+    assert(!from(grp.self.id))
+    from(grp.self.id) = true
+    roundHasEnoughMessages = proc.receive(grp.self, Message.moveAfterTag(buf))
+  }
+
   protected def update = {
-    Logger("InstanceHandler", Debug, grp.self.id + ", " + instance + " delivering for round " + currentRound)
+    Logger("InstanceHandler", Debug, "Replica " + grp.self.id + ", instance " + instance + " delivering for round " + currentRound)
     // clean
     roundHasEnoughMessages = false
     for (i <- 0 until n) {
@@ -268,17 +282,15 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     val tag = Tag(instance, currentRound)
     var sent = 0
     def sending(pid: ProcessID, payload: ByteBuf) {
-      payload.setLong(0, tag.underlying)
       if (pid == grp.self) {
-        storePacket(pid, payload)
+        storeSelfPacket(payload)
       } else {
         pktServ.send(pid, payload)
       }
       sent += 1
     }
-    proc.send(sending)
-    Logger("InstanceHandler", Debug,
-      grp.self.id + ", " + instance + " sending for round " + currentRound + " -> " + sent + "\n")
+    proc.send(tag, sending)
+    Logger("InstanceHandler", Debug, "Replica " + grp.self.id + ", instance " + instance + " sending for round " + currentRound + " -> " + sent + "\n")
   }
   
 }

@@ -1,7 +1,6 @@
 package psync
 
 import io.netty.buffer.ByteBuf
-import io.netty.buffer.ByteBufAllocator
 import psync.formula._
 
 import scala.pickling._
@@ -80,23 +79,17 @@ abstract class RoundWrapper extends RtRound {
   protected def serialize(payload: A, out: ByteBuf): Unit
   protected def deserialize(in: ByteBuf): A
 
-  private var packetSize = -1
-  
-  override protected[psync] def setOptions(options: runtime.RuntimeOptions) {
-    packetSize = options.packetSize
-  }
-  
-  final protected[psync] def packSend(alloc: ByteBufAllocator, sending: (ProcessID, ByteBuf) => Unit) = {
+  final protected[psync] def packSend(alloc: () => ByteBuf, sending: (ProcessID, ByteBuf) => Unit) = {
     val msgs = r.send()
     msgs.foreach{ case (dst, value) =>
-      val buf = if (packetSize >= 8) alloc.buffer(packetSize) else alloc.buffer()
+      val buf = alloc()
       serialize(value, buf)
       sending(dst, buf)
     }
     mailbox.size >= expectedNbrMessages
   }
 
-  protected var mailbox: Map[ProcessID, A] = Map.empty //TODO mutable map ?
+  protected var mailbox: Map[ProcessID, A] = Map.empty
 
   final protected[psync] def receiveMsg(sender: ProcessID, payload: ByteBuf): Boolean = {
     val a = deserialize(payload)
@@ -121,7 +114,7 @@ abstract class RtRound {
    * @param sending the callback taking care of sendinf the packets
    * @returns whether we need to wait on messages or directly finish the round
    */
-  protected[psync] def packSend(alloc: ByteBufAllocator, sending: (ProcessID, ByteBuf) => Unit): Boolean
+  protected[psync] def packSend(alloc: () => ByteBuf, sending: (ProcessID, ByteBuf) => Unit): Boolean
   /** A message has been reveived. This method is responsible for releasing the Butebuf.
    * @returns indicates if we can terminate the round early (no need to wait for more messages)
    */
@@ -131,7 +124,6 @@ abstract class RtRound {
    */
   protected[psync] def finishRound: Boolean
 
-  protected[psync] def setOptions(options: runtime.RuntimeOptions): Unit
   protected[psync] def setGroup(g: psync.runtime.Group): Unit
 
   //////////////////////

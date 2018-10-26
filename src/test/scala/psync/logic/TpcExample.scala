@@ -132,13 +132,11 @@ class TpcExample extends FunSuite {
   test("invariant implies agreement") {
     val fs = List(invariant1, Not(agreement))
     assertUnsat(fs, c2e1)
-    assertUnsat(fs, c2g1)
   }
 
   test("invariant implies validity") {
     val fs = List(invariant1, Not(validity))
     assertUnsat(fs, c2e1)
-    assertUnsat(fs, c2g1)
   }
 
   test("initialState and round 1a implies invariant 1") {
@@ -148,9 +146,7 @@ class TpcExample extends FunSuite {
       Not(prime(invariant1))
     )
     assertUnsat(fs, c1e1)
-    assertUnsat(fs, c1g1)
     assertUnsat(fs, c2e1)
-    assertUnsat(fs, c2g1)
   }
 
   test("invariant 1 is inductive at round 2a") {
@@ -160,9 +156,7 @@ class TpcExample extends FunSuite {
       Not(prime(invariant1))
     )
     assertUnsat(fs, c1e1)
-    assertUnsat(fs, c1g1)
     assertUnsat(fs, c2e1)
-    assertUnsat(fs, c2g1)
   }
 
 
@@ -173,9 +167,7 @@ class TpcExample extends FunSuite {
       Not(prime(invariant1))
     )
     assertUnsat(fs, c1e1)
-    assertUnsat(fs, c1g1)
     assertUnsat(fs, c2e1)
-    assertUnsat(fs, c2g1)
   }
 
   test("invariant 1 is inductive at round 2b") {
@@ -185,9 +177,7 @@ class TpcExample extends FunSuite {
       Not(prime(invariant1))
     )
     assertUnsat(fs, c1e1)
-    assertUnsat(fs, c1g1)
     assertUnsat(fs, c2e1)
-    assertUnsat(fs, c2g1)
   }
 
 }

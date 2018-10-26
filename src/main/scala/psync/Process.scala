@@ -7,11 +7,6 @@ abstract class Process[IO] extends RtProcess {
   
   lazy val HO: Set[Process[IO]] = sys.error("used only for specification!")
 
-  // for the runtime
-  protected[psync] def setOptions(options: runtime.RuntimeOptions) {
-    rounds.foreach(_.setOptions(options))
-  }
-
   // for verification
   protected[psync] var initState: Option[psync.formula.Formula] = None
 
@@ -39,6 +34,8 @@ abstract class RtProcess {
   private var _n: Int = 0
   def n: Int = _n
 
+  private var packetSize = -1
+
   protected[psync] def setGroup(g: psync.runtime.Group): Unit = {
     rr = new Time(-1)
     _r = -1
@@ -47,7 +44,9 @@ abstract class RtProcess {
     _n = g.size
   }
 
-  protected[psync] def setOptions(options: runtime.RuntimeOptions): Unit
+  protected[psync] def setOptions(options: runtime.RuntimeOptions) {
+    packetSize = options.packetSize
+  }
   
   protected def incrementRound {
     rr = rr.tick
@@ -64,9 +63,14 @@ abstract class RtProcess {
     allocator = a
   }
 
-  protected[psync] final def send(sending: (ProcessID, io.netty.buffer.ByteBuf) => Unit) = {
+  protected[psync] final def send(tag: runtime.Tag, sending: (ProcessID, io.netty.buffer.ByteBuf) => Unit) = {
     incrementRound
-    currentRound.packSend(allocator, sending)
+    def getBuffer() = {
+      val buffer = if (packetSize >= 8) allocator.buffer(packetSize) else allocator.buffer()
+      buffer.writeLong(tag.underlying)
+      buffer
+    }
+    currentRound.packSend(getBuffer, sending)
   }
 
   protected[psync] final def receive(sender: ProcessID, payload: io.netty.buffer.ByteBuf): Boolean = {

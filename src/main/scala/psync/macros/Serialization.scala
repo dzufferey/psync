@@ -167,10 +167,11 @@ class ByteBufOutput(buffer: io.netty.buffer.ByteBuf) extends scala.pickling.bina
 object KryoSerializer {
 
   import com.twitter.chill._
-  private val inst = new ScalaKryoInstantiator
+  private val inst = new EmptyScalaKryoInstantiator
 
   def serializer = {
     val kryo = inst.newKryo
+    kryo.setRegistrationRequired(true)
     kryo
   }
 
@@ -188,13 +189,11 @@ trait Serialization {
       q"serializer.register(classOf[$tpt])",
       q"""protected def serialize(payload: $tpt, out: _root_.io.netty.buffer.ByteBuf): Unit = {
         kryoOut.setBuffer(out)
-        kryoOut.skip(_root_.psync.runtime.Tag.size)
         serializer.writeObject(kryoOut, payload)
         kryoOut.setBuffer(null: _root_.io.netty.buffer.ByteBuf)
       }""",
       q"""protected def deserialize(in: _root_.io.netty.buffer.ByteBuf): $tpt = {
         kryoIn.setBuffer(in)
-        kryoIn.skip(_root_.psync.runtime.Tag.size)
         val result = serializer.readObject(kryoIn, classOf[$tpt])
         kryoIn.setBuffer(null: _root_.io.netty.buffer.ByteBuf)
         result
@@ -207,7 +206,6 @@ trait Serialization {
         import scala.pickling.Defaults._
         import binary._
         import static._
-        out.writerIndex(out.writerIndex() + _root_.psync.runtime.Tag.size)
         payload.pickleTo(new _root_.psync.macros.ByteBufOutput(out))
       }""",
       q"""protected def deserialize(in: _root_.io.netty.buffer.ByteBuf): $tpt = {
@@ -215,7 +213,6 @@ trait Serialization {
         import scala.pickling.Defaults._
         import binary._
         import static._
-        in.readerIndex(in.readerIndex() + _root_.psync.runtime.Tag.size)
         val pickle = BinaryPickle(new _root_.psync.macros.ByteBufInput(in))
         pickle.unpickle[$tpt]
       }"""

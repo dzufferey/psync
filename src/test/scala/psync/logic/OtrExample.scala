@@ -109,25 +109,21 @@ class OtrExample extends FunSuite {
   test("initial state implies invariant") {
     val fs = List(initialState, Not(invariantAgreement))
     assertUnsat(fs, c2e1)
-    assertUnsat(fs, c2g1)
   }
 
   test("invariant implies agreement") {
     val fs = List(invariantAgreement, Not(agreement))
     assertUnsat(fs, c2e1)
-    assertUnsat(fs, c2g1)
   }
   
   test("invariant implies termination") {
     val fs = List(invariantProgress2, Not(termination))
     assertUnsat(fs, c2e1)
-    assertUnsat(fs, c2g1)
   }
 
   test("validity holds initially") {
     val fs = List(ForAll(List(i), Eq(data0(i), data(i))), Not(validity))
     assertUnsat(fs, c2e1)
-    assertUnsat(fs, c2g1)
   }
 
   test("mmor unsat") {
@@ -145,7 +141,6 @@ class OtrExample extends FunSuite {
       mmor(k) !== v
     )
     assertUnsat(fs, c3e1)
-    assertUnsat(fs, c3g1)
   }
   
 //test("invariant is inductive") {
@@ -178,14 +173,14 @@ class OtrExample extends FunSuite {
 //  assertUnsat(fs, to = 240000, reducer = cln(3, new quantifiers.Sequence(new quantifiers.Eager(Some(1)), new quantifiers.Guided(Some(1))), true))
 //}
 
-  test("2nd magic round") {
+  ignore("2nd magic round") { //z3 takes quite a bit of memory here!!!
     val fs = List(
       invariantProgress1,
       magicRound,
       tr,
       Not(prime(invariantProgress2))
     )
-    assertUnsat(fs, to = 240000, reducer = cln(3, new quantifiers.Sequence(new quantifiers.Eager(Some(1)), new quantifiers.Guided(Some(1))), true))
+    assertUnsat(fs, to = 240000, reducer = c3e2)
   }
 
   test("invariant 2 is inductive") {
@@ -194,7 +189,7 @@ class OtrExample extends FunSuite {
       tr,
       Not(prime(invariantProgress2))
     )
-    assertUnsat(fs, cln(1, new quantifiers.Sequence(new quantifiers.Eager(Some(1)), new quantifiers.Guided(Some(1))), true))
+    assertUnsat(fs, c1e2)
   }
 
   test("integrity") {
@@ -205,7 +200,6 @@ class OtrExample extends FunSuite {
       Not(integrity)
     )
     assertUnsat(fs, to = 240000, reducer = c3e1)
-    assertUnsat(fs, to = 600000, reducer = c3g1)
   }
 
   test("validity is inductive") {
@@ -217,7 +211,6 @@ class OtrExample extends FunSuite {
       Not(prime(validity))
     )
     assertUnsat(fs, c1e1)
-    assertUnsat(fs, c1g1)
   }
 
 }

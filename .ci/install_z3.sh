@@ -2,7 +2,7 @@
 
 set -x
 
-version=4.5.0
+version=4.6.0
 
 if [ ! -f "$HOME/z3/z3-${version}-x64-ubuntu-14.04/bin/z3" ]; then
   mkdir -p $HOME/z3

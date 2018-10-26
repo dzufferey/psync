@@ -108,66 +108,6 @@ class Eager(depth: Map[Type,Int]) extends TacticCommon(depth) {
 
 }
 
-class Guided(depth:  Map[Type,Int]) extends TacticCommon(depth) {
-
-  protected var currentTerm: Formula = null
-  protected val keptBack = MMap[Formula,List[Formula]]()
-
-  def this(depth: Option[Int]) = this(Map[Type,Int]().withDefaultValue(depth.getOrElse(1000000)))
-
-  override def clear {
-    super.clear
-    currentTerm = null
-    keptBack.clear
-  }
-
-  override def next: Formula = {
-    val term = super.next
-    currentTerm = term
-    term
-  }
-
-  def generatorResult(fs: Iterable[Formula]) {
-    val toAdd = MSet[Formula]()
-    for (f <- fs) {
-      val gts = FormulaUtils.collectGroundTerms(f)
-      val (_old,_new) = gts.partition(cc.contains)
-      if (_new.isEmpty ||
-          _old.exists(FormulaUtils.isDescendent(_, currentTerm))) {
-        //Logger("Tactic", Debug, "adding: " + f + ", " + _new + ", " + _old)
-        toAdd += f
-      } else {
-        //Logger("Tactic", Debug, "keeping: " + f + ", " + _new + ", " + _old)
-        for (n <- _new) {
-          val ks = keptBack.getOrElse(n, Nil)
-          keptBack += (n -> (f :: ks))
-        }
-      }
-    }
-    while (!toAdd.isEmpty) {
-      //add to cc, buffer, and queue
-      currentDepth += 1
-      buffer.appendAll(toAdd)
-      toAdd.foreach( f => {
-        val ts = FormulaUtils.collectGroundTerms(f)
-        val ts2 = ts.filter(t => !cc.contains(t))
-        ts2.foreach(enqueue(currentDepth, _))
-      })
-      toAdd.foreach(cc.addConstraints)
-      toAdd.clear()
-      // check if we should pull some new keptBack elements
-      for (k <- keptBack.keys if cc.contains(k)) {
-        val ts = keptBack(k)
-        toAdd ++= ts
-        keptBack += (k -> Nil)
-      }
-    }
-  }
-
-  def leftOut: Iterable[Formula] = keptBack.values.flatten.toSet
-
-}
-
 class Sequence(t1: Tactic, t2: Tactic) extends Tactic {
 
   protected var first = true

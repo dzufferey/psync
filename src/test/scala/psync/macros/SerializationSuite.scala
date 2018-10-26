@@ -18,14 +18,20 @@ class SerializationSuite extends Properties("Serialization") {
     try {
       r.setGroup(group)
       val mailbox = scala.collection.mutable.Map[ProcessID, ByteBuf]()
-      r.packSend(allocator, mailbox.update )
-      mailbox.foreach{ case (sender, payload) => r.receiveMsg(sender, payload) }
+      val tag = Tag(0, 0)
+      def getBuffer() = {
+        val buffer = allocator.buffer()
+        buffer.writeLong(tag.underlying)
+        buffer
+      }
+      r.packSend(getBuffer, mailbox.update)
+      mailbox.foreach{ case (sender, payload) => r.receiveMsg(sender, Message.moveAfterTag(payload)) }
       r.finishRound
     } catch { case t: Throwable =>
       Logger("SerializationSuite", Error, t.getMessage)
       Logger("SerializationSuite", Error, (s: java.io.BufferedWriter) => {
         val pw = new java.io.PrintWriter(s)
-        t.printStackTrace(pw) 
+        t.printStackTrace(pw)
         pw.flush
       })
       throw t
@@ -158,4 +164,97 @@ class SerializationSuite extends Properties("Serialization") {
     run(rnd)
     true
   }
+
+  val serializer = KryoSerializer.serializer
+  val kryoOut = new ByteBufInputKryoOutput(null)
+  val kryoIn = new ByteBufInputKryoInput(null)
+  serializer.register(classOf[Byte])
+  serializer.register(classOf[Int])
+  serializer.register(classOf[String])
+  serializer.register(classOf[Array[_]])
+  serializer.register(classOf[Array[Byte]])
+  serializer.register(classOf[Seq[_]])
+  serializer.register(classOf[Option[_]])
+  serializer.register(classOf[Some[_]])
+  serializer.register(classOf[Tuple1[_]])
+  serializer.register(classOf[Tuple2[_,_]])
+  serializer.register(classOf[Tuple3[_,_,_]])
+  serializer.register(None.getClass)
+  serializer.register(Nil.getClass)
+
+  //Try custom serializers
+  import com.esotericsoftware.kryo.io.{Input, Output}
+  import com.esotericsoftware.kryo.{Kryo, Serializer}
+  class TreeSerializer extends Serializer[Tree] {
+    def write(kryo: Kryo, output: Output, t: Tree) = t match {
+      case Leaf =>
+        output.writeByte(-1)
+      case Node(l, r, v) =>
+        output.writeByte(0)
+        output.writeInt(v)
+        write(kryo, output, l)
+        write(kryo, output, r)
+    }
+    def read(kryo: Kryo, input: Input, ct: Class[Tree]): Tree = {
+      val b = input.readByte()
+      if (b != 0) {
+        Leaf
+      } else {
+        val v = input.readInt()
+        val l = read(kryo, input, ct)
+        val r = read(kryo, input, ct)
+        Node(l, r, v)
+      }
+    }
+  }
+  serializer.register(classOf[Tree], new TreeSerializer)
+  serializer.register(Leaf.getClass, new TreeSerializer)
+  serializer.register(classOf[Node], new TreeSerializer)
+
+  import scala.reflect.ClassTag
+
+  implicit lazy val arbSome: Arbitrary[Some[Int]] = Arbitrary(for {v <- Arbitrary.arbitrary[Int]} yield Some(v))
+
+  def kryoTest[A: ClassTag](value: A, equals: (A, A) => Boolean = { (x: A, y: A) => x == y } ) = {
+    val buffer = allocator.buffer()
+    try {
+      //serialize
+      kryoOut.setBuffer(buffer)
+      serializer.writeObject(kryoOut, value)
+      kryoOut.setBuffer(null: ByteBuf)
+      //deserialize
+      kryoIn.setBuffer(buffer)
+      val result = serializer.readObject(kryoIn, implicitly[ClassTag[A]].runtimeClass).asInstanceOf[A]
+      kryoIn.setBuffer(null: ByteBuf)
+      equals(result, value)
+    } catch { case t: Throwable =>
+      Logger("SerializationSuite", Error, t.getMessage)
+      Logger("SerializationSuite", Error, (s: java.io.BufferedWriter) => {
+        val pw = new java.io.PrintWriter(s)
+        t.printStackTrace(pw)
+        pw.flush
+      })
+      throw t
+    } finally {
+      buffer.release()
+    }
+  }
+
+  assert( kryoTest(None) )
+  assert( kryoTest(Some(1)) )
+  assert( kryoTest(Nil) )
+
+  def compareArray[A](x: Array[A], y: Array[A]) = {
+    x.length == y.length && x.corresponds(y)(_ == _)
+  }
+
+  property("Int with Kryo") = Prop forAll { (value: Int) => kryoTest(value) }
+  property("(Int,Int) with Kryo") = Prop forAll { (value: (Int,Int)) => kryoTest(value) }
+  property("String with Kryo") = Prop forAll { (value: String) => kryoTest(value) }
+  property("Some[Int] with Kryo") = Prop forAll { (value: Some[Int]) => kryoTest(value) }
+  property("Array[Byte] with Kryo") = Prop forAll { (value: Array[Byte]) => kryoTest(value, compareArray[Byte]) }
+  //property("Option[Int] with Kryo") = Prop forAll { (value: Option[Int]) => kryoTest(value) }
+  //property("Seq[Byte] with Kryo") = Prop forAll { (value: Seq[Byte]) => kryoTest(value) }
+  property("Tree with Kryo") = Prop forAll { (value: Tree) => kryoTest(value) }
+
 }
