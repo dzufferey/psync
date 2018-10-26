@@ -2,7 +2,7 @@ name := "psync"
 
 version := "0.3-SNAPSHOT"
 
-scalaVersion := "2.12.6"
+scalaVersion := "2.12.7"
 
 scalacOptions in Compile ++= Seq(
     "-unchecked",

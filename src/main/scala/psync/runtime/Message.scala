@@ -109,4 +109,9 @@ object Message {
     kryo.writeObject(kryoOut, value)
   }
 
+  implicit object MessageOrdering extends Ordering[Message] {
+    def compare(a: Message, b: Message): Int = a.round - b.round
+  }
+
+
 }
