@@ -240,46 +240,42 @@ class LvExampleNoMailbox extends FunSuite {
   //TODO those completely blow-up
   //for round 4, which should be "easy", the instantiation blows-up at the local step
   
-//test("invariant 1 is inductive at round 1") {
-//  val fs = List(
-//    invariant1,
-//    round1,
-//    Not(prime(invariant1))
-//  )
-//  assertUnsat(fs, 60000, true, clg(2,3))
-//  //getModel(fs, 60000, clg(2,3))
-//  //assertUnsat(fs, 60000, true, clh(2,1,1))
-//  //assertUnsat(fs, 60000, true, cl2_2, Some("test.smt2"))
-//}
+  ignore("invariant 1 is inductive at round 1") {
+    val fs = List(
+      invariant1,
+      round1,
+      Not(prime(invariant1))
+    )
+    assertUnsat(fs, 60000, true, c2e2)
+    //getModel(fs, 60000, clg(2,3))
+  }
 
-//test("invariant 1 is inductive at round 2") {
-//  val fs = List(
-//    invariant1,
-//    round2,
-//    Not(prime(invariant1))
-//  )
-//  //getModel(fs, 60000, clg(2,3))
-//  assertUnsat(fs, 60000, true, clh(2,1,1))
-//  assertUnsat(fs)
-//}
+  ignore("invariant 1 is inductive at round 2") {
+    val fs = List(
+      invariant1,
+      round2,
+      Not(prime(invariant1))
+    )
+    //getModel(fs, 60000, clg(2,3))
+    assertUnsat(fs, 60000, true, c2e2)
+  }
 
-//test("invariant 1 is inductive at round 3") {
-//  val fs = List(
-//    invariant1,
-//    round3,
-//    Not(prime(invariant1))
-//  )
-//  assertUnsat(fs)
-//}
+  ignore("invariant 1 is inductive at round 3") {
+    val fs = List(
+      invariant1,
+      round3,
+      Not(prime(invariant1))
+    )
+    assertUnsat(fs, c2e2)
+  }
 
-//test("invariant 1 is inductive at round 4") {
-//  val fs = List(
-//    invariant1,
-//    round4,
-//    Not(prime(invariant1))
-//  )
-//  //assertUnsat(fs, 30000, true, cln(1, new quantifiers.Eager, 2, true)) //XXX bug here
-//  assertUnsat(fs, 30000, true, cln(1, new quantifiers.Guided(Some(2)), true))
-//}
+  ignore("invariant 1 is inductive at round 4") {
+    val fs = List(
+      invariant1,
+      round4,
+      Not(prime(invariant1))
+    )
+    assertUnsat(fs, 60000, true, c2e2)
+  }
 
 }

@@ -143,35 +143,33 @@ class OtrExample extends FunSuite {
     assertUnsat(fs, c3e1)
   }
   
-//test("invariant is inductive") {
-//  val fs = List(
-//    invariantAgreement,
-//    tr,
-//    Not(prime(invariantAgreement))
-//  )
-//  assertUnsat(fs, 30000, true, clh(3,1,2))
-//  //assertUnsat(fs, 10000, false, cle(3,2))
-//}
+  ignore("invariant is inductive") {
+    val fs = List(
+      invariantAgreement,
+      tr,
+      Not(prime(invariantAgreement))
+    )
+    assertUnsat(fs, 60000, reducer = c3e2)
+  }
 
-//test("1st magic round") {
-//  val fs = List(
-//    invariantAgreement,
-//    magicRound,
-//    tr,
-//    Not(prime(invariantProgress1))
-//  )
-//  assertUnsat(fs, 10000, true, clh(3,1,2), Some("test.smt2"))
-//  //assertUnsat(fs, 60000, true, cle(3,2))
-//}
+  ignore("1st magic round") {
+    val fs = List(
+      invariantAgreement,
+      magicRound,
+      tr,
+      Not(prime(invariantProgress1))
+    )
+    assertUnsat(fs, 60000, reducer = c3e2)
+  }
 
-//test("invariant 1 is inductive") {
-//  val fs = List(
-//    invariantProgress1,
-//    tr,
-//    Not(prime(invariantProgress1))
-//  )
-//  assertUnsat(fs, to = 240000, reducer = cln(3, new quantifiers.Sequence(new quantifiers.Eager(Some(1)), new quantifiers.Guided(Some(1))), true))
-//}
+  ignore("invariant 1 is inductive") {
+    val fs = List(
+      invariantProgress1,
+      tr,
+      Not(prime(invariantProgress1))
+    )
+    assertUnsat(fs, 240000, reducer = c3e2)
+  }
 
   ignore("2nd magic round") { //z3 takes quite a bit of memory here!!!
     val fs = List(
