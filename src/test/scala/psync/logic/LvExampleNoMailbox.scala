@@ -176,8 +176,6 @@ class LvExampleNoMailbox extends FunSuite {
       Eq(commit1(i), False()),
       Eq(ready1(i), False()),
       //frame
-      Eq(decided(i), decided1(i)),
-      Eq(data(i), data1(i)),
       Eq(vote(i), vote1(i)),
       Eq(timeStamp(i), timeStamp1(i))
     ))
@@ -207,6 +205,24 @@ class LvExampleNoMailbox extends FunSuite {
     ),
     ForAll(List(i), Exists(List(j), Eq(data(i), data0(j))))
   )
+
+  /*
+  val invariant1 = And(
+      Exists(List(j,t,a), And(
+        Eq(a, Comprehension(List(i), Leq(t, timeStamp(i)))),
+        majorityS(a),
+        Leq(t, r),
+        In(j, a),
+        ForAll(List(i), And(Implies(In(i, a), Eq(data(i), data(j))),
+                            Implies(decided(i), Eq(data(i), data(j))),
+                            Implies(commit(i), Eq(vote(i), data(j))),
+                            Implies(ready(i), Eq(vote(i), data(j))),
+                            Implies(Eq(timeStamp(i), r), commit(coord(i)))
+                        )
+        )
+      ))
+  )
+  */
   
   //test VCs
 
@@ -275,7 +291,19 @@ class LvExampleNoMailbox extends FunSuite {
       round4,
       Not(prime(invariant1))
     )
-    assertUnsat(fs, 60000, true, c2e2)
+    import psync.logic.quantifiers._
+    val local = true
+    val vennBound = 2
+    val tactic = new Sequence(
+        new Eager(Map[Type,Int](pid -> 1, FSet(pid) -> 1, phase -> 1).withDefaultValue(0)),
+        //new Eager(Map[Type,Int](Bool -> 1).withDefaultValue(0)),
+        new Eager(1)
+      )
+    //val tactic = new Sequence(new Eager(1), new Eager(Map[Type,Int](pid -> 1).withDefaultValue(0)))
+    val strategy = QStrategy(tactic, local)
+    val conf =  ClConfig(Some(vennBound), None, strategy)
+    assertUnsat(fs, 600000, true, conf)
+    //getModel(fs, 60000, conf, fname = Some("model.smt2"), useCvcMf = true)
   }
 
 }
