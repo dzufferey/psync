@@ -181,6 +181,18 @@ class LvExampleNoMailbox extends FunSuite {
     ))
   )
 
+  val frame = And(
+    Eq(r, r1),
+    ForAll(List(i), And(
+      Eq(vote(i), vote1(i)),
+      Eq(ready(i), ready1(i)),
+      Eq(timeStamp(i), timeStamp1(i)),
+      Eq(decided(i), decided1(i)),
+      Eq(data(i), data1(i)),
+      Eq(commit(i), commit1(i))
+    ))
+  )
+
   //liveness assumption
 
   //TODO
@@ -251,6 +263,15 @@ class LvExampleNoMailbox extends FunSuite {
       Neq(maxTS(i), v)
     )
     assertUnsat(fs, c2e1)
+  }
+
+  ignore("frame") {
+    val fs = List(
+      invariant1,
+      frame,
+      Not(prime(invariant1))
+    )
+    assertUnsat(fs, 60000, true, c2e1)
   }
 
   //TODO those completely blow-up
