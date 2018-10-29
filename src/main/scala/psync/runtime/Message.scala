@@ -13,7 +13,7 @@ import scala.reflect.ClassTag
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 
-class Message(val receiverId: ProcessID, val senderId: ProcessID, val payload: ByteBuf) {
+class Message(val receiver: ProcessID, val sender: ProcessID, val payload: ByteBuf) {
 
   def this(pkt: DatagramPacket, dir: Group) = {
     this(dir.self, dir.inetToIdOrDefault(pkt.sender), pkt.content)

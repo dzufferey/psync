@@ -8,6 +8,10 @@ import io.netty.channel.socket._
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.TimeUnit
 import psync.utils.serialization.{KryoSerializer, KryoByteBufInput, KryoByteBufOutput}
+import scala.collection.mutable.PriorityQueue
+import scala.math.Ordering
+import Message.MessageOrdering
+import psync.utils.CircularBuffer
 
 
 //TODO what should be the interface ?
@@ -46,17 +50,29 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected val sendWhenCatchingUp = options.sendWhenCatchingUp
   protected val delayFirstSend = options.delayFirstSend
   
+  private final val block = Long.MinValue
+  protected var strict = false
   protected var timeout = options.timeout
   protected var roundStart: Long = 0
-  protected var enoughMessages = false
+  protected var readyToProgress = false
 
   protected var instance: Short = 0
   protected var self: ProcessID = new ProcessID(-1)
+  
+  /** catch-up after f+1 messages have been received */
+  protected var f = 0 //TODO as option
 
   protected var n = 0
   protected var currentRound = 0
+  protected var nextRound = 0
 
+  /** keep track of the processes which have already send for the round */
   protected var from: Array[Boolean] = null
+
+  /** discard the messages to far in the future. */
+  protected var maxLookahead = 32 //TODO as option
+  /** Since we might block on the round, we buffer messages that will be delivered later. */
+  protected val pendingMessages = new CircularBuffer[Map[ProcessID,Message]](maxLookahead, Map.empty)
 
   protected val globalSizeHint = options.packetSize
   protected val kryoIn = new KryoByteBufInput(null)
@@ -96,6 +112,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     self = g.self
     n = g.size
     currentRound = 0
+    nextRound = 0
 
     // checkResources
     if (from == null || from.size != n) {
@@ -116,6 +133,11 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       pkt.release
       pkt = buffer.poll
     }
+    for (i <- currentRound until currentRound + maxLookahead;
+         msg <- pendingMessages.get(i).values) {
+      msg.release
+    }
+    pendingMessages.reset
     var i = 0
     while (i < n) {
       from(i) = false
@@ -138,14 +160,14 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   }
 
   @inline private final def more = again && !Thread.interrupted
-  @inline private final def rndDiff(rnd: Int) = rnd - currentRound
-  private final val block = Long.MinValue
+  @inline private final def timeDiff(t1: Int, t2: Int) = t1 - t2
+  @inline private final def rndDiff(rnd: Int) = timeDiff(rnd, currentRound)
+  @inline private final def needCatchUp = rndDiff(nextRound) > 0
 
   def run {
     Logger("InstanceHandler", Info, "starting instance " + instance)
     again = true
     var msg: Message = null
-    var msgRound = 0
     try {
       if (delayFirstSend > 0) {
         Thread.sleep(delayFirstSend)
@@ -157,12 +179,12 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
         if (msg == null || sendWhenCatchingUp) {
           send
         }
+        // deliver pending messages
+        deliverPending
         // accumulate messages
         var timedout = false
-        while (rndDiff(msgRound) <= 0 &&    // not catching up
-               !timedout &&                 // no TO yet
-               !enoughMessages &&           // has not yet received enough messages
-               more)                        // terminate
+        while (!readyToProgress &&   // has not yet received enough messages
+               more)                 // not interrupted
         {
           // try receive a new message
           if (msg == null) {
@@ -170,9 +192,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
               msg = buffer.take()
             } else {
               val to = roundStart + timeout - java.lang.System.currentTimeMillis()
-              if (to <= 0) {
-                timedout = true
-              } else {
+              if (to >= 0) {
                 msg = buffer.poll(timeout, TimeUnit.MILLISECONDS)
               }
             }
@@ -184,11 +204,12 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
             } else {
               //Logger("InstanceHandler", Warning, instance + " timeout")
               timedout = true
+              readyToProgress = true
             }
           }
           // process pending message
           if (msg != null) {
-            msgRound = msg.round
+            var msgRound = msg.round
             val late = rndDiff(msgRound)
             if (late < 0) {
               // late message, ignore
@@ -197,11 +218,29 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
             } else if (late == 0) {
               processPacket(msg)
               msg = null
-            } // else we need to catch-up
+            } else if (late >= maxLookahead) {
+              Logger("InstanceHandler", Warning, "Replica " + self.id + " instance " + instance + ": message above maxLookahead " + late +
+                                                 " (currentRound = " + currentRound + ", nextRound = "+nextRound+")")
+              msg.release
+              msg = null
+            } else {
+              // check if we need to catch-up or put msg in pendingMessages
+              //TODO we may want a fast path for non-strict/benign case where we don't store the messsages (divides througput by 2!!)
+              var pending = pendingMessages.get(msgRound)
+              if (pending contains msg.sender) {
+                msg.release
+              } else {
+                pending += (msg.sender -> msg)
+                if (pending.size > f) {
+                  nextRound = msgRound
+                }
+                pendingMessages.set(msgRound, pending)
+              }
+              msg = null
+            }
           }
         }
-        again &= update(timedout || rndDiff(msgRound) > 0) //consider catching up as TO
-        currentRound += 1
+        again &= update(timedout || needCatchUp) //consider catching up as TO
       }
     } catch {
       case _: java.lang.InterruptedException => ()
@@ -220,13 +259,17 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   ///////////////////
 
   protected def checkProgress(p: Progress, init: Boolean) {
-    //TODO (non)strict
+    //TODO check monotonicity of progress
     if (p.isTimeout) {
+      strict = p.isStrict
       timeout = p.timeout
+      readyToProgress = needCatchUp && !strict
     } else if (p.isGoAhead) {
-      enoughMessages = true
+      readyToProgress = true
     } else if (p.isWaitMessage) {
+      strict = p.isStrict
       timeout = block
+      readyToProgress = needCatchUp && !strict
     } else if (p.isUnchanged) {
       if (init) {
         Logger.logAndThrow("InstanceHandler", Error, "Progress of init should not be Unchanged.")
@@ -240,7 +283,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
 
   protected def initRound {
     // clean
-    enoughMessages = false
+    readyToProgress = false
     for (i <- 0 until n) {
       from(i) = false
     }
@@ -272,7 +315,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   }
 
   protected def processPacket(msg: Message) {
-    val sender = msg.senderId
+    val sender = msg.sender
     if (!from(sender.id)) {
       from(sender.id) = true
       assert(msg.round == currentRound, msg.round + " vs " + currentRound)
@@ -286,7 +329,12 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
 
   protected def update(didTimeout: Boolean) = {
     Logger("InstanceHandler", Debug, "Replica " + self.id + ", instance " + instance + " delivering for round " + currentRound + (if (didTimeout) " with TO" else ""))
-    proc.update(didTimeout)
+    val shouldTerminate = proc.update(didTimeout)
+    assert(pendingMessages.get(currentRound).isEmpty)
+    pendingMessages.next
+    currentRound += 1
+    nextRound = if (nextRound - currentRound >= 0) nextRound else currentRound
+    shouldTerminate
   }
 
   protected def send {
@@ -309,6 +357,13 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     checkProgress(proc.send(kryo, alloc, sending), false)
     kryoOut.setBuffer(null: ByteBuf)
     Logger("InstanceHandler", Debug, "Replica " + self.id + ", instance " + instance + " sending for round " + currentRound + " -> " + sent + "\n")
+  }
+
+  protected def deliverPending {
+    val pending = pendingMessages.get(currentRound)
+    for ( msg <- pending.values )
+      processPacket(msg)
+    pendingMessages.set(currentRound, Map.empty)
   }
   
 }

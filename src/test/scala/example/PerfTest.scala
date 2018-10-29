@@ -44,7 +44,7 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
       val flag = msg.tag.flag
       if (flag == Flags.normal || flag == Flags.dummy) {
         if (Instance.lt(inst, versionNbr.toShort)) {
-          trySendDecision(inst, msg.senderId)
+          trySendDecision(inst, msg.sender)
         }
       } else if (flag == Decision) {
         Logger("PerfTest", Info, inst + " got decision! (" + versionNbr + ")")
@@ -83,8 +83,8 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
     }
   }
           
-  def trySendDecision(inst: Short, senderId: ProcessID) = {
-    Logger("PerfTest", Info, inst + " sending recovery to " + senderId)
+  def trySendDecision(inst: Short, sender: ProcessID) = {
+    Logger("PerfTest", Info, inst + " sending recovery to " + sender)
     val payload = ByteBufAllocator.buffer(16)
     payload.writeLong(8)
     val tag = getDec(inst) match {
@@ -94,7 +94,7 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
       case None =>
         Tag(inst,0,TooLate,0)
     }
-    rt.sendMessage(senderId, tag, payload)
+    rt.sendMessage(sender, tag, payload)
   }
 
   val lck = new ReentrantLock 

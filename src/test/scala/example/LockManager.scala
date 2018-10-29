@@ -91,7 +91,7 @@ class LockManager(self: Short,
     payload.retain
     m.release
     Message.setContent[Int](kryo.get, tag, payload, state)
-    val sender = m.senderId
+    val sender = m.sender
     Logger("LockManager", Notice, "sending decision " + state + " @ " + versionNbr + " to " + sender)
     consensus.sendMessage(sender, tag, payload)
   }
@@ -103,7 +103,7 @@ class LockManager(self: Short,
     payload.retain
     m.release
     Message.setContent[Int](kryo.get, tag, payload, 0)
-    val sender = m.senderId
+    val sender = m.sender
     Logger("LockManager", Notice, "asking decision" + versionNbr + " to " + sender)
     consensus.sendMessage(sender, tag, payload)
   }

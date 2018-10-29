@@ -161,13 +161,13 @@ class PerfTest3(options: RuntimeOptions,
               payload.writeLong(8)
               payload.writeInt(d.size)
               payload.writeBytes(d)
-              rt.sendMessage(msg.senderId, Tag(inst,0,Decision,0), payload)
-              Logger("PerfTest3", Debug, "sending decision to " + msg.senderId.id + " for " + inst)
+              rt.sendMessage(msg.sender, Tag(inst,0,Decision,0), payload)
+              Logger("PerfTest3", Debug, "sending decision to " + msg.sender.id + " for " + inst)
             case None =>
               val payload = PooledByteBufAllocator.DEFAULT.buffer()
               payload.writeLong(8)
-              rt.sendMessage(msg.senderId, Tag(inst,0,Late,0), payload)
-              Logger("PerfTest3", Debug, "sending late to " + msg.senderId.id + " for " + inst)
+              rt.sendMessage(msg.sender, Tag(inst,0,Late,0), payload)
+              Logger("PerfTest3", Debug, "sending late to " + msg.sender.id + " for " + inst)
           }
           msg.release
         } else {

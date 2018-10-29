@@ -94,7 +94,7 @@ class BatchingClient(val options: BatchingClient.type)
             msg.release
           }
         } else {
-          sendRecoveryInfo(inst, msg.senderId)
+          sendRecoveryInfo(inst, msg.sender)
           msg.release
         }
       } finally {
@@ -115,7 +115,7 @@ class BatchingClient(val options: BatchingClient.type)
             Logger("BatchingClient", Warning, id + ", AskDecision for instance " + inst + "\n" + tracker)
           }
         } else {
-          sendRecoveryInfo(inst, msg.senderId)
+          sendRecoveryInfo(inst, msg.sender)
         }
         msg.release
       } finally {

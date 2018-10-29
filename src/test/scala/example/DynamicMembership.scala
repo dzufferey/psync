@@ -275,7 +275,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
         startNextConsensus(Some(expected), Some(i), Set(msg))
 
       } else if (Instance.lt(expected, inst)) {
-        startRecovery(msg.senderId)
+        startRecovery(msg.sender)
         msg.release
 
       } else {
@@ -305,7 +305,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
   }
 
   def onRecoverMessage(msg: Message) {
-    Logger("DynamicMembership", Notice, "recover message from " + msg.senderId)
+    Logger("DynamicMembership", Notice, "recover message from " + msg.sender)
     val (host, port) = msg.getContent[(String,Int)]
     val address = new InetSocketAddress(host, port)
     view.getSafe(address) match {
@@ -359,7 +359,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
       val tag = Tag(msg.instance,0,Decision,0)
       val payload = PooledByteBufAllocator.DEFAULT.buffer()
       Message.setContent(tag, payload, d)
-      rt.sendMessage(msg.senderId, tag, payload)
+      rt.sendMessage(msg.sender, tag, payload)
     })
   }
 
@@ -378,7 +378,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
 
   def onHeartBeat(msg: Message) {
     Logger("DynamicMembership", Debug, "heart beat")
-    val src = msg.senderId
+    val src = msg.sender
     if (view contains src) {
       assert(src.id < lastHearOf.size)
       lastHearOf(src.id) = java.lang.System.currentTimeMillis() //do we need sync ?

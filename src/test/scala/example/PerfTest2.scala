@@ -173,7 +173,7 @@ class PerfTest2(options: RuntimeOptions,
     val inst = m.instance
     val idx = (getValue(m) >>> 16).toShort
     val payload = PooledByteBufAllocator.DEFAULT.buffer()
-    val sender = m.senderId
+    val sender = m.sender
     payload.writeLong(8)
     var tag = Tag(0,0)
     getDec(inst) match {
