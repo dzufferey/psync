@@ -28,12 +28,12 @@ object TestCommon {
 
   def cln(v: Int, t: Tactic, local: Boolean) = ClConfig(Some(v), None, QStrategy(t, local))
   
-  val c1e1 = cln(1, new quantifiers.Eager(Some(1)), true)
-  val c1e2 = cln(1, new quantifiers.Eager(Some(2)), true)
-  val c2e1 = cln(2, new quantifiers.Eager(Some(1)), true)
-  val c2e2 = cln(2, new quantifiers.Eager(Some(2)), true)
-  val c3e1 = cln(3, new quantifiers.Eager(Some(1)), true)
-  val c3e2 = cln(3, new quantifiers.Eager(Some(2)), true)
+  val c1e1 = cln(1, new Eager(1), true)
+  val c1e2 = cln(1, new Eager(2), true)
+  val c2e1 = cln(2, new Eager(1), true)
+  val c2e2 = cln(2, new Eager(2), true)
+  val c3e1 = cln(3, new Eager(1), true)
+  val c3e2 = cln(3, new Eager(2), true)
   
 
   def reduce(clc: ClConfig, conjuncts: List[Formula], debug: Boolean): Formula = {
@@ -117,10 +117,12 @@ object TestCommon {
   def getModel(conjuncts: List[Formula],
                to: Long = 10000,
                reducer: ClConfig = cl,
-               fname: Option[String] = None) {
+               fname: Option[String] = None,
+               useCvcMf: Boolean = false) {
     val f0 = reduce(reducer, conjuncts, true)
     val f1 = SmtSolver.convert(SmtSolver.uninterpretSymbols(f0))
-    val solver = SmtSolver(fname, to)
+    val solver = if (useCvcMf) SmtSolver.cvc4mf(fname, to)
+                 else SmtSolver.z3(fname, to)
     solver.testWithModel(f1) match {
       case Sat(Some(model)) =>
         Console.println(model.toString)

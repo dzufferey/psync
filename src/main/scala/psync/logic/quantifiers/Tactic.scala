@@ -89,7 +89,11 @@ abstract class TacticCommon(depth: Map[Type,Int]) extends Tactic {
 
 class Eager(depth: Map[Type,Int]) extends TacticCommon(depth) {
 
+  override def toString = "Eager(" + depth + ")"
+
   def this(depth: Option[Int]) = this(Map[Type,Int]().withDefaultValue(depth.getOrElse(1000000)))
+
+  def this(depth: Int) = this(Map[Type,Int]().withDefaultValue(depth))
 
   def generatorResult(fs: Iterable[Formula]) {
     buffer.appendAll(fs)
@@ -108,49 +112,50 @@ class Eager(depth: Map[Type,Int]) extends TacticCommon(depth) {
 
 }
 
-class Sequence(t1: Tactic, t2: Tactic) extends Tactic {
+class Sequence(ts: Tactic*) extends Tactic {
 
-  protected var first = true
+  protected var index = 0
   protected var cc: CongruenceClosure = null
 
   def init(_cc: CongruenceClosure) {
     clear
     cc = _cc
-    t1.init(cc)
+    ts(index).init(cc)
+    Logger("Sequence", Debug, "first tactic: " + ts(index))
   }
 
   def clear {
-    first = true
-    t1.clear
-    t2.clear
+    index = 0
+    ts.foreach(_.clear)
+  }
+
+  protected def nextGen {
+    if (index < ts.length - 1) {
+      index += 1
+      Logger("Sequence", Debug, "moving to next tactic: " + ts(index))
+      ts(index).init(cc)
+    }
   }
 
   def hasNext = {
-    if (first) {
-      if (t1.hasNext) {
-        true
-      } else {
-        first = false
-        t2.init(cc)
-        t2.hasNext
-      }
+    if (ts(index).hasNext) {
+      true
     } else {
-      t2.hasNext
+      nextGen
+      ts(index).hasNext
     }
   }
 
   def next = {
-    if (first) t1.next
-    else t2.next
+    ts(index).next
   }
 
   def generatorResult(f: Iterable[Formula]) {
-    if (first) t1.generatorResult(f)
-    else t2.generatorResult(f)
+    ts(index).generatorResult(f)
   }
 
-  def result = t1.result ++ t2.result
+  def result = ts.flatMap(_.result)
 
-  def leftOut = t1.leftOut ++ t2.leftOut
+  def leftOut = ts.flatMap(_.leftOut)
 
 }
