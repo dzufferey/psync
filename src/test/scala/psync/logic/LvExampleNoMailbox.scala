@@ -351,7 +351,8 @@ class LvExampleNoMailbox extends FunSuite {
       frame,
       Not(prime(invariant1c))
     )
-    assertUnsat(fs, 600000, true, conf(2))
+    //assertUnsat(fs, 600000, true, conf(1))
+    getModel(fs, 600000, conf(0))
   }
 
   //TODO those completely blow-up

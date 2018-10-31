@@ -123,11 +123,33 @@ object TestCommon {
     val f1 = SmtSolver.convert(SmtSolver.uninterpretSymbols(f0))
     val solver = if (useCvcMf) SmtSolver.cvc4mf(fname, to)
                  else SmtSolver.z3(fname, to)
+    /*
     solver.testWithModel(f1) match {
       case Sat(Some(model)) =>
         Console.println(model.toString)
       case res =>
         assert( false, "could not parse model: " + res)
+    }
+    */
+    val conjs = dzufferey.smtlib.FormulaUtils.getConjuncts(f1)
+    conjs.foreach(solver.assert)
+    solver.checkSat match {
+      case Sat(_) =>
+        Logger.moreVerbose //linter:ignore IdenticalStatements
+        Logger.moreVerbose
+        try {
+          solver.getPartialModel match {
+            case Some(model) =>
+              Console.println(model.toString)
+            case None =>
+              sys.error("failed to get a model")
+          }
+        } finally {
+          Logger.lessVerbose //linter:ignore IdenticalStatements
+          Logger.lessVerbose
+        }
+      case err =>
+        sys.error("not sat: " + err)
     }
   }
 
