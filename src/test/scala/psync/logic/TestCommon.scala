@@ -17,6 +17,7 @@ object TestCommon {
   val j = Variable("j").setType(pid)
   val k = Variable("k").setType(pid)
   val l = Variable("l").setType(pid)
+  val m = Variable("m").setType(pid)
 
   def ite(a: Formula, b: Formula, c: Formula) = And(Or(Not(a), b), Or(a, c))
   
@@ -135,18 +136,11 @@ object TestCommon {
     conjs.foreach(solver.assert)
     solver.checkSat match {
       case Sat(_) =>
-        Logger.moreVerbose //linter:ignore IdenticalStatements
-        Logger.moreVerbose
-        try {
-          solver.getPartialModel match {
-            case Some(model) =>
-              Console.println(model.toString)
-            case None =>
-              sys.error("failed to get a model")
-          }
-        } finally {
-          Logger.lessVerbose //linter:ignore IdenticalStatements
-          Logger.lessVerbose
+        solver.getPartialModel match {
+          case Some(model) =>
+            Console.println(model.toString)
+          case None =>
+            sys.error("failed to get a model")
         }
       case err =>
         sys.error("not sat: " + err)
