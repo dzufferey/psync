@@ -218,8 +218,8 @@ class LvExampleNoMailbox extends FunSuite {
     ForAll(List(i), Exists(List(j), Eq(data(i), data0(j))))
   )
 
-  /*
-  val invariant1 = And(
+  //simpler version to help debugging
+  val invariant1a = And(
       Exists(List(j,t,a), And(
         Eq(a, Comprehension(List(i), Leq(t, timeStamp(i)))),
         majorityS(a),
@@ -234,7 +234,81 @@ class LvExampleNoMailbox extends FunSuite {
         )
       ))
   )
-  */
+  
+  //even simpler version to help debugging
+  val invariant1b = {
+    val a = Comprehension(List(i), Leq(t, timeStamp(i)))
+      Exists(List(j,t), And(
+        majorityS(a),
+        Leq(t, r),
+        In(j, a),
+        ForAll(List(i), And(Implies(In(i, a), Eq(data(i), data(j))),
+                            Implies(decided(i), Eq(data(i), data(j))),
+                            Implies(commit(i), Eq(vote(i), data(j))),
+                            Implies(ready(i), Eq(vote(i), data(j))),
+                            Implies(Eq(timeStamp(i), r), commit(coord(i)))
+                        ))
+        )
+      )
+  }
+  
+  //simpler version to help debugging
+  val invariant1c = {
+    val a = Comprehension(List(l), Leq(t, timeStamp(l)))
+    And(
+      Or(
+        ForAll(List(i), And(Not(decided(i)), Not(ready(i)))),
+        Exists(List(v,t), And(
+          majorityS(a),
+          Leq(t, r),
+          ForAll(List(j), And(Implies(In(j, a), Eq(data(j), v)),
+                              Implies(decided(j), Eq(data(j), v)),
+                              Implies(commit(j), Eq(vote(j), v)),
+                              Implies(ready(j), Eq(vote(j), v))
+                              //removed coord stuff
+                          )
+          )
+        ))
+      ),
+      ForAll(List(k), Exists(List(m), Eq(data(k), data0(m))))
+    )
+  }
+
+  //simpler version to help debugging
+  val invariant1d = {
+    val a = Comprehension(List(l), Leq(t, timeStamp(l)))
+    And(
+      Or(
+        ForAll(List(i), And(Not(decided(i)), Not(ready(i)))),
+        Exists(List(v,t), And(
+          majorityS(a),
+          Leq(t, r),
+          ForAll(List(j), And(Implies(In(j, a), Eq(data(j), v)),
+                              Implies(decided(j), Eq(data(j), v)),
+                              Implies(commit(j), Eq(vote(j), v)),
+                              Implies(ready(j), Eq(vote(j), v)),
+                              Implies(Eq(timeStamp(j), r), commit(coord(j)))
+                          )
+          )
+        ))
+      ),
+      ForAll(List(k), Exists(List(m), Eq(data(k), data0(m))))
+    )
+  }
+
+
+  //specific tactic
+  def conf(e: Int = 1) = {
+    import psync.logic.quantifiers._
+    val local = true
+    val vennBound = 2
+    val tactic = new Sequence(
+        new Eager(Map[Type,Int](pid -> 1, FSet(pid) -> 1, phase -> 1, pld -> 1).withDefaultValue(0)),
+        new Eager(e)
+      )
+    ClConfig(Some(vennBound), None, QStrategy(tactic, local))
+  }
+  
   
   //test VCs
 
@@ -271,7 +345,46 @@ class LvExampleNoMailbox extends FunSuite {
       frame,
       Not(prime(invariant1))
     )
-    assertUnsat(fs, 60000, true, c2e1)
+    assertUnsat(fs, 600000, true, c2e2)
+  }
+  
+  test("frame a") {
+    val fs = List(
+      invariant1a,
+      frame,
+      Not(prime(invariant1a))
+    )
+    //assertUnsat(fs, c2e2)
+    assertUnsat(fs, conf())
+  }
+
+  test("frame b") {
+    val fs = List(
+      invariant1b,
+      frame,
+      Not(prime(invariant1b))
+    )
+    //assertUnsat(fs, c2e2)
+    assertUnsat(fs, conf())
+  }
+  
+  test("frame c") {
+    val fs = List(
+      invariant1c,
+      frame,
+      Not(prime(invariant1c))
+    )
+    assertUnsat(fs, conf())
+  }
+
+  ignore("frame d") {
+    val fs = List(
+      invariant1d,
+      frame,
+      Not(prime(invariant1d))
+    )
+    //assertUnsat(fs, 600000, true, conf(1))
+    getModel(fs, 600000, conf(1))
   }
 
   //TODO those completely blow-up
@@ -312,18 +425,7 @@ class LvExampleNoMailbox extends FunSuite {
       round4,
       Not(prime(invariant1))
     )
-    import psync.logic.quantifiers._
-    val local = true
-    val vennBound = 2
-    val tactic = new Sequence(
-        new Eager(Map[Type,Int](pid -> 1, FSet(pid) -> 1, phase -> 1).withDefaultValue(0)),
-        //new Eager(Map[Type,Int](Bool -> 1).withDefaultValue(0)),
-        new Eager(1)
-      )
-    //val tactic = new Sequence(new Eager(1), new Eager(Map[Type,Int](pid -> 1).withDefaultValue(0)))
-    val strategy = QStrategy(tactic, local)
-    val conf =  ClConfig(Some(vennBound), None, strategy)
-    assertUnsat(fs, 600000, true, conf)
+    assertUnsat(fs, 600000, true, conf())
     //getModel(fs, 60000, conf, fname = Some("model.smt2"), useCvcMf = true)
   }
 

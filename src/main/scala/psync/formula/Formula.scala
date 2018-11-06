@@ -34,6 +34,8 @@ case class Literal[T](value: T) extends Formula {//removed <: AnyVal to allow un
   lazy val freeVariables = Set[Variable]()
   lazy val boundVariables = Set[Variable]()
 
+  override val hashCode: Int = scala.util.hashing.MurmurHash3.productHash(this)
+
 }
 object UnitLit {
   private val lit = Literal(()).setType(UnitT())
@@ -72,6 +74,8 @@ case class Variable(name: String) extends Formula {
   lazy val freeVariables = Set[Variable](this)
   lazy val boundVariables = Set[Variable]()
 
+  override val hashCode: Int = scala.util.hashing.MurmurHash3.productHash(this)
+
 }
 
 case class Application(fct: Symbol, args: List[Formula]) extends Formula {
@@ -86,6 +90,8 @@ case class Application(fct: Symbol, args: List[Formula]) extends Formula {
 
   lazy val freeVariables = (Set[Variable]() /: args)(_ ++ _.freeVariables)
   lazy val boundVariables = (Set[Variable]() /: args)(_ ++ _.boundVariables)
+
+  override val hashCode: Int = scala.util.hashing.MurmurHash3.productHash(this)
 
 }
 
@@ -534,6 +540,8 @@ case class Binding(binding: BindingType, vs: List[Variable], f: Formula) extends
 
   lazy val freeVariables = f.freeVariables -- vs
   lazy val boundVariables = f.boundVariables ++ vs
+
+  override val hashCode: Int = scala.util.hashing.MurmurHash3.productHash(this)
 
 }
 

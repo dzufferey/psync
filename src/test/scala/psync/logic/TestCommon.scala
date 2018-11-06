@@ -17,6 +17,7 @@ object TestCommon {
   val j = Variable("j").setType(pid)
   val k = Variable("k").setType(pid)
   val l = Variable("l").setType(pid)
+  val m = Variable("m").setType(pid)
 
   def ite(a: Formula, b: Formula, c: Formula) = And(Or(Not(a), b), Or(a, c))
   
@@ -123,11 +124,26 @@ object TestCommon {
     val f1 = SmtSolver.convert(SmtSolver.uninterpretSymbols(f0))
     val solver = if (useCvcMf) SmtSolver.cvc4mf(fname, to)
                  else SmtSolver.z3(fname, to)
+    /*
     solver.testWithModel(f1) match {
       case Sat(Some(model)) =>
         Console.println(model.toString)
       case res =>
         assert( false, "could not parse model: " + res)
+    }
+    */
+    val conjs = dzufferey.smtlib.FormulaUtils.getConjuncts(f1)
+    conjs.foreach(solver.assert)
+    solver.checkSat match {
+      case Sat(_) =>
+        solver.getPartialModel match {
+          case Some(model) =>
+            Console.println(model.toString)
+          case None =>
+            sys.error("failed to get a model")
+        }
+      case err =>
+        sys.error("not sat: " + err)
     }
   }
 
