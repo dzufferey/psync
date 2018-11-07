@@ -122,7 +122,7 @@ val round1 = And(
                  Eq(i, coord(i)),
                  majorityS(ho(i))),
             And(Implies(In(j,ho(i)),
-                         And(Leq(Plus(epoch(j),Literal(1)),epoch1(i)), Eq(coord(j),i))
+                         And(Implies(Neq(j,i),Leq(Plus(epoch(j),Literal(1)),epoch1(i))), Eq(coord(j),i))
                        ),
                 Eq(ready1(i), True())
               )
@@ -154,16 +154,24 @@ val round1a = And(
                  majorityS(ho(i)),
                  In(j,ho(i))),
             And(Eq(coord(j),i),
-                Eq(ready1(i), True())
+                Lt(epoch(j), epoch1(i)),
+                Eq(ready1(i), True()),
+                Eq(decided1(i), False())
               )
         )
   ),
+  //update
+  // else branch + mailbox
   ForAll(List(i,j),
     Implies(Not(And (Eq(i, coord(i)),
                  majorityS(ho(i)),
                  )),
-                 Eq(ready1(i),False()))
+                 And(Eq(ready1(i),False()),
+                    Eq(decided1(i), False()),
+                    Eq(epoch(i), epoch1(i))
+                  )
                )
+             )
 )
 
 
@@ -191,31 +199,56 @@ val round1a = And(
     )
   )
 
-  val propoutro =  Exists(List(leader), And(
-       Eq(s,Comprehension(List(j), Eq(coord(j),leader))),
-       majorityS(s)))
 
-  val   notpropoutro = ForAll  (List(leader), And(
-       Eq(s,Comprehension(List(j), Eq(coord(j),leader))),
-       Not(majorityS(s))))
 
-  val propintro = ForAll(List(i),Eq(ready(i),False()))
 
-  val invariantV1 =
-    Or(
-      ForAll(List(i), And(Eq(decided(i),False()), Eq(ready(i),False()))),
-       Exists(List(leader), And(
-           Eq(s,Comprehension(List(j), Eq(coord(j),leader))),
-           majorityS(s)//,
-           // ForAll(List(i), //And(
-           //         Implies(And(In(i,s),Eq(ready(i),True())),
-           //         And(Lt(epoch(i),epoch(leader)), Eq(coord(i),leader)))
-            //)
-        //  )
+ val invPart1 = ForAll(List(i), And(Eq(decided(i),False()), Eq(ready(i),False())))
+
+ val invPart2 =  And( Eq(ready(leader), True()),
+          ForAll(List(i), //And(
+          Implies(In(i,s),
+          And(Implies(Neq(i,leader),Lt(epoch(i ),epoch(leader))), Eq(coord(i),leader))))
         )
-      )
-    )
+val invariantV1 =
+          //  Or(
+          //    invPart1,
+               Exists(List(leader), And(
+                   Eq(s,Comprehension(List(j),      And(Eq(coord(j),leader),Implies(Neq(j,leader),Lt(epoch(j),epoch(leader))))
+                      )),
+                   majorityS(s),
+                   Eq(ready(leader),True())
+                )
+              )
+          //  )
 
+
+val invariantV1_noEpoch = //Or(
+//invPart1,
+ Exists(List(leader), And(
+     Eq(s,Comprehension(List(j),Eq(coord(j),leader))),
+     majorityS(s),
+     Eq(ready(leader),True())
+  ))
+//)
+
+ val NotInvariantV1 =
+      And( Not(invPart1),
+           ForAll(List(leader), And (
+                  Eq(s,Comprehension(List(j),
+                  //Eq(coord(j),leader))),
+                  And(Eq(coord(j),leader),Implies(Neq(j,leader),Lt(epoch(j),epoch(leader)))))),
+                  //Not(majorityS(s)),
+                  Or(Not(majorityS(s)),Eq(ready(leader),False()))
+                )))
+
+
+val NotInvariantV1_noEpoch =
+  And( Not(invPart1),
+       ForAll(List(leader), And (
+              Eq(s,Comprehension(List(j),
+              Eq(coord(j),leader))),
+              Or(Not(majorityS(s)),Eq(ready(leader),False()))
+            )))
 
 
   //specific tactic
@@ -232,13 +265,44 @@ val round1a = And(
 
 
   //test VCs
+val test = Or(And(invariantV1_noEpoch, round1a,
+                  prime(NotInvariantV1_noEpoch)),
+              And(invPart1,round1a,
+                  prime(NotInvariantV1_noEpoch)))
 
-   test("round one if update condition "){
-     val fs = List(propintro,
+  test("round one if update condition dis no epoch "){
+    val fs = List(test, True())
+
+
+      assertUnsat(fs,600000, true, c2e1)
+      //assertUnsat(fs,ClProc)
+      //assertSat(fs, c2e2)
+      //getModel(fs)
+  }
+
+
+  ignore("round one if update condition no epoch "){
+    val fs = List(invariantV1_noEpoch,
+             //invPart1,
+             round1a,
+             prime(NotInvariantV1_noEpoch))
+
+      assertUnsat(fs, c2e2)
+
+      //assertSat(fs, c2e2)
+      //getModel(fs)
+  }
+
+   ignore("round one if update condition "){
+     val fs = List(invariantV1,
+              //invPart1,
               round1a,
-              Or(notpropoutro,prime(propintro)))
-       assertSat(fs, c2e2)
-       getModel(fs)
+              prime(NotInvariantV1))
+
+       assertUnsat(fs, c2e2)
+
+       //assertSat(fs, c2e2)
+       //getModel(fs)
    }
 
   ignore("initial state implies invariant") {

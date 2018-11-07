@@ -99,7 +99,11 @@ class Replay extends FunSuite {
 
     val propoutro =  Exists(List(leader), And(
          Eq(s,Comprehension(List(j), Eq(coord(j),leader))),
-         majorityS(s)))
+                  majorityS(s)))
+
+    val NotPropoutro =  ForAll(List(leader), And(
+                       Eq(s,Comprehension(List(j), Eq(coord(j),leader))),
+                       Not(majorityS(s))))
 
     val propintro = ForAll(List(i),Eq(ready(i),False()))
 
@@ -107,7 +111,7 @@ class Replay extends FunSuite {
     def conf(e: Int = 1) = {
       import psync.logic.quantifiers._
       val local = true
-      val vennBound = 2
+      val vennBound = 3
       val tactic = new Sequence(
           new Eager(Map[Type,Int](pid -> 1, FSet(pid) -> 1, phase -> 1, pld -> 1).withDefaultValue(0)),
           new Eager(e)
@@ -121,9 +125,10 @@ class Replay extends FunSuite {
      test("round one if update condition "){
        val fs = List(propintro,
                 round1a,
-                Or(Not(propoutro),prime(propintro)))
-         assertSat(fs, c2e2)
-         getModel(fs)
+                NotPropoutro,
+                prime(Not(propintro)))
+         assertUnsat(fs, c2e2)
+         //getModel(fs)
      }
 
 }
