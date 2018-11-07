@@ -274,8 +274,8 @@ val test = Or(And(invariantV1_noEpoch, round1a,
     val fs = List(test, True())
 
 
-      assertUnsat(fs,600000, true, c2e1)
-      //assertUnsat(fs,ClProc)
+      //assertUnsat(fs,600000, true, c2e1)
+      assertUnsat(fs,ClProc)
       //assertSat(fs, c2e2)
       //getModel(fs)
   }
