@@ -308,8 +308,7 @@ class LvExampleNoMailbox extends FunSuite {
       )
     ClConfig(Some(vennBound), None, QStrategy(tactic, local))
   }
-  
-  
+
   //test VCs
 
   test("initial state implies invariant") {
@@ -339,13 +338,13 @@ class LvExampleNoMailbox extends FunSuite {
     assertUnsat(fs, c2e1)
   }
 
-  ignore("frame") {
+  test("frame") {
     val fs = List(
       invariant1,
       frame,
       Not(prime(invariant1))
     )
-    assertUnsat(fs, 600000, true, c2e2)
+    assertUnsat(fs, reducer = conf(), dnfExpansion = true)
   }
   
   test("frame a") {
@@ -354,7 +353,6 @@ class LvExampleNoMailbox extends FunSuite {
       frame,
       Not(prime(invariant1a))
     )
-    //assertUnsat(fs, c2e2)
     assertUnsat(fs, conf())
   }
 
@@ -364,7 +362,6 @@ class LvExampleNoMailbox extends FunSuite {
       frame,
       Not(prime(invariant1b))
     )
-    //assertUnsat(fs, c2e2)
     assertUnsat(fs, conf())
   }
   
@@ -377,14 +374,13 @@ class LvExampleNoMailbox extends FunSuite {
     assertUnsat(fs, conf())
   }
 
-  ignore("frame d") {
+  test("frame d") {
     val fs = List(
       invariant1d,
       frame,
       Not(prime(invariant1d))
     )
-    //assertUnsat(fs, 600000, true, conf(1))
-    getModel(fs, 600000, conf(1))
+    assertUnsat(fs, reducer = conf(), dnfExpansion = true)
   }
 
   //TODO those completely blow-up
@@ -396,8 +392,7 @@ class LvExampleNoMailbox extends FunSuite {
       round1,
       Not(prime(invariant1))
     )
-    assertUnsat(fs, 60000, true, c2e2)
-    //getModel(fs, 60000, clg(2,3))
+    assertUnsat(fs, reducer = conf(), dnfExpansion = true)
   }
 
   ignore("invariant 1 is inductive at round 2") {
@@ -425,8 +420,7 @@ class LvExampleNoMailbox extends FunSuite {
       round4,
       Not(prime(invariant1))
     )
-    assertUnsat(fs, 600000, true, conf())
-    //getModel(fs, 60000, conf, fname = Some("model.smt2"), useCvcMf = true)
+    assertUnsat(fs, reducer = conf(2), dnfExpansion = true, debug = true, to = 60000)
   }
 
 }

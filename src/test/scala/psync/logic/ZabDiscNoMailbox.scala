@@ -270,7 +270,7 @@ val test = Or(And(invariantV1_noEpoch, round1a,
               And(invPart1,round1a,
                   prime(NotInvariantV1_noEpoch)))
 
-  test("round one if update condition dis no epoch "){
+  ignore("round one if update condition dis no epoch "){
     val fs = List(test, True())
 
 

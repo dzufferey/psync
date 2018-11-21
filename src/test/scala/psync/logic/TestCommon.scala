@@ -4,7 +4,7 @@ import psync.formula._
 import psync.logic.quantifiers._
 import psync.utils.SmtSolver
 import psync.verification.VerificationOptions
-import dzufferey.smtlib.Sat
+import dzufferey.smtlib.{Sat, UnSat, Model}
 import dzufferey.utils.Logger
 
 object TestCommon {
@@ -38,6 +38,15 @@ object TestCommon {
   val c3e1 = cln(3, new Eager(1), true)
   val c3e2 = cln(3, new Eager(2), true)
   val c3e3 = cln(3, new Eager(3), true)
+  
+  def expandDisj(f: Formula): Seq[Formula] = {
+    val f2 = Simplify.nnf(f)
+    val (f3, _) = quantifiers.getExistentialPrefix(f2)
+    Simplify.dnf(f3) match {
+      case Or(lst @ _*) => lst
+      case other => List(other)
+    }
+  }
 
   def reduce(clc: ClConfig, conjuncts: List[Formula], debug: Boolean): Formula = {
     val cl = new CL(clc)
@@ -79,18 +88,23 @@ object TestCommon {
                   to: Long = 10000,
                   debug: Boolean = false,
                   reducer: ClConfig = cl,
+                  dnfExpansion: Boolean = false,
                   fname: Option[String] = None,
                   useCvcMf: Boolean = false) {
-    val f0 = reduce(reducer, conjuncts, debug)
-    val f1 = SmtSolver.convert(SmtSolver.uninterpretSymbols(f0))
-    val solver = if (useCvcMf) SmtSolver.cvc4mf(fname, to)
-                 else SmtSolver.z3(fname, to)
-    try {
-      assert(!solver.testB(f1), "unsat formula")
-    } catch {
-      case t: Throwable => t.printStackTrace
-        throw t
-    }
+    val fAll = And(conjuncts:_*)
+    val fs = if (dnfExpansion) expandDisj(fAll) else List(fAll)
+    fs.foreach( f => {
+      val f0 = reduce(reducer, List(f), debug)
+      val f1 = SmtSolver.convert(SmtSolver.uninterpretSymbols(f0))
+      val solver = if (useCvcMf) SmtSolver.cvc4mf(fname, to)
+                   else SmtSolver.z3(fname, to)
+      try {
+        assert(!solver.testB(f1), "unsat formula")
+      } catch {
+        case t: Throwable => t.printStackTrace
+          throw t
+      }
+    })
   }
 
   def assertUnsat(conjuncts: List[Formula],
@@ -102,13 +116,23 @@ object TestCommon {
                 to: Long = 10000,
                 debug: Boolean = false,
                 reducer: ClConfig = cl,
+                dnfExpansion: Boolean = false,
                 fname: Option[String] = None,
                 useCvcMf: Boolean = false) {
-    val f0 = reduce(reducer, conjuncts, debug)
-    val f1 = SmtSolver.convert(SmtSolver.uninterpretSymbols(f0))
-    val solver = if (useCvcMf) SmtSolver.cvc4mf(fname, to)
-                 else SmtSolver.z3(fname, to)
-    assert( solver.testB(f1), "sat formula")
+    val fAll = And(conjuncts:_*)
+    val fs = if (dnfExpansion) expandDisj(fAll) else List(fAll)
+    assert(fs.exists( f => {
+      val f0 = reduce(reducer, List(f), debug)
+      val f1 = SmtSolver.convert(SmtSolver.uninterpretSymbols(f0))
+      val solver = if (useCvcMf) SmtSolver.cvc4mf(fname, to)
+                   else SmtSolver.z3(fname, to)
+      try {
+        solver.testB(f1)
+      } catch {
+        case t: Throwable => t.printStackTrace
+          throw t
+      }
+    }), "sat formula")
   }
 
   def assertSat(conjuncts: List[Formula],
@@ -120,32 +144,31 @@ object TestCommon {
   def getModel(conjuncts: List[Formula],
                to: Long = 10000,
                reducer: ClConfig = cl,
+               dnfExpansion: Boolean = false,
                fname: Option[String] = None,
                useCvcMf: Boolean = false) {
-    val f0 = reduce(reducer, conjuncts, true)
-    val f1 = SmtSolver.convert(SmtSolver.uninterpretSymbols(f0))
-    val solver = if (useCvcMf) SmtSolver.cvc4mf(fname, to)
-                 else SmtSolver.z3(fname, to)
-    /*
-    solver.testWithModel(f1) match {
-      case Sat(Some(model)) =>
-        Console.println(model.toString)
-      case res =>
-        assert( false, "could not parse model: " + res)
-    }
-    */
-    val conjs = dzufferey.smtlib.FormulaUtils.getConjuncts(f1)
-    conjs.foreach(solver.assert)
-    solver.checkSat match {
-      case Sat(_) =>
-        solver.getPartialModel match {
-          case Some(model) =>
-            Console.println(model.toString)
-          case None =>
-            sys.error("failed to get a model")
-        }
-      case err =>
-        sys.error("not sat: " + err)
+    val fAll = And(conjuncts:_*)
+    val fs = if (dnfExpansion) expandDisj(fAll) else List(fAll)
+    val acc: Option[Model] = None
+    val mdl = fs.foldLeft(acc)( (acc, f) => acc.orElse({
+      val f0 = reduce(reducer, List(f), true)
+      val f1 = SmtSolver.convert(SmtSolver.uninterpretSymbols(f0))
+      val solver = if (useCvcMf) SmtSolver.cvc4mf(fname, to)
+                   else SmtSolver.z3(fname, to)
+      val conjs = dzufferey.smtlib.FormulaUtils.getConjuncts(f1)
+      conjs.foreach(solver.assert)
+      solver.checkSat match {
+        case Sat(_) =>
+          solver.getPartialModel.orElse(sys.error("failed to get a model"))
+        case UnSat =>
+          None
+        case err =>
+          sys.error("not sat: " + err)
+      }
+    }))
+    mdl match {
+      case Some(model) => Console.println(model.toString)
+      case None => sys.error("unsat")
     }
   }
 

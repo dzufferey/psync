@@ -46,11 +46,40 @@ object Simplify {
   }
 
   def cnf(f: Formula): Formula = {
-    ???
+    def process(f: Formula): List[Formula] = f match {
+      case Application(And, lst) => lst.flatMap(process)
+      case Application(Or, lst) =>
+        def merge(dnf1: List[Formula], dnf2: List[Formula]): List[Formula] = {
+          dnf1.flatMap( x => dnf2.map( y => Or(x, y)) )
+        }
+        val subDnf = lst.map(process)
+        val acc: List[Formula] = List(False())
+        subDnf.foldLeft(acc)(merge)
+      case other =>
+        List(other)
+    }
+    val f2 = process(nnf(f))
+    val f3 = f2.map(simplifyBool)
+    And(f3: _*)
   }
   
+  //only works at the top level, does not go into Bindings, assumes NNF
   def dnf(f: Formula): Formula = {
-    ???
+    def process(f: Formula): List[Formula] = f match {
+      case Application(Or, lst) => lst.flatMap(process)
+      case Application(And, lst) =>
+        def merge(dnf1: List[Formula], dnf2: List[Formula]): List[Formula] = {
+          dnf1.flatMap( x => dnf2.map( y => And(x, y)) )
+        }
+        val subDnf = lst.map(process)
+        val acc: List[Formula] = List(True())
+        subDnf.foldLeft(acc)(merge)
+      case other =>
+        List(other)
+    }
+    val f2 = process(nnf(f))
+    val f3 = f2.map(simplifyBool)
+    Or(f3: _*)
   }
 
   protected def mkDeBruijnVar(tpe: Type, idx: Int) = {
