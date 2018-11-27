@@ -37,19 +37,33 @@ object CL {
     //!hasComp(f) && isEPR(f)
   }
 
-}
+  def remove2ndOrderNeq(f: Formula): Formula = {
+    def process(f: Formula): Formula = f match {
+      case Not(Eq(s1,s2)) => s1.tpe match {
+        case FSet(elt) =>
+          val w = Variable("witness").setType(elt)
+          assert(!s1.freeVariables(w) && !s2.freeVariables(w))
+          Exists(List(w), Not(Eq(In(w,s1), In(w,s2))))
+        case FMap(kt,vt) =>
+          val w = Variable("witness").setType(kt)
+          assert(!s1.freeVariables(w) && !s2.freeVariables(w))
+          Exists(List(w), Or(Not(Eq(In(w,KeySet(s1)), In(w,KeySet(s2)))), And(In(w, KeySet(s1)), Not(Eq(LookUp(s1, w), LookUp(s2, w))))))
+        case _ => f
+      }
+      case Not(SubsetEq(s1,s2)) => s1.tpe match {
+        case FSet(elt) =>
+          val w = Variable("witness").setType(elt)
+          assert(!s1.freeVariables(w) && !s2.freeVariables(w))
+          Exists(List(w), And(In(w,s1), Not(In(w,s2))))
+        case _ => f
+      }
+      case _ => f
+    }
+    FormulaUtils.stubornMapTopDown(process, f)
+  }
 
-
-class CL(config: ClConfig) {
-
-  import CL._
-
-  protected def bound = config.vennBound
-  protected def onType = config.onType
-
-  protected def normalize(f: Formula) = {
-    //TODO some (lazy) CNF conversion ?
-    //TODO purification before or after instantiation ?
+  def normalize(f: Formula) = {
+    //TODO always possible to have smarter simplification
     val f1 = Simplify.simplify(f)
     val f2 = Rewriting(f1)
     val f3 = Simplify.boundVarUnique(f2)
@@ -58,8 +72,16 @@ class CL(config: ClConfig) {
     val f6 = Rewriting(f5)
     f6
   }
+  
+  def cleanUp(ls: List[Formula]) = {
+    val f = And(ls:_*)
+    val simp = Simplify.boundVarUnique(f)
+    val qf = skolemize(simp) //get ride of ∃
+    val renamed = Simplify.deBruijnIndex(qf)
+    Simplify.simplify(renamed)
+  }
 
-  protected def sizeOfUniverse(tpe: Type): Option[Formula] = tpe match {
+  def sizeOfUniverse(tpe: Type): Option[Formula] = tpe match {
     case `procType` => Some(n)
     case Bool => Some(Literal(2))
     case Product(args) =>
@@ -72,6 +94,16 @@ class CL(config: ClConfig) {
       }
     case _ => None
   }
+
+}
+
+
+class CL(config: ClConfig) {
+
+  import CL._
+
+  protected def bound = config.vennBound
+  protected def onType = config.onType
 
   protected def makeVennILP(defs: Iterable[SetDef], gen: Generator) = {
     val byType = defs.groupBy(_.contentTpe)
@@ -119,14 +151,6 @@ class CL(config: ClConfig) {
     Lt(Literal(0), n) :: ilps.toList ::: conjuncts
   }
   
-  protected def cleanUp(ls: List[Formula]) = {
-    val f = And(ls:_*)
-    val simp = Simplify.boundVarUnique(f)
-    val qf = skolemize(simp) //get ride of ∃
-    val renamed = Simplify.deBruijnIndex(qf)
-    Simplify.simplify(renamed)
-  }
-  
   protected def quantifierInstantiation(strat: QStrategy, fs: List[Formula], cc: CongruenceClosure): (List[Formula], Generator) = {
     Logger("CL", Debug, "instantiation strategy: " + strat)
     strat match {
@@ -155,31 +179,6 @@ class CL(config: ClConfig) {
     val generated = gen.locallySaturate
     Logger("CL", Debug, "local generated:\n  " + generated.mkString("\n  "))
     leftOver ::: generated
-  }
-
-  protected def remove2ndOrderNeq(f: Formula): Formula = {
-    def process(f: Formula): Formula = f match {
-      case Not(Eq(s1,s2)) => s1.tpe match {
-        case FSet(elt) =>
-          val w = Variable("witness").setType(elt)
-          assert(!s1.freeVariables(w) && !s2.freeVariables(w))
-          Exists(List(w), Not(Eq(In(w,s1), In(w,s2))))
-        case FMap(kt,vt) =>
-          val w = Variable("witness").setType(kt)
-          assert(!s1.freeVariables(w) && !s2.freeVariables(w))
-          Exists(List(w), Or(Not(Eq(In(w,KeySet(s1)), In(w,KeySet(s2)))), And(In(w, KeySet(s1)), Not(Eq(LookUp(s1, w), LookUp(s2, w))))))
-        case _ => f
-      }
-      case Not(SubsetEq(s1,s2)) => s1.tpe match {
-        case FSet(elt) =>
-          val w = Variable("witness").setType(elt)
-          assert(!s1.freeVariables(w) && !s2.freeVariables(w))
-          Exists(List(w), And(In(w,s1), Not(In(w,s2))))
-        case _ => f
-      }
-      case _ => f
-    }
-    FormulaUtils.stubornMapTopDown(process, f)
   }
 
 

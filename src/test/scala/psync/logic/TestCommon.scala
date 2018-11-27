@@ -48,8 +48,7 @@ object TestCommon {
     }
   }
 
-  def reduce(clc: ClConfig, conjuncts: List[Formula], debug: Boolean): Formula = {
-    val cl = new CL(clc)
+  def reduce(clc: ClConfig, conjuncts: List[Formula], onlyAxioms: Boolean, debug: Boolean): Formula = {
     if(debug) {
       Logger.moreVerbose //linter:ignore IdenticalStatements
       Logger.moreVerbose
@@ -65,7 +64,8 @@ object TestCommon {
         c1.foreach( f => println("  " + f.toStringFull) )
       }
       val f0 = And(c1 :_*)
-      val f1 = cl.reduce(f0)
+      val f1 = if (onlyAxioms) new ClAxiomatized(clc).reduce(f0)
+               else new CL(clc).reduce(f0)
       if(debug) {
         println("======= send to solver")
         FormulaUtils.getConjuncts(f1).foreach( f => println("  " + f) )
@@ -89,12 +89,13 @@ object TestCommon {
                   debug: Boolean = false,
                   reducer: ClConfig = cl,
                   dnfExpansion: Boolean = false,
+                  onlyAxioms: Boolean = false,
                   fname: Option[String] = None,
                   useCvcMf: Boolean = false) {
     val fAll = And(conjuncts:_*)
     val fs = if (dnfExpansion) expandDisj(fAll) else List(fAll)
     fs.foreach( f => {
-      val f0 = reduce(reducer, List(f), debug)
+      val f0 = reduce(reducer, List(f), onlyAxioms, debug)
       val f1 = SmtSolver.convert(SmtSolver.uninterpretSymbols(f0))
       val solver = if (useCvcMf) SmtSolver.cvc4mf(fname, to)
                    else SmtSolver.z3(fname, to)
@@ -117,12 +118,13 @@ object TestCommon {
                 debug: Boolean = false,
                 reducer: ClConfig = cl,
                 dnfExpansion: Boolean = false,
+                onlyAxioms: Boolean = false,
                 fname: Option[String] = None,
                 useCvcMf: Boolean = false) {
     val fAll = And(conjuncts:_*)
     val fs = if (dnfExpansion) expandDisj(fAll) else List(fAll)
     assert(fs.exists( f => {
-      val f0 = reduce(reducer, List(f), debug)
+      val f0 = reduce(reducer, List(f), onlyAxioms, debug)
       val f1 = SmtSolver.convert(SmtSolver.uninterpretSymbols(f0))
       val solver = if (useCvcMf) SmtSolver.cvc4mf(fname, to)
                    else SmtSolver.z3(fname, to)
@@ -145,13 +147,14 @@ object TestCommon {
                to: Long = 10000,
                reducer: ClConfig = cl,
                dnfExpansion: Boolean = false,
+               onlyAxioms: Boolean = false,
                fname: Option[String] = None,
                useCvcMf: Boolean = false) {
     val fAll = And(conjuncts:_*)
     val fs = if (dnfExpansion) expandDisj(fAll) else List(fAll)
     val acc: Option[Model] = None
     val mdl = fs.foldLeft(acc)( (acc, f) => acc.orElse({
-      val f0 = reduce(reducer, List(f), true)
+      val f0 = reduce(reducer, List(f), onlyAxioms, true)
       val f1 = SmtSolver.convert(SmtSolver.uninterpretSymbols(f0))
       val solver = if (useCvcMf) SmtSolver.cvc4mf(fname, to)
                    else SmtSolver.z3(fname, to)

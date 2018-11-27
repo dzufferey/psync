@@ -67,6 +67,7 @@ class CLSuite extends FunSuite {
       n === 1
     )
     assertUnsat(fs)
+    //assertUnsat(fs, onlyAxioms = true, debug = true)
   }
 
   test("sat 1"){
@@ -79,6 +80,7 @@ class CLSuite extends FunSuite {
     )
     assertSat(fs)
     assertSat(fs, c2e2)
+    //assertSat(fs, onlyAxioms = true, debug = true)
   }
 
   test("Size of comprehension bigger than two"){
@@ -94,6 +96,7 @@ class CLSuite extends FunSuite {
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
+    //assertSat(fs, onlyAxioms = true, debug = true)
   }
 
   test("Comprehension introduces new nodes"){
@@ -104,6 +107,7 @@ class CLSuite extends FunSuite {
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
+    //assertSat(fs, onlyAxioms = true, debug = true)
   }
 
   test("BAPA 0") {
@@ -114,6 +118,7 @@ class CLSuite extends FunSuite {
       Eq(Cardinality(c), Literal(0))
     )
     assertUnsat(fs)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   //from https://github.com/psuter/bapa-z3/blob/master/src/main/scala/bapa/Main.scala
@@ -125,6 +130,7 @@ class CLSuite extends FunSuite {
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
+    //assertUnsat(fs, onlyAxioms = true, debug = true)
   }
 
   //from https://github.com/psuter/bapa-z3/blob/master/src/main/scala/bapa/Main.scala
@@ -143,6 +149,7 @@ class CLSuite extends FunSuite {
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
+    //assertUnsat(fs, onlyAxioms = true, debug = true)
   }
 
   test("universe cardinality ⇒ ∀ (1)") {
@@ -152,6 +159,7 @@ class CLSuite extends FunSuite {
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   test("universe cardinality ⇒ ∀ (2)") {
@@ -161,6 +169,7 @@ class CLSuite extends FunSuite {
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   test("cardinality two comprehensions intersect"){
@@ -172,6 +181,7 @@ class CLSuite extends FunSuite {
     )        
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
+    //assertUnsat(fs, onlyAxioms = true, debug = true)
   }
 
   test("cardinality three comprehensions"){
@@ -186,6 +196,7 @@ class CLSuite extends FunSuite {
     )        
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
+    //assertUnsat(fs, onlyAxioms = true, debug = true)
   }
 
   test("process j and one comprehension"){
@@ -196,6 +207,7 @@ class CLSuite extends FunSuite {
     )        
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   test("HO test: universals and comprehension"){
@@ -206,6 +218,7 @@ class CLSuite extends FunSuite {
     )      
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
+    //assertUnsat(fs, onlyAxioms = true, debug = true)
   }
 
   test("In Kernel and not in its HO"){
@@ -217,6 +230,7 @@ class CLSuite extends FunSuite {
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
+    //assertUnsat(fs, onlyAxioms = true, debug = true)
   }
 
   test("Instantiate univ on set intersection"){
@@ -229,6 +243,7 @@ class CLSuite extends FunSuite {
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
+    //assertUnsat(fs, onlyAxioms = true, debug = true)
   } 
 
   test("n = 0") {
@@ -236,6 +251,7 @@ class CLSuite extends FunSuite {
       Eq(n, Literal(0))
     )
     assertUnsat(fs)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   test("options 0") {
@@ -243,6 +259,7 @@ class CLSuite extends FunSuite {
       IsDefined(FNone().setType(FOption(Int)))
     )
     assertUnsat(fs)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   test("options 1") {
@@ -258,6 +275,7 @@ class CLSuite extends FunSuite {
     )
     assertSat(fs)
     assertSat(fs, c2e2)
+    assertSat(fs, onlyAxioms = true)
   }
 
   test("options 2") {
@@ -294,10 +312,12 @@ class CLSuite extends FunSuite {
     unsat.foreach( fs => {
       assertUnsat(fs) 
       assertUnsat(fs, c2e2)
+      assertUnsat(fs, onlyAxioms = true)
     })
     sat.foreach( fs => {
       assertSat(fs) 
       assertSat(fs, c2e2)
+      assertSat(fs, onlyAxioms = true)
     })
   }
 
@@ -317,6 +337,7 @@ class CLSuite extends FunSuite {
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   test("majority is a quorum") {
@@ -330,6 +351,7 @@ class CLSuite extends FunSuite {
       !quorum(a, b)
     )
     assertUnsat(fs, c2e1)
+    //assertUnsat(fs, onlyAxioms = true)
   }
   
   test("2/3 majority is a fast quorum") {
@@ -344,6 +366,7 @@ class CLSuite extends FunSuite {
       !quorum(a, b, c)
     )
     assertUnsat(fs, c3e1)
+    //assertUnsat(fs, onlyAxioms = true)
   }
 
   test("pairs 0") {
@@ -355,7 +378,9 @@ class CLSuite extends FunSuite {
       tpl2._2 !== i
     )
     assertSat(fs)
+    assertSat(fs, onlyAxioms = true)
     assertUnsat((tpl1._1 !== i) :: fs)
+    assertUnsat((tpl1._1 !== i) :: fs, onlyAxioms = true)
   }
 
   //from https://github.com/CVC4/CVC4/blob/master/test/regress/regress0/sets/card.smt2
@@ -366,6 +391,7 @@ class CLSuite extends FunSuite {
       (a ∪ b).card <= 4
     )
     assertUnsat(fs)
+    //assertUnsat(fs, onlyAxioms = true, debug = true)
   }
 
   //from https://github.com/CVC4/CVC4/blob/master/test/regress/regress0/sets/card-2.smt2
@@ -377,6 +403,7 @@ class CLSuite extends FunSuite {
       c === (a ∪ b)
     )
     assertSat(fs)
+    //assertSat(fs, onlyAxioms = true, debug = true)
   }
 
   //from https://github.com/CVC4/CVC4/blob/master/test/regress/regress0/sets/card-3.smt2
@@ -389,6 +416,7 @@ class CLSuite extends FunSuite {
       (b ∩ c) === Comprehension(List(i), False())
     )
     assertUnsat(fs, cln(10, new quantifiers.Eager(Some(1)), false))
+    //assertUnsat(fs, onlyAxioms = true, debug = true)
   }
 
   //from https://github.com/CVC4/CVC4/blob/master/test/regress/regress0/sets/card-4.smt2
@@ -407,6 +435,7 @@ class CLSuite extends FunSuite {
       p6 ∈ a
     )
     assertSat(fs)
+    //assertSat(fs, onlyAxioms = true, debug = true)
   }
 
   //from https://github.com/CVC4/CVC4/blob/master/test/regress/regress0/sets/card-5.smt2
@@ -431,6 +460,7 @@ class CLSuite extends FunSuite {
       p5 !== p6
     )
     assertUnsat(fs)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   //from https://github.com/CVC4/CVC4/blob/master/test/regress/regress0/sets/card-6.smt2
@@ -443,6 +473,7 @@ class CLSuite extends FunSuite {
       b.card <= 2
     )
     assertUnsat(fs, cln(10, new quantifiers.Eager(Some(1)), false))
+    //assertUnsat(fs, onlyAxioms = true, debug = true)
   }
 
   //from https://github.com/CVC4/CVC4/blob/master/test/regress/regress0/sets/card-7.smt2
@@ -452,6 +483,7 @@ class CLSuite extends FunSuite {
     val ac1 = ac.map( ac => ac === 1 )
     val fs = (Plus(ac:_*) === 20) :: ac1.toList
     assertSat(fs, cln(1, new quantifiers.Eager(Some(1)), false))
+    //assertSat(fs, onlyAxioms = true, debug = true)
   }
 
   ignore("map simple updates") { //fails randomly ?!?
@@ -476,24 +508,20 @@ class CLSuite extends FunSuite {
     )
     sats.foreach( f => assertSat(List(f)) )
     unsats.foreach( f => assertUnsat(List(f)) )
+    sats.foreach( f => assertSat(List(f), onlyAxioms = true) )
+    unsats.foreach( f => assertUnsat(List(f), onlyAxioms = true) )
   }
 
   test("sets not equal") {
     val t = UnInterpreted("T")
     val s1 = Variable("S1").setType(FSet(t))
     val s2 = Variable("S2").setType(FSet(t))
-    assertUnsat(List(
-        s1 === s2,
-        Not(s1 === s2)
-      ))
-    assertUnsat(List(
-        s1 === s2,
-        Not(s1 ⊆ s2)
-      ))
-    assertSat(List(
-        Not(s2 ⊆ s1),
-        Not(s1 ⊆ s2)
-      ))
+    assertUnsat(List( s1 === s2, Not(s1 === s2) ))
+    assertUnsat(List( s1 === s2, Not(s1 ⊆ s2) ))
+    assertSat(List( Not(s2 ⊆ s1), Not(s1 ⊆ s2) ))
+    assertUnsat(List( s1 === s2, Not(s1 === s2) ), onlyAxioms = true)
+    assertUnsat(List( s1 === s2, Not(s1 ⊆ s2) ), onlyAxioms = true)
+    assertSat(List( Not(s2 ⊆ s1), Not(s1 ⊆ s2) ), onlyAxioms = true)
   }
 
   test("arrays as maps with int keys") {
@@ -512,6 +540,8 @@ class CLSuite extends FunSuite {
     val valid = ForAll(List(y), ((y ≤ x) ∧ m1.isDefinedAt(y)) ==> (m1.lookUp(y) === m2.lookUp(y)) )
     assertUnsat(common :+ Not(valid)) // take negation for unsat
     assertSat(common :+ valid) // sanity check
+    //assertUnsat(common :+ Not(valid), onlyAxioms = true)
+    //assertSat(common :+ valid, onlyAxioms = true, debug = true)
   }
 
 }
