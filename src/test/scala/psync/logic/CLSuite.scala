@@ -67,7 +67,7 @@ class CLSuite extends FunSuite {
       n === 1
     )
     assertUnsat(fs)
-    //assertUnsat(fs, onlyAxioms = true, debug = true)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   test("sat 1"){
@@ -80,7 +80,7 @@ class CLSuite extends FunSuite {
     )
     assertSat(fs)
     assertSat(fs, c2e2)
-    //assertSat(fs, onlyAxioms = true, debug = true)
+    //assertSat(fs, onlyAxioms = true, useCvcMf = true, debug = true, fname = Some("sat1.smt2"))
   }
 
   test("Size of comprehension bigger than two"){
@@ -96,7 +96,7 @@ class CLSuite extends FunSuite {
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
-    //assertSat(fs, onlyAxioms = true, debug = true)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   test("Comprehension introduces new nodes"){
@@ -107,7 +107,7 @@ class CLSuite extends FunSuite {
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
-    //assertSat(fs, onlyAxioms = true, debug = true)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   test("BAPA 0") {
@@ -130,7 +130,7 @@ class CLSuite extends FunSuite {
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
-    //assertUnsat(fs, onlyAxioms = true, debug = true)
+    //assertUnsat(fs, onlyAxioms = true) fails when run with `sbt test`
   }
 
   //from https://github.com/psuter/bapa-z3/blob/master/src/main/scala/bapa/Main.scala
@@ -149,7 +149,7 @@ class CLSuite extends FunSuite {
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
-    //assertUnsat(fs, onlyAxioms = true, debug = true)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   test("universe cardinality ⇒ ∀ (1)") {
@@ -181,7 +181,7 @@ class CLSuite extends FunSuite {
     )        
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
-    //assertUnsat(fs, onlyAxioms = true, debug = true)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   test("cardinality three comprehensions"){
@@ -196,7 +196,7 @@ class CLSuite extends FunSuite {
     )        
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
-    //assertUnsat(fs, onlyAxioms = true, debug = true)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   test("process j and one comprehension"){
@@ -218,7 +218,7 @@ class CLSuite extends FunSuite {
     )      
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
-    //assertUnsat(fs, onlyAxioms = true, debug = true)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   test("In Kernel and not in its HO"){
@@ -230,7 +230,7 @@ class CLSuite extends FunSuite {
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
-    //assertUnsat(fs, onlyAxioms = true, debug = true)
+    //assertUnsat(fs, onlyAxioms = true) //TODO fails with `sbt test
   }
 
   test("Instantiate univ on set intersection"){
@@ -243,7 +243,7 @@ class CLSuite extends FunSuite {
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
-    //assertUnsat(fs, onlyAxioms = true, debug = true)
+    assertUnsat(fs, onlyAxioms = true)
   } 
 
   test("n = 0") {
@@ -351,7 +351,7 @@ class CLSuite extends FunSuite {
       !quorum(a, b)
     )
     assertUnsat(fs, c2e1)
-    //assertUnsat(fs, onlyAxioms = true)
+    assertUnsat(fs, onlyAxioms = true)
   }
   
   test("2/3 majority is a fast quorum") {
@@ -366,7 +366,7 @@ class CLSuite extends FunSuite {
       !quorum(a, b, c)
     )
     assertUnsat(fs, c3e1)
-    //assertUnsat(fs, onlyAxioms = true)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   test("pairs 0") {
@@ -391,7 +391,7 @@ class CLSuite extends FunSuite {
       (a ∪ b).card <= 4
     )
     assertUnsat(fs)
-    //assertUnsat(fs, onlyAxioms = true, debug = true)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   //from https://github.com/CVC4/CVC4/blob/master/test/regress/regress0/sets/card-2.smt2
@@ -403,7 +403,7 @@ class CLSuite extends FunSuite {
       c === (a ∪ b)
     )
     assertSat(fs)
-    //assertSat(fs, onlyAxioms = true, debug = true)
+    //assertSat(fs, onlyAxioms = true, useCvcMf = true)
   }
 
   //from https://github.com/CVC4/CVC4/blob/master/test/regress/regress0/sets/card-3.smt2
@@ -416,7 +416,7 @@ class CLSuite extends FunSuite {
       (b ∩ c) === Comprehension(List(i), False())
     )
     assertUnsat(fs, cln(10, new quantifiers.Eager(Some(1)), false))
-    //assertUnsat(fs, onlyAxioms = true, debug = true)
+    //assertUnsat(fs, onlyAxioms = true, debug = true, fname = Some("cvc-card-3.smt2"))
   }
 
   //from https://github.com/CVC4/CVC4/blob/master/test/regress/regress0/sets/card-4.smt2
@@ -435,7 +435,7 @@ class CLSuite extends FunSuite {
       p6 ∈ a
     )
     assertSat(fs)
-    //assertSat(fs, onlyAxioms = true, debug = true)
+    //assertSat(fs, onlyAxioms = true, useCvcMf = true)
   }
 
   //from https://github.com/CVC4/CVC4/blob/master/test/regress/regress0/sets/card-5.smt2
@@ -486,7 +486,7 @@ class CLSuite extends FunSuite {
     //assertSat(fs, onlyAxioms = true, debug = true)
   }
 
-  ignore("map simple updates") { //fails randomly ?!?
+  ignore("map simple updates") { //TODO fails with `sbt test
     val k = UnInterpreted("K")
     val v = UnInterpreted("V")
     val k1 = Variable("k1").setType(k)
@@ -508,7 +508,7 @@ class CLSuite extends FunSuite {
     )
     sats.foreach( f => assertSat(List(f)) )
     unsats.foreach( f => assertUnsat(List(f)) )
-    sats.foreach( f => assertSat(List(f), onlyAxioms = true) )
+    //sats.foreach( f => assertSat(List(f), onlyAxioms = true, useCvcMf = true) )
     unsats.foreach( f => assertUnsat(List(f), onlyAxioms = true) )
   }
 
@@ -540,8 +540,8 @@ class CLSuite extends FunSuite {
     val valid = ForAll(List(y), ((y ≤ x) ∧ m1.isDefinedAt(y)) ==> (m1.lookUp(y) === m2.lookUp(y)) )
     assertUnsat(common :+ Not(valid)) // take negation for unsat
     assertSat(common :+ valid) // sanity check
-    //assertUnsat(common :+ Not(valid), onlyAxioms = true)
-    //assertSat(common :+ valid, onlyAxioms = true, debug = true)
+    assertUnsat(common :+ Not(valid), onlyAxioms = true)
+    //assertSat(common :+ valid, onlyAxioms = true, useCvcMf = true)
   }
 
 }

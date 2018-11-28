@@ -20,6 +20,7 @@ class ClAxiomatized(config: ClConfig) {
   //  instantiationStrategy.local means member-card axioms are universal only (incomplete)
 
   //TODO make sure it also deals with FMap(K, V)
+  //TODO do we need to add ∀ X. card(X) >= 0
 
   import CL._
 
@@ -69,7 +70,7 @@ class ClAxiomatized(config: ClConfig) {
   //    |universe| ≥ card(X ∩ Y) + card(X ∩ ¬Y) + card(¬X ∩ Y)
   //    card(X) = card(X ∩ Y) + card(X ∩ ¬Y)
   //    card(Y) = card(X ∩ Y) + card(¬X ∩ Y)
-  protected def vennAxioms(tpe: Type): Formula = {
+  protected def vennAxioms(tpe: Type): List[Formula] = {
     val ctpe = Function(List(FSet(tpe)), FSet(tpe))
     val complement = UnInterpretedFct("_complement_"+tpe, Some(ctpe), List())
     sizeOfUniverse(tpe) match {
@@ -79,22 +80,26 @@ class ClAxiomatized(config: ClConfig) {
         val y = Variable(Namer("Y")).setType(FSet(tpe))
         val cx = complement(x)
         val cy = complement(y)
-        val c0 = Cardinality(Intersection( x, y))
+        val c0 = Cardinality(Intersection( x, y)) //TODO communtativity of intersection ?
         val c1 = Cardinality(Intersection( x,cy))
         val c2 = Cardinality(Intersection(cx, y))
         val c3 = Cardinality(Intersection(cx,cy))
-        ForAll(List(x, y, e), And(
-          Eq(u, Plus(c0, c1, c2, c3)),
-          Eq(Cardinality(x), Plus(c0, c1)),
-          Eq(Cardinality(y), Plus(c0, c2)),
-          Eq(u, Plus(Cardinality(x), Cardinality(cx))),
-          Eq(u, Plus(Cardinality(y), Cardinality(cy))),
-          Eq(In(e, x), Not(In(e, cx))),
-          Eq(In(e, y), Not(In(e, cy)))
-        ))
+        List(
+          ForAll(List(x, y), Eq(u, Plus(c0, c1, c2, c3))),
+          ForAll(List(x), Eq(u, Plus(Cardinality(x), Cardinality(cx)))),
+          ForAll(List(x, y), Eq(Cardinality(x), Plus(c0, c1))),
+          ForAll(List(x, y), Eq(Cardinality(y), Plus(c0, c2))),
+          ForAll(List(x, e), Eq(In(e, x), Not(In(e, cx)))),
+          ForAll(List(x), Eq(x, complement(cx)))
+        )
       case None =>
-        True()
+        Nil
     }
+  }
+
+  def cardPos(tpe: Type): Formula = {
+    val x = Variable(Namer("X")).setType(FSet(tpe))
+    ForAll(List(x), Leq(Literal(0), Cardinality(x)))
   }
 
   def reduce(formula: Formula): Formula = {
@@ -121,11 +126,11 @@ class ClAxiomatized(config: ClConfig) {
     val clauses3 = FormulaUtils.getConjuncts(getExistentialPrefix(normalize(And(clauses2:_*)))._1)
     val clauses = clauses3.map(skolemize)
     // end same preprocessing as CL.reduce
-    Logger("ClAxiomatized", Debug, "clauses: " + clauses)
+    Logger("ClAxiomatized", Debug, "clauses:\n  " + clauses.mkString("\n  "))
 
     // axioms for comprehension membership
     val membership = membershipAxioms(symbols)
-    Logger("ClAxiomatized", Debug, "membership axioms: " + membership)
+    Logger("ClAxiomatized", Debug, "membership axioms:\n  " + membership.mkString("\n  "))
     // axioms for venn regions (just based on type and membership, quantify over set)
     val onType = config.onType.getOrElse({
         val terms = FormulaUtils.collectGroundTerms(And(clauses:_*)) ++ FormulaUtils.collectVariables(And(clauses:_*))
@@ -136,19 +141,20 @@ class ClAxiomatized(config: ClConfig) {
         })
       }).toList
     val empty = onType.flatMap(emptinessAxiom)
-    Logger("ClAxiomatized", Debug, "emptiness axioms: " + membership)
+    val pos = onType.map(cardPos)
+    Logger("ClAxiomatized", Debug, "emptiness axioms:\n  " + membership.mkString("\n  "))
     val venn = if (config.vennBound.getOrElse(1) > 0) {
-        onType.map( t => vennAxioms(t) )
+        onType.flatMap( t => vennAxioms(t) )
       } else {
         Nil
       }
-    Logger("ClAxiomatized", Debug, "venn axioms: " + venn)
+    Logger("ClAxiomatized", Debug, "venn axioms:\n  " + venn.mkString("\n  "))
     //TODO add n > 0 only if n is in the rest
-    val clausesWithVenn = Lt(Literal(0), n) :: clauses ::: empty ::: membership ::: venn
+    val clausesWithVenn = Lt(Literal(0), n) :: clauses ::: pos ::: empty ::: membership ::: venn
 
     // axioms for extra theory
     val extraAxioms = AxiomatizedTheory.getAxioms(clausesWithVenn)
-    Logger("ClAxiomatized", Debug, "extraAxioms: " + extraAxioms)
+    Logger("ClAxiomatized", Debug, "extraAxioms:\n  " + extraAxioms.mkString("\n  "))
     val withoutTime = ReduceTime(clausesWithVenn ::: extraAxioms)
     val expendedLt = ReduceOrdered(withoutTime)
     val last = cleanUp(expendedLt)

@@ -314,16 +314,19 @@ class LvExampleNoMailbox extends FunSuite {
   test("initial state implies invariant") {
     val fs = List(initialState, Not(invariant1))
     assertUnsat(fs, c2e1)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   test("invariant implies agreement") {
     val fs = List(invariant1, Not(agreement))
     assertUnsat(fs, c2e1)
+    assertUnsat(fs, onlyAxioms = true)
   }
   
   test("validity holds initially") {
     val fs = List(initialState, Not(validity))
     assertUnsat(fs, c2e1)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   test("maxTS") {
@@ -336,6 +339,7 @@ class LvExampleNoMailbox extends FunSuite {
       Neq(maxTS(i), v)
     )
     assertUnsat(fs, c2e1)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   test("frame") {
@@ -345,6 +349,7 @@ class LvExampleNoMailbox extends FunSuite {
       Not(prime(invariant1))
     )
     assertUnsat(fs, reducer = conf(), dnfExpansion = true)
+    //assertUnsat(fs, onlyAxioms = true)
   }
   
   test("frame a") {
@@ -354,6 +359,7 @@ class LvExampleNoMailbox extends FunSuite {
       Not(prime(invariant1a))
     )
     assertUnsat(fs, conf())
+    //assertUnsat(fs, onlyAxioms = true, debug = true, fname = Some("frame_a.stm2"))
   }
 
   test("frame b") {
@@ -363,6 +369,7 @@ class LvExampleNoMailbox extends FunSuite {
       Not(prime(invariant1b))
     )
     assertUnsat(fs, conf())
+    //assertUnsat(fs, onlyAxioms = true)
   }
   
   test("frame c") {
@@ -372,6 +379,7 @@ class LvExampleNoMailbox extends FunSuite {
       Not(prime(invariant1c))
     )
     assertUnsat(fs, conf())
+    //assertUnsat(fs, onlyAxioms = true)
   }
 
   test("frame d") {
@@ -381,6 +389,7 @@ class LvExampleNoMailbox extends FunSuite {
       Not(prime(invariant1d))
     )
     assertUnsat(fs, reducer = conf(), dnfExpansion = true)
+    //assertUnsat(fs, onlyAxioms = true)
   }
 
   //TODO those completely blow-up
@@ -392,7 +401,8 @@ class LvExampleNoMailbox extends FunSuite {
       round1,
       Not(prime(invariant1))
     )
-    assertUnsat(fs, reducer = conf(), dnfExpansion = true)
+    //assertUnsat(fs, reducer = conf(), dnfExpansion = true)
+    //assertUnsat(fs, onlyAxioms = true, debug = true, fname = Some("i1r1.smt2"))
   }
 
   ignore("invariant 1 is inductive at round 2") {
