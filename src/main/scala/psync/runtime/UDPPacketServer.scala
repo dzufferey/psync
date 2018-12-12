@@ -46,7 +46,6 @@ class UDPPacketServer(
     b.group(evtGroup)
     options.group match {
       case NetworkGroup.NIO =>   b.channel(classOf[NioDatagramChannel])
-      case NetworkGroup.OIO =>   b.channel(classOf[OioDatagramChannel])
       case NetworkGroup.EPOLL => b.channel(classOf[EpollDatagramChannel])
     }
 

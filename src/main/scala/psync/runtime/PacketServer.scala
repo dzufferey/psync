@@ -27,7 +27,6 @@ abstract class PacketServer(
 
   protected def evtGroup: EventLoopGroup = options.group match {
     case NetworkGroup.NIO => new NioEventLoopGroup(0, executor)
-    case NetworkGroup.OIO => new OioEventLoopGroup(0, executor)
     case NetworkGroup.EPOLL => new EpollEventLoopGroup(0, executor)
   }
 

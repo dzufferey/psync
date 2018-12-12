@@ -72,7 +72,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   /** discard the messages to far in the future. */
   protected var maxLookahead = 32 //TODO as option
   /** Since we might block on the round, we buffer messages that will be delivered later. */
-  protected val pendingMessages = new CircularBuffer[Map[ProcessID,Message]](maxLookahead, Map.empty)
+  protected val pendingMessages = new CircularBuffer[Map[ProcessID,Message]](maxLookahead, Map.empty) //TODO not going to work with a stack
 
   protected val globalSizeHint = options.packetSize
   protected val kryoIn = new KryoByteBufInput(null)
@@ -294,19 +294,18 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
 
   // responsible for freeing the msg if returns false
   protected def checkInstanceAndTag(msg: Message): Boolean = {
-    val tag = msg.tag
-    if (instance != tag.instanceNbr) { // wrong instance
+    if (instance != msg.instance) { // wrong instance
       msg.release
       false
-    } else if (tag.flag == Flags.normal) {
+    } else if (msg.flag == Flags.normal) {
       // nothing to do we are fine
       true
-    } else if (tag.flag == Flags.dummy) {
+    } else if (msg.flag == Flags.dummy) {
       Logger("InstanceHandler", Debug, self.id + ", " + instance + "dummy flag (ignoring)")
       msg.release
       false
     } else {
-      if (tag.flag == Flags.error) {
+      if (msg.flag == Flags.error) {
         Logger("InstanceHandler", Warning, "error flag (pushing to user)")
       }
       default(msg)

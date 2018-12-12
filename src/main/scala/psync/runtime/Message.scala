@@ -4,7 +4,6 @@ import psync._
 
 import io.netty.channel.socket.DatagramPacket
 import java.net.InetSocketAddress
-import java.nio.ByteBuffer
 import io.netty.buffer.ByteBuf
 import psync.utils.serialization.{KryoRegistration, KryoSerializer, KryoByteBufInput, KryoByteBufOutput}
 import com.esotericsoftware.kryo.Kryo
@@ -24,8 +23,6 @@ class Message(val receiver: ProcessID, val sender: ProcessID, val payload: ByteB
   assert(payload.readerIndex == 0)
 
   val tag: Tag = new Tag(payload.getLong(0))
-
-  private var collected = false
 
   def flag = tag.flag
   def instance = tag.instanceNbr
@@ -63,28 +60,28 @@ class Message(val receiver: ProcessID, val sender: ProcessID, val payload: ByteB
     payload
   }
 
+  //private var collected = false
+
   def release = {
     payload.release
-    collected = true
+    //collected = true
   }
 
+  //this has been deprecated.
+  //if needed again replace by https://stackoverflow.com/questions/17671066/java-direct-memory-using-sun-misc-cleaner-in-custom-classes
+  /*
   override def finalize() {
     if (!collected) {
       Logger("Message", Warning, "message not collected")
     }
   }
+  */
 
 }
 
 
 object Message {
 
-  def getInstance(buffer: ByteBuffer) = getTag(buffer).instanceNbr
-
-  def getTag(buffer: ByteBuffer): Tag = {
-    new Tag(buffer.getLong(0))
-  }
-  
   def getTag(buffer: ByteBuf): Tag = {
     new Tag(buffer.getLong(0))
   }

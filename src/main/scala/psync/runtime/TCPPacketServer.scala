@@ -132,7 +132,6 @@ class TCPPacketServer(
     bootstrap.group(evtGroup)
     options.group match {
       case NetworkGroup.NIO =>   bootstrap.channel(classOf[NioServerSocketChannel])
-      case NetworkGroup.OIO =>   bootstrap.channel(classOf[OioServerSocketChannel])
       case NetworkGroup.EPOLL => bootstrap.channel(classOf[EpollServerSocketChannel])
     }
     bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT); //make sure we use the default pooled allocator
@@ -177,7 +176,6 @@ class TCPPacketServer(
     bootstrap.group(evtGroup)
     options.group match {
       case NetworkGroup.NIO =>   bootstrap.channel(classOf[NioSocketChannel])
-      case NetworkGroup.OIO =>   bootstrap.channel(classOf[OioSocketChannel])
       case NetworkGroup.EPOLL => bootstrap.channel(classOf[EpollSocketChannel])
     }
     bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT); //make sure we use the default pooled allocator

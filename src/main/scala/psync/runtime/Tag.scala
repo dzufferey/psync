@@ -9,6 +9,7 @@ object Flags {
   final def userDefinable(flag: Byte) = flag < 0 || flag > 2
 }
 
+//in the end this will havea variable size and always be stored in the bytebuffer 
 class Tag(val underlying: Long) extends AnyVal {
 
   //flag, code: a set of values that are partially used by our framework and userdefined
@@ -72,5 +73,11 @@ object Tag {
   def apply(instance: Short, round: Int, flag: Byte, code: Byte) = {
     new Tag(0).setFlag(flag).setCode(code).setInstanceNbr(instance).setRoundNbr(round)
   }
+  
+  def roundNbr(tag: Tag): Int = tag.underlying.toInt
+
+  def flag(tag: Tag): Byte = ((tag.underlying >> 56) & 0xffl).toByte
+
+  def code(tag: Tag): Byte = ((tag.underlying >> 48) & 0xffl).toByte
 
 }

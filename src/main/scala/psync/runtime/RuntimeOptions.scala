@@ -6,7 +6,7 @@ import psync.utils.DefaultOptions
 
 object NetworkGroup extends Enumeration {
   type NetworkGroup = Value
-  val NIO, OIO, EPOLL = Value
+  val NIO, EPOLL = Value
 }
 
 object NetworkProtocol extends Enumeration {
@@ -63,7 +63,7 @@ abstract class RTOptions extends DefaultOptions with RuntimeOptions {
   newOption("-id",                      Int( i => _id = i.toShort),                 "the replica ID")
   newOption("--id",                     Int( i => _id = i.toShort),                 "the replica ID")
   newOption("--group",                  Enum(NetworkGroup, (s: NetworkGroup.NetworkGroup) => _group = s),
-                                                                                    "the network layer interface used by Netty: NIO/OIO/EPOLL (default: NIO).")
+                                                                                    "the network layer interface used by Netty: NIO/EPOLL (default: NIO).")
   newOption("--protocol",               Enum(NetworkProtocol, (s: NetworkProtocol.NetworkProtocol) => _protocol = s),
                                                                                     "the network protocol: UDP/TCP/TCP_SSL (default: TCP).")
   newOption("-to",                      Int( i => _timeout = i.toLong ),            "default timeout for runtime (default: 10).")
