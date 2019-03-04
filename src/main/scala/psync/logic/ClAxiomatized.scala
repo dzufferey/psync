@@ -12,7 +12,7 @@ import dzufferey.utils.Namer
 //instead we can just send all the axioms to the solver
 //the downside is that if the formula is sat, the solver will most likely never return
 
-class ClAxiomatized(config: ClConfig) {
+class ClAxiomatized(config: ClConfig) extends ClReducer(config) {
 
   //from the config:
   //  `onType` is as expected
@@ -23,7 +23,7 @@ class ClAxiomatized(config: ClConfig) {
   //TODO do we need to add ∀ X. card(X) >= 0
 
   import CL._
-
+  
   protected def getSetElementTypeFromSymbol(s: Symbol): Type = s.tpe match {
     case FSet(t) => t
     case Function(_, FSet(t)) => t
@@ -54,8 +54,8 @@ class ClAxiomatized(config: ClConfig) {
   //   ∀ X. ∃ x. card(X) > 0 ⇒ x∈X
   protected def emptinessAxiom(tpe: Type): List[Formula] = {
     val universalOnly = false //config.instantiationStrategy.local
-    val e = Variable(Namer("elt")).setType(tpe)
-    val x = Variable(Namer("X")).setType(FSet(tpe))
+    val e = Variable(namer("elt")).setType(tpe)
+    val x = Variable(namer("X")).setType(FSet(tpe))
     val univ = ForAll(List(x, e), And(
       Implies(Eq(Cardinality(x), Literal(0)), Not(In(e, x))),
       Implies(In(e, x), Not(Eq(Cardinality(x), Literal(0))))
@@ -75,9 +75,9 @@ class ClAxiomatized(config: ClConfig) {
     val complement = UnInterpretedFct("_complement_"+tpe, Some(ctpe), List())
     sizeOfUniverse(tpe) match {
       case Some(u) =>
-        val e = Variable(Namer("elt")).setType(tpe)
-        val x = Variable(Namer("X")).setType(FSet(tpe))
-        val y = Variable(Namer("Y")).setType(FSet(tpe))
+        val e = Variable(namer("elt")).setType(tpe)
+        val x = Variable(namer("X")).setType(FSet(tpe))
+        val y = Variable(namer("Y")).setType(FSet(tpe))
         val cx = complement(x)
         val cy = complement(y)
         val c0 = Cardinality(Intersection( x, y)) //TODO communtativity of intersection ?
@@ -98,7 +98,7 @@ class ClAxiomatized(config: ClConfig) {
   }
 
   def cardPos(tpe: Type): Formula = {
-    val x = Variable(Namer("X")).setType(FSet(tpe))
+    val x = Variable(namer("X")).setType(FSet(tpe))
     ForAll(List(x), Leq(Literal(0), Cardinality(x)))
   }
 

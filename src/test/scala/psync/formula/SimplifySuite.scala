@@ -5,6 +5,8 @@ import org.scalatest._
 class SimplifySuite extends FunSuite {
 
   //TODO test idempotence of boundVarUnique
+  
+  implicit val namer = new dzufferey.utils.Namer
 
   test("pnf 1") {
     import Simplify._

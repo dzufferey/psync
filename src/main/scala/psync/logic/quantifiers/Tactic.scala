@@ -4,7 +4,6 @@ import psync.formula._
 import psync.formula.FormulaUtils._
 import psync.logic._
 
-import dzufferey.utils.{Misc, Namer}
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 import scala.collection.mutable.{Map => MMap}

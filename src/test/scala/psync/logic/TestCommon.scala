@@ -5,7 +5,7 @@ import psync.logic.quantifiers._
 import psync.utils.SmtSolver
 import psync.verification.VerificationOptions
 import dzufferey.smtlib.{Sat, UnSat, Model}
-import dzufferey.utils.Logger
+import dzufferey.utils.{Logger, Namer}
 
 object TestCommon {
 
@@ -39,7 +39,7 @@ object TestCommon {
   val c3e2 = cln(3, new Eager(2), true)
   val c3e3 = cln(3, new Eager(3), true)
   
-  def expandDisj(f: Formula): Seq[Formula] = {
+  def expandDisj(f: Formula)(implicit namer: Namer): Seq[Formula] = {
     val f2 = Simplify.nnf(f)
     val (f3, _) = quantifiers.getExistentialPrefix(f2)
     Simplify.dnf(f3) match {
@@ -48,7 +48,7 @@ object TestCommon {
     }
   }
 
-  def reduce(clc: ClConfig, conjuncts: List[Formula], onlyAxioms: Boolean, debug: Boolean): Formula = {
+  def reduce(reducer: ClReducer, conjuncts: List[Formula], debug: Boolean): Formula = {
     if(debug) {
       Logger.moreVerbose //linter:ignore IdenticalStatements
       Logger.moreVerbose
@@ -64,8 +64,7 @@ object TestCommon {
         c1.foreach( f => println("  " + f.toStringFull) )
       }
       val f0 = And(c1 :_*)
-      val f1 = if (onlyAxioms) new ClAxiomatized(clc).reduce(f0)
-               else new CL(clc).reduce(f0)
+      val f1 = reducer.reduce(f0)
       if(debug) {
         println("======= send to solver")
         FormulaUtils.getConjuncts(f1).foreach( f => println("  " + f) )
@@ -92,10 +91,12 @@ object TestCommon {
                   onlyAxioms: Boolean = false,
                   fname: Option[String] = None,
                   useCvcMf: Boolean = false) {
+    val r = if (onlyAxioms) new ClAxiomatized(reducer) else new CL(reducer)
+    implicit val namer = r.namer
     val fAll = And(conjuncts:_*)
     val fs = if (dnfExpansion) expandDisj(fAll) else List(fAll)
     fs.foreach( f => {
-      val f0 = reduce(reducer, List(f), onlyAxioms, debug)
+      val f0 = reduce(r, List(f), debug)
       val f1 = SmtSolver.convert(SmtSolver.uninterpretSymbols(f0))
       val solver = if (useCvcMf) SmtSolver.cvc4mf(fname, to)
                    else SmtSolver.z3(fname, to)
@@ -121,10 +122,12 @@ object TestCommon {
                 onlyAxioms: Boolean = false,
                 fname: Option[String] = None,
                 useCvcMf: Boolean = false) {
+    val r = if (onlyAxioms) new ClAxiomatized(reducer) else new CL(reducer)
+    implicit val namer = r.namer
     val fAll = And(conjuncts:_*)
     val fs = if (dnfExpansion) expandDisj(fAll) else List(fAll)
     assert(fs.exists( f => {
-      val f0 = reduce(reducer, List(f), onlyAxioms, debug)
+      val f0 = reduce(r, List(f), debug)
       val f1 = SmtSolver.convert(SmtSolver.uninterpretSymbols(f0))
       val solver = if (useCvcMf) SmtSolver.cvc4mf(fname, to)
                    else SmtSolver.z3(fname, to)
@@ -150,11 +153,13 @@ object TestCommon {
                onlyAxioms: Boolean = false,
                fname: Option[String] = None,
                useCvcMf: Boolean = false) {
+    val r = if (onlyAxioms) new ClAxiomatized(reducer) else new CL(reducer)
+    implicit val namer = r.namer
     val fAll = And(conjuncts:_*)
     val fs = if (dnfExpansion) expandDisj(fAll) else List(fAll)
     val acc: Option[Model] = None
     val mdl = fs.foldLeft(acc)( (acc, f) => acc.orElse({
-      val f0 = reduce(reducer, List(f), onlyAxioms, true)
+      val f0 = reduce(r, List(f), true)
       val f1 = SmtSolver.convert(SmtSolver.uninterpretSymbols(f0))
       val solver = if (useCvcMf) SmtSolver.cvc4mf(fname, to)
                    else SmtSolver.z3(fname, to)

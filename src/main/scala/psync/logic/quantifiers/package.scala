@@ -90,7 +90,7 @@ package object quantifiers {
     FormulaUtils.collectWithScope(true, check, axiom)
   }
 
-  protected def getQuantPrefix(f: Formula, exists: Boolean): (Formula, List[Variable]) = {
+  protected def getQuantPrefix(f: Formula, exists: Boolean)(implicit namer: Namer): (Formula, List[Variable]) = {
 
     var introduced = List[Variable]()
 
@@ -98,7 +98,7 @@ package object quantifiers {
       var v2 = v.name
       val taken = vs.map(_.name)
       while (taken contains v2) {
-        v2 = Namer(v2)
+        v2 = namer(v2)
       }
       val vv = Copier.Variable(v, v2)
       introduced = vv :: introduced
@@ -129,10 +129,10 @@ package object quantifiers {
   }
 
   /** remove top level ∃, returns the new formula and the newly introduced variables */
-  def getExistentialPrefix(f: Formula): (Formula, List[Variable]) = getQuantPrefix(f, true)
+  def getExistentialPrefix(f: Formula)(implicit namer: Namer): (Formula, List[Variable]) = getQuantPrefix(f, true)
 
   /** remove top level ∀, returns the new formula and the newly introduced variables */
-  def getUniversalPrefix(f: Formula): (Formula, List[Variable]) = getQuantPrefix(f, false)
+  def getUniversalPrefix(f: Formula)(implicit namer: Namer): (Formula, List[Variable]) = getQuantPrefix(f, false)
     
   /** create a skolem constant corresponding to a variable */
   def skolemify(v: Variable, bound: Set[Variable]) = {
@@ -192,7 +192,7 @@ package object quantifiers {
    *    definition axiom: An axiom that associate the symbol to the comprehension
    *    arguments: the toplevel ground terms of the formula defining the comprehension
    */
-  def symbolizeComprehension(c: Formula): (Symbol, Formula, List[Formula]) = c match {
+  def symbolizeComprehension(c: Formula)(implicit namer: Namer): (Symbol, Formula, List[Formula]) = c match {
     case c @ Comprehension(vs, f) =>
       var counter = 0
       var revVars: List[Variable] = Nil

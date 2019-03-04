@@ -8,6 +8,8 @@ import org.scalatest._
 
 class IncrementalGeneratorSuite extends FunSuite {
 
+  implicit val namer = new dzufferey.utils.Namer
+
   val f1 = List(
     ForAll(List(p1), Eq(rp1, IntLit(0))),
     ForAll(List(p2), Eq(rp2, IntLit(0))),

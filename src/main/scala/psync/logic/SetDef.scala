@@ -24,8 +24,8 @@ case class SetDef(scope: Set[Variable], id: Formula, body: Option[Binding]) {
     case other => Logger.logAndThrow("SetDef", Error, "SetDef had not FSet type: " + other + "\n" + id + " = " + body)
   }
 
-  def fresh: SetDef = {
-    val newScope = scope.map(v => v -> Variable(Namer(v.name)).setType(v.tpe)).toMap
+  def fresh(implicit namer: Namer): SetDef = {
+    val newScope = scope.map(v => v -> Variable(namer(v.name)).setType(v.tpe)).toMap
     val scope1 = newScope.values.toSet
     val id1 = FormulaUtils.alpha(newScope, id)
     val body1 = body.map(FormulaUtils.alpha(newScope, _).asInstanceOf[Binding])
@@ -33,7 +33,7 @@ case class SetDef(scope: Set[Variable], id: Formula, body: Option[Binding]) {
   }
 
   //TODO also take the scope in the normalization
-  def normalize: SetDef = {
+  def normalize(implicit namer: Namer): SetDef = {
     val newBody = body.map( Simplify.deBruijnIndex(_).asInstanceOf[Binding] )
     val n = SetDef(scope, id, newBody)
     //Logger("SetDef", Debug, "before: " + this)
@@ -41,7 +41,7 @@ case class SetDef(scope: Set[Variable], id: Formula, body: Option[Binding]) {
     n
   }
 
-  def ccNormalize(cClasses: CC): SetDef = {
+  def ccNormalize(cClasses: CC)(implicit namer: Namer): SetDef = {
     val n1 = normalize
     val newId = if (n1.scope.isEmpty) {
         //cClasses.normalize(n1.id)
@@ -64,6 +64,7 @@ object SetDef {
 
   protected def normalizeSetBody( sDefs: Iterable[SetDef],
                                   cClasses: CC
+                                )(implicit namer: Namer
                                 ): (List[SetDef], Map[Formula, Formula]) = {
     val init = (List[SetDef](), Map[Formula,Formula]())
     sDefs.foldLeft(init)( (acc, d0) => {
@@ -77,8 +78,10 @@ object SetDef {
   }
 
   def normalize(sDefs: Iterable[SetDef],
-                cClasses: CC = CongruenceClasses.empty
+                cClasses: CC = null
+               )(implicit namer: Namer
                ): (List[SetDef], Map[Formula, Formula]) = {
+    val cc = if (cClasses != null) cClasses else CongruenceClasses.empty
     normalizeSetBody(sDefs, cClasses)
   }
 

@@ -62,7 +62,7 @@ object CL {
     FormulaUtils.stubornMapTopDown(process, f)
   }
 
-  def normalize(f: Formula) = {
+  def normalize(f: Formula)(implicit namer: Namer) = {
     //TODO always possible to have smarter simplification
     val f1 = Simplify.simplify(f)
     val f2 = Rewriting(f1)
@@ -73,7 +73,7 @@ object CL {
     f6
   }
   
-  def cleanUp(ls: List[Formula]) = {
+  def cleanUp(ls: List[Formula])(implicit namer: Namer) = {
     val f = And(ls:_*)
     val simp = Simplify.boundVarUnique(f)
     val qf = skolemize(simp) //get ride of ∃
@@ -97,11 +97,23 @@ object CL {
 
 }
 
+abstract class ClReducer(config: ClConfig) {
+  
+  implicit val namer = new Namer
 
-class CL(config: ClConfig) {
+  def reduce(formula: Formula): Formula
+
+  def entailment(hypothesis: Formula, conclusion: Formula): Formula = {
+    reduce(And(hypothesis, Not(conclusion)))
+  }
+  
+}
+
+
+class CL(config: ClConfig) extends ClReducer(config) {
 
   import CL._
-
+  
   protected def bound = config.vennBound
   protected def onType = config.onType
 
@@ -213,7 +225,7 @@ class CL(config: ClConfig) {
       cc.addConstraints(clauses)
       //make sure we have a least one process
       if (cc.groundTerms.forall(_.tpe != procType)) {
-        cc.repr(Variable(Namer("p")).setType(procType))
+        cc.repr(Variable(namer("p")).setType(procType))
       }
       //Logger("CL", Debug, "CC is\n" + cc)
     })
@@ -249,10 +261,6 @@ class CL(config: ClConfig) {
     val last = Stats("CL clean up", cleanUp(expendedLt))
     //assert(Typer(last).success, "CL.reduce, not well typed")
     last
-  }
-  
-  def entailment(hypothesis: Formula, conclusion: Formula): Formula = {
-    reduce(And(hypothesis, Not(conclusion)))
   }
   
 }

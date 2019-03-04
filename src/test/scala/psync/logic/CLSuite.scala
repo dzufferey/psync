@@ -130,7 +130,7 @@ class CLSuite extends FunSuite {
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
-    //assertUnsat(fs, onlyAxioms = true) fails when run with `sbt test`
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   //from https://github.com/psuter/bapa-z3/blob/master/src/main/scala/bapa/Main.scala
@@ -366,7 +366,7 @@ class CLSuite extends FunSuite {
       !quorum(a, b, c)
     )
     assertUnsat(fs, c3e1)
-    assertUnsat(fs, onlyAxioms = true)
+    //assertUnsat(fs, onlyAxioms = true)
   }
 
   test("pairs 0") {

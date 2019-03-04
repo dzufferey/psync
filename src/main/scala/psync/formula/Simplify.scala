@@ -87,12 +87,12 @@ object Simplify {
     Variable(prefix + "_" + idx).setType(tpe)
   }
 
-  def deBruijnIndex(f0: Formula, renameFreeVars: Boolean = false): Formula = {
+  def deBruijnIndex(f0: Formula, renameFreeVars: Boolean = false)(implicit namer: Namer): Formula = {
 
     //generic renaming of variables _XXX
     val f = boundVarUnique(f0)
     val allVars = if (renameFreeVars) f.freeVariables ++ f.boundVariables else f.boundVariables
-    val dummyNames = allVars.foldLeft(Map[Variable,Variable]())( (acc, v) => acc + (v -> Variable(Namer("_")).setType(v.tpe)) )
+    val dummyNames = allVars.foldLeft(Map[Variable,Variable]())( (acc, v) => acc + (v -> Variable(namer("_")).setType(v.tpe)) )
     val cleanNames = FormulaUtils.alphaAll(dummyNames, f)
 
     def merge(m1: Map[Type, Int], m2: Map[Type, Int]): Map[Type, Int] = {
@@ -122,13 +122,13 @@ object Simplify {
   }
 
   //TODO return the subst
-  def deBruijnIndexWithRenaming(f: Formula, renameFreeVars: Boolean = false): (Formula, Map[Variable,Variable]) = {
+  def deBruijnIndexWithRenaming(f: Formula, renameFreeVars: Boolean = false)(implicit namer: Namer): (Formula, Map[Variable,Variable]) = {
 
     //generic renaming of variables _XXX
     val f0 = boundVarUnique(f)
     assert(f0 == f, "deBruijnIndexWithRenaming only makes sense if bound variables have an unique name:\n  " + f + "\n  " + f0)
     val allVars = if (renameFreeVars) f.freeVariables ++ f.boundVariables else f.boundVariables
-    val startToDummy = allVars.foldLeft(Map[Variable,Variable]())( (acc, v) => acc + (v -> Variable(Namer("_")).setType(v.tpe)) )
+    val startToDummy = allVars.foldLeft(Map[Variable,Variable]())( (acc, v) => acc + (v -> Variable(namer("_")).setType(v.tpe)) )
     val cleanNames = FormulaUtils.alphaAll(startToDummy, f)
 
     def merge(m1: Map[Type, Int], m2: Map[Type, Int]): Map[Type, Int] = {
@@ -328,7 +328,7 @@ object Simplify {
   
   //warning: this will pull up the ∃ to the top ∨
   //assumes bound variables are unique (does not check for capture)
-  def mergeExists(f: Formula): Formula = {
+  def mergeExists(f: Formula)(implicit namer: Namer): Formula = {
     def merge(f: Formula): Formula = f match {
       case Or(disjs @ _*) =>
         val init = (List[Formula](), Set[Variable]())

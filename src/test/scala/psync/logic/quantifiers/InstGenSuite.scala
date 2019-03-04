@@ -8,6 +8,8 @@ import org.scalatest._
 
 class InstGenSuite extends FunSuite {
 
+  implicit val namer = new dzufferey.utils.Namer
+
   test("local 1"){
     val fs = And( Leq(f(x), g(y)),
                   Leq(f(y), g(y)))
