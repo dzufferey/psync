@@ -6,8 +6,7 @@ import psync.formula._
 import psync.macros.Macros._
 import psync.utils.serialization._
 
-
-class LastVoting(timeout: Long) extends Algorithm[ConsensusIO, LVProcess] {
+class LastVoting extends Algorithm[ConsensusIO, LVProcess] {
 
   import SpecHelper._
 
@@ -68,7 +67,7 @@ class LastVoting(timeout: Long) extends Algorithm[ConsensusIO, LVProcess] {
     )
   }
   
-  def process = new LVProcess(timeout)
+  def process = new LVProcess()
   
   def dummyIO = new ConsensusIO{
     val initialValue = 0
@@ -76,7 +75,7 @@ class LastVoting(timeout: Long) extends Algorithm[ConsensusIO, LVProcess] {
   }
 }
   
-class LVProcess(timeout: Long) extends Process[ConsensusIO]{
+class LVProcess extends Process[ConsensusIO]{
 
   //variables
   var x = 0
@@ -102,58 +101,35 @@ class LVProcess(timeout: Long) extends Process[ConsensusIO]{
   }
 
   val rounds = phase(
-    new EventRound[(Int,Time)]{
-
-      var nMsg = 0
-      var maxTime = new Time(-1)
-      var maxVal = 0
-
-      def init = {
-        nMsg = 0
-        maxTime = new Time(-1)
-        maxVal = x
-        if (r == new Time(0) || id != coord) {
-          Progress.goAhead
-        } else {
-          Progress.timeout( timeout )
-        }
-      }
+    new Round[(Int,Time)]{
 
       def send(): Map[ProcessID,(Int, Time)] = {
-        if (r == new Time(0)) {
-          Map.empty
-        } else {
-          Map(coord -> (x, ts))
-        }
+        Map(coord -> (x, ts))
       }
 
-      def receive(sender: ProcessID, payload: (Int, Time)) = {
-        nMsg += 1
-        if (payload._2 >= maxTime) {
-          maxTime = payload._2
-          maxVal = payload._1
-        }
-        if (nMsg > n/2) Progress.goAhead
-        else Progress.unchanged
+      override def expectedNbrMessages = {
+        if (id == coord) {
+          if (r.toInt == 0) 1
+          else n/2 + 1
+        } else 0
       }
-      
-      override def finishRound(didTimeout: Boolean) = {
-        if (id == coord && !didTimeout) {
+
+      def update(mailbox: Map[ProcessID,(Int, Time)]) {
+        assert(r.toInt % 4 == 0)
+        if (id == coord &&
+            (mailbox.size > n/2 ||
+             (r.toInt == 0 && mailbox.size > 0))) {
+          // let θ be one of the largest θ from 〈ν, θ〉received
+          // vote(p) := one ν such that 〈ν, θ〉 is received
+          vote = mailbox.maxBy(_._2._2)._2._1
           commit = true
-          vote = maxVal
-          assert(vote != 0)
+          assert(vote != 0, mailbox.mkString(", "))
         }
-        true
       }
 
     },
 
-    new EventRound[Int]{
-
-      def init = {
-        if (id == coord && !commit) Progress.goAhead
-        else Progress.timeout( timeout )
-      }
+    new Round[Int]{
 
       def send(): Map[ProcessID,Int] = {
         if (id == coord && commit) {
@@ -163,31 +139,19 @@ class LVProcess(timeout: Long) extends Process[ConsensusIO]{
         }
       }
 
-      def receive(sender: ProcessID, payload: Int) = {
-        if (sender == coord) {
-          x = payload
+      override def expectedNbrMessages = 1
+
+      def update(mailbox: Map[ProcessID,Int]) {
+        if (mailbox contains coord) {
+          x = mailbox(coord)
           ts = r/4
           assert(x != 0)
-          Progress.goAhead
-        } else {
-          Progress.unchanged
         }
       }
 
     },
 
-    new EventRound[Int]{
-
-      var nMsg = 0
-
-      def init = {
-        nMsg = 0
-        if (id == coord) {
-          Progress.timeout( timeout )
-        } else {
-          Progress.goAhead
-        }
-      }
+    new Round[Int]{
 
       def send(): Map[ProcessID,Int] = {
         if ( ts == (r/4) ) {
@@ -197,25 +161,17 @@ class LVProcess(timeout: Long) extends Process[ConsensusIO]{
         }
       }
 
-      def receive(sender: ProcessID, payload: Int) = {
-        nMsg += 1
-        if (nMsg > n/2) Progress.goAhead
-        else Progress.unchanged
-      }
+      override def expectedNbrMessages = if (id == coord) n/2 + 1 else 0
 
-      override def finishRound(didTimeout: Boolean) = {
-        ready = (!didTimeout && id == coord)
-        true
+      def update(mailbox: Map[ProcessID,Int]) {
+        if (id == coord && mailbox.size > n/2) {
+          ready = true
+        }
       }
 
     },
 
-    new EventRound[Int]{
-
-      def init = {
-        if (id == coord && !ready) Progress.goAhead
-        else Progress.timeout( timeout )
-      }
+    new Round[Int]{
 
       def send(): Map[ProcessID, Int] = {
         if (id == coord && ready) {
@@ -225,26 +181,19 @@ class LVProcess(timeout: Long) extends Process[ConsensusIO]{
         }
       }
 
-      def receive(sender: ProcessID, payload: Int) = {
-        if (sender == coord) {
-          assert(payload != 0)
-          decision = payload
-          decided = true
-          Progress.goAhead
-        } else {
-          Progress.unchanged
-        }
-      }
+      override def expectedNbrMessages = 1 
 
-      override def finishRound(didTimeout: Boolean) = {
+      def update(mailbox: Map[ProcessID,Int]) {
+        if (mailbox contains coord) {
+          val v = mailbox(coord)
+          assert(v != 0)
+          callback.decide(v)
+          decision = v
+          decided = true
+          exitAtEndOfRound()
+        }
         ready = false
         commit = false
-        if (decided) {
-          callback.decide(decision)
-          false
-        } else {
-          true
-        }
       }
 
     }

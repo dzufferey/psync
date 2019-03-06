@@ -67,12 +67,12 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected var nextRound = 0
 
   /** keep track of the processes which have already send for the round */
-  protected var from: Array[Boolean] = null
+  protected var from: Array[Boolean] = null //TODO replace with LongBitSet
 
   /** discard the messages to far in the future. */
   protected var maxLookahead = 32 //TODO as option
   /** Since we might block on the round, we buffer messages that will be delivered later. */
-  protected val pendingMessages = new CircularBuffer[Map[ProcessID,Message]](maxLookahead, Map.empty) //TODO not going to work with a stack
+  protected val pendingMessages = new CircularBuffer[Map[ProcessID,Message]](maxLookahead, Map.empty) //TODO not going to work with a stack, a priority queue might be better
 
   protected val globalSizeHint = options.packetSize
   protected val kryoIn = new KryoByteBufInput(null)
@@ -133,6 +133,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       pkt.release
       pkt = buffer.poll
     }
+    //TODO loopify
     for (i <- currentRound until currentRound + maxLookahead;
          msg <- pendingMessages.get(i).values) {
       msg.release

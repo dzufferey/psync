@@ -12,7 +12,7 @@ abstract class TpcIO {
   def decide(value: Option[Boolean]): Unit //deciding None means that we suspect the coordinator of crash!
 }
 
-class TpcProcess(blocking: Boolean, timeout: Long) extends Process[TpcIO] {
+class TpcProcess extends Process[TpcIO] {
   
   var coord = new ProcessID(0)
   var vote = false
@@ -27,82 +27,58 @@ class TpcProcess(blocking: Boolean, timeout: Long) extends Process[TpcIO] {
   }
     
   val rounds = phase(
-    new EventRound[Boolean]{ //place holder for PrepareCommit
-
-      def init = {
-        if (blocking) Progress.waitMessage
-        else Progress.timeout(timeout)
-      }
-
+    new Round[Boolean]{ //place holder for PrepareCommit
       def send(): Map[ProcessID,Boolean] = {
         if (id == coord) broadcast(true)
         else Map.empty[ProcessID,Boolean] //otherwise the compiler give Map[ProcessID,Int] !?
       }
-
-      def receive(sender: ProcessID, payload: Boolean) = {
-        Progress.goAhead
-      }
-
+      override def expectedNbrMessages = 1
+      def update(mailbox: Map[ProcessID,Boolean]) {
+        //nothing to do
+      } 
     },
 
-    new EventRound[Boolean]{
-
-      var nMsg = 0
-
-      def init = {
-        nMsg = 0
-        if (id != coord) Progress.goAhead
-        else if (blocking) Progress.waitMessage
-        else Progress.timeout(timeout)
-      }
+    new Round[Boolean]{
 
       def send(): Map[ProcessID,Boolean] = {
         Map( coord -> vote )
       }
+      
+      override def expectedNbrMessages = if (id == coord) n else 0
 
-      def receive(sender: ProcessID, payload: Boolean) = {
-        nMsg += 1
-        if (!payload || nMsg == n) Progress.goAhead
-        else Progress.unchanged
-      }
-
-      override def finishRound(didTimeout: Boolean) = {
+      def update(mailbox: Map[ProcessID,Boolean]) {
         if (id == coord) {
-          decision = Some(nMsg == n)
+          if( mailbox.size == n && mailbox.forall{ case (k,v) => v }) {
+            decision = Some(true)
+          } else {
+            decision = Some(false)
+          }
         }
-        true
       }
-
     },
 
-    new EventRound[Boolean]{
-
-      def init = {
-        if (blocking) Progress.waitMessage
-        else Progress.timeout(timeout)
-      }
+    new Round[Boolean]{
 
       def send(): Map[ProcessID,Boolean] = {
         if (id == coord) broadcast(decision.get)
-        else Map.empty[ProcessID,Boolean]
+        else Map.empty[ProcessID,Boolean] //otherwise the compiler give Map[ProcessID,Int] !?
       }
 
-      def receive(sender: ProcessID, payload: Boolean) = {
-        decision = Some(payload)
-        Progress.goAhead
-      }
+      override def expectedNbrMessages = 1
 
-      override def finishRound(didTimeout: Boolean) = {
+      def update(mailbox: Map[ProcessID,Boolean]) {
+        if (mailbox.size > 0) {
+          decision = Some(mailbox.head._2)
+        }
         callback.decide(decision)
-        false
+        exitAtEndOfRound()
       }
-
     }
   )
 
 }
 
-class TwoPhaseCommit(blocking: Boolean, timeout: Long) extends Algorithm[TpcIO,TpcProcess] {
+class TwoPhaseCommit extends Algorithm[TpcIO,TpcProcess] {
 
   import SpecHelper._
 
@@ -131,7 +107,7 @@ class TwoPhaseCommit(blocking: Boolean, timeout: Long) extends Algorithm[TpcIO,T
     )
   }
 
-  def process = new TpcProcess(blocking, timeout)
+  def process = new TpcProcess
 
   def dummyIO = new TpcIO{
     val coord = new ProcessID(0)
@@ -143,11 +119,9 @@ class TwoPhaseCommit(blocking: Boolean, timeout: Long) extends Algorithm[TpcIO,T
 
 object TpcRunner extends RTOptions {
   
+
   var confFile = "src/test/resources/sample-conf.xml"
   
-  var blocking = false
-  newOption("-blocking", dzufferey.arg.Unit( () => blocking = true), "waitMessage for all messages (no timeout)")
-
   val usage = "..."
   
   var rt: Runtime[TpcIO,TpcProcess] = null
@@ -159,8 +133,7 @@ object TpcRunner extends RTOptions {
   def main(args: Array[String]) {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    //Console.println("starting " + id + " with blocking = " + blocking + ", timeout = " + timeout)
-    val alg = new TwoPhaseCommit(blocking, timeout)
+    val alg = new TwoPhaseCommit()
     rt = new Runtime(alg, this, defaultHandler(_))
     rt.startService
 

@@ -62,6 +62,7 @@ class PerfTest2(options: RuntimeOptions,
 
   def getValue(msg: Message): Int = {
     if ( (algorithm == "lv" && msg.round % 4 == 0) ||
+         (algorithm == "lve" && msg.round % 4 == 0) ||
          (algorithm == "slv" &&  msg.round % 3 == 0) ) {
       msg.getContent[(Int,Time)](kryo.get)._1
     } else {
@@ -99,9 +100,8 @@ class PerfTest2(options: RuntimeOptions,
       val value = msg.getInt(0)
       val idx = (value >>> 16).toShort
       val newInstance = msg.getInt(4).toShort
-      //println("(2) id: " + id + " idx: " + idx + ", instance: " + inst + ", newInstance: " + newInstance)
       //Logger("PerfTest", Info, inst + " recovery to " + newInstance)
-      assert((inst - newInstance).toShort % nbrValues == 0, "inst = " + inst + ", newInst = " + newInstance)
+      assert((inst - newInstance).toShort % nbrValues == 0, "id = " + id + ", recovery from inst = " + inst + " to newInst = " + newInstance)
       val first = processDecision(inst, value, Some(newInstance)) 
       msg.release
       rt.stopInstance(inst)
@@ -245,7 +245,7 @@ class PerfTest2(options: RuntimeOptions,
             m.release
             msg = Set()
           } else {
-            assert((inst - instanceNbr).toShort % nbrValues == 0, "idx = " + idx + ", inst = " + inst + ", instanceNbr = " + instanceNbr)
+            assert((inst - instanceNbr).toShort % nbrValues == 0, "id = " + id + ", starting idx = " + idx + ", inst = " + inst + ", instanceNbr = " + instanceNbr)
             instanceNbr = Instance.max(instanceNbr, inst)
             canGo = true
           }
@@ -298,7 +298,7 @@ class PerfTest2(options: RuntimeOptions,
   
   def wakeupOthers(inst: Short, initValue: Int) {
     //TODO better way
-    if (algorithm == "lv" || algorithm == "slv") {
+    if (algorithm == "lv" || algorithm == "lve" || algorithm == "slv") {
       val dir = rt.getGroup
       for (o <- dir.others) {
         val payload = PooledByteBufAllocator.DEFAULT.buffer()
@@ -349,7 +349,8 @@ object PerfTest2 extends RTOptions {
   
   var algorithm = ""
   newOption("-lv", dzufferey.arg.Unit( () => algorithm = "lv"), "use the last voting algorithm")
-  newOption("-a", dzufferey.arg.String( a => algorithm = a), "use the given algorithm (otr, lv, slv)")
+  newOption("-lve", dzufferey.arg.Unit( () => algorithm = "lve"), "use the last voting algorithm (event round version)")
+  newOption("-a", dzufferey.arg.String( a => algorithm = a), "use the given algorithm (otr, lv, lve, slv)")
   
   var after = -1
   newOption("-after", dzufferey.arg.Int( i => after = i), "#round after decision")
@@ -387,10 +388,12 @@ object PerfTest2 extends RTOptions {
   Runtime.getRuntime().addShutdownHook(
     new Thread() {
       override def run() {
-        val versionNbr = system.shutdown
-        val end = java.lang.System.currentTimeMillis()
-        val duration = (end - begin) / 1000
-        println("#instances = " + versionNbr + ", Δt = " + duration + ", throughput = " + (versionNbr/duration))
+        if (system != null) {
+          val versionNbr = system.shutdown
+          val end = java.lang.System.currentTimeMillis()
+          val duration = (end - begin) / 1000
+          println("#instances = " + versionNbr + ", Δt = " + duration + ", throughput = " + (versionNbr/duration))
+        }
       }
     }
   )

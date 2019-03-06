@@ -46,7 +46,7 @@ class LockManager(self: Short,
   }
 
   private val consensus: Runtime[ConsensusIO,_] = {
-    if (Main.lv) new Runtime(new LastVoting(Main.timeout), Main, defaultHandler(_))
+    if (Main.lv) new Runtime(new LastVotingEvent(Main.timeout), Main, defaultHandler(_))
     else new Runtime(new OTR, Main, defaultHandler(_))
   }
 
