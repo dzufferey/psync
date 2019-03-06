@@ -51,7 +51,6 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected val delayFirstSend = options.delayFirstSend
   
   private final val block = Long.MinValue
-  protected var strict = false
   protected var timeout = options.timeout
   protected var roundStart: Long = 0
   protected var readyToProgress = false
@@ -60,7 +59,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected var self: ProcessID = new ProcessID(-1)
   
   /** catch-up after f+1 messages have been received */
-  protected var f = 0 //TODO as option
+  protected val f = 0 //TODO as option
 
   protected var n = 0
   protected var currentRound = 0
@@ -262,15 +261,13 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected def checkProgress(p: Progress, init: Boolean) {
     //TODO check monotonicity of progress
     if (p.isTimeout) {
-      strict = p.isStrict
       timeout = p.timeout
-      readyToProgress = needCatchUp && !strict
+      readyToProgress = needCatchUp && !p.isStrict
     } else if (p.isGoAhead) {
       readyToProgress = true
     } else if (p.isWaitMessage) {
-      strict = p.isStrict
       timeout = block
-      readyToProgress = needCatchUp && !strict
+      readyToProgress = needCatchUp && !p.isStrict
     } else if (p.isUnchanged) {
       if (init) {
         Logger.logAndThrow("InstanceHandler", Error, "Progress of init should not be Unchanged.")
