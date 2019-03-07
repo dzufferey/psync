@@ -11,8 +11,7 @@ import psync.utils.serialization.{KryoSerializer, KryoByteBufInput, KryoByteBufO
 import scala.collection.mutable.PriorityQueue
 import scala.math.Ordering
 import Message.MessageOrdering
-import psync.utils.CircularBuffer
-
+import psync.utils.{CircularBuffer, LongBitSet}
 
 //TODO what should be the interface ?
 //- val lock = new java.util.concurrent.locks.ReentrantLock
@@ -61,12 +60,11 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   /** catch-up after f+1 messages have been received */
   protected val f = 0 //TODO as option
 
-  protected var n = 0
   protected var currentRound = 0
   protected var nextRound = 0
 
   /** keep track of the processes which have already send for the round */
-  protected var from: Array[Boolean] = null //TODO replace with LongBitSet
+  protected var from = LongBitSet.empty
 
   /** discard the messages to far in the future. */
   protected var maxLookahead = 32 //TODO as option
@@ -109,15 +107,12 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     // init this
     instance = inst
     self = g.self
-    n = g.size
     currentRound = 0
     nextRound = 0
 
     // checkResources
-    if (from == null || from.size != n) {
-      from = Array.ofDim[Boolean](n)
-      for (i <- 0 until n) from(i) = false
-    }
+    assert(g.size < 64)
+    from = LongBitSet.empty
 
     // enqueue pending messages
     msgs.foreach(newPacket)
@@ -138,11 +133,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       msg.release
     }
     pendingMessages.reset
-    var i = 0
-    while (i < n) {
-      from(i) = false
-      i += 1
-    }
+    from = LongBitSet.empty
   }
 
   protected def stop {
@@ -180,32 +171,48 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
           send
         }
         // deliver pending messages
-        deliverPending
+        val pending = pendingMessages.get(currentRound)
+        for ( msg <- pending.values )
+          processPacket(msg)
+        pendingMessages.set(currentRound, Map.empty)
+        // TODO check msg as well (store if needed)
+        if (msg != null) {
+          val msgRound = msg.round
+          if (rndDiff(msgRound) == 0) {
+            processPacket(msg)
+            msg = null
+          } else if (!readyToProgress) {
+            //getting blocked, buffer the message
+            var pending = pendingMessages.get(msgRound)
+            pending += (msg.sender -> msg)
+            pendingMessages.set(msgRound, pending)
+            msg = null
+          }
+        }
         // accumulate messages
         var timedout = false
-        while (!readyToProgress &&   // has not yet received enough messages
+        while (msg == null &&        // in the process of catching up
+               !readyToProgress &&   // has not yet received enough messages
                more)                 // not interrupted
         {
           // try receive a new message
-          if (msg == null) {
-            if (timeout == block) {
-              msg = buffer.take()
-            } else {
-              val to = roundStart + timeout - java.lang.System.currentTimeMillis()
-              if (to >= 0) {
-                msg = buffer.poll(timeout, TimeUnit.MILLISECONDS)
-              }
+          if (timeout == block) {
+            msg = buffer.take()
+          } else {
+            val to = roundStart + timeout - java.lang.System.currentTimeMillis()
+            if (to >= 0) {
+              msg = buffer.poll(timeout, TimeUnit.MILLISECONDS)
             }
-            // check that we have a message that we can handle
-            if (msg != null) {
-              if (!checkInstanceAndTag(msg)) {
-                msg = null
-              }
-            } else {
-              //Logger("InstanceHandler", Warning, instance + " timeout")
-              timedout = true
-              readyToProgress = true
+          }
+          // check that we have a message that we can handle
+          if (msg != null) {
+            if (!checkInstanceAndTag(msg)) {
+              msg = null
             }
+          } else {
+            //Logger("InstanceHandler", Warning, instance + " timeout")
+            timedout = true
+            readyToProgress = true
           }
           // process pending message
           if (msg != null) {
@@ -229,14 +236,16 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
               var pending = pendingMessages.get(msgRound)
               if (pending contains msg.sender) {
                 msg.release
+                msg = null
               } else {
-                pending += (msg.sender -> msg)
-                if (pending.size > f) {
+                if (pending.size + 1 > f) {
                   nextRound = msgRound
+                } else {
+                  pending += (msg.sender -> msg)
+                  pendingMessages.set(msgRound, pending)
+                  msg = null
                 }
-                pendingMessages.set(msgRound, pending)
               }
-              msg = null
             }
           }
         }
@@ -282,9 +291,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected def initRound {
     // clean
     readyToProgress = false
-    for (i <- 0 until n) {
-      from(i) = false
-    }
+    from = LongBitSet.empty
     //
     roundStart = java.lang.System.currentTimeMillis()
     checkProgress(proc.init, true)
@@ -313,8 +320,8 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
 
   protected def processPacket(msg: Message) {
     val sender = msg.sender
-    if (!from(sender.id)) {
-      from(sender.id) = true
+    if (!from.get(sender.id)) {
+      from = from.set(sender.id)
       assert(msg.round == currentRound, msg.round + " vs " + currentRound)
       val buffer = msg.bufferAfterTag
       kryoIn.setBuffer(buffer)
@@ -356,11 +363,4 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     Logger("InstanceHandler", Debug, "Replica " + self.id + ", instance " + instance + " sending for round " + currentRound + " -> " + sent + "\n")
   }
 
-  protected def deliverPending {
-    val pending = pendingMessages.get(currentRound)
-    for ( msg <- pending.values )
-      processPacket(msg)
-    pendingMessages.set(currentRound, Map.empty)
-  }
-  
 }
