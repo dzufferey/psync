@@ -9,7 +9,7 @@ import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.TimeUnit
 import psync.utils.serialization.{KryoSerializer, KryoByteBufInput, KryoByteBufOutput}
 import scala.collection.mutable.PriorityQueue
-import scala.math.Ordering
+import scala.math.{Ordering,max}
 import Message.MessageOrdering
 import psync.utils.{CircularBuffer, LongBitSet}
 
@@ -48,28 +48,29 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
 
   protected val sendWhenCatchingUp = options.sendWhenCatchingUp
   protected val delayFirstSend = options.delayFirstSend
-  
-  private final val block = Long.MinValue
-  protected var timeout = options.timeout
-  protected var roundStart: Long = 0
-  protected var readyToProgress = false
 
   protected var instance: Short = 0
   protected var self: ProcessID = new ProcessID(-1)
   
-  /** catch-up after f+1 messages have been received */
-  protected val f = 0 //TODO as option
-
+  private final val block = Long.MinValue
+  protected var timeout = options.timeout
+  protected var roundStart: Long = 0
+  protected var strict = false
+  
   protected var currentRound = 0
   protected var nextRound = 0
 
   /** keep track of the processes which have already send for the round */
   protected var from = LongBitSet.empty
-
-  /** discard the messages to far in the future. */
-  protected var maxLookahead = 32 //TODO as option
+  
+  /** catch-up after f+1 messages have been received */
+  protected val f = 0 //TODO as option
+  /** keep the max round seen for each process (used for deciding when to catch-up) */
+  protected var maxRnd: Array[Int] = Array(0)
   /** Since we might block on the round, we buffer messages that will be delivered later. */
-  protected val pendingMessages = new CircularBuffer[Map[ProcessID,Message]](maxLookahead, Map.empty) //TODO not going to work with a stack, a priority queue might be better
+  protected var pendingMessages: Array[PriorityQueue[Message]] = Array(new PriorityQueue[Message]()(Message.MinMessageOrdering)) //TODO check that this is the right ordering
+  /** discard when there are two many messages from one process */
+  protected var maxPending = 32 //TODO as option
 
   protected val globalSizeHint = options.packetSize
   protected val kryoIn = new KryoByteBufInput(null)
@@ -111,8 +112,15 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     nextRound = 0
 
     // checkResources
-    assert(g.size < 64)
+    val s = g.size
+    assert(s < 64)
     from = LongBitSet.empty
+    if (pendingMessages.size != s) {
+      pendingMessages = Array.fill(s)(new PriorityQueue[Message]()(Message.MinMessageOrdering))
+    }
+    if (maxRnd.size != s) {
+      maxRnd = Array.fill[Int](s)(0)
+    }
 
     // enqueue pending messages
     msgs.foreach(newPacket)
@@ -127,20 +135,15 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       pkt.release
       pkt = buffer.poll
     }
-    //TODO loopify
-    for (i <- currentRound until currentRound + maxLookahead;
-         msg <- pendingMessages.get(i).values) {
-      msg.release
-    }
-    pendingMessages.reset
     from = LongBitSet.empty
-  }
-
-  protected def stop {
-    Logger("InstanceHandler", Info, "stopping instance " + instance)
-    dispatcher.remove(instance)
-    freeRemainingMessages
-    rt.recycle(this)
+    var i = 0
+    while (i < pendingMessages.size) {
+      maxRnd(i) = 0
+      val q = pendingMessages(i)
+      q.foreach( _.release )
+      q.clear
+      i += 1
+    }
   }
 
   @volatile protected var again = true
@@ -150,10 +153,18 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       again = false
   }
 
-  @inline private final def more = again && !Thread.interrupted
+  @inline private final def more = {
+    if (again && !Thread.interrupted) {
+      true
+    } else {
+      again = false
+      false
+    }
+  }
   @inline private final def timeDiff(t1: Int, t2: Int) = t1 - t2
   @inline private final def rndDiff(rnd: Int) = timeDiff(rnd, currentRound)
-  @inline private final def needCatchUp = rndDiff(nextRound) > 0
+  @inline private final def needCatchingUp = rndDiff(nextRound) > 0
+  @inline private final def readyToProgress = needCatchingUp && !strict
 
   def run {
     Logger("InstanceHandler", Info, "starting instance " + instance)
@@ -171,11 +182,8 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
           send
         }
         // deliver pending messages
-        val pending = pendingMessages.get(currentRound)
-        for ( msg <- pending.values )
-          processPacket(msg)
-        pendingMessages.set(currentRound, Map.empty)
-        // TODO check msg as well (store if needed)
+        deliverPending
+        // check msg as well (store if needed)
         if (msg != null) {
           val msgRound = msg.round
           if (rndDiff(msgRound) == 0) {
@@ -183,9 +191,9 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
             msg = null
           } else if (!readyToProgress) {
             //getting blocked, buffer the message
-            var pending = pendingMessages.get(msgRound)
-            pending += (msg.sender -> msg)
-            pendingMessages.set(msgRound, pending)
+            assert(rndDiff(msgRound) >= 0)
+            //TODO maxPending
+            pendingMessages(msg.sender.id).enqueue(msg)
             msg = null
           }
         }
@@ -193,7 +201,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
         var timedout = false
         while (msg == null &&        // in the process of catching up
                !readyToProgress &&   // has not yet received enough messages
-               more)                 // not interrupted
+               more)                // not interrupted
         {
           // try receive a new message
           if (timeout == block) {
@@ -206,50 +214,43 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
           }
           // check that we have a message that we can handle
           if (msg != null) {
-            if (!checkInstanceAndTag(msg)) {
+            if (checkInstanceAndTag(msg)) {
+              // process pending message
+              var msgRound = msg.round
+              // update the highest seen round from msg.sender
+              val sid = msg.sender.id
+              if (msgRound - maxRnd(sid) > 0) {
+                maxRnd(sid) = msgRound
+              }
+              val late = rndDiff(msgRound)
+              if (late < 0) {
+                // late message, ignore
+                msg.release
+                msg = null
+              } else if (late == 0) {
+                // message for the current round
+                processPacket(msg)
+                msg = null
+               } else { // late > 0
+                // check if we need to catch-up or store msg in pendingMessages
+                computeNextRound
+                if (!readyToProgress) {
+                  //TODO maxPending
+                  pendingMessages(msg.sender.id).enqueue(msg)
+                  msg = null
+                }
+              }
+            } else {
               msg = null
             }
           } else {
             //Logger("InstanceHandler", Warning, instance + " timeout")
             timedout = true
-            readyToProgress = true
-          }
-          // process pending message
-          if (msg != null) {
-            var msgRound = msg.round
-            val late = rndDiff(msgRound)
-            if (late < 0) {
-              // late message, ignore
-              msg.release
-              msg = null
-            } else if (late == 0) {
-              processPacket(msg)
-              msg = null
-            } else if (late >= maxLookahead) {
-              Logger("InstanceHandler", Warning, "Replica " + self.id + " instance " + instance + ": message above maxLookahead " + late +
-                                                 " (currentRound = " + currentRound + ", nextRound = "+nextRound+")")
-              msg.release
-              msg = null
-            } else {
-              // check if we need to catch-up or put msg in pendingMessages
-              //TODO we may want a fast path for non-strict/benign case where we don't store the messsages (divides througput by 2!!)
-              var pending = pendingMessages.get(msgRound)
-              if (pending contains msg.sender) {
-                msg.release
-                msg = null
-              } else {
-                if (pending.size + 1 > f) {
-                  nextRound = msgRound
-                } else {
-                  pending += (msg.sender -> msg)
-                  pendingMessages.set(msgRound, pending)
-                  msg = null
-                }
-              }
-            }
+            nextRound = currentRound + 1
+            strict = false
           }
         }
-        again &= update(timedout || needCatchUp) //consider catching up as TO
+        again &= update(timedout || msg != null) //consider catching up (msg != null) as TO
       }
     } catch {
       case _: java.lang.InterruptedException => ()
@@ -267,16 +268,49 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   // current round //
   ///////////////////
 
+  @inline private final def deliverPending {
+    var i = 0
+    while (i < pendingMessages.size) {
+      val q = pendingMessages(i)
+      while (!q.isEmpty && rndDiff(q.head.round) <= 0) {
+        val msg = q.dequeue
+        assert(rndDiff(msg.round) == 0)
+        processPacket(msg)
+      }
+      i += 1
+    }
+  }
+
+  @inline private final def computeNextRound {
+    if (f == 0) {
+      // find max relative to currentRound
+      var i = 0
+      var currMax = currentRound
+      while (i < maxRnd.size) {
+        if (maxRnd(i) - currMax > 0) {
+          currMax = maxRnd(i)
+        }
+        i += 1
+      }
+      nextRound = currMax
+    } else {
+      // TODO the right way of computing the next round is to sort maxRnd and drop the f highest values
+      // see https://en.wikipedia.org/wiki/Selection_algorithm but since we have small size we can just sort ...
+      ???
+    }
+  }
+
   protected def checkProgress(p: Progress, init: Boolean) {
     //TODO check monotonicity of progress
     if (p.isTimeout) {
       timeout = p.timeout
-      readyToProgress = needCatchUp && !p.isStrict
+      strict = p.isStrict
     } else if (p.isGoAhead) {
-      readyToProgress = true
+      strict = false
+      nextRound = currentRound + max(nextRound - currentRound, 1)
     } else if (p.isWaitMessage) {
       timeout = block
-      readyToProgress = needCatchUp && !p.isStrict
+      strict = p.isStrict
     } else if (p.isUnchanged) {
       if (init) {
         Logger.logAndThrow("InstanceHandler", Error, "Progress of init should not be Unchanged.")
@@ -289,10 +323,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   }
 
   protected def initRound {
-    // clean
-    readyToProgress = false
     from = LongBitSet.empty
-    //
     roundStart = java.lang.System.currentTimeMillis()
     checkProgress(proc.init, true)
   }
@@ -334,10 +365,9 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected def update(didTimeout: Boolean) = {
     Logger("InstanceHandler", Debug, "Replica " + self.id + ", instance " + instance + " delivering for round " + currentRound + (if (didTimeout) " with TO" else ""))
     val shouldTerminate = proc.update(didTimeout)
-    assert(pendingMessages.get(currentRound).isEmpty)
-    pendingMessages.next
+    //assert(needCatchingUp || !more, "currentRound " + currentRound + ", nextRound " + nextRound) 
     currentRound += 1
-    nextRound = if (nextRound - currentRound >= 0) nextRound else currentRound
+    maxRnd(self.id) = currentRound
     shouldTerminate
   }
 
@@ -361,6 +391,14 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     checkProgress(proc.send(kryo, alloc, sending), false)
     kryoOut.setBuffer(null: ByteBuf)
     Logger("InstanceHandler", Debug, "Replica " + self.id + ", instance " + instance + " sending for round " + currentRound + " -> " + sent + "\n")
+  }
+
+  protected def stop {
+    Logger("InstanceHandler", Info, "stopping instance " + instance)
+    dispatcher.remove(instance)
+    freeRemainingMessages
+    rt.recycle(this)
+    Thread.interrupted //clear interrupt
   }
 
 }

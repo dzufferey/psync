@@ -109,6 +109,10 @@ object Message {
   implicit object MessageOrdering extends Ordering[Message] {
     def compare(a: Message, b: Message): Int = a.round - b.round
   }
+  
+  object MinMessageOrdering extends Ordering[Message] {
+    def compare(a: Message, b: Message): Int = b.round - a.round
+  }
 
 
 }
