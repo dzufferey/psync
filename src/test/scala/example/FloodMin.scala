@@ -5,7 +5,7 @@ import psync.runtime._
 import psync.macros.Macros._
 import psync.utils.serialization._
 
-class FloodMinProcess(f: Int) extends Process[ConsensusIO] {
+class FloodMinProcess(f: Int, timeout: Long) extends Process[ConsensusIO] {
   
   var x = 0
   var callback: ConsensusIO = null
@@ -16,7 +16,7 @@ class FloodMinProcess(f: Int) extends Process[ConsensusIO] {
   }
 
   val rounds = phase(
-    new Round[Int]{
+    new Round[Int](timeout){
     
       def send: Map[ProcessID,Int] = {
         broadcast( x )
@@ -35,11 +35,11 @@ class FloodMinProcess(f: Int) extends Process[ConsensusIO] {
 
 }
 
-class FloodMin(f: Int) extends Algorithm[ConsensusIO,FloodMinProcess] {
+class FloodMin(f: Int, timeout: Long) extends Algorithm[ConsensusIO,FloodMinProcess] {
 
   val spec = TrivialSpec //TODO we need safety predicates on transition to account for synchronous crash-stop
 
-  def process = new FloodMinProcess(f)
+  def process = new FloodMinProcess(f, timeout)
 
   def dummyIO = new ConsensusIO{
     val initialValue = 0
@@ -65,7 +65,7 @@ object FloodMinRunner extends RTOptions {
   def main(args: Array[java.lang.String]) {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    val alg = new FloodMin(f)
+    val alg = new FloodMin(f, timeout)
     rt = new Runtime(alg, this, defaultHandler(_))
     rt.startService
 

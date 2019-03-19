@@ -18,7 +18,7 @@ object KSetAgreementSerialization {
 
 import KSetAgreementSerialization.reg
 
-class KSetProcess(k: Int) extends Process[ConsensusIO] {
+class KSetProcess(k: Int, timeout: Long) extends Process[ConsensusIO] {
   
   var t = Map.empty[ProcessID,Int]
   var decider = false
@@ -31,7 +31,7 @@ class KSetProcess(k: Int) extends Process[ConsensusIO] {
   }
     
   val rounds = phase(
-    new Round[(Boolean, Map[ProcessID,Int])]{
+    new Round[(Boolean, Map[ProcessID,Int])](timeout){
     
       def merge(a: Map[ProcessID,Int], b: Map[ProcessID,Int]) = {
         a ++ b
@@ -67,7 +67,7 @@ class KSetProcess(k: Int) extends Process[ConsensusIO] {
 
 }
 
-class KSetAgreement(k: Int) extends Algorithm[ConsensusIO,KSetProcess] {
+class KSetAgreement(k: Int, timeout: Long) extends Algorithm[ConsensusIO,KSetProcess] {
   
   val spec = TrivialSpec
   //k-agreement: the set Y of decision values is such that Y ⊆ V₀ ∧ |Y| ≤ k
@@ -78,7 +78,7 @@ class KSetAgreement(k: Int) extends Algorithm[ConsensusIO,KSetProcess] {
   // crash-fault, f < k
   // completely async (no termination requirement)
 
-  def process = new KSetProcess(k)
+  def process = new KSetProcess(k, timeout)
 
   def dummyIO = new ConsensusIO{
     val initialValue = 0
@@ -104,7 +104,7 @@ object KSetRunner extends RTOptions {
   def main(args: Array[java.lang.String]) {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    val alg = new KSetAgreement(k)
+    val alg = new KSetAgreement(k, timeout)
     rt = new Runtime(alg, this, defaultHandler(_))
     rt.startService
 

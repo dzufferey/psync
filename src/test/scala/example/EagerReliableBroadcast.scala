@@ -10,7 +10,7 @@ abstract class BroadcastIO {
   def deliver(value: Int): Unit
 }
 
-class ErbProcess extends Process[BroadcastIO] {
+class ErbProcess(timeout: Long) extends Process[BroadcastIO] {
   
   var x: Option[Int] = None
   var callback: BroadcastIO = null
@@ -21,7 +21,7 @@ class ErbProcess extends Process[BroadcastIO] {
   }
 
   val rounds = phase(
-    new Round[Int]{
+    new Round[Int](timeout){
     
       def send: Map[ProcessID,Int] = {
         if (x.isDefined) broadcast(x.get)
@@ -47,11 +47,11 @@ class ErbProcess extends Process[BroadcastIO] {
 }
 
 //http://link.springer.com/chapter/10.1007%2F978-3-642-15260-3_3
-class EagerReliableBroadcast extends Algorithm[BroadcastIO,ErbProcess] {
+class EagerReliableBroadcast(timeout: Long) extends Algorithm[BroadcastIO,ErbProcess] {
 
   val spec = TrivialSpec
 
-  def process = new ErbProcess()
+  def process = new ErbProcess(timeout)
 
   def dummyIO = new BroadcastIO{
     val initialValue = None
@@ -89,7 +89,7 @@ object ERBRunner extends RTOptions {
   def main(args: Array[java.lang.String]) {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    val alg = new EagerReliableBroadcast
+    val alg = new EagerReliableBroadcast(timeout)
     rt = new Runtime(alg, this, defaultHandler(_))
     rt.startService
 

@@ -29,7 +29,7 @@ abstract class LatticeIO {
   def decide(value: Lattice.T): Unit
 }
 
-class LatticeAgreementProcess extends Process[LatticeIO]{
+class LatticeAgreementProcess(timeout: Long) extends Process[LatticeIO]{
   
   var active = true
   var proposed = Lattice.bottom
@@ -43,7 +43,7 @@ class LatticeAgreementProcess extends Process[LatticeIO]{
   }
 
   val rounds = phase(
-    new Round[Lattice.T] {
+    new Round[Lattice.T](timeout) {
       
       def send(): Map[ProcessID,Lattice.T] = {
         broadcast(proposed)
@@ -67,7 +67,7 @@ class LatticeAgreementProcess extends Process[LatticeIO]{
 
 }
 
-class LatticeAgreement extends Algorithm[LatticeIO,LatticeAgreementProcess] {
+class LatticeAgreement(timeout: Long) extends Algorithm[LatticeIO,LatticeAgreementProcess] {
 
   val AD  = new Domain[Lattice.T]
 
@@ -83,7 +83,7 @@ class LatticeAgreement extends Algorithm[LatticeIO,LatticeAgreementProcess] {
   Axiom("join-singleton", f( AD.forall( x => Lattice.join(x) == x) ))
   //TODO can we have a local axiomatization of join ? after all there is some idempotence property.
   
-  def process = new LatticeAgreementProcess
+  def process = new LatticeAgreementProcess(timeout)
 
   def dummyIO = new LatticeIO{
     val initialValue = Lattice.bottom
@@ -106,7 +106,7 @@ object LatticeRunner extends RTOptions {
   def main(args: Array[java.lang.String]) {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    val alg = new LatticeAgreement()
+    val alg = new LatticeAgreement(timeout)
     rt = new Runtime(alg, this, defaultHandler(_))
     rt.startService
 

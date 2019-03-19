@@ -15,14 +15,14 @@ import scala.reflect.ClassTag
  * The round class provide some helper methods such as `broadcast`,
  * `exitAtEndOfRound`, and `expectedNbrMessages`.
  */
-abstract class Round[A: ClassTag: KryoRegistration] extends EventRound[A] {
+abstract class Round[A: ClassTag: KryoRegistration](timeout: Long = 10l) extends EventRound[A] {
 
   //////////////////////////
   // user-defined methods //
   //////////////////////////
   
   // /* The initial progress conditions: either GoAhead or Timeout */
-  def init: Progress = Progress.timeout(10) //FIXME a default value so we don't have to change everthing
+  def init: Progress = Progress.timeout(timeout)
 
   //  /** The message sent by the process during this round.*/
   //  def send(): Map[ProcessID,A]

@@ -81,7 +81,7 @@ abstract class MembershipIO {
   def decide(value: MembershipOp): Unit
 }
 
-class MConsensusProcess extends Process[MembershipIO] {
+class MConsensusProcess(timeout: Long) extends Process[MembershipIO] {
 
   var x: MembershipOp = null
   var decision: Option[MembershipOp] = None //TODO as ghost
@@ -94,7 +94,7 @@ class MConsensusProcess extends Process[MembershipIO] {
   }
 
   val rounds = phase(
-    new Round[MembershipOp]{
+    new Round[MembershipOp](timeout){
 
       //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros?)
       def mmor(mailbox: Map[ProcessID,MembershipOp]): MembershipOp = {
@@ -137,11 +137,11 @@ class MConsensusProcess extends Process[MembershipIO] {
 }
 
 //this is the OTR but for MembershipOp
-class MConsensus extends Algorithm[MembershipIO,MConsensusProcess] {
+class MConsensus(timeout: Long) extends Algorithm[MembershipIO,MConsensusProcess] {
 
   val spec = TrivialSpec //TODO
   
-  def process = new MConsensusProcess()
+  def process = new MConsensusProcess(timeout)
 
   def dummyIO = new MembershipIO {
     val initialValue = AddReplica("", 0)
@@ -439,7 +439,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
       } else {
         List(Replica(new ProcessID(0), masterAddress.get, masterPort.get))
       }
-    rt = new psync.runtime.Runtime(new MConsensus, this, defaultHandler(_))
+    rt = new psync.runtime.Runtime(new MConsensus(timeout), this, defaultHandler(_))
     rt.startService
     view.group = rt.getGroup
     if (isMaster) {

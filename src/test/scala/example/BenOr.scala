@@ -27,7 +27,7 @@ import BenOrSerialization._
 
 //http://www.cs.utexas.edu/~lorenzo/corsi/cs380d/papers/p27-ben-or.pdf
 
-class BenOrProcess extends Process[BinaryConsensusIO] {
+class BenOrProcess(timeout: Long) extends Process[BinaryConsensusIO] {
   
   var x = false
   var callback: BinaryConsensusIO = null
@@ -47,7 +47,7 @@ class BenOrProcess extends Process[BinaryConsensusIO] {
   }
   
   val rounds = phase(
-    new Round[(Boolean,Boolean)]{
+    new Round[(Boolean,Boolean)](timeout){
     
       def send: Map[ProcessID,(Boolean, Boolean)] = {
         broadcast( (x: Boolean) -> (canDecide: Boolean) )
@@ -73,7 +73,7 @@ class BenOrProcess extends Process[BinaryConsensusIO] {
 
     },
     
-    new Round[Option[Boolean]]{
+    new Round[Option[Boolean]](timeout){
     
       def send: Map[ProcessID,Option[Boolean]] = {
         broadcast( vote )
@@ -102,7 +102,7 @@ class BenOrProcess extends Process[BinaryConsensusIO] {
 
 }
 
-class BenOr extends Algorithm[BinaryConsensusIO,BenOrProcess] {
+class BenOr(timeout: Long) extends Algorithm[BinaryConsensusIO,BenOrProcess] {
 
   import SpecHelper._
 
@@ -133,7 +133,7 @@ class BenOr extends Algorithm[BinaryConsensusIO,BenOrProcess] {
     )
   }
 
-  def process = new BenOrProcess
+  def process = new BenOrProcess(timeout)
 
   def dummyIO = new BinaryConsensusIO{
     val initialValue = false
@@ -157,7 +157,7 @@ object BenOrRunner extends RTOptions {
   def main(args: Array[java.lang.String]) {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    val alg = new BenOr
+    val alg = new BenOr(timeout)
     rt = new Runtime(alg, this, defaultHandler(_))
     rt.startService
 

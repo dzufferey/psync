@@ -12,7 +12,7 @@ abstract class RealConsensusIO {
 }
 
 //http://www.cambridge.org/us/download_file/175769/
-class EpsilonProcess(f: Int, epsilon: Double) extends Process[RealConsensusIO] {
+class EpsilonProcess(f: Int, epsilon: Double, timeout: Long) extends Process[RealConsensusIO] {
 
   var x = 0.0
   var maxR = new Time(0)
@@ -26,7 +26,7 @@ class EpsilonProcess(f: Int, epsilon: Double) extends Process[RealConsensusIO] {
 
   val rounds = phase(
 
-    new Round[(Double,Boolean)]{
+    new Round[(Double,Boolean)](timeout){
      
       def diff(s: Iterable[Double]) = s.max - s.min //this is never defined in the slides. double check that this is the right thing...
       def c(m: Int, k: Int) = (m-1) / k + 1
@@ -69,11 +69,11 @@ class EpsilonProcess(f: Int, epsilon: Double) extends Process[RealConsensusIO] {
   )
 }
 
-class EpsilonConsensus(f: Int, epsilon: Double) extends Algorithm[RealConsensusIO,EpsilonProcess] {
+class EpsilonConsensus(f: Int, epsilon: Double, timeout: Long) extends Algorithm[RealConsensusIO,EpsilonProcess] {
 
   val spec = TrivialSpec //TODO we need to add support for Real numbers
 
-  def process = new EpsilonProcess(f, epsilon)
+  def process = new EpsilonProcess(f, epsilon, timeout: Long)
 
   def dummyIO = new RealConsensusIO{
     val initialValue = 0.0
@@ -103,7 +103,7 @@ object EpsilonRunner extends RTOptions {
     val start = java.lang.System.currentTimeMillis()
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    val alg = new EpsilonConsensus(f, e)
+    val alg = new EpsilonConsensus(f, e, timeout)
     rt = new Runtime(alg, this, defaultHandler(_))
     rt.startService
 

@@ -12,7 +12,7 @@ abstract class TpcIO {
   def decide(value: Option[Boolean]): Unit //deciding None means that we suspect the coordinator of crash!
 }
 
-class TpcProcess extends Process[TpcIO] {
+class TpcProcess(timeout: Long) extends Process[TpcIO] {
   
   var coord = new ProcessID(0)
   var vote = false
@@ -27,7 +27,7 @@ class TpcProcess extends Process[TpcIO] {
   }
     
   val rounds = phase(
-    new Round[Boolean]{ //place holder for PrepareCommit
+    new Round[Boolean](timeout){ //place holder for PrepareCommit
       def send(): Map[ProcessID,Boolean] = {
         if (id == coord) broadcast(true)
         else Map.empty[ProcessID,Boolean] //otherwise the compiler give Map[ProcessID,Int] !?
@@ -38,7 +38,7 @@ class TpcProcess extends Process[TpcIO] {
       } 
     },
 
-    new Round[Boolean]{
+    new Round[Boolean](timeout){
 
       def send(): Map[ProcessID,Boolean] = {
         Map( coord -> vote )
@@ -57,7 +57,7 @@ class TpcProcess extends Process[TpcIO] {
       }
     },
 
-    new Round[Boolean]{
+    new Round[Boolean](timeout){
 
       def send(): Map[ProcessID,Boolean] = {
         if (id == coord) broadcast(decision.get)
@@ -78,7 +78,7 @@ class TpcProcess extends Process[TpcIO] {
 
 }
 
-class TwoPhaseCommit extends Algorithm[TpcIO,TpcProcess] {
+class TwoPhaseCommit(timeout: Long) extends Algorithm[TpcIO,TpcProcess] {
 
   import SpecHelper._
 
@@ -107,7 +107,7 @@ class TwoPhaseCommit extends Algorithm[TpcIO,TpcProcess] {
     )
   }
 
-  def process = new TpcProcess
+  def process = new TpcProcess(timeout)
 
   def dummyIO = new TpcIO{
     val coord = new ProcessID(0)
@@ -133,7 +133,7 @@ object TpcRunner extends RTOptions {
   def main(args: Array[String]) {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    val alg = new TwoPhaseCommit()
+    val alg = new TwoPhaseCommit(timeout)
     rt = new Runtime(alg, this, defaultHandler(_))
     rt.startService
 

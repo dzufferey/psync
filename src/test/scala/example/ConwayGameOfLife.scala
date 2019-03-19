@@ -7,7 +7,7 @@ import psync.utils.serialization._
 
 class CgolIO(val id: Int, val rows: Int, val cols: Int, val init: Boolean) { }
 
-class CgolProcess extends Process[CgolIO] {
+class CgolProcess(timeout: Long) extends Process[CgolIO] {
   
   import ConwayGameOfLife._
 
@@ -24,7 +24,7 @@ class CgolProcess extends Process[CgolIO] {
   }
 
   val rounds = phase(
-    new Round[Boolean]{
+    new Round[Boolean](timeout){
     
       def send: Map[ProcessID,Boolean] = {
         neighbours.map( _ -> (alive: Boolean) ).toMap
@@ -50,11 +50,11 @@ class CgolProcess extends Process[CgolIO] {
 
 }
 
-class ConwayGameOfLife extends Algorithm[CgolIO,CgolProcess] {
+class ConwayGameOfLife(timeout: Long) extends Algorithm[CgolIO,CgolProcess] {
   
   val spec = TrivialSpec
 
-  def process = new CgolProcess()
+  def process = new CgolProcess(timeout)
 
   def dummyIO = new CgolIO(0,0,0,false)
 }
@@ -101,7 +101,7 @@ object CgolRunner extends RTOptions {
   var cols = 5
   newOption("-cols", dzufferey.arg.Int( i => cols = i), "(default = 5)")
 
-  var confFile = "src/test/resources/15replicas-conf.xml"
+  var confFile = "src/test/resources/25replicas-conf.xml"
   
   val usage = "..."
   
@@ -115,7 +115,7 @@ object CgolRunner extends RTOptions {
     val start = java.lang.System.currentTimeMillis()
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    val alg = new ConwayGameOfLife
+    val alg = new ConwayGameOfLife(timeout)
     rt = new Runtime(alg, this, defaultHandler(_))
     rt.startService
 

@@ -39,7 +39,7 @@ class PerfTest3(options: RuntimeOptions,
     log.newLine()
   }
   
-  val alg = new LastVotingB
+  val alg = new LastVotingB(options.timeout)
   val rt = new Runtime(alg, options, defaultHandler(_))
   rt.startService
 

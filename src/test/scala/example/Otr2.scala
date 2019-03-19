@@ -5,7 +5,7 @@ import psync.formula._
 import psync.macros.Macros._
 import psync.utils.serialization._
 
-class Otr2Process(afterDecision: Int) extends Process[ConsensusIO]{
+class Otr2Process(timeout: Long, afterDecision: Int) extends Process[ConsensusIO]{
   
   var x = 0
   var decision: Option[Int] = None //as ghost
@@ -20,7 +20,7 @@ class Otr2Process(afterDecision: Int) extends Process[ConsensusIO]{
   }
 
   val rounds = phase(
-    new Round[Int]{
+    new Round[Int](timeout){
 
       //min most often received
       def mmor(mailbox: Map[ProcessID,Int]): Int = {
@@ -63,7 +63,7 @@ class Otr2Process(afterDecision: Int) extends Process[ConsensusIO]{
 }
 
 //a version of OTR that eventually terminates
-class OTR2(afterDecision: Int = 2) extends Algorithm[ConsensusIO,Otr2Process] {
+class OTR2(timeout: Long, afterDecision: Int = 2) extends Algorithm[ConsensusIO,Otr2Process] {
 
   import SpecHelper._
 
@@ -94,7 +94,7 @@ class OTR2(afterDecision: Int = 2) extends Algorithm[ConsensusIO,Otr2Process] {
   }
   
   
-  def process = new Otr2Process(afterDecision)
+  def process = new Otr2Process(timeout, afterDecision)
 
   def dummyIO = new ConsensusIO{
     val initialValue = 0

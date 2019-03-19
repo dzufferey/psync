@@ -11,7 +11,7 @@ abstract class BConsensusIO {
   def decide(value: Array[Byte]): Unit
 }
 
-class LVBProcess(wholeCohort: Boolean) extends Process[BConsensusIO] {
+class LVBProcess(wholeCohort: Boolean, timeout: Long) extends Process[BConsensusIO] {
   
   //variables
   var phase = 0
@@ -37,7 +37,7 @@ class LVBProcess(wholeCohort: Boolean) extends Process[BConsensusIO] {
   def coord(phi: Int): ProcessID = new ProcessID(((phi + phase) % n).toShort)
 
   val rounds = psync.macros.Macros.phase(
-    new Round[(Array[Byte], Time)]{
+    new Round[(Array[Byte], Time)](timeout){
 
       def send(): Map[ProcessID,(Array[Byte], Time)] = {
         if (r.toInt != 0 || id == coord(r/4))
@@ -69,7 +69,7 @@ class LVBProcess(wholeCohort: Boolean) extends Process[BConsensusIO] {
 
     },
 
-    new Round[Array[Byte]]{
+    new Round[Array[Byte]](timeout){
 
       def send(): Map[ProcessID,Array[Byte]] = {
         if (id == coord(r/4) && commit) {
@@ -90,7 +90,7 @@ class LVBProcess(wholeCohort: Boolean) extends Process[BConsensusIO] {
 
     },
 
-    new Round[Int]{
+    new Round[Int](timeout){
 
       def send(): Map[ProcessID,Int] = {
         if ( ts == (r/4) ) {
@@ -110,7 +110,7 @@ class LVBProcess(wholeCohort: Boolean) extends Process[BConsensusIO] {
 
     },
 
-    new Round[Array[Byte]]{
+    new Round[Array[Byte]](timeout){
 
       def send(): Map[ProcessID,Array[Byte]] = {
         if (id == coord(r/4) && ready) {
@@ -137,11 +137,11 @@ class LVBProcess(wholeCohort: Boolean) extends Process[BConsensusIO] {
 
 }
 
-class LastVotingB(wholeCohort: Boolean = false) extends Algorithm[BConsensusIO,LVBProcess] {
+class LastVotingB(timeout: Long, wholeCohort: Boolean = false) extends Algorithm[BConsensusIO,LVBProcess] {
 
   val spec = TrivialSpec
   
-  def process = new LVBProcess(wholeCohort)
+  def process = new LVBProcess(wholeCohort, timeout)
 
   def dummyIO = new BConsensusIO{
     val phase = 0

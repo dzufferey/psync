@@ -38,7 +38,7 @@ class BatchingClient(val options: BatchingClient.type)
 
 
   // PSync runtime
-  val alg = new LastVotingB(options.all)
+  val alg = new LastVotingB(options.timeout, options.all)
   val rt = new Runtime(alg, options, defaultHandler(_))
   var jitting = true
 

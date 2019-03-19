@@ -6,7 +6,7 @@ import psync.macros.Macros._
 import psync.utils.serialization._
 
 //http://link.springer.com/chapter/10.1007%2F11535294_5
-class KSetESProcess(t: Int, k: Int) extends Process[ConsensusIO] {
+class KSetESProcess(t: Int, k: Int, timeout: Long) extends Process[ConsensusIO] {
 
   var est = 0
   var canDecide = false
@@ -21,7 +21,7 @@ class KSetESProcess(t: Int, k: Int) extends Process[ConsensusIO] {
   }
 
   val rounds = phase(
-    new Round[(Int, Boolean)]{
+    new Round[(Int, Boolean)](timeout){
     
       def send: Map[ProcessID,(Int, Boolean)] = {
         broadcast( (est: Int) -> (canDecide: Boolean) )
@@ -44,11 +44,11 @@ class KSetESProcess(t: Int, k: Int) extends Process[ConsensusIO] {
 }
 
 
-class KSetEarlyStopping(t: Int, k: Int) extends Algorithm[ConsensusIO,KSetESProcess] {
+class KSetEarlyStopping(t: Int, k: Int, timeout: Long) extends Algorithm[ConsensusIO,KSetESProcess] {
   
   val spec = TrivialSpec
 
-  def process = new KSetESProcess(t, k)
+  def process = new KSetESProcess(t, k, timeout)
 
   def dummyIO = new ConsensusIO{
     val initialValue = 0
@@ -77,7 +77,7 @@ object KSetESRunner extends RTOptions {
   def main(args: Array[java.lang.String]) {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    val alg = new KSetEarlyStopping(t, k)
+    val alg = new KSetEarlyStopping(t, k, timeout)
     rt = new Runtime(alg, this, defaultHandler(_))
     rt.startService
 

@@ -47,7 +47,7 @@ class LockManager(self: Short,
 
   private val consensus: Runtime[ConsensusIO,_] = {
     if (Main.lv) new Runtime(new LastVotingEvent(Main.timeout), Main, defaultHandler(_))
-    else new Runtime(new OTR, Main, defaultHandler(_))
+    else new Runtime(new OTR(Main.timeout), Main, defaultHandler(_))
   }
 
   private def onDecide(version: Short, decision: Option[ProcessID]) {

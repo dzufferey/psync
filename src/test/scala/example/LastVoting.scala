@@ -6,7 +6,7 @@ import psync.formula._
 import psync.macros.Macros._
 import psync.utils.serialization._
 
-class LastVoting extends Algorithm[ConsensusIO, LVProcess] {
+class LastVoting(timeout: Long) extends Algorithm[ConsensusIO, LVProcess] {
 
   import SpecHelper._
 
@@ -67,7 +67,7 @@ class LastVoting extends Algorithm[ConsensusIO, LVProcess] {
     )
   }
   
-  def process = new LVProcess()
+  def process = new LVProcess(timeout)
   
   def dummyIO = new ConsensusIO{
     val initialValue = 0
@@ -75,7 +75,7 @@ class LastVoting extends Algorithm[ConsensusIO, LVProcess] {
   }
 }
   
-class LVProcess extends Process[ConsensusIO]{
+class LVProcess(timeout: Long) extends Process[ConsensusIO]{
 
   //variables
   var x = 0
@@ -101,7 +101,7 @@ class LVProcess extends Process[ConsensusIO]{
   }
 
   val rounds = phase(
-    new Round[(Int,Time)]{
+    new Round[(Int,Time)](timeout){
 
       def send(): Map[ProcessID,(Int, Time)] = {
         Map(coord -> (x, ts))
@@ -129,7 +129,7 @@ class LVProcess extends Process[ConsensusIO]{
 
     },
 
-    new Round[Int]{
+    new Round[Int](timeout){
 
       def send(): Map[ProcessID,Int] = {
         if (id == coord && commit) {
@@ -151,7 +151,7 @@ class LVProcess extends Process[ConsensusIO]{
 
     },
 
-    new Round[Int]{
+    new Round[Int](timeout){
 
       def send(): Map[ProcessID,Int] = {
         if ( ts == (r/4) ) {
@@ -171,7 +171,7 @@ class LVProcess extends Process[ConsensusIO]{
 
     },
 
-    new Round[Int]{
+    new Round[Int](timeout){
 
       def send(): Map[ProcessID, Int] = {
         if (id == coord && ready) {

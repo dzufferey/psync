@@ -9,7 +9,7 @@ import psync.utils.serialization._
 //like OTR but uses a boolean flag instead of an option for the decision
 
 
-class OtrProcess(afterDecision: Int) extends Process[ConsensusIO]{
+class OtrProcess(timeout: Long, afterDecision: Int) extends Process[ConsensusIO]{
 
   var x = 0
   var decision = -1 //as ghost
@@ -53,7 +53,7 @@ class OtrProcess(afterDecision: Int) extends Process[ConsensusIO]{
   }*/
 
   val rounds = phase(
-    new Round[Int]{
+    new Round[Int](timeout){
 
       def send(): Map[ProcessID,Int] = {
         broadcast(x) //macro for (x, All)
@@ -85,7 +85,7 @@ class OtrProcess(afterDecision: Int) extends Process[ConsensusIO]{
 }
 
 
-class OTR(afterDecision: Int = 2) extends Algorithm[ConsensusIO, OtrProcess] {
+class OTR(timeout: Long, afterDecision: Int = 2) extends Algorithm[ConsensusIO, OtrProcess] {
 
   import SpecHelper._
 
@@ -118,7 +118,7 @@ class OTR(afterDecision: Int = 2) extends Algorithm[ConsensusIO, OtrProcess] {
     )
   }
   
-  def process = new OtrProcess(afterDecision)
+  def process = new OtrProcess(timeout, afterDecision)
 
   def dummyIO = new ConsensusIO{
     val initialValue = 0
