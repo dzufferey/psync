@@ -5,7 +5,7 @@ import psync.runtime._
 import psync.utils.ByteBufAllocator
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
-import dzufferey.arg._
+import dzufferey.arg.{Long => _, _}
 import java.util.concurrent.Semaphore
 import java.util.concurrent.locks.ReentrantLock
 import scala.util.Random

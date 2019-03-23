@@ -5,9 +5,11 @@ import psync.runtime._
 import psync.macros.Macros._
 import psync.utils.serialization._
 
+//on a torus
+
 class CgolIO(val id: Int, val rows: Int, val cols: Int, val init: Boolean) { }
 
-class CgolProcess(timeout: Long) extends Process[CgolIO] {
+class CgolProcess extends Process[CgolIO] {
   
   import ConwayGameOfLife._
 
@@ -24,14 +26,32 @@ class CgolProcess(timeout: Long) extends Process[CgolIO] {
   }
 
   val rounds = phase(
-    new Round[Boolean](timeout){
+    new EventRound[Boolean]{
+      
+      var received = 0
+      var aliveNeighbours = 0
+
+      def init = {
+        received = 0
+        aliveNeighbours = 0
+        Progress.waitMessage
+      }
     
       def send: Map[ProcessID,Boolean] = {
         neighbours.map( _ -> (alive: Boolean) ).toMap
       }
 
-      def update(mailbox: Map[ProcessID,Boolean]) {
-        val aliveNeighbours = mailbox.count(_._2)
+      def receive(sender: ProcessID, payload: Boolean) = {
+        assert(neighbours contains sender)
+        received += 1
+        if (payload) {
+          aliveNeighbours += 1
+        }
+        if (received == neighbours.size) Progress.goAhead
+        else Progress.waitMessage
+      }
+
+      override def finishRound(didTimeout: Boolean) = {
         if (alive) {
           if (aliveNeighbours != 2 && aliveNeighbours != 3) {
             alive = false
@@ -43,6 +63,7 @@ class CgolProcess(timeout: Long) extends Process[CgolIO] {
         }
         println("replica: "+id.id+","+r+" ("+(row:Int)+","+(col: Int)+") is " + (if(alive) "alive" else "dead"))
         Thread.sleep(1000)
+        true
       }
 
     }
@@ -50,11 +71,11 @@ class CgolProcess(timeout: Long) extends Process[CgolIO] {
 
 }
 
-class ConwayGameOfLife(timeout: Long) extends Algorithm[CgolIO,CgolProcess] {
+class ConwayGameOfLife extends Algorithm[CgolIO,CgolProcess] {
   
   val spec = TrivialSpec
 
-  def process = new CgolProcess(timeout)
+  def process = new CgolProcess
 
   def dummyIO = new CgolIO(0,0,0,false)
 }
@@ -115,7 +136,7 @@ object CgolRunner extends RTOptions {
     val start = java.lang.System.currentTimeMillis()
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    val alg = new ConwayGameOfLife(timeout)
+    val alg = new ConwayGameOfLife
     rt = new Runtime(alg, this, defaultHandler(_))
     rt.startService
 
