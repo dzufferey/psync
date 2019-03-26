@@ -1,7 +1,7 @@
 #!/bin/bash
 source `dirname $0`/deps
 
-t=45
+t=60
 
 echo 'running 21 out of 25 replicas of an eventually strong failure detector (◇ S)'
  java -cp ${cp} example.EsfdRunner -id  0 --conf src/test/resources/25replicas-conf.xml $* &
