@@ -1,15 +1,15 @@
 #!/bin/bash
 source `dirname $0`/deps
 
-t=60
+t=64
 
 echo running 3 LV replicas for $t seconds
- java -cp ${cp} example.PerfTest3 -id 0 --conf src/test/resources/3replicas-conf.xml --packetSize 4096 $* &
- java -cp ${cp} example.PerfTest3 -id 1 --conf src/test/resources/3replicas-conf.xml --packetSize 4096 $* &
- java -cp ${cp} example.PerfTest3 -id 2 --conf src/test/resources/3replicas-conf.xml --packetSize 4096 $* &
-#java '-Dio.netty.leakDetectionLevel=paranoid' '-Dio.netty.leakDetection.targetRecords=25' -cp ${cp} example.PerfTest3 -id 0 --conf src/test/resources/3replicas-conf.xml --packetSize 4096 $* &
-#java '-Dio.netty.leakDetectionLevel=paranoid' '-Dio.netty.leakDetection.targetRecords=25' -cp ${cp} example.PerfTest3 -id 1 --conf src/test/resources/3replicas-conf.xml --packetSize 4096 $* &
-#java '-Dio.netty.leakDetectionLevel=paranoid' '-Dio.netty.leakDetection.targetRecords=25' -cp ${cp} example.PerfTest3 -id 2 --conf src/test/resources/3replicas-conf.xml --packetSize 4096 $* &
+ java -cp ${cp} example.batching.BatchingClient -id 0 --conf src/test/resources/3replicas-conf.xml $* &
+ java -cp ${cp} example.batching.BatchingClient -id 1 --conf src/test/resources/3replicas-conf.xml $* &
+ java -cp ${cp} example.batching.BatchingClient -id 2 --conf src/test/resources/3replicas-conf.xml $* &
+#java '-Dio.netty.leakDetectionLevel=paranoid' '-Dio.netty.leakDetection.targetRecords=25' -cp ${cp} example.batching.BatchingClient -id 0 --conf src/test/resources/3replicas-conf.xml $* &
+#java '-Dio.netty.leakDetectionLevel=paranoid' '-Dio.netty.leakDetection.targetRecords=25' -cp ${cp} example.batching.BatchingClient -id 1 --conf src/test/resources/3replicas-conf.xml $* &
+#java '-Dio.netty.leakDetectionLevel=paranoid' '-Dio.netty.leakDetection.targetRecords=25' -cp ${cp} example.batching.BatchingClient -id 2 --conf src/test/resources/3replicas-conf.xml $* &
 sleep $((t + 2))
 echo stopping ...
 pkill -P $$

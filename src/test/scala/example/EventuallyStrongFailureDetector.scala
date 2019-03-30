@@ -7,28 +7,6 @@ import psync.utils.serialization._
 
 // http://www.cs.yale.edu/homes/aspnes/pinewiki/FailureDetectors.html
 
-object EsfdSerializer {
-
-  implicit val serializer = new KryoRegistration[Set[ProcessID]] {
-    //TODO put something like that in src rather than test
-    import scala.language.existentials // for Set.empty
-    val setSerializer = new CollectionSerializer[ProcessID, Set[ProcessID]]
-    override def registerClassesWithSerializer = Seq(
-      classOf[ProcessID] -> new ProcessIDSerializer,
-      classOf[Set[ProcessID]] -> setSerializer,
-      classOf[scala.collection.immutable.Set.Set1[ProcessID]] -> setSerializer,
-      classOf[scala.collection.immutable.Set.Set2[ProcessID]] -> setSerializer,
-      classOf[scala.collection.immutable.Set.Set3[ProcessID]] -> setSerializer,
-      classOf[scala.collection.immutable.Set.Set4[ProcessID]] -> setSerializer,
-      classOf[scala.collection.immutable.HashSet[ProcessID]] -> setSerializer,
-      classOf[scala.collection.immutable.HashSet.HashTrieSet[ProcessID]] -> setSerializer,
-      Set.empty.getClass -> setSerializer
-    )
-  }
-
-}
-  
-
 class EsfdProcess(period: Long, hysteresis: Int) extends Process[Unit] {
 
   val lastSeen = scala.collection.mutable.Map[ProcessID,Int]()
@@ -45,8 +23,6 @@ class EsfdProcess(period: Long, hysteresis: Int) extends Process[Unit] {
       lastSeen(new ProcessID(i.toShort)) = 0
     }
   }
-
-  import EsfdSerializer._
 
   val rounds = phase(
     new EventRound[Set[ProcessID]]{
@@ -115,7 +91,7 @@ object EsfdRunner extends RTOptions {
     rt.startService
 
     val cur = java.lang.System.currentTimeMillis()
-    Thread.sleep(8000 + start - cur) //time to run all the processes
+    Thread.sleep(math.max(8000 + start - cur, 0)) //time to run all the processes
     rt.startInstance(0, ())
     // idle while the algorithms runs
     while (true) Thread.sleep(100000)

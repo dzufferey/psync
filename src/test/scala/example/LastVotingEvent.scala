@@ -121,6 +121,7 @@ class LVEProcess(timeout: Long) extends Process[ConsensusIO]{
 
     },
 
+    //TODO can be EventRound[Unit] as we just confirm
     new EventRound[Int]{
 
       var nMsg = 0

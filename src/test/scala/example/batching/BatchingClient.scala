@@ -1,6 +1,6 @@
 package example.batching
 
-import example.{DecisionLog,LastVotingB,BConsensusIO}
+import example.{DecisionLog,LastVotingB,BConsensusIO,SyncCondition}
 import psync._
 import psync.runtime._
 import dzufferey.utils.Logger
@@ -38,7 +38,7 @@ class BatchingClient(val options: BatchingClient.type)
 
 
   // PSync runtime
-  val alg = new LastVotingB(options.timeout, options.all)
+  val alg = new LastVotingB(options.timeout, options.sync)
   val rt = new Runtime(alg, options, defaultHandler(_))
   var jitting = true
 
@@ -280,8 +280,10 @@ object BatchingClient extends RTOptions {
   var rpTO = 1
   newOption("--rpTO", dzufferey.arg.Int( i => rpTO = i), "RequestProcessor Timeout (default: 1)")
 
-  var all = false
-  newOption("--all", dzufferey.arg.Unit( () => all = true), "Wait for all the replica rather then n/2 + 1")
+  var sync = SyncCondition.Quorum
+  newOption("--syncQuorum", dzufferey.arg.Unit( () => sync = SyncCondition.Quorum), "progress as soon as there is a quorum")
+  newOption("--syncAll", dzufferey.arg.Unit( () => sync = SyncCondition.All), "progress when all the messages are there")
+  newOption("--syncTO", dzufferey.arg.Unit( () => sync = SyncCondition.OnTO), "progress only on timeout")
 
   val usage = "..."
   

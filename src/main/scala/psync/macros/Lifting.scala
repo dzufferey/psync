@@ -15,6 +15,7 @@ trait Lifting {
       case psync.formula.Literal(x: Long) => q"psync.formula.Literal($x)"
       case psync.formula.Literal(x: Short) => q"psync.formula.Literal($x)"
       case psync.formula.Literal(x: Char) => q"psync.formula.Literal($x)"
+      case psync.formula.Literal(x: Unit) => q"psync.formula.Literal($x)"
       case psync.formula.Literal(x) => sys.error("does not know how to lift: " + x)
       case Variable(n) => q"psync.formula.Variable($n)"
       case Application(sym, args) =>

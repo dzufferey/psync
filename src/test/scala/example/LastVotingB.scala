@@ -4,6 +4,7 @@ import psync._
 import psync.Time._
 import psync.macros.Macros._
 import psync.utils.serialization._
+import SyncCondition._
 
 abstract class BConsensusIO {
   val phase: Int
@@ -11,7 +12,7 @@ abstract class BConsensusIO {
   def decide(value: Array[Byte]): Unit
 }
 
-class LVBProcess(wholeCohort: Boolean, timeout: Long) extends Process[BConsensusIO] {
+class LVBProcess(wholeCohort: SyncCondition, timeout: Long) extends Process[BConsensusIO] {
   
   //variables
   var phase = 0
@@ -30,7 +31,11 @@ class LVBProcess(wholeCohort: Boolean, timeout: Long) extends Process[BConsensus
     ts = -1
     ready = false
     commit = false
-    expectedMajority = if (wholeCohort) n else n/2 + 1
+    expectedMajority = wholeCohort match {
+      case Quorum => n/2 + 1
+      case All => n
+      case OnTO => n + 1
+    }
   }
 
       
@@ -90,19 +95,19 @@ class LVBProcess(wholeCohort: Boolean, timeout: Long) extends Process[BConsensus
 
     },
 
-    new Round[Int](timeout){
+    new Round[Unit](timeout){
 
-      def send(): Map[ProcessID,Int] = {
+      def send(): Map[ProcessID,Unit] = {
         if ( ts == (r/4) ) {
-          Map( coord(r/4) -> 0 )
+          Map( coord(r/4) -> () )
         } else {
-          Map.empty[ProcessID,Int]
+          Map.empty[ProcessID,Unit]
         }
       }
 
       override def expectedNbrMessages = if (id == coord(r/4)) expectedMajority else 0
 
-      def update(mailbox: Map[ProcessID,Int]) {
+      def update(mailbox: Map[ProcessID,Unit]) {
         if (id == coord(r/4) && mailbox.size > n/2) {
           ready = true
         }
@@ -137,7 +142,7 @@ class LVBProcess(wholeCohort: Boolean, timeout: Long) extends Process[BConsensus
 
 }
 
-class LastVotingB(timeout: Long, wholeCohort: Boolean = false) extends Algorithm[BConsensusIO,LVBProcess] {
+class LastVotingB(timeout: Long, wholeCohort: SyncCondition) extends Algorithm[BConsensusIO,LVBProcess] {
 
   val spec = TrivialSpec
   

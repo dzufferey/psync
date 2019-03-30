@@ -5,8 +5,9 @@ import psync.Time._
 import psync.formula._
 import psync.macros.Macros._
 import psync.utils.serialization._
+import SyncCondition._
 
-class LastVoting(timeout: Long) extends Algorithm[ConsensusIO, LVProcess] {
+class LastVoting(timeout: Long, progress: SyncCondition = Quorum) extends Algorithm[ConsensusIO, LVProcess] {
 
   import SpecHelper._
 
@@ -67,7 +68,7 @@ class LastVoting(timeout: Long) extends Algorithm[ConsensusIO, LVProcess] {
     )
   }
   
-  def process = new LVProcess(timeout)
+  def process = new LVProcess(timeout, progress)
   
   def dummyIO = new ConsensusIO{
     val initialValue = 0
@@ -75,7 +76,7 @@ class LastVoting(timeout: Long) extends Algorithm[ConsensusIO, LVProcess] {
   }
 }
   
-class LVProcess(timeout: Long) extends Process[ConsensusIO]{
+class LVProcess(timeout: Long, progress: SyncCondition) extends Process[ConsensusIO]{
 
   //variables
   var x = 0
@@ -88,6 +89,7 @@ class LVProcess(timeout: Long) extends Process[ConsensusIO]{
   //
   var callback: ConsensusIO = null
 
+  var expectedMajority = 0
       
   def coord: ProcessID = new ProcessID((r / 4 % n).toShort)
     
@@ -98,6 +100,11 @@ class LVProcess(timeout: Long) extends Process[ConsensusIO]{
     decided = false 
     ready = false
     commit = false
+    expectedMajority = progress match {
+      case Quorum => n/2 + 1
+      case All => n
+      case OnTO => n + 1
+    }
   }
 
   val rounds = phase(
@@ -110,7 +117,7 @@ class LVProcess(timeout: Long) extends Process[ConsensusIO]{
       override def expectedNbrMessages = {
         if (id == coord) {
           if (r.toInt == 0) 1
-          else n/2 + 1
+          else expectedMajority
         } else 0
       }
 
@@ -151,6 +158,7 @@ class LVProcess(timeout: Long) extends Process[ConsensusIO]{
 
     },
 
+    //TODO can be Round[Unit] as we just confirm
     new Round[Int](timeout){
 
       def send(): Map[ProcessID,Int] = {
@@ -161,7 +169,7 @@ class LVProcess(timeout: Long) extends Process[ConsensusIO]{
         }
       }
 
-      override def expectedNbrMessages = if (id == coord) n/2 + 1 else 0
+      override def expectedNbrMessages = if (id == coord) expectedMajority else 0
 
       def update(mailbox: Map[ProcessID,Int]) {
         if (id == coord && mailbox.size > n/2) {

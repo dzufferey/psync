@@ -15,24 +15,21 @@ import scala.reflect.ClassTag
 import psync.utils.serialization._
 import com.esotericsoftware.kryo.Kryo
 
-class PerfTest2(options: RuntimeOptions,
-                nbrValues: Short,
-                _rate: Short,
-                algorithm: String,
-                logFile: Option[String],
-                additionalOptions: Map[String,String]
-               ) extends DecisionLog[Int]
+class PerfTest2(additionalOptions: Map[String,Any]) extends DecisionLog[Int]
 {
 
   final val Decision = 4
   final val Recovery = 5
 
-  val id = options.id
-  val rate = new Semaphore(_rate)
+  val id = PerfTest2.id
+  val rate = new Semaphore(PerfTest2.rate)
+  val nbrValues = PerfTest2.n.toShort
+  val algorithm = PerfTest2.algorithm
 
-  val log: java.io.BufferedWriter =
-    if (logFile.isDefined) new java.io.BufferedWriter(new java.io.FileWriter(logFile.get + "_" + id + ".log"))
-    else null
+  val log: java.io.BufferedWriter = PerfTest2.logFile match {
+    case Some(f) => new java.io.BufferedWriter(new java.io.FileWriter(f + "_" + id + ".log"))
+    case None => null
+  }
   val logLock = new ReentrantLock
 
   if (log != null) {
@@ -40,7 +37,7 @@ class PerfTest2(options: RuntimeOptions,
     log.newLine()
   }
 
-  val rt = ConsensusSelector(algorithm, options, defaultHandler, additionalOptions)
+  val rt = ConsensusSelector(PerfTest2.algorithm, PerfTest2, defaultHandler, additionalOptions)
   rt.startService
 
   val values   = Array.ofDim[Short](nbrValues)
@@ -351,6 +348,11 @@ object PerfTest2 extends RTOptions {
   newOption("-lv", dzufferey.arg.Unit( () => algorithm = "lv"), "use the last voting algorithm")
   newOption("-lve", dzufferey.arg.Unit( () => algorithm = "lve"), "use the last voting algorithm (event round version)")
   newOption("-a", dzufferey.arg.String( a => algorithm = a), "use the given algorithm (otr, lv, lve, slv)")
+
+  var sync = SyncCondition.Quorum
+  newOption("--syncQuorum", dzufferey.arg.Unit( () => sync = SyncCondition.Quorum), "progress as soon as there is a quorum")
+  newOption("--syncAll", dzufferey.arg.Unit( () => sync = SyncCondition.All), "progress when all the messages are there")
+  newOption("--syncTO", dzufferey.arg.Unit( () => sync = SyncCondition.OnTO), "progress only on timeout")
   
   var after = -1
   newOption("-after", dzufferey.arg.Int( i => after = i), "#round after decision")
@@ -368,9 +370,9 @@ object PerfTest2 extends RTOptions {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
     val opts =
-      if (after >= 0) Map("after" -> after.toString)
-      else Map[String, String]()
-    system = new PerfTest2(this, n.toShort, rate.toShort, algorithm, logFile, opts)
+      if (after >= 0) Map[String, Any]("after" -> after, "sync" -> sync)
+      else Map[String, Any]("sync" -> sync)
+    system = new PerfTest2(opts)
 
     //let the system setup before starting
     Thread.sleep(delay)
