@@ -87,9 +87,9 @@ package object serialization {
       classOf[scala.collection.immutable.HashSet.HashTrieSet[A]] -> setSerializer,
       Set.empty.getClass -> setSerializer
     )
-    override def register(kryo: Kryo) = {
-      implicitly[KryoRegistration[A]].register(kryo)
-      super.register(kryo)
+    override def register(kryo: Kryo): Kryo = {
+      val k1 = implicitly[KryoRegistration[A]].register(kryo)
+      super.register(k1)
     }
   }
 
