@@ -4,20 +4,23 @@ import psync._
 import psync.formula._
 import psync.runtime._
 import psync.macros.Macros._
+import scala.util.Random
 
 
-class TpcEvtProcess(blocking: Boolean, timeout: Long) extends Process[TpcIO] {
+class TpcEvtProcess(all: Boolean, blocking: Boolean, timeout: Long) extends Process[TpcIO] {
   
   var coord = new ProcessID(0)
   var vote = false
   var decision: Option[Boolean] = None //TODO as ghost
   var callback: TpcIO = null
+  var start = 0l
 
   def init(io: TpcIO) = i{
     callback = io
     coord = io.coord
     vote = io.canCommit
     decision = None
+    start = java.lang.System.currentTimeMillis()
   }
     
   val rounds = phase(
@@ -42,9 +45,11 @@ class TpcEvtProcess(blocking: Boolean, timeout: Long) extends Process[TpcIO] {
     new EventRound[Boolean]{
 
       var nMsg = 0
+      var ok = true
 
       def init = {
         nMsg = 0
+        ok = true
         if (id != coord) Progress.goAhead
         else if (blocking) Progress.waitMessage
         else Progress.timeout(timeout)
@@ -56,13 +61,14 @@ class TpcEvtProcess(blocking: Boolean, timeout: Long) extends Process[TpcIO] {
 
       def receive(sender: ProcessID, payload: Boolean) = {
         nMsg += 1
-        if (!payload || nMsg == n) Progress.goAhead
+        ok &= payload
+        if ((!all && !ok) || nMsg == n) Progress.goAhead
         else Progress.unchanged
       }
 
       override def finishRound(didTimeout: Boolean) = {
         if (id == coord) {
-          decision = Some(nMsg == n)
+          decision = Some(ok)
         }
         true
       }
@@ -87,6 +93,10 @@ class TpcEvtProcess(blocking: Boolean, timeout: Long) extends Process[TpcIO] {
       }
 
       override def finishRound(didTimeout: Boolean) = {
+        if (id == coord) {
+          var end = java.lang.System.currentTimeMillis()
+          Console.println("dt = " + (end-start))
+        }
         callback.decide(decision)
         false
       }
@@ -96,13 +106,13 @@ class TpcEvtProcess(blocking: Boolean, timeout: Long) extends Process[TpcIO] {
 
 }
 
-class TwoPhaseCommitEvent(blocking: Boolean, timeout: Long) extends Algorithm[TpcIO,TpcEvtProcess] {
+class TwoPhaseCommitEvent(all: Boolean, blocking: Boolean, timeout: Long) extends Algorithm[TpcIO,TpcEvtProcess] {
 
   import SpecHelper._
 
   val spec = TrivialSpec //TODO
 
-  def process = new TpcEvtProcess(blocking, timeout)
+  def process = new TpcEvtProcess(all, blocking, timeout)
 
   def dummyIO = new TpcIO{
     val coord = new ProcessID(0)
@@ -112,14 +122,20 @@ class TwoPhaseCommitEvent(blocking: Boolean, timeout: Long) extends Algorithm[Tp
 }
 
 
+//TO check dt, the TO must be quick high or better blocking
 object TpcEvtRunner extends RTOptions {
   
   var confFile = "src/test/resources/sample-conf.xml"
   
   var blocking = false
-  newOption("-blocking", dzufferey.arg.Unit( () => blocking = true), "waitMessage for all messages (no timeout)")
+  newOption("--blocking", dzufferey.arg.Unit( () => blocking = true), "waitMessage for all messages (no timeout)")
+
+  var all = false
+  newOption("--all", dzufferey.arg.Unit( () => all = true), "for all messages no progress on false")
 
   val usage = "..."
+
+  val semaphore = new java.util.concurrent.Semaphore(1)
   
   var rt: Runtime[TpcIO,TpcEvtProcess] = null
 
@@ -131,23 +147,33 @@ object TpcEvtRunner extends RTOptions {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
     //Console.println("starting " + id + " with blocking = " + blocking + ", timeout = " + timeout)
-    val alg = new TwoPhaseCommitEvent(blocking, timeout)
+    val alg = new TwoPhaseCommitEvent(all, blocking, timeout)
     rt = new Runtime(alg, this, defaultHandler(_))
     rt.startService
 
-    import scala.util.Random
-    val init = Random.nextBoolean
-    val io = new TpcIO {
-      val coord = new ProcessID(0)
-      val canCommit = init
-      val initialValue = init
-      def decide(value: Option[Boolean]) {
-        Console.println("replica " + id + " decided " + value)
+    while (true) {
+      //prepare IO
+      val init = Random.nextBoolean
+      val io = new TpcIO {
+        val coord = new ProcessID(0)
+        val canCommit = init
+        val initialValue = init
+        def decide(value: Option[Boolean]) {
+          Console.println("replica " + id + " decided " + value)
+          semaphore.release()
+        }
       }
+      //previous is done
+      semaphore.acquire()
+      //sleep some more to be sure (time to clean)
+      if (id == 0) {
+        Thread.sleep(1050)
+      } else {
+        Thread.sleep(1000)
+      }
+      Console.println("replica " + id + " starting with " + init)
+      rt.startInstance(0, io)
     }
-    Thread.sleep(100)
-    Console.println("replica " + id + " starting with " + init)
-    rt.startInstance(0, io)
   }
   
   Runtime.getRuntime().addShutdownHook(
