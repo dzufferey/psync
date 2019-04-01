@@ -283,6 +283,9 @@ object BatchingClient extends RTOptions {
   var cr = 200
   newOption("--cr", dzufferey.arg.Int( i => cr = i), "how many requests to simulate at once (default: 200)")
 
+  var forward = true
+  newOption("--noForwarding", dzufferey.arg.Unit( () => forward = false), "disable forwarding (batches of) requests to the leader")
+
   var sync = SyncCondition.Quorum
   newOption("--syncQuorum", dzufferey.arg.Unit( () => sync = SyncCondition.Quorum), "progress as soon as there is a quorum")
   newOption("--syncAll", dzufferey.arg.Unit( () => sync = SyncCondition.All), "progress when all the messages are there")
@@ -303,14 +306,20 @@ object BatchingClient extends RTOptions {
     Logger("BatchingClient", Notice, id + ", starting")
     begin = java.lang.System.currentTimeMillis()
 
-    //TODO many clients
-    while (true) {
-      var i = 0
-      while (i < cr) {
-        system.propose(id, prng.nextInt(n), prng.nextInt())
-        i += 1
+    //TODO many clients (only if leader or forward)
+    if (forward || id == 0) {
+      while (true) {
+        var i = 0
+        while (i < cr) {
+          system.propose(id, prng.nextInt(n), prng.nextInt())
+          i += 1
+        }
+        Thread.sleep(1)
       }
-      Thread.sleep(1)
+    } else {
+      while (true) {
+        Thread.sleep(1000)
+      }
     }
 
   }
