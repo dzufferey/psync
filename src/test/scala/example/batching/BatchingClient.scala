@@ -280,6 +280,9 @@ object BatchingClient extends RTOptions {
   var rpTO = 1
   newOption("--rpTO", dzufferey.arg.Int( i => rpTO = i), "RequestProcessor Timeout (default: 1)")
 
+  var cr = 200
+  newOption("--cr", dzufferey.arg.Int( i => cr = i), "how many requests to simulate at once (default: 200)")
+
   var sync = SyncCondition.Quorum
   newOption("--syncQuorum", dzufferey.arg.Unit( () => sync = SyncCondition.Quorum), "progress as soon as there is a quorum")
   newOption("--syncAll", dzufferey.arg.Unit( () => sync = SyncCondition.All), "progress when all the messages are there")
@@ -303,7 +306,7 @@ object BatchingClient extends RTOptions {
     //TODO many clients
     while (true) {
       var i = 0
-      while (i < 200) {
+      while (i < cr) {
         system.propose(id, prng.nextInt(n), prng.nextInt())
         i += 1
       }
