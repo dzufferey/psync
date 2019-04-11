@@ -37,7 +37,8 @@ class PerfTest2(additionalOptions: Map[String,Any]) extends DecisionLog[Int]
     log.newLine()
   }
 
-  val rt = ConsensusSelector(PerfTest2.algorithm, PerfTest2, defaultHandler, additionalOptions)
+  val rt = new Runtime(PerfTest2, defaultHandler)
+  val alg = ConsensusSelector(PerfTest2.algorithm, rt, additionalOptions)
   rt.startService
 
   val values   = Array.ofDim[Short](nbrValues)
@@ -89,7 +90,7 @@ class PerfTest2(additionalOptions: Map[String,Any]) extends DecisionLog[Int]
       //println("(1) id: " + id + " idx: " + idx + ", instance: " + inst)
       val first = processDecision(inst, value)
       msg.release
-      rt.stopInstance(inst)
+      alg.stopInstance(inst)
       if (first) checkPending(idx) 
 
     } else if (flag == Recovery) {
@@ -101,7 +102,7 @@ class PerfTest2(additionalOptions: Map[String,Any]) extends DecisionLog[Int]
       assert((inst - newInstance).toShort % nbrValues == 0, "id = " + id + ", recovery from inst = " + inst + " to newInst = " + newInstance)
       val first = processDecision(inst, value, Some(newInstance)) 
       msg.release
-      rt.stopInstance(inst)
+      alg.stopInstance(inst)
       if (first) checkPending(idx) 
 
     } else {
@@ -278,7 +279,7 @@ class PerfTest2(additionalOptions: Map[String,Any]) extends DecisionLog[Int]
         selfStarted add instanceNbr
       }
       //Logger("PerfTest", Notice, "(" + id + ") starting instance " + instanceNbr + " with " + idx + ", " + value + ", " + v + ", self " + self)
-      rt.startInstance(instanceNbr, io, msg)
+      alg.startInstance(instanceNbr, io, msg)
       //if (self) wakeupOthers(instanceNbr, v)
 
     } else {

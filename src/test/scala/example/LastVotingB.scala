@@ -4,6 +4,7 @@ import psync._
 import psync.Time._
 import psync.macros.Macros._
 import psync.utils.serialization._
+import psync.runtime.Runtime
 import SyncCondition._
 
 abstract class BConsensusIO {
@@ -142,7 +143,7 @@ class LVBProcess(wholeCohort: SyncCondition, timeout: Long) extends Process[BCon
 
 }
 
-class LastVotingB(timeout: Long, wholeCohort: SyncCondition) extends Algorithm[BConsensusIO,LVBProcess] {
+class LastVotingB(rt: Runtime, timeout: Long, wholeCohort: SyncCondition) extends Algorithm[BConsensusIO,LVBProcess](rt) {
 
   val spec = TrivialSpec
   

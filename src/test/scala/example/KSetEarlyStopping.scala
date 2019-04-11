@@ -44,7 +44,7 @@ class KSetESProcess(t: Int, k: Int, timeout: Long) extends Process[ConsensusIO] 
 }
 
 
-class KSetEarlyStopping(t: Int, k: Int, timeout: Long) extends Algorithm[ConsensusIO,KSetESProcess] {
+class KSetEarlyStopping(rt: Runtime, t: Int, k: Int, timeout: Long) extends Algorithm[ConsensusIO,KSetESProcess](rt) {
   
   val spec = TrivialSpec
 
@@ -68,7 +68,7 @@ object KSetESRunner extends RTOptions {
   
   val usage = "..."
   
-  var rt: Runtime[ConsensusIO,KSetESProcess] = null
+  var rt: Runtime = null
 
   def defaultHandler(msg: Message) {
     msg.release
@@ -77,9 +77,9 @@ object KSetESRunner extends RTOptions {
   def main(args: Array[java.lang.String]) {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    val alg = new KSetEarlyStopping(t, k, timeout)
-    rt = new Runtime(alg, this, defaultHandler(_))
+    rt = new Runtime(this, defaultHandler(_))
     rt.startService
+    val alg = new KSetEarlyStopping(rt, t, k, timeout)
 
     import scala.util.Random
     val init = Random.nextInt
@@ -91,7 +91,7 @@ object KSetESRunner extends RTOptions {
     }
     Thread.sleep(100)
     Console.println("replica " + id + " starting with " + init)
-    rt.startInstance(0, io)
+    alg.startInstance(0, io)
   }
   
   Runtime.getRuntime().addShutdownHook(

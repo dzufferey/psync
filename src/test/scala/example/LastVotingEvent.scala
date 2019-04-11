@@ -4,10 +4,11 @@ import psync._
 import psync.Time._
 import psync.formula._
 import psync.macros.Macros._
+import psync.runtime.Runtime
 import psync.utils.serialization._
 
 
-class LastVotingEvent(timeout: Long) extends Algorithm[ConsensusIO, LVEProcess] {
+class LastVotingEvent(rt: Runtime, timeout: Long) extends Algorithm[ConsensusIO, LVEProcess](rt) {
 
   import SpecHelper._
 

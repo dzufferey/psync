@@ -8,6 +8,7 @@ import psync._
 import psync.Time._
 import psync.macros.Macros._
 import psync.utils.serialization._
+import psync.runtime.Runtime
 
 class SlvProcess(timeout: Long) extends Process[ConsensusIO] {
 
@@ -104,7 +105,7 @@ class SlvProcess(timeout: Long) extends Process[ConsensusIO] {
 
 }
 
-class ShortLastVoting(timeout: Long) extends Algorithm[ConsensusIO,SlvProcess] {
+class ShortLastVoting(rt: Runtime, timeout: Long) extends Algorithm[ConsensusIO,SlvProcess](rt) {
 
   val spec = TrivialSpec
   

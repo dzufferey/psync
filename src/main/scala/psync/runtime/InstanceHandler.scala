@@ -38,22 +38,19 @@ trait InstHandler {
 }
 
 class InstanceHandler[IO,P <: Process[IO]](proc: P,
-                          rt: psync.runtime.Runtime[IO,P],
-                          pktServ: PacketServer,
-                          dispatcher: InstanceDispatcher,
-                          defaultHandler: Message => Unit,
-                          options: RuntimeOptions) extends Runnable with InstHandler {
+                          alg: Algorithm[IO,P],
+                          rt: psync.runtime.Runtime) extends Runnable with InstHandler {
 
-  protected val buffer = new ArrayBlockingQueue[Message](options.bufferSize)
+  protected val buffer = new ArrayBlockingQueue[Message](rt.options.bufferSize)
 
-  protected val sendWhenCatchingUp = options.sendWhenCatchingUp
-  protected val delayFirstSend = options.delayFirstSend
+  protected val sendWhenCatchingUp = rt.options.sendWhenCatchingUp
+  protected val delayFirstSend = rt.options.delayFirstSend
 
   protected var instance: Short = 0
   protected var self: ProcessID = new ProcessID(-1)
   
   private final val block = Long.MinValue
-  protected var timeout = options.timeout
+  protected var timeout = rt.options.timeout
   protected var roundStart: Long = 0
   protected var strict = false
   
@@ -63,8 +60,8 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   /** keep track of the processes which have already send for the round */
   protected var from = LongBitSet.empty
   
-  /** catch-up after f+1 messages have been received */
-  protected val f = 0 //TODO as option
+  /** catch-up after nbrByzantine+1 messages have been received */
+  protected val nbrByzantine = rt.options.nbrByzantine
   /** keep the max round seen for each process (used for deciding when to catch-up) */
   protected var maxRnd: Array[Int] = Array(0)
   /** Since we might block on the round, we buffer messages that will be delivered later. */
@@ -72,7 +69,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   /** discard when there are two many messages from one process */
   protected var maxPending = 32 //TODO as option
 
-  protected val globalSizeHint = options.packetSize
+  protected val globalSizeHint = rt.options.packetSize
   protected val kryoIn = new KryoByteBufInput(null)
   protected val kryoOut = new KryoByteBufOutput(null)
   protected val kryo = {
@@ -92,7 +89,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
 
   /** Forward the packet to the defaultHandler in another thread/task */
   protected def default(msg: Message) {
-    rt.submitTask(new Runnable { def run = defaultHandler(msg) })
+    rt.default(msg)
   }
 
   /** Prepare the handler for a execution.
@@ -124,9 +121,6 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
 
     // enqueue pending messages
     msgs.foreach(newPacket)
-
-    // register
-    dispatcher.add(inst, this)
   }
 
   protected def freeRemainingMessages {
@@ -282,7 +276,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   }
 
   @inline private final def computeNextRound {
-    if (f == 0) {
+    if (nbrByzantine == 0) {
       // find max relative to currentRound
       var i = 0
       var currMax = currentRound
@@ -294,9 +288,10 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       }
       nextRound = currMax
     } else {
-      // TODO the right way of computing the next round is to sort maxRnd and drop the f highest values
+      // the right way of computing the next round is to sort maxRnd and drop the nbrByzantine highest values
       // see https://en.wikipedia.org/wiki/Selection_algorithm but since we have small size we can just sort ...
-      ???
+      //TODO more efficient
+      nextRound = currentRound + math.max(0, maxRnd.map(_ - currentRound).sorted.apply(maxRnd.size - nbrByzantine - 1))
     }
   }
 
@@ -385,7 +380,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     }
     def sending(pid: ProcessID) {
       assert(pid != self)
-      pktServ.send(pid, buffer)
+      rt.send(pid, buffer)
       sent += 1
     }
     checkProgress(proc.send(kryo, alloc, sending), false)
@@ -395,9 +390,9 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
 
   protected def stop {
     Logger("InstanceHandler", Info, "stopping instance " + instance)
-    dispatcher.remove(instance)
+    rt.remove(instance)
     freeRemainingMessages
-    rt.recycle(this)
+    alg.recycle(this)
     Thread.interrupted //clear interrupt
   }
 

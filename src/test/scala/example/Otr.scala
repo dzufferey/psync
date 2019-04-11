@@ -5,6 +5,7 @@ import psync.formula._
 import psync.macros.Macros._
 import psync.verification.{requires,ensures}
 import psync.utils.serialization._
+import psync.runtime.Runtime
 
 //like OTR but uses a boolean flag instead of an option for the decision
 
@@ -85,7 +86,7 @@ class OtrProcess(timeout: Long, afterDecision: Int) extends Process[ConsensusIO]
 }
 
 
-class OTR(timeout: Long, afterDecision: Int = 2) extends Algorithm[ConsensusIO, OtrProcess] {
+class OTR(rt: Runtime, timeout: Long, afterDecision: Int = 2) extends Algorithm[ConsensusIO, OtrProcess](rt) {
 
   import SpecHelper._
 

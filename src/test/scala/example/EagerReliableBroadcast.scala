@@ -47,7 +47,7 @@ class ErbProcess(timeout: Long) extends Process[BroadcastIO] {
 }
 
 //http://link.springer.com/chapter/10.1007%2F978-3-642-15260-3_3
-class EagerReliableBroadcast(timeout: Long) extends Algorithm[BroadcastIO,ErbProcess] {
+class EagerReliableBroadcast(rt: Runtime, timeout: Long) extends Algorithm[BroadcastIO,ErbProcess](rt) {
 
   val spec = TrivialSpec
 
@@ -65,7 +65,8 @@ object ERBRunner extends RTOptions {
   
   val usage = "..."
   
-  var rt: Runtime[BroadcastIO,ErbProcess] = null
+  var alg: EagerReliableBroadcast = null
+  var rt: Runtime = null
 
   val delivered = new java.util.concurrent.ConcurrentHashMap[Short, Boolean]
 
@@ -82,16 +83,16 @@ object ERBRunner extends RTOptions {
     if (already) {
       msg.release
     } else {
-      rt.startInstance(inst, other, Set(msg))
+      alg.startInstance(inst, other, Set(msg))
     }
   }
   
   def main(args: Array[java.lang.String]) {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    val alg = new EagerReliableBroadcast(timeout)
-    rt = new Runtime(alg, this, defaultHandler(_))
+    rt = new Runtime(this, defaultHandler(_))
     rt.startService
+    alg = new EagerReliableBroadcast(rt, timeout)
 
     import scala.util.Random
     val init = Random.nextInt
@@ -104,7 +105,7 @@ object ERBRunner extends RTOptions {
     Thread.sleep(100)
     Console.println("replica " + id + " proposing " + init)
     delivered.put(id, true)
-    rt.startInstance(id, io)
+    alg.startInstance(id, io)
   }
   
   Runtime.getRuntime().addShutdownHook(

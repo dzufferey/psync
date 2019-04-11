@@ -3,6 +3,7 @@ package example
 import psync._
 import psync.macros.Macros._
 import psync.utils.serialization._
+import psync.runtime.Runtime
 
 abstract class MlvIO{
   // Left(p) = acceptor, Right(v) = proposer+acceptor
@@ -116,7 +117,7 @@ class MlvProcess(timeout: Long) extends Process[MlvIO] {
 
 }
 
-class MultiLastVoting(timeout: Long) extends Algorithm[MlvIO,MlvProcess] {
+class MultiLastVoting(rt: Runtime, timeout: Long) extends Algorithm[MlvIO,MlvProcess](rt) {
 
   val spec = TrivialSpec
   

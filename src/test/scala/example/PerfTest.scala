@@ -34,6 +34,7 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
   var versionNbr = 0l
 
   var rt: Runtime[ConsensusIO,_] = null
+  var alg: Algorithm[ConsensusIO,_] = null
 
   final val Decision = 3
   final val TooLate = 4

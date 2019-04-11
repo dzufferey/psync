@@ -35,7 +35,7 @@ class FloodMinProcess(f: Int, timeout: Long) extends Process[ConsensusIO] {
 
 }
 
-class FloodMin(f: Int, timeout: Long) extends Algorithm[ConsensusIO,FloodMinProcess] {
+class FloodMin(rt: Runtime, f: Int, timeout: Long) extends Algorithm[ConsensusIO,FloodMinProcess](rt) {
 
   val spec = TrivialSpec //TODO we need safety predicates on transition to account for synchronous crash-stop
 
@@ -56,7 +56,7 @@ object FloodMinRunner extends RTOptions {
   
   val usage = "..."
   
-  var rt: Runtime[ConsensusIO,FloodMinProcess] = null
+  var rt: Runtime = null
 
   def defaultHandler(msg: Message) {
     msg.release
@@ -65,9 +65,9 @@ object FloodMinRunner extends RTOptions {
   def main(args: Array[java.lang.String]) {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    val alg = new FloodMin(f, timeout)
-    rt = new Runtime(alg, this, defaultHandler(_))
+    rt = new Runtime(this, defaultHandler(_))
     rt.startService
+    val alg = new FloodMin(rt, f, timeout)
 
     import scala.util.Random
     val init = Random.nextInt
@@ -79,7 +79,7 @@ object FloodMinRunner extends RTOptions {
     }
     Thread.sleep(100)
     Console.println("replica " + id + " starting with " + init)
-    rt.startInstance(0, io)
+    alg.startInstance(0, io)
   }
   
   Runtime.getRuntime().addShutdownHook(

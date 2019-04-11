@@ -106,7 +106,7 @@ class TpcEvtProcess(all: Boolean, blocking: Boolean, timeout: Long) extends Proc
 
 }
 
-class TwoPhaseCommitEvent(all: Boolean, blocking: Boolean, timeout: Long) extends Algorithm[TpcIO,TpcEvtProcess] {
+class TwoPhaseCommitEvent(rt: Runtime, all: Boolean, blocking: Boolean, timeout: Long) extends Algorithm[TpcIO,TpcEvtProcess](rt) {
 
   import SpecHelper._
 
@@ -137,7 +137,7 @@ object TpcEvtRunner extends RTOptions {
 
   val semaphore = new java.util.concurrent.Semaphore(1)
   
-  var rt: Runtime[TpcIO,TpcEvtProcess] = null
+  var rt: Runtime = null
 
   def defaultHandler(msg: Message) {
     msg.release
@@ -147,9 +147,9 @@ object TpcEvtRunner extends RTOptions {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
     //Console.println("starting " + id + " with blocking = " + blocking + ", timeout = " + timeout)
-    val alg = new TwoPhaseCommitEvent(all, blocking, timeout)
-    rt = new Runtime(alg, this, defaultHandler(_))
+    rt = new Runtime(this, defaultHandler(_))
     rt.startService
+    val alg = new TwoPhaseCommitEvent(rt, all, blocking, timeout)
 
     while (true) {
       //prepare IO
@@ -172,7 +172,7 @@ object TpcEvtRunner extends RTOptions {
         Thread.sleep(1000)
       }
       Console.println("replica " + id + " starting with " + init)
-      rt.startInstance(0, io)
+      alg.startInstance(0, io)
     }
   }
   

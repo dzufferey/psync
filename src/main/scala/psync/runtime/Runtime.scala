@@ -5,18 +5,12 @@ import io.netty.buffer.{ByteBuf,PooledByteBufAllocator}
 import io.netty.channel.socket._
 import dzufferey.utils.LogLevel._
 import dzufferey.utils.Logger
-import java.util.concurrent.ArrayBlockingQueue
-import java.util.concurrent.atomic.AtomicInteger
 
 
-class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
-                  options: RuntimeOptions,
-                  defaultHandler: Message => Unit) {
+class Runtime(val options: RuntimeOptions,
+              defaultHandler: Message => Unit) {
 
   private var srv: PacketServer = null
-
-  //TODO try a stack for better locality
-  private val processPool = new ArrayBlockingQueue[InstanceHandler[IO,P]](options.processPool)
 
   private val executor = options.workers match {
     case Factor(n) =>
@@ -32,30 +26,10 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
       java.util.concurrent.Executors.newCachedThreadPool()
   }
 
-  private def createProcess: InstanceHandler[IO,P] = {
-    assert(srv != null)
-    val p = alg.process
-    val dispatcher = srv.dispatcher
-    new InstanceHandler(p, this, srv, dispatcher, defaultHandler, options)
-  }
-
-  private def getProcess: InstanceHandler[IO,P] = {
-    val proc = processPool.poll
-    if (proc == null) {
-      Logger("Runtime", Warning, "processPool is running low")
-      createProcess
-    } else {
-      proc
-    }
-  }
-
-  def recycle(p: InstanceHandler[IO,P]) {
-    processPool.offer(p)
-  }
-
   /** Start an instance of the algorithm. */
-  def startInstance(
+  protected[psync] def startInstance[IO, P <: Process[IO]](
       instanceId: Short,
+      process: InstanceHandler[IO,P],
       io: IO,
       messages: Set[Message] = Set.empty)
   {
@@ -63,7 +37,6 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
     if (srv != null) {
       //an instance is actually encapsulated by one process
       val grp = srv.group
-      val process = getProcess
       val messages2 = messages.filter( m => {
         if (!Flags.userDefinable(m.flag) && m.flag != Flags.dummy) {
           true
@@ -73,6 +46,7 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
         }
       })
       process.prepare(io, grp, instanceId, messages2)
+      srv.dispatcher.add(instanceId, process)
       submitTask(process)
     } else {
       Logger.logAndThrow("Runtime", Error, "service not running")
@@ -80,13 +54,25 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
   }
 
   /** Stop a running instance of the algorithm. */
-  def stopInstance(instanceId: Short) {
+  protected[psync] def stopInstance(instanceId: Short) {
     Logger("Runtime", Info, "stopping instance " + instanceId)
     if (srv != null) {
       srv.dispatcher.findInstance(instanceId).map(_.interrupt(instanceId))
     } else {
       Logger.logAndThrow("Runtime", Error, "service not running")
     }
+  }
+  
+  protected[psync] def remove(instanceId: Short) {
+    if (srv != null) {
+      srv.dispatcher.remove(instanceId)
+    } else {
+      Logger.logAndThrow("Runtime", Error, "service not running")
+    }
+  }
+  
+  protected[psync] def default(msg: Message) {
+    submitTask(new Runnable { def run = defaultHandler(msg) })
   }
 
   /** Start the service that ... */
@@ -113,7 +99,6 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
         new TCPPacketServer(executor, port, grp, defaultHandler, options)
     }
     srv.start
-    for (i <- 0 until options.processPool) processPool.offer(createProcess)
   }
 
   def shutdown {
@@ -143,6 +128,10 @@ class Runtime[IO,P <: Process[IO]](val alg: Algorithm[IO,P],
     assert(srv != null)
     payload.setLong(0, tag.underlying)
     srv.send(dest, payload)
+  }
+
+  protected[psync] def send(to: ProcessID, buf: ByteBuf) {
+    srv.send(to, buf)
   }
 
   def getGroup = {

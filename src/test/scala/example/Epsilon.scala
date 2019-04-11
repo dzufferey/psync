@@ -69,7 +69,7 @@ class EpsilonProcess(f: Int, epsilon: Double, timeout: Long) extends Process[Rea
   )
 }
 
-class EpsilonConsensus(f: Int, epsilon: Double, timeout: Long) extends Algorithm[RealConsensusIO,EpsilonProcess] {
+class EpsilonConsensus(rt: Runtime, f: Int, epsilon: Double, timeout: Long) extends Algorithm[RealConsensusIO,EpsilonProcess](rt) {
 
   val spec = TrivialSpec //TODO we need to add support for Real numbers
 
@@ -93,7 +93,7 @@ object EpsilonRunner extends RTOptions {
   
   val usage = "..."
   
-  var rt: Runtime[RealConsensusIO,EpsilonProcess] = null
+  var rt: Runtime = null
 
   def defaultHandler(msg: Message) {
     msg.release
@@ -103,9 +103,9 @@ object EpsilonRunner extends RTOptions {
     val start = java.lang.System.currentTimeMillis()
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    val alg = new EpsilonConsensus(f, e, timeout)
-    rt = new Runtime(alg, this, defaultHandler(_))
+    rt = new Runtime(this, defaultHandler(_))
     rt.startService
+    val alg = new EpsilonConsensus(rt, f, e, timeout)
 
     import scala.util.Random
     val init = Random.nextDouble
@@ -118,7 +118,7 @@ object EpsilonRunner extends RTOptions {
     val cur = java.lang.System.currentTimeMillis()
     Thread.sleep(5000 + start - cur)
     Console.println("replica " + id + " starting with " + init)
-    rt.startInstance(0, io)
+    alg.startInstance(0, io)
   }
   
   Runtime.getRuntime().addShutdownHook(

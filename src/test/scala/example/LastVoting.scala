@@ -5,9 +5,10 @@ import psync.Time._
 import psync.formula._
 import psync.macros.Macros._
 import psync.utils.serialization._
+import psync.runtime.Runtime
 import SyncCondition._
 
-class LastVoting(timeout: Long, progress: SyncCondition = Quorum) extends Algorithm[ConsensusIO, LVProcess] {
+class LastVoting(rt: Runtime, timeout: Long, progress: SyncCondition = Quorum) extends Algorithm[ConsensusIO, LVProcess](rt) {
 
   import SpecHelper._
 

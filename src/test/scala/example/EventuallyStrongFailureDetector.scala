@@ -56,7 +56,7 @@ class EsfdProcess(period: Long, hysteresis: Int) extends Process[Unit] {
   )
 }
 
-class Esfd(period: Long, hysteresis: Int) extends Algorithm[Unit,EsfdProcess] {
+class Esfd(rt: Runtime, period: Long, hysteresis: Int) extends Algorithm[Unit,EsfdProcess](rt) {
   
   val spec = TrivialSpec
 
@@ -76,7 +76,7 @@ object EsfdRunner extends RTOptions {
   
   val usage = "..."
   
-  var rt: Runtime[Unit,EsfdProcess] = null
+  var rt: Runtime = null
 
   def defaultHandler(msg: Message) {
     msg.release
@@ -86,13 +86,13 @@ object EsfdRunner extends RTOptions {
     val start = java.lang.System.currentTimeMillis()
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    val alg = new Esfd(period, hysteresis)
-    rt = new Runtime(alg, this, defaultHandler(_))
+    rt = new Runtime(this, defaultHandler(_))
     rt.startService
+    val alg = new Esfd(rt, period, hysteresis)
 
     val cur = java.lang.System.currentTimeMillis()
     Thread.sleep(math.max(8000 + start - cur, 0)) //time to run all the processes
-    rt.startInstance(0, ())
+    alg.startInstance(0, ())
     // idle while the algorithms runs
     while (true) Thread.sleep(100000)
   }

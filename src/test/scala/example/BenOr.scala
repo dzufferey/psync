@@ -102,7 +102,7 @@ class BenOrProcess(timeout: Long) extends Process[BinaryConsensusIO] {
 
 }
 
-class BenOr(timeout: Long) extends Algorithm[BinaryConsensusIO,BenOrProcess] {
+class BenOr(rt: Runtime, timeout: Long) extends Algorithm[BinaryConsensusIO,BenOrProcess](rt) {
 
   import SpecHelper._
 
@@ -148,7 +148,7 @@ object BenOrRunner extends RTOptions {
 
   val usage = "..."
   
-  var rt: Runtime[BinaryConsensusIO,BenOrProcess] = null
+  var rt: Runtime = null
 
   def defaultHandler(msg: Message) {
     msg.release
@@ -157,9 +157,9 @@ object BenOrRunner extends RTOptions {
   def main(args: Array[java.lang.String]) {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    val alg = new BenOr(timeout)
-    rt = new Runtime(alg, this, defaultHandler(_))
+    rt = new Runtime(this, defaultHandler(_))
     rt.startService
+    val alg = new BenOr(rt, timeout)
 
     import scala.util.Random
     val init = Random.nextBoolean
@@ -171,7 +171,7 @@ object BenOrRunner extends RTOptions {
     }
     Thread.sleep(100)
     Console.println("replica " + id + " starting with " + init)
-    rt.startInstance(0, io)
+    alg.startInstance(0, io)
   }
   
   Runtime.getRuntime().addShutdownHook(

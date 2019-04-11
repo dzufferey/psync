@@ -4,6 +4,7 @@ import psync._
 import psync.formula._
 import psync.macros.Macros._
 import psync.utils.serialization._
+import psync.runtime.Runtime
 
 class Otr2Process(timeout: Long, afterDecision: Int) extends Process[ConsensusIO]{
   
@@ -63,7 +64,7 @@ class Otr2Process(timeout: Long, afterDecision: Int) extends Process[ConsensusIO
 }
 
 //a version of OTR that eventually terminates
-class OTR2(timeout: Long, afterDecision: Int = 2) extends Algorithm[ConsensusIO,Otr2Process] {
+class OTR2(rt: Runtime, timeout: Long, afterDecision: Int = 2) extends Algorithm[ConsensusIO,Otr2Process](rt) {
 
   import SpecHelper._
 

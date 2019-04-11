@@ -67,7 +67,7 @@ class LatticeAgreementProcess(timeout: Long) extends Process[LatticeIO]{
 
 }
 
-class LatticeAgreement(timeout: Long) extends Algorithm[LatticeIO,LatticeAgreementProcess] {
+class LatticeAgreement(rt: Runtime, timeout: Long) extends Algorithm[LatticeIO,LatticeAgreementProcess](rt) {
 
   val AD  = new Domain[Lattice.T]
 
@@ -97,7 +97,7 @@ object LatticeRunner extends RTOptions {
   
   val usage = "..."
   
-  var rt: Runtime[LatticeIO,LatticeAgreementProcess] = null
+  var rt: Runtime = null
 
   def defaultHandler(msg: Message) {
     msg.release
@@ -106,9 +106,9 @@ object LatticeRunner extends RTOptions {
   def main(args: Array[java.lang.String]) {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    val alg = new LatticeAgreement(timeout)
     rt = new Runtime(alg, this, defaultHandler(_))
     rt.startService
+    val alg = new LatticeAgreement(rt, timeout)
 
     import scala.util.Random
     val n = Random.nextInt(5) + 1
@@ -121,7 +121,7 @@ object LatticeRunner extends RTOptions {
     }
     Thread.sleep(100)
     Console.println("replica " + id + " starting with " + init)
-    rt.startInstance(0, io)
+    alg.startInstance(0, io)
   }
   
   Runtime.getRuntime().addShutdownHook(

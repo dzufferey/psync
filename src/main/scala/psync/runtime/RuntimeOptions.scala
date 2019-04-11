@@ -26,6 +26,7 @@ trait RuntimeOptions {
   def group = _group
   def protocol = _protocol
   def timeout = _timeout
+  def nbrByzantine = _nbrByzantine
   def sendWhenCatchingUp = _sendWhenCatchingUp
   def delayFirstSend = _delayFirstSend
   def packetSize = _packetSize
@@ -44,6 +45,7 @@ trait RuntimeOptions {
   protected var _sendWhenCatchingUp = true
   protected var _delayFirstSend = -1
   protected var _timeout = 10l
+  protected var _nbrByzantine = 0
   protected var _packetSize = -1
   protected var _bufferSize = 64
   protected var _processPool = 64
@@ -66,8 +68,9 @@ abstract class RTOptions extends DefaultOptions with RuntimeOptions {
                                                                                     "the network layer interface used by Netty: NIO/EPOLL (default: NIO).")
   newOption("--protocol",               Enum(NetworkProtocol, (s: NetworkProtocol.NetworkProtocol) => _protocol = s),
                                                                                     "the network protocol: UDP/TCP/TCP_SSL (default: TCP).")
-  newOption("-to",                      Int( i => _timeout = i.toLong ),            "default timeout for runtime (default: 10).")
-  newOption("--timeout",                Int( i => _timeout = i.toLong ),            "default timeout for runtime (default: 10).")
+  newOption("-to",                      Long( i => _timeout = i ),                  "default timeout for runtime (default: 10).")
+  newOption("--timeout",                Long( i => _timeout = i ),                  "default timeout for runtime (default: 10).")
+  newOption("--byzantine",              Int( i => _nbrByzantine = i ),              "number of byzantine processes (default: 0).")
   newOption("--noSendWhenCatchingUp",   Unit( () => _sendWhenCatchingUp = false ),  "disable send when catching up.")
   newOption("--delayFirstSend",         Int( i => _delayFirstSend = i ),            "delay the messages send in the first round (default: -1).")
   newOption("--packetSize",             Int( i => _packetSize = i ),                "max packet size for the memory allocator (default: what netty provides).")

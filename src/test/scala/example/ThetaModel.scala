@@ -100,7 +100,7 @@ class TmProcess[A: ClassTag: KryoRegistration](f: Int, theta: Double) extends Pr
 
 }
 
-class ThetaModel(f: Int, theta: Double) extends Algorithm[TmIO[String],TmProcess[String]] {
+class ThetaModel(rt: Runtime, f: Int, theta: Double) extends Algorithm[TmIO[String],TmProcess[String]](rt) {
   
   val spec = TrivialSpec
 
@@ -123,7 +123,7 @@ object TmRunner extends RTOptions {
   
   val usage = "..."
   
-  var rt: Runtime[TmIO[String],TmProcess[String]] = null
+  var rt: Runtime = null
 
   def defaultHandler(msg: Message) {
     msg.release
@@ -133,9 +133,9 @@ object TmRunner extends RTOptions {
     val start = java.lang.System.currentTimeMillis()
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    val alg = new ThetaModel(f, theta)
-    rt = new Runtime(alg, this, defaultHandler(_))
+    rt = new Runtime(this, defaultHandler(_))
     rt.startService
+    val alg = new ThetaModel(rt, f, theta)
 
     val io = new TmIO[String]{
       def getMessage(t: Time, pid: ProcessID) = "Hello " + pid.id
@@ -146,7 +146,7 @@ object TmRunner extends RTOptions {
 
     val cur = java.lang.System.currentTimeMillis()
     Thread.sleep(3000 + start - cur) //time to run all the processes
-    rt.startInstance(0, io)
+    alg.startInstance(0, io)
     // idle while the algorithms runs
     while (true) Thread.sleep(100000)
   }

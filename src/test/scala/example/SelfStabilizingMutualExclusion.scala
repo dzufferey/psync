@@ -45,7 +45,7 @@ class SelfStabilizingMutualExclusionProcess extends Process[Unit] {
   )
 }
 
-class SelfStabilizingMutualExclusion extends Algorithm[Unit,SelfStabilizingMutualExclusionProcess] {
+class SelfStabilizingMutualExclusion(rt: Runtime) extends Algorithm[Unit,SelfStabilizingMutualExclusionProcess](rt) {
   
   val spec = TrivialSpec
 
@@ -61,7 +61,7 @@ object SelfStabilizingRunner extends RTOptions {
   
   val usage = "..."
   
-  var rt: Runtime[Unit,SelfStabilizingMutualExclusionProcess] = null
+  var rt: Runtime = null
 
   def defaultHandler(msg: Message) {
     msg.release
@@ -71,13 +71,13 @@ object SelfStabilizingRunner extends RTOptions {
     val start = java.lang.System.currentTimeMillis()
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    val alg = new SelfStabilizingMutualExclusion()
-    rt = new Runtime(alg, this, defaultHandler(_))
+    rt = new Runtime(this, defaultHandler(_))
     rt.startService
+    val alg = new SelfStabilizingMutualExclusion(rt)
 
     val cur = java.lang.System.currentTimeMillis()
     //Thread.sleep(8000 + start - cur) //time to run all the processes
-    rt.startInstance(0, ())
+    alg.startInstance(0, ())
     // idle while the algorithms runs
     while (true) Thread.sleep(100000)
   }

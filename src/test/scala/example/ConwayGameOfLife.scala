@@ -71,7 +71,7 @@ class CgolProcess extends Process[CgolIO] {
 
 }
 
-class ConwayGameOfLife extends Algorithm[CgolIO,CgolProcess] {
+class ConwayGameOfLife(rt: Runtime) extends Algorithm[CgolIO,CgolProcess](rt) {
   
   val spec = TrivialSpec
 
@@ -126,7 +126,7 @@ object CgolRunner extends RTOptions {
   
   val usage = "..."
   
-  var rt: Runtime[CgolIO,CgolProcess] = null
+  var rt: Runtime = null
 
   def defaultHandler(msg: Message) {
     msg.release
@@ -136,15 +136,15 @@ object CgolRunner extends RTOptions {
     val start = java.lang.System.currentTimeMillis()
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    val alg = new ConwayGameOfLife
-    rt = new Runtime(alg, this, defaultHandler(_))
+    rt = new Runtime(this, defaultHandler(_))
     rt.startService
+    val alg = new ConwayGameOfLife(rt)
 
     val io = new CgolIO(id, rows, cols, scala.util.Random.nextBoolean)
     val cur = java.lang.System.currentTimeMillis()
     Thread.sleep(8000 + start - cur)
     Console.println("replica " + id + " starting with " + io.init)
-    rt.startInstance(0, io)
+    alg.startInstance(0, io)
     Thread.sleep(20000)
     System.exit(0)
   }
