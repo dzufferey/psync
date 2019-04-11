@@ -67,7 +67,7 @@ class Runtime(val options: RuntimeOptions,
     if (srv != null) {
       srv.dispatcher.remove(instanceId)
     } else {
-      Logger.logAndThrow("Runtime", Error, "service not running")
+      Logger("Runtime", Warning, "service not running")
     }
   }
   

@@ -48,7 +48,7 @@ trait RuntimeOptions {
   protected var _nbrByzantine = 0
   protected var _packetSize = -1
   protected var _bufferSize = 64
-  protected var _processPool = 64
+  protected var _processPool = 16
   protected var _workers: Workers = Adapt
   protected var _port = -1
   protected var _dispatch = 7
@@ -75,7 +75,7 @@ abstract class RTOptions extends DefaultOptions with RuntimeOptions {
   newOption("--delayFirstSend",         Int( i => _delayFirstSend = i ),            "delay the messages send in the first round (default: -1).")
   newOption("--packetSize",             Int( i => _packetSize = i ),                "max packet size for the memory allocator (default: what netty provides).")
   newOption("--bufferSize",             Int( i => _bufferSize = i ),                "size of the buffer for each instancer (default: 64).")
-  newOption("--processPool",            Int( i => _processPool = i ),               "how many processes are allocated at start (default: 64).")
+  newOption("--processPool",            Int( i => _processPool = i ),               "how many processes are allocated at start (default: 16).")
   newOption("--workers",                String( s => _workers = parseWorkers(s) ),  "number of workers: adaptative/\\d(fixed)/\\dx(coeff on #CPU) (default: adaptative).")
   newOption("--port",                   Int( i => _port = i ),                      "port number, in case we don't know which replica we are.")
   newOption("--dispatch",               Int( i => _dispatch = i ),                  "log₂ fan out of the dispatcher (default: 7).")

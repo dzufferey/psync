@@ -51,7 +51,7 @@ abstract class Algorithm[IO, P <: Process[IO]](runtime: Runtime) extends Specs[I
 
   //TODO try a stack for better locality
   private val processPool = {
-    if (runtime != null) new ArrayBlockingQueue[InstanceHandler[IO,P]](runtime.options.processPool)
+    if (runtime != null) new ArrayBlockingQueue[InstanceHandler[IO,P]](2*runtime.options.processPool)
     else new ArrayBlockingQueue[InstanceHandler[IO,P]](0)
   }
 
@@ -76,7 +76,11 @@ abstract class Algorithm[IO, P <: Process[IO]](runtime: Runtime) extends Specs[I
   }
     
   //preallocate
-  for (i <- 0 until processPool.size) processPool.offer(createProcess)
+  if (runtime != null) {
+    for (i <- 0 until runtime.options.processPool) {
+      processPool.offer(createProcess)
+    }
+  }
 
 }
 

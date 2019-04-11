@@ -106,7 +106,7 @@ object LatticeRunner extends RTOptions {
   def main(args: Array[java.lang.String]) {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
-    rt = new Runtime(alg, this, defaultHandler(_))
+    rt = new Runtime(this, defaultHandler(_))
     rt.startService
     val alg = new LatticeAgreement(rt, timeout)
 

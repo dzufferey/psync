@@ -137,7 +137,7 @@ class MConsensusProcess(timeout: Long) extends Process[MembershipIO] {
 }
 
 //this is the OTR but for MembershipOp
-class MConsensus(timeout: Long) extends Algorithm[MembershipIO,MConsensusProcess] {
+class MConsensus(rt: Runtime, timeout: Long) extends Algorithm[MembershipIO,MConsensusProcess](rt) {
 
   val spec = TrivialSpec //TODO
   
@@ -207,7 +207,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
           val initialValue = init
           def decide(value: MembershipOp) { onDecision(inst, value) }
         }
-        rt.startInstance(instanceNbr, io, msg)
+        algorithm.startInstance(instanceNbr, io, msg)
       } else {
         //already started
         semaphore.release()
@@ -351,7 +351,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
     val inst = msg.instance
     val dec = msg.getContent[MembershipOp]
     onDecision(inst, dec)
-    rt.stopInstance(inst)
+    algorithm.stopInstance(inst)
   }
 
   def trySendDecision(msg: Message) {
@@ -427,7 +427,8 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
   // setup //
   ///////////
 
-  private var rt: psync.runtime.Runtime[MembershipIO,MConsensusProcess] = null
+  private var rt: psync.runtime.Runtime = null
+  private var algorithm: MConsensus = null
 
   def setup() {
     val isMaster = masterPort.isEmpty && masterAddress.isEmpty
@@ -439,8 +440,9 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
       } else {
         List(Replica(new ProcessID(0), masterAddress.get, masterPort.get))
       }
-    rt = new psync.runtime.Runtime(new MConsensus(timeout), this, defaultHandler(_))
+    rt = new psync.runtime.Runtime(this, defaultHandler(_))
     rt.startService
+    val algorithm = new MConsensus(rt, timeout) 
     view.group = rt.getGroup
     if (isMaster) {
       Logger("DynamicMembership", Info, "Starting as master")

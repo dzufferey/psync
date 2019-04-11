@@ -45,9 +45,10 @@ class LockManager(self: Short,
     override def initialValue = regIntTimePair.register(KryoSerializer.serializer)
   }
 
-  private val consensus: Runtime[ConsensusIO,_] = {
-    if (Main.lv) new Runtime(new LastVotingEvent(Main.timeout), Main, defaultHandler(_))
-    else new Runtime(new OTR(Main.timeout), Main, defaultHandler(_))
+  private val rt = new Runtime(Main, defaultHandler(_))
+  private val consensus: Algorithm[ConsensusIO,_] = {
+    if (Main.lv) new LastVotingEvent(rt, Main.timeout)
+    else new OTR(rt, Main.timeout)
   }
 
   private def onDecide(version: Short, decision: Option[ProcessID]) {
@@ -93,7 +94,7 @@ class LockManager(self: Short,
     Message.setContent[Int](kryo.get, tag, payload, state)
     val sender = m.sender
     Logger("LockManager", Notice, "sending decision " + state + " @ " + versionNbr + " to " + sender)
-    consensus.sendMessage(sender, tag, payload)
+    rt.sendMessage(sender, tag, payload)
   }
 
   private def askRecoveryInfo(m: Message) = {
@@ -105,7 +106,7 @@ class LockManager(self: Short,
     Message.setContent[Int](kryo.get, tag, payload, 0)
     val sender = m.sender
     Logger("LockManager", Notice, "asking decision" + versionNbr + " to " + sender)
-    consensus.sendMessage(sender, tag, payload)
+    rt.sendMessage(sender, tag, payload)
   }
 
   private def startConsensus(client: Option[Client], expectedInstance: Short, io: ConsensusIO, msgs: Set[Message] = Set.empty) {
@@ -177,12 +178,12 @@ class LockManager(self: Short,
   }
 
   def shutDown {
-    consensus.shutdown
+    rt.shutdown
     clientChannel.close
   }
 
   def start() {
-    consensus.startService
+    rt.startService
     listenForClient //this never returns
   }
 

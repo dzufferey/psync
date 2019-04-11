@@ -110,9 +110,9 @@ The client code that uses a such algorithm is:
 ```scala
   //setup the service
   val option: psync.runtime.RuntimeOptions = ??? //the list of peers and other parameters
-  val algorithm = new OTR
-  val rt = new RunTime(alg, options, defaultHandler(_))
-  rt.startService
+  val rt = new RunTime(options, defaultHandler(_)) //manage the connections, resources, etc.
+  rt.startService //open socket, connect to the other peer if using TCP, etc.
+  val algorithm = new OTR(tr)
 
   //run the algorithm for one decision
   val init = Random.nextBoolean
@@ -122,7 +122,7 @@ The client code that uses a such algorithm is:
       Console.println("decision is " + value)
     }
   }
-  rt.startInstance(0, io) //the 1st parameter is the ID of the instance
+  algorithm.startInstance(0, io) //the 1st parameter is the ID of the instance
 
   //an handler for unexpected messages
   def defaultHandler(msg: Message) {
@@ -133,7 +133,7 @@ The client code that uses a such algorithm is:
   //graceful shutdown
   rt.shutdown
 ```
-A given `RunTime` can run many instances in parallel.
+A given `RunTime` can run many instances and algorithms in parallel.
 However, the ID must be different for each instance.
 
 Complete working examples are located in `src/test/scala/example`.

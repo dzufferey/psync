@@ -87,8 +87,8 @@ object EsfdRunner extends RTOptions {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
     rt = new Runtime(this, defaultHandler(_))
-    rt.startService
     val alg = new Esfd(rt, period, hysteresis)
+    rt.startService
 
     val cur = java.lang.System.currentTimeMillis()
     Thread.sleep(math.max(8000 + start - cur, 0)) //time to run all the processes

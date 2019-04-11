@@ -33,7 +33,7 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
   var begin = 0l
   var versionNbr = 0l
 
-  var rt: Runtime[ConsensusIO,_] = null
+  var rt: Runtime = null
   var alg: Algorithm[ConsensusIO,_] = null
 
   final val Decision = 3
@@ -50,10 +50,10 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
       } else if (flag == Decision) {
         Logger("PerfTest", Info, inst + " got decision! (" + versionNbr + ")")
         onDecision(inst, -1, msg.getInt(0))
-        rt.stopInstance(inst)
+        alg.stopInstance(inst)
       } else if (flag == TooLate) {
         Logger("PerfTest", Warning, inst + " too late! (" + versionNbr + ")")
-        rt.stopInstance(inst)
+        alg.stopInstance(inst)
       } else {
         sys.error("unknown or error flag: " + flag)
       }
@@ -108,8 +108,9 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
       val fw = new java.io.FileWriter(logFile + "_" + id + ".log")
       log = new java.io.BufferedWriter(fw)
     } 
-    rt = ConsensusSelector(algorithm, this, defaultHandler, Map())
+    rt = new Runtime(this, defaultHandler)
     rt.startService
+    alg = ConsensusSelector(algorithm, rt, Map())
     Thread.sleep(1000)
     begin = java.lang.System.currentTimeMillis()
     while (true) {
@@ -123,7 +124,7 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
         val initialValue = r
         def decide(value: scala.Int) { onDecision(inst, v, value) }
       }
-      rt.startInstance(next.toShort, io)
+      alg.startInstance(next.toShort, io)
       versionNbr = next
     }
   }

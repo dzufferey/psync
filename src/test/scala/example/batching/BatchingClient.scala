@@ -38,8 +38,8 @@ class BatchingClient(val options: BatchingClient.type)
 
 
   // PSync runtime
-  val alg = new LastVotingB(options.timeout, options.sync)
-  val rt = new Runtime(alg, options, defaultHandler(_))
+  val rt = new Runtime(options, defaultHandler(_))
+  val alg = new LastVotingB(rt, options.timeout, options.sync)
   var jitting = true
 
 
@@ -57,7 +57,7 @@ class BatchingClient(val options: BatchingClient.type)
     }
     assert(tracker.canStart(inst) && !tracker.isRunning(inst))
     tracker.start(inst)
-    rt.startInstance(inst, io, msgs)
+    alg.startInstance(inst, io, msgs)
   }
   
   def defaultHandler(msg: Message) {
@@ -129,13 +129,13 @@ class BatchingClient(val options: BatchingClient.type)
       val d = Array.ofDim[Byte](s)
       p.readBytes(d)
       msg.release
-      rt.stopInstance(inst)
+      alg.stopInstance(inst)
       proposeDecision(inst, d)
       Logger("BatchingClient", Debug, "received decision for " + inst)
     } else if (flag == Late) {
       val inst = msg.instance
       msg.release
-      rt.stopInstance(inst)
+      alg.stopInstance(inst)
       //TODO get the whole state
       proposeDecision(inst, null)
       Logger("BatchingClient", Debug, "received late for " + inst)
@@ -195,12 +195,12 @@ class BatchingClient(val options: BatchingClient.type)
       def decide(value: Array[Byte]) { }
     }
     for (i <- 0 until 10) {
-      rt.startInstance(i.toShort, io, Set.empty)
+      alg.startInstance(i.toShort, io, Set.empty)
     }
     //let it run for a while
     Thread.sleep(options.delay - 1000)
     for (i <- 0 until 10) {
-      rt.stopInstance(i.toShort)
+      alg.stopInstance(i.toShort)
     }
     Thread.sleep(1000)
     lck.lock
