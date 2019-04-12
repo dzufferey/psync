@@ -7,10 +7,8 @@ import psync.utils.serialization._
 import psync.runtime.Runtime
 import SyncCondition._
 
-abstract class BConsensusIO {
+abstract class BConsensusIO extends ConsensusIO[Array[Byte]] {
   val phase: Int
-  val initialValue: Array[Byte]
-  def decide(value: Array[Byte]): Unit
 }
 
 class LVBProcess(wholeCohort: SyncCondition, timeout: Long) extends Process[BConsensusIO] {

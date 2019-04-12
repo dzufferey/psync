@@ -5,12 +5,12 @@ import psync.runtime._
 import psync.macros.Macros._
 import psync.utils.serialization._
 
-class FloodMinProcess(f: Int, timeout: Long) extends Process[ConsensusIO] {
+class FloodMinProcess(f: Int, timeout: Long) extends Process[ConsensusIO[Int]] {
   
   var x = 0
-  var callback: ConsensusIO = null
+  var callback: ConsensusIO[Int] = null
 
-  def init(io: ConsensusIO) {
+  def init(io: ConsensusIO[Int]) {
     callback = io
     x = io.initialValue
   }
@@ -35,13 +35,13 @@ class FloodMinProcess(f: Int, timeout: Long) extends Process[ConsensusIO] {
 
 }
 
-class FloodMin(rt: Runtime, f: Int, timeout: Long) extends Algorithm[ConsensusIO,FloodMinProcess](rt) {
+class FloodMin(rt: Runtime, f: Int, timeout: Long) extends Algorithm[ConsensusIO[Int],FloodMinProcess](rt) {
 
   val spec = TrivialSpec //TODO we need safety predicates on transition to account for synchronous crash-stop
 
   def process = new FloodMinProcess(f, timeout)
 
-  def dummyIO = new ConsensusIO{
+  def dummyIO = new ConsensusIO[Int]{
     val initialValue = 0
     def decide(value: Int) { }
   }
@@ -57,7 +57,7 @@ object FloodMinRunner extends Runner {
 
     import scala.util.Random
     val init = Random.nextInt
-    val io = new ConsensusIO {
+    val io = new ConsensusIO[Int] {
       val initialValue = init
       def decide(value: Int) {
         Console.println("replica " + id + " decided " + value)

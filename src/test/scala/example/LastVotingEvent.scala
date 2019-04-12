@@ -8,7 +8,7 @@ import psync.runtime.Runtime
 import psync.utils.serialization._
 
 
-class LastVotingEvent(rt: Runtime, timeout: Long) extends Algorithm[ConsensusIO, LVEProcess](rt) {
+class LastVotingEvent(rt: Runtime, timeout: Long) extends Algorithm[ConsensusIO[Int], LVEProcess](rt) {
 
   import SpecHelper._
 
@@ -16,13 +16,13 @@ class LastVotingEvent(rt: Runtime, timeout: Long) extends Algorithm[ConsensusIO,
   
   def process = new LVEProcess(timeout)
   
-  def dummyIO = new ConsensusIO{
+  def dummyIO = new ConsensusIO[Int]{
     val initialValue = 0
     def decide(value: Int) { }
   }
 }
   
-class LVEProcess(timeout: Long) extends Process[ConsensusIO]{
+class LVEProcess(timeout: Long) extends Process[ConsensusIO[Int]]{
 
   //variables
   var x = 0
@@ -33,12 +33,12 @@ class LVEProcess(timeout: Long) extends Process[ConsensusIO]{
   var decision = -1 //TODO as ghost
   var decided = false
   //
-  var callback: ConsensusIO = null
+  var callback: ConsensusIO[Int] = null
 
       
   def coord: ProcessID = new ProcessID((r / 4 % n).toShort)
     
-  def init(io: ConsensusIO) {
+  def init(io: ConsensusIO[Int]) {
     callback = io
     x = io.initialValue
     ts = -1

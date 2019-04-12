@@ -6,14 +6,14 @@ import psync.macros.Macros._
 import psync.utils.serialization._
 import psync.runtime.Runtime
 
-class Otr2Process(timeout: Long, afterDecision: Int) extends Process[ConsensusIO]{
+class Otr2Process(timeout: Long, afterDecision: Int) extends Process[ConsensusIO[Int]]{
   
   var x = 0
   var decision: Option[Int] = None //as ghost
   var after = afterDecision
-  var callback: ConsensusIO = null
+  var callback: ConsensusIO[Int] = null
 
-  def init(io: ConsensusIO) = i{
+  def init(io: ConsensusIO[Int]) = i{
     callback = io
     x = io.initialValue
     decision = None
@@ -64,7 +64,7 @@ class Otr2Process(timeout: Long, afterDecision: Int) extends Process[ConsensusIO
 }
 
 //a version of OTR that eventually terminates
-class OTR2(rt: Runtime, timeout: Long, afterDecision: Int = 2) extends Algorithm[ConsensusIO,Otr2Process](rt) {
+class OTR2(rt: Runtime, timeout: Long, afterDecision: Int = 2) extends Algorithm[ConsensusIO[Int],Otr2Process](rt) {
 
   import SpecHelper._
 
@@ -97,7 +97,7 @@ class OTR2(rt: Runtime, timeout: Long, afterDecision: Int = 2) extends Algorithm
   
   def process = new Otr2Process(timeout, afterDecision)
 
-  def dummyIO = new ConsensusIO{
+  def dummyIO = new ConsensusIO[Int]{
     val initialValue = 0
     def decide(value: Int) { }
   }

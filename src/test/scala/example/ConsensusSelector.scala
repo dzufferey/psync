@@ -9,7 +9,7 @@ object ConsensusSelector {
 
   def apply(name: String,
             rt: Runtime,
-            additionalOptions: Map[String,Any]): Algorithm[ConsensusIO, _] = {
+            additionalOptions: Map[String,Any]): Algorithm[ConsensusIO[Int], _] = {
     val ops = rt.options
     name match {
       case "otr" | "" =>

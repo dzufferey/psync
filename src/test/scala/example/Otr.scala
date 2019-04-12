@@ -10,15 +10,15 @@ import psync.runtime.Runtime
 //like OTR but uses a boolean flag instead of an option for the decision
 
 
-class OtrProcess(timeout: Long, afterDecision: Int) extends Process[ConsensusIO]{
+class OtrProcess(timeout: Long, afterDecision: Int) extends Process[ConsensusIO[Int]]{
 
   var x = 0
   var decision = -1 //as ghost
   var decided = false
   var after = afterDecision
-  var callback: ConsensusIO = null
+  var callback: ConsensusIO[Int] = null
     
-  def init(io: ConsensusIO) = i{
+  def init(io: ConsensusIO[Int]) = i{
     callback = io
     x = io.initialValue
     decided = false
@@ -86,7 +86,7 @@ class OtrProcess(timeout: Long, afterDecision: Int) extends Process[ConsensusIO]
 }
 
 
-class OTR(rt: Runtime, timeout: Long, afterDecision: Int = 2) extends Algorithm[ConsensusIO, OtrProcess](rt) {
+class OTR(rt: Runtime, timeout: Long, afterDecision: Int = 2) extends Algorithm[ConsensusIO[Int], OtrProcess](rt) {
 
   import SpecHelper._
 
@@ -121,7 +121,7 @@ class OTR(rt: Runtime, timeout: Long, afterDecision: Int = 2) extends Algorithm[
   
   def process = new OtrProcess(timeout, afterDecision)
 
-  def dummyIO = new ConsensusIO{
+  def dummyIO = new ConsensusIO[Int]{
     val initialValue = 0
     def decide(value: Int) { }
   }

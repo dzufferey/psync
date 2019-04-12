@@ -18,13 +18,13 @@ object KSetAgreementSerialization {
 
 import KSetAgreementSerialization.reg
 
-class KSetProcess(k: Int, timeout: Long) extends Process[ConsensusIO] {
+class KSetProcess(k: Int, timeout: Long) extends Process[ConsensusIO[Int]] {
   
   var t = Map.empty[ProcessID,Int]
   var decider = false
-  var callback: ConsensusIO = null
+  var callback: ConsensusIO[Int] = null
 
-  def init(io: ConsensusIO) {
+  def init(io: ConsensusIO[Int]) {
     callback = io
     decider = false
     t = Map(id -> io.initialValue)
@@ -67,7 +67,7 @@ class KSetProcess(k: Int, timeout: Long) extends Process[ConsensusIO] {
 
 }
 
-class KSetAgreement(rt: Runtime, k: Int, timeout: Long) extends Algorithm[ConsensusIO,KSetProcess](rt) {
+class KSetAgreement(rt: Runtime, k: Int, timeout: Long) extends Algorithm[ConsensusIO[Int],KSetProcess](rt) {
   
   val spec = TrivialSpec
   //k-agreement: the set Y of decision values is such that Y ⊆ V₀ ∧ |Y| ≤ k
@@ -80,7 +80,7 @@ class KSetAgreement(rt: Runtime, k: Int, timeout: Long) extends Algorithm[Consen
 
   def process = new KSetProcess(k, timeout)
 
-  def dummyIO = new ConsensusIO{
+  def dummyIO = new ConsensusIO[Int]{
     val initialValue = 0
     def decide(value: Int) { }
   }
@@ -96,7 +96,7 @@ object KSetRunner extends Runner {
 
     import scala.util.Random
     val init = Random.nextInt
-    val io = new ConsensusIO {
+    val io = new ConsensusIO[Int] {
       val initialValue = init
       def decide(value: Int) {
         Console.println("replica " + id + " decided " + value)

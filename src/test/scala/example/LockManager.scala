@@ -42,11 +42,11 @@ class LockManager(self: Short,
   private val lock = new ReentrantLock
   
   val kryo = new ThreadLocal[Kryo] {
-    override def initialValue = regIntTimePair.register(KryoSerializer.serializer)
+    override def initialValue = regPair[Int,Time].register(KryoSerializer.serializer)
   }
 
   private val rt = Runtime(Main, defaultHandler(_))
-  private val consensus: Algorithm[ConsensusIO,_] = {
+  private val consensus: Algorithm[ConsensusIO[Int],_] = {
     if (Main.lv) new LastVotingEvent(rt, Main.timeout)
     else new OTR(rt, Main.timeout)
   }
@@ -109,7 +109,7 @@ class LockManager(self: Short,
     rt.sendMessage(sender, tag, payload)
   }
 
-  private def startConsensus(client: Option[Client], expectedInstance: Short, io: ConsensusIO, msgs: Set[Message] = Set.empty) {
+  private def startConsensus(client: Option[Client], expectedInstance: Short, io: ConsensusIO[Int], msgs: Set[Message] = Set.empty) {
     //enter critical section
     lock.lock
     val nextInstance = (runningNbr + 1).toShort
@@ -165,7 +165,7 @@ class LockManager(self: Short,
         }
       }
  
-      val io = new ConsensusIO {
+      val io = new ConsensusIO[Int] {
         val initialValue = content
         def decide(value: Int) {
           if (value == -1) onDecide(msg.instance, None)
@@ -227,7 +227,7 @@ class LockManager(self: Short,
         case _ => sys.error("unkown request")
       }
       val client = new Client(sender, initValue != -1)
-      val io = new ConsensusIO {
+      val io = new ConsensusIO[Int] {
         val initialValue = initValue
         def decide(value: Int) {
           val dec = if (value == -1) None else Some(new ProcessID(value.toShort))

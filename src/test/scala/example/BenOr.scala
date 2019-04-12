@@ -4,33 +4,14 @@ import psync._
 import psync.formula._
 import psync.runtime._
 import psync.macros.Macros._
-import psync.utils.serialization._
 import scala.language.existentials
-
-abstract class BinaryConsensusIO {
-  val initialValue: Boolean
-  def decide(value: Boolean): Unit
-}
-
-object BenOrSerialization {
-  implicit val regOptBool = new KryoRegistration[Option[Boolean]] {
-    val optionSerializer = new OptionSerializer[Boolean]
-    override def registerClassesWithSerializer = Seq(
-      classOf[Option[Int]] -> optionSerializer,
-      classOf[Some[Int]] -> optionSerializer,
-      None.getClass -> optionSerializer
-    )
-  }
-}
-
-import BenOrSerialization._
 
 //http://www.cs.utexas.edu/~lorenzo/corsi/cs380d/papers/p27-ben-or.pdf
 
-class BenOrProcess(timeout: Long) extends Process[BinaryConsensusIO] {
+class BenOrProcess(timeout: Long) extends Process[ConsensusIO[Boolean]] {
   
   var x = false
-  var callback: BinaryConsensusIO = null
+  var callback: ConsensusIO[Boolean] = null
   //to make the algorithm terminates as suggested in
   //http://www.cs.toronto.edu/~samvas/teaching/2221/handouts/benor-paper.pdf
   var canDecide = false
@@ -39,7 +20,7 @@ class BenOrProcess(timeout: Long) extends Process[BinaryConsensusIO] {
   var decision = false //TODO as ghost
   var decided =  false //TODO as ghost
 
-  def init(io: BinaryConsensusIO) = i{
+  def init(io: ConsensusIO[Boolean]) = i{
     callback = io
     x = io.initialValue
     canDecide = false
@@ -102,7 +83,7 @@ class BenOrProcess(timeout: Long) extends Process[BinaryConsensusIO] {
 
 }
 
-class BenOr(rt: Runtime, timeout: Long) extends Algorithm[BinaryConsensusIO,BenOrProcess](rt) {
+class BenOr(rt: Runtime, timeout: Long) extends Algorithm[ConsensusIO[Boolean],BenOrProcess](rt) {
 
   import SpecHelper._
 
@@ -135,7 +116,7 @@ class BenOr(rt: Runtime, timeout: Long) extends Algorithm[BinaryConsensusIO,BenO
 
   def process = new BenOrProcess(timeout)
 
-  def dummyIO = new BinaryConsensusIO{
+  def dummyIO = new ConsensusIO[Boolean]{
     val initialValue = false
     def decide(value: Boolean) { }
   }
@@ -148,7 +129,7 @@ object BenOrRunner extends Runner {
     val alg = new BenOr(rt, timeout)
     import scala.util.Random
     val init = Random.nextBoolean
-    val io = new BinaryConsensusIO {
+    val io = new ConsensusIO[Boolean] {
       val initialValue = init
       def decide(value: Boolean) {
         Console.println("replica " + id + " decided " + value)

@@ -6,14 +6,14 @@ import psync.macros.Macros._
 import psync.utils.serialization._
 
 //http://link.springer.com/chapter/10.1007%2F11535294_5
-class KSetESProcess(t: Int, k: Int, timeout: Long) extends Process[ConsensusIO] {
+class KSetESProcess(t: Int, k: Int, timeout: Long) extends Process[ConsensusIO[Int]] {
 
   var est = 0
   var canDecide = false
   var lastNb = 0
-  var callback: ConsensusIO = null
+  var callback: ConsensusIO[Int] = null
 
-  def init(io: ConsensusIO) = i{
+  def init(io: ConsensusIO[Int]) = i{
     canDecide = false
     lastNb = n
     est = io.initialValue
@@ -44,13 +44,13 @@ class KSetESProcess(t: Int, k: Int, timeout: Long) extends Process[ConsensusIO] 
 }
 
 
-class KSetEarlyStopping(rt: Runtime, t: Int, k: Int, timeout: Long) extends Algorithm[ConsensusIO,KSetESProcess](rt) {
+class KSetEarlyStopping(rt: Runtime, t: Int, k: Int, timeout: Long) extends Algorithm[ConsensusIO[Int],KSetESProcess](rt) {
   
   val spec = TrivialSpec
 
   def process = new KSetESProcess(t, k, timeout)
 
-  def dummyIO = new ConsensusIO{
+  def dummyIO = new ConsensusIO[Int]{
     val initialValue = 0
     def decide(value: Int) { }
   }
@@ -70,7 +70,7 @@ object KSetESRunner extends Runner {
 
     import scala.util.Random
     val init = Random.nextInt
-    val io = new ConsensusIO {
+    val io = new ConsensusIO[Int] {
       val initialValue = init
       def decide(value: Int) {
         Console.println("replica " + id + " decided " + value)

@@ -16,6 +16,10 @@ package object serialization {
 
   implicit lazy val regByte = new KryoRegistration[Byte] { }
   
+  implicit lazy val regDouble = new KryoRegistration[Double] { }
+  
+  implicit lazy val regFloat = new KryoRegistration[Float] { }
+  
   implicit lazy val regUnit = new KryoRegistration[Unit] {
     val s = new UnitSerializer
     override def registerClassesWithSerializer = Seq(
@@ -40,40 +44,6 @@ package object serialization {
     override def registerClasses = Seq(classOf[Array[Byte]])
   }
 
-  implicit lazy val regBoolBoolPair = new KryoRegistration[(Boolean,Boolean)] {
-    override def registerClasses = Seq(classOf[Tuple2[_,_]])
-  }
-  
-  implicit lazy val regBoolIntPair = new KryoRegistration[(Boolean,Int)] {
-    override def registerClasses = Seq(classOf[Tuple2[_,_]])
-  }
-  
-  implicit lazy val regIntBoolPair = new KryoRegistration[(Int,Boolean)] {
-    override def registerClasses = Seq(classOf[Tuple2[_,_]])
-  }
-  
-  implicit lazy val regIntIntPair = new KryoRegistration[(Int,Int)] {
-    override def registerClasses = Seq(classOf[Tuple2[_,_]])
-  }
-  
-  implicit lazy val regStringIntPair = new KryoRegistration[(String,Int)] {
-    override def registerClasses = Seq(classOf[String], classOf[Tuple2[_,_]])
-  }
-  
-  implicit lazy val regIntTimePair = new KryoRegistration[(Int,Time)] {
-    override def registerClasses = Seq(classOf[Tuple2[_,_]])
-    override def registerClassesWithSerializer = Seq(classOf[Time] -> new TimeSerializer)
-  }
-  
-  implicit lazy val regDoubleBoolPair = new KryoRegistration[(Double,Boolean)] {
-    override def registerClasses = Seq(classOf[Tuple2[_,_]])
-  }
-  
-  implicit lazy val regByteArrayTimePair = new KryoRegistration[(Array[Byte],Time)] {
-    override def registerClasses = Seq(classOf[Array[Byte]], classOf[Tuple2[_,_]])
-    override def registerClassesWithSerializer = Seq(classOf[Time] -> new TimeSerializer)
-  }
-
   implicit def regSet[A: ClassTag: KryoRegistration] = new KryoRegistration[Set[A]] {
     import scala.language.existentials // for Set.empty
     val setSerializer = new CollectionSerializer[A, Set[A]]
@@ -86,6 +56,29 @@ package object serialization {
       classOf[scala.collection.immutable.HashSet[A]] -> setSerializer,
       classOf[scala.collection.immutable.HashSet.HashTrieSet[A]] -> setSerializer,
       Set.empty.getClass -> setSerializer
+    )
+    override def register(kryo: Kryo): Kryo = {
+      val k1 = implicitly[KryoRegistration[A]].register(kryo)
+      super.register(k1)
+    }
+  }
+  
+  implicit def regPair[A: ClassTag: KryoRegistration, B: ClassTag: KryoRegistration] = new KryoRegistration[(A,B)] {
+    override def registerClasses = Seq(classOf[Tuple2[_,_]])
+    override def register(kryo: Kryo): Kryo = {
+      val k1 = implicitly[KryoRegistration[A]].register(kryo)
+      val k2 = implicitly[KryoRegistration[B]].register(k1)
+      super.register(k2)
+    }
+  }
+  
+  implicit def regOpt[A: ClassTag: KryoRegistration] = new KryoRegistration[Option[A]] {
+    import scala.language.existentials // for None
+    val optionSerializer = new OptionSerializer[A]
+    override def registerClassesWithSerializer = Seq(
+      classOf[Option[A]] -> optionSerializer,
+      classOf[Some[A]] -> optionSerializer,
+      None.getClass -> optionSerializer
     )
     override def register(kryo: Kryo): Kryo = {
       val k1 = implicitly[KryoRegistration[A]].register(kryo)

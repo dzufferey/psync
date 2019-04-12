@@ -55,7 +55,7 @@ class PerfTest2(additionalOptions: Map[String,Any]) extends DecisionLog[Int]
   val selfStarted = new ConcurrentSkipListSet[Short]()
 
   val kryo = new ThreadLocal[Kryo] {
-    override def initialValue = regIntTimePair.register(KryoSerializer.serializer)
+    override def initialValue = regPair[Int,Time].register(KryoSerializer.serializer)
   }
 
   def getValue(msg: Message): Int = {
@@ -264,7 +264,7 @@ class PerfTest2(additionalOptions: Map[String,Any]) extends DecisionLog[Int]
 
     if (canGo) {
       val v = (idx << 16) | (value & 0xFFFF)
-      val io = new ConsensusIO {
+      val io = new ConsensusIO[Int] {
         val initialValue = v
         //TODO we should reduce the amount of work done here: pass it to another thread and let the algorithm thread continue.
         def decide(value: Int) {
