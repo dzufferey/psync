@@ -56,7 +56,7 @@ class KSetEarlyStopping(rt: Runtime, t: Int, k: Int, timeout: Long) extends Algo
   }
 }
 
-object KSetESRunner extends RTOptions {
+object KSetESRunner extends Runner {
   
   var k = 2
   newOption("-k", dzufferey.arg.Int( i => k = i), "k (default = 2)")
@@ -64,21 +64,8 @@ object KSetESRunner extends RTOptions {
   var t = 2
   newOption("-t", dzufferey.arg.Int( i => k = i), "t (default = 2)")
 
-  var confFile = "src/test/resources/3replicas-conf.xml"
   
-  val usage = "..."
-  
-  var rt: Runtime = null
-
-  def defaultHandler(msg: Message) {
-    msg.release
-  }
-  
-  def main(args: Array[java.lang.String]) {
-    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
-    rt = new Runtime(this, defaultHandler(_))
-    rt.startService
+  def onStart {
     val alg = new KSetEarlyStopping(rt, t, k, timeout)
 
     import scala.util.Random
@@ -93,12 +80,4 @@ object KSetESRunner extends RTOptions {
     Console.println("replica " + id + " starting with " + init)
     alg.startInstance(0, io)
   }
-  
-  Runtime.getRuntime().addShutdownHook(
-    new Thread() {
-      override def run() {
-        rt.shutdown
-      }
-    }
-  )
 }

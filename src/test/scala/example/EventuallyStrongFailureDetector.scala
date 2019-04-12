@@ -65,28 +65,17 @@ class Esfd(rt: Runtime, period: Long, hysteresis: Int) extends Algorithm[Unit,Es
   def dummyIO = ()
 }
 
-object EsfdRunner extends RTOptions {
+object EsfdRunner extends Runner {
 
   var period = 1000l
   newOption("--period", dzufferey.arg.Long( i => period = i), "(default = 1000)")
   var hysteresis = 5
   newOption("--hysteresis", dzufferey.arg.Int( i => hysteresis = i), "(default = 5)")
 
-  var confFile = "src/test/resources/25replicas-conf.xml"
+  override def defaultConfFile = "src/test/resources/25replicas-conf.xml"
   
-  val usage = "..."
-  
-  var rt: Runtime = null
-
-  def defaultHandler(msg: Message) {
-    msg.release
-  }
-  
-  def main(args: Array[java.lang.String]) {
+  def onStart {
     val start = java.lang.System.currentTimeMillis()
-    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
-    rt = new Runtime(this, defaultHandler(_))
     val alg = new Esfd(rt, period, hysteresis)
     rt.startService
 
@@ -97,12 +86,4 @@ object EsfdRunner extends RTOptions {
     while (true) Thread.sleep(100000)
   }
   
-  Runtime.getRuntime().addShutdownHook(
-    new Thread() {
-      override def run() {
-        rt.shutdown
-      }
-    }
-  )
-
 }

@@ -59,14 +59,9 @@ class EagerReliableBroadcast(rt: Runtime, timeout: Long) extends Algorithm[Broad
   }
 }
 
-object ERBRunner extends RTOptions {
-  
-  var confFile = "src/test/resources/3replicas-conf.xml"
-  
-  val usage = "..."
+object ERBRunner extends Runner {
   
   var alg: EagerReliableBroadcast = null
-  var rt: Runtime = null
 
   val delivered = new java.util.concurrent.ConcurrentHashMap[Short, Boolean]
 
@@ -77,7 +72,7 @@ object ERBRunner extends RTOptions {
     }
   }
 
-  def defaultHandler(msg: Message) {
+  override def defaultHandler(msg: Message) {
     val inst = msg.tag.instanceNbr
     val already = delivered.putIfAbsent(inst, true)
     if (already) {
@@ -86,12 +81,8 @@ object ERBRunner extends RTOptions {
       alg.startInstance(inst, other, Set(msg))
     }
   }
-  
-  def main(args: Array[java.lang.String]) {
-    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
-    rt = new Runtime(this, defaultHandler(_))
-    rt.startService
+
+  def onStart {
     alg = new EagerReliableBroadcast(rt, timeout)
 
     import scala.util.Random
@@ -108,11 +99,4 @@ object ERBRunner extends RTOptions {
     alg.startInstance(id, io)
   }
   
-  Runtime.getRuntime().addShutdownHook(
-    new Thread() {
-      override def run() {
-        rt.shutdown
-      }
-    }
-  )
 }

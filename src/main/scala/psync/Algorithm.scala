@@ -1,6 +1,6 @@
 package psync
 
-import psync.runtime.{Runtime, Message, InstanceHandler}
+import psync.runtime.{Runtime, Message, InstanceHandler, AlgorithmOptions}
 import dzufferey.utils.LogLevel._
 import dzufferey.utils.Logger
 import java.util.concurrent.ArrayBlockingQueue
@@ -10,7 +10,7 @@ class ProcessID(val id: Short) extends AnyVal
 
 //IO is a type parameter to communicate the initial value, parameter, and callbacks
 //the use of mixing composition forces elements (like variables) to be used only with the algorithm
-abstract class Algorithm[IO, P <: Process[IO]](runtime: Runtime) extends Specs[IO, P]
+abstract class Algorithm[IO, P <: Process[IO]](runtime: Runtime, opts: AlgorithmOptions = null) extends Specs[IO, P]
 {
 
   //round number
@@ -49,11 +49,14 @@ abstract class Algorithm[IO, P <: Process[IO]](runtime: Runtime) extends Specs[I
   /* Runtime related */
   /*******************/
 
-  //TODO try a stack for better locality
-  private val processPool = {
-    if (runtime != null) new ArrayBlockingQueue[InstanceHandler[IO,P]](2*runtime.options.processPool)
-    else new ArrayBlockingQueue[InstanceHandler[IO,P]](0)
+  protected[psync] def options = {
+    if (opts != null) opts
+    else if (runtime != null) runtime.options
+    else new AlgorithmOptions{ }
   }
+
+  //TODO try a stack for better locality
+  private val processPool = new ArrayBlockingQueue[InstanceHandler[IO,P]](2*options.processPool)
 
   protected[psync] final def recycle(p: InstanceHandler[IO,P]) {
     processPool.offer(p)
@@ -77,7 +80,7 @@ abstract class Algorithm[IO, P <: Process[IO]](runtime: Runtime) extends Specs[I
     
   //preallocate
   if (runtime != null) {
-    for (i <- 0 until runtime.options.processPool) {
+    for (i <- 0 until options.processPool) {
       processPool.offer(createProcess)
     }
   }

@@ -45,7 +45,7 @@ class LockManager(self: Short,
     override def initialValue = regIntTimePair.register(KryoSerializer.serializer)
   }
 
-  private val rt = new Runtime(Main, defaultHandler(_))
+  private val rt = Runtime(Main, defaultHandler(_))
   private val consensus: Algorithm[ConsensusIO,_] = {
     if (Main.lv) new LastVotingEvent(rt, Main.timeout)
     else new OTR(rt, Main.timeout)
@@ -188,7 +188,7 @@ class LockManager(self: Short,
   }
 
   //clean-up on ctrl-c
-  Runtime.getRuntime().addShutdownHook(
+  java.lang.Runtime.getRuntime().addShutdownHook(
     new Thread() {
       override def run() { shutDown }
     }
@@ -316,7 +316,7 @@ class LockManagerClient(myPort: Int, remote: (String, Int)) {
 
 }
 
-object Main extends RTOptions {
+object Main extends Runner {
   import dzufferey.arg._
 
   var client = false
@@ -332,14 +332,10 @@ object Main extends RTOptions {
   var lv = false
   newOption("-lv", Unit( () => lv = true), "use the last voting instead of the OTR")
 
-  var confFile = "src/test/resources/sample-conf.xml"
+  override def defaultConfFile = "src/test/resources/sample-conf.xml"
 
-  val usage = "..."
-
-  def main(args: Array[java.lang.String]) {
+  def onStart {
     Logger.moreVerbose
-    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
     if (client) {
       val cli = new LockManagerClient(clientPort, (remoteAddress, remotePort))
       cli.run

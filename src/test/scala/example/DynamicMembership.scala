@@ -232,7 +232,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
             val newId = view.firstAvailID //this is a deterministic operation
             lastHearOf(newId.id) = java.lang.System.currentTimeMillis()
             view.addReplica(Replica(newId, address, port))
-            rt.updateGroup(view.group)
+            rt.group = view.group
             viewNbr += 1
             sendRecoveryInfo(newId)
             Logger("DynamicMembership", Info, "current view (#"+viewNbr+"):" + view)
@@ -245,7 +245,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
             Logger("DynamicMembership", Notice, "removing replica " + id)
             view.removeReplica(id)
             view.compact //this is a deterministic operation
-            rt.updateGroup(view.group)
+            rt.group = view.group
             initTO
             viewNbr += 1
             Logger("DynamicMembership", Info, "current view (#"+viewNbr+"):" + view)
@@ -427,7 +427,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
   // setup //
   ///////////
 
-  private var rt: psync.runtime.Runtime = null
+  private var rt: Runtime = null
   private var algorithm: MConsensus = null
 
   def setup() {
@@ -440,10 +440,10 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
       } else {
         List(Replica(new ProcessID(0), masterAddress.get, masterPort.get))
       }
-    rt = new psync.runtime.Runtime(this, defaultHandler(_))
+    rt = Runtime(this, defaultHandler(_))
     rt.startService
     val algorithm = new MConsensus(rt, timeout) 
-    view.group = rt.getGroup
+    view.group = rt.group
     if (isMaster) {
       Logger("DynamicMembership", Info, "Starting as master")
       initTO

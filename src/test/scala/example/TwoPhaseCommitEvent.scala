@@ -123,9 +123,9 @@ class TwoPhaseCommitEvent(rt: Runtime, all: Boolean, blocking: Boolean, timeout:
 
 
 //TO check dt, the TO must be quick high or better blocking
-object TpcEvtRunner extends RTOptions {
+object TpcEvtRunner extends Runner {
   
-  var confFile = "src/test/resources/sample-conf.xml"
+  override def defaultConfFile = "src/test/resources/sample-conf.xml"
   
   var blocking = false
   newOption("--blocking", dzufferey.arg.Unit( () => blocking = true), "waitMessage for all messages (no timeout)")
@@ -133,22 +133,10 @@ object TpcEvtRunner extends RTOptions {
   var all = false
   newOption("--all", dzufferey.arg.Unit( () => all = true), "for all messages no progress on false")
 
-  val usage = "..."
-
   val semaphore = new java.util.concurrent.Semaphore(1)
   
-  var rt: Runtime = null
-
-  def defaultHandler(msg: Message) {
-    msg.release
-  }
-  
-  def main(args: Array[String]) {
-    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
+  def onStart {
     //Console.println("starting " + id + " with blocking = " + blocking + ", timeout = " + timeout)
-    rt = new Runtime(this, defaultHandler(_))
-    rt.startService
     val alg = new TwoPhaseCommitEvent(rt, all, blocking, timeout)
 
     while (true) {
@@ -175,12 +163,4 @@ object TpcEvtRunner extends RTOptions {
       alg.startInstance(0, io)
     }
   }
-  
-  Runtime.getRuntime().addShutdownHook(
-    new Thread() {
-      override def run() {
-        rt.shutdown
-      }
-    }
-  )
 }

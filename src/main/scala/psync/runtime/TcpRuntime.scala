@@ -24,13 +24,7 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.Map
 import java.nio.charset.StandardCharsets.UTF_8
 
-class TCPPacketServer(
-    executor: java.util.concurrent.Executor,
-    port: Int,
-    initGroup: Group,
-    val defaultHandler: Message => Unit,
-    options: RuntimeOptions) extends PacketServer(executor, port, initGroup, defaultHandler, options)
-{
+class TcpRuntime(o: RuntimeOptions, dh: Message => Unit) extends Runtime(o, dh) {
 
   val recipientMap: Map[ProcessID, Channel] = new TrieMap
   val unknownSender: Map[InetSocketAddress, Channel] = new TrieMap
@@ -55,7 +49,7 @@ class TCPPacketServer(
   }
 
   Logger.assert(options.protocol == NetworkProtocol.TCP || options.protocol == NetworkProtocol.TCP_SSL,
-                "TCPPacketServer", "transport layer: only TCP supported")
+                "TcpRuntime", "transport layer: only TCP supported")
 
   private val isSSLEnabled = (options.protocol == NetworkProtocol.TCP_SSL)
 
@@ -115,7 +109,7 @@ class TCPPacketServer(
     }
   }
 
-  def close {
+  def closeServer {
     dispatcher.clear
     try {
       evtGroup.shutdownGracefully
@@ -146,7 +140,7 @@ class TCPPacketServer(
             new LengthFieldPrepender(2)
           )
         }
-        val srv = TCPPacketServer.this
+        val srv = TcpRuntime.this
         val unk = options.acceptUnknownConnection
         pipeline.addLast(new TCPPacketServerHandler(srv, group.self, unk))
       }
@@ -190,13 +184,13 @@ class TCPPacketServer(
             new LengthFieldPrepender(2)
           )
         }
-        pipeline.addLast(new TCPPacketClientHandler(TCPPacketServer.this, group.self, getAddress, replica))
+        pipeline.addLast(new TCPPacketClientHandler(TcpRuntime.this, group.self, getAddress, replica))
       }
     })
     bootstrap.connect(inet).addListener(new ChannelFutureListener() {
       override def operationComplete(future: ChannelFuture) {
         if (future.cause() != null) {
-          Logger("TCPPacketServer", Warning, "Couldn't connect, trying again...")
+          Logger("TcpRuntime", Warning, "Couldn't connect, trying again...")
           future.channel.close
           delayedStartConnection(replica)
         }
@@ -204,7 +198,7 @@ class TCPPacketServer(
     })
   }
 
-  def start {
+  def startServer {
     startListener()
     group.others.foreach { recipient =>
       if (directory.self.id < recipient.id.id)
@@ -213,19 +207,19 @@ class TCPPacketServer(
     Thread.sleep(1000)
   }
 
-  def send(to: ProcessID, buf: ByteBuf) {
+  protected[psync] def send(to: ProcessID, buf: ByteBuf) {
     val chanOption = recipientMap.get(to)
     chanOption match {
       case Some(chan) =>
         chan.writeAndFlush(buf, chan.voidPromise())
       case None =>
-        Logger("TCPPacketServer", Warning, "Tried to send packet to " + to.id + ", but no channel was available.")
+        Logger("TcpRuntime", Warning, "Tried to send packet to " + to.id + ", but no channel was available.")
     }
   }
 
 }
 
-abstract class TCPPacketHandler(val packetServer: TCPPacketServer, var selfId: ProcessID, var remote: Replica) extends SimpleChannelInboundHandler[ByteBuf](false) {
+abstract class TCPPacketHandler(val packetServer: TcpRuntime, var selfId: ProcessID, var remote: Replica) extends SimpleChannelInboundHandler[ByteBuf](false) {
 
   def rename(newGroup: Group) {
     selfId = newGroup.self
@@ -281,7 +275,7 @@ abstract class TCPPacketHandler(val packetServer: TCPPacketServer, var selfId: P
 }
 
 class TCPPacketServerHandler(
-    _packetServer: TCPPacketServer,
+    _packetServer: TcpRuntime,
     _selfId: ProcessID,
     acceptUnknownConnection: Boolean
   ) extends TCPPacketHandler(_packetServer, _selfId, null) {
@@ -342,7 +336,7 @@ class TCPPacketServerHandler(
 }
 
 class TCPPacketClientHandler(
-    _packetServer: TCPPacketServer,
+    _packetServer: TcpRuntime,
     _selfId: ProcessID,
     localAddress: InetSocketAddress,
     _remote: Replica

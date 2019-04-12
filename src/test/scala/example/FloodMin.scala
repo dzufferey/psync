@@ -47,26 +47,12 @@ class FloodMin(rt: Runtime, f: Int, timeout: Long) extends Algorithm[ConsensusIO
   }
 }
 
-object FloodMinRunner extends RTOptions {
+object FloodMinRunner extends Runner {
   
   var f = 2
   newOption("-f", dzufferey.arg.Int( i => f = i), "f (default = 2)")
 
-  var confFile = "src/test/resources/3replicas-conf.xml"
-  
-  val usage = "..."
-  
-  var rt: Runtime = null
-
-  def defaultHandler(msg: Message) {
-    msg.release
-  }
-  
-  def main(args: Array[java.lang.String]) {
-    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
-    rt = new Runtime(this, defaultHandler(_))
-    rt.startService
+  def onStart {
     val alg = new FloodMin(rt, f, timeout)
 
     import scala.util.Random
@@ -82,11 +68,4 @@ object FloodMinRunner extends RTOptions {
     alg.startInstance(0, io)
   }
   
-  Runtime.getRuntime().addShutdownHook(
-    new Thread() {
-      override def run() {
-        rt.shutdown
-      }
-    }
-  )
 }

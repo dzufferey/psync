@@ -81,7 +81,7 @@ class EpsilonConsensus(rt: Runtime, f: Int, epsilon: Double, timeout: Long) exte
   }
 }
 
-object EpsilonRunner extends RTOptions {
+object EpsilonRunner extends Runner {
   
   var f = 1
   newOption("-f", dzufferey.arg.Int( i => f = i), "f (default = 1)")
@@ -89,22 +89,10 @@ object EpsilonRunner extends RTOptions {
   var e = 0.1
   //newOption("-e", dzufferey.arg.Real( i => e = i), "ε (default = 0.1)")
 
-  var confFile = "src/test/resources/7replicas-conf.xml"
+  override def defaultConfFile = "src/test/resources/7replicas-conf.xml"
   
-  val usage = "..."
-  
-  var rt: Runtime = null
-
-  def defaultHandler(msg: Message) {
-    msg.release
-  }
-  
-  def main(args: Array[java.lang.String]) {
+  def onStart {
     val start = java.lang.System.currentTimeMillis()
-    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
-    rt = new Runtime(this, defaultHandler(_))
-    rt.startService
     val alg = new EpsilonConsensus(rt, f, e, timeout)
 
     import scala.util.Random
@@ -121,11 +109,4 @@ object EpsilonRunner extends RTOptions {
     alg.startInstance(0, io)
   }
   
-  Runtime.getRuntime().addShutdownHook(
-    new Thread() {
-      override def run() {
-        rt.shutdown
-      }
-    }
-  )
 }

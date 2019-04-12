@@ -91,23 +91,9 @@ class LatticeAgreement(rt: Runtime, timeout: Long) extends Algorithm[LatticeIO,L
   }
 }
 
-object LatticeRunner extends RTOptions {
+object LatticeRunner extends Runner {
   
-  var confFile = "src/test/resources/3replicas-conf.xml"
-  
-  val usage = "..."
-  
-  var rt: Runtime = null
-
-  def defaultHandler(msg: Message) {
-    msg.release
-  }
-  
-  def main(args: Array[java.lang.String]) {
-    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
-    rt = new Runtime(this, defaultHandler(_))
-    rt.startService
+  def onStart {
     val alg = new LatticeAgreement(rt, timeout)
 
     import scala.util.Random
@@ -123,12 +109,4 @@ object LatticeRunner extends RTOptions {
     Console.println("replica " + id + " starting with " + init)
     alg.startInstance(0, io)
   }
-  
-  Runtime.getRuntime().addShutdownHook(
-    new Thread() {
-      override def run() {
-        rt.shutdown
-      }
-    }
-  )
 }

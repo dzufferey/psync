@@ -55,38 +55,14 @@ class SelfStabilizingMutualExclusion(rt: Runtime) extends Algorithm[Unit,SelfSta
 
 }
 
-object SelfStabilizingRunner extends RTOptions {
+object SelfStabilizingRunner extends Runner {
 
-  var confFile = "src/test/resources/25replicas-conf.xml"
+  override def defaultConfFile = "src/test/resources/25replicas-conf.xml"
   
-  val usage = "..."
-  
-  var rt: Runtime = null
-
-  def defaultHandler(msg: Message) {
-    msg.release
-  }
-  
-  def main(args: Array[java.lang.String]) {
-    val start = java.lang.System.currentTimeMillis()
-    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
-    rt = new Runtime(this, defaultHandler(_))
-    rt.startService
+  def onStart {
     val alg = new SelfStabilizingMutualExclusion(rt)
-
-    val cur = java.lang.System.currentTimeMillis()
-    //Thread.sleep(8000 + start - cur) //time to run all the processes
     alg.startInstance(0, ())
     // idle while the algorithms runs
     while (true) Thread.sleep(100000)
   }
-  
-  Runtime.getRuntime().addShutdownHook(
-    new Thread() {
-      override def run() {
-        rt.shutdown
-      }
-    }
-  )
 }

@@ -115,31 +115,18 @@ object ConwayGameOfLife {
 
 }
 
-object CgolRunner extends RTOptions {
+object CgolRunner extends Runner {
   
   var rows = 5
   newOption("-rows", dzufferey.arg.Int( i => rows = i), "(default = 5)")
   var cols = 5
   newOption("-cols", dzufferey.arg.Int( i => cols = i), "(default = 5)")
 
-  var confFile = "src/test/resources/25replicas-conf.xml"
+  override def defaultConfFile = "src/test/resources/25replicas-conf.xml"
   
-  val usage = "..."
-  
-  var rt: Runtime = null
-
-  def defaultHandler(msg: Message) {
-    msg.release
-  }
-  
-  def main(args: Array[java.lang.String]) {
+  def onStart {
     val start = java.lang.System.currentTimeMillis()
-    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
-    rt = new Runtime(this, defaultHandler(_))
-    rt.startService
     val alg = new ConwayGameOfLife(rt)
-
     val io = new CgolIO(id, rows, cols, scala.util.Random.nextBoolean)
     val cur = java.lang.System.currentTimeMillis()
     Thread.sleep(8000 + start - cur)
@@ -148,13 +135,5 @@ object CgolRunner extends RTOptions {
     Thread.sleep(20000)
     System.exit(0)
   }
-  
-  Runtime.getRuntime().addShutdownHook(
-    new Thread() {
-      override def run() {
-        rt.shutdown
-      }
-    }
-  )
 
 }

@@ -38,7 +38,7 @@ class BatchingClient(val options: BatchingClient.type)
 
 
   // PSync runtime
-  val rt = new Runtime(options, defaultHandler(_))
+  val rt = Runtime(options, defaultHandler(_))
   val alg = new LastVotingB(rt, options.timeout, options.sync)
   var jitting = true
 
@@ -324,7 +324,7 @@ object BatchingClient extends RTOptions {
 
   }
   
-  Runtime.getRuntime().addShutdownHook(
+  java.lang.Runtime.getRuntime().addShutdownHook(
     new Thread() {
       override def run() {
         val versionNbr = system.shutdown

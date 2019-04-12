@@ -37,7 +37,7 @@ class PerfTest2(additionalOptions: Map[String,Any]) extends DecisionLog[Int]
     log.newLine()
   }
 
-  val rt = new Runtime(PerfTest2, defaultHandler)
+  val rt = Runtime(PerfTest2, defaultHandler)
   val alg = ConsensusSelector(PerfTest2.algorithm, rt, additionalOptions)
   rt.startService
 
@@ -297,7 +297,7 @@ class PerfTest2(additionalOptions: Map[String,Any]) extends DecisionLog[Int]
   def wakeupOthers(inst: Short, initValue: Int) {
     //TODO better way
     if (algorithm == "lv" || algorithm == "lve" || algorithm == "slv") {
-      val dir = rt.getGroup
+      val dir = rt.group
       for (o <- dir.others) {
         val payload = PooledByteBufAllocator.DEFAULT.buffer()
         payload.writeLong(8)
@@ -388,7 +388,7 @@ object PerfTest2 extends RTOptions {
 
   }
   
-  Runtime.getRuntime().addShutdownHook(
+  java.lang.Runtime.getRuntime().addShutdownHook(
     new Thread() {
       override def run() {
         if (system != null) {

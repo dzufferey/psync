@@ -19,19 +19,31 @@ case object Adapt extends Workers
 case class Fixed(nbr: Int) extends Workers
 case class Factor(coeff: Int) extends Workers
 
-trait RuntimeOptions {
+trait AlgorithmOptions {
+  
+  def timeout = _timeout
+  def nbrByzantine = _nbrByzantine
+  def sendWhenCatchingUp = _sendWhenCatchingUp
+  def delayFirstSend = _delayFirstSend
+  def processPool = _processPool
+  def bufferSize = _bufferSize
+  def packetSize = _packetSize
+
+  protected var _sendWhenCatchingUp = true
+  protected var _delayFirstSend = -1
+  protected var _timeout = 10l
+  protected var _nbrByzantine = 0
+  protected var _bufferSize = 64
+  protected var _processPool = 16
+  protected var _packetSize = -1
+}
+
+trait RuntimeOptions extends AlgorithmOptions {
 
   def id = _id
   def peers = _peers
   def group = _group
   def protocol = _protocol
-  def timeout = _timeout
-  def nbrByzantine = _nbrByzantine
-  def sendWhenCatchingUp = _sendWhenCatchingUp
-  def delayFirstSend = _delayFirstSend
-  def packetSize = _packetSize
-  def bufferSize = _bufferSize
-  def processPool = _processPool
   def workers = _workers
   def port = _port
   def dispatch = _dispatch
@@ -42,19 +54,11 @@ trait RuntimeOptions {
   protected var _id: Short = -1
   protected var _group = NetworkGroup.NIO
   protected var _protocol = NetworkProtocol.TCP
-  protected var _sendWhenCatchingUp = true
-  protected var _delayFirstSend = -1
-  protected var _timeout = 10l
-  protected var _nbrByzantine = 0
-  protected var _packetSize = -1
-  protected var _bufferSize = 64
-  protected var _processPool = 16
-  protected var _workers: Workers = Adapt
   protected var _port = -1
+  protected var _workers: Workers = Adapt
   protected var _dispatch = 7
   protected var _connectionRestartPeriod = 1000
   protected var _acceptUnknownConnection = false
-
 }
 
 abstract class RTOptions extends DefaultOptions with RuntimeOptions {

@@ -108,7 +108,7 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
       val fw = new java.io.FileWriter(logFile + "_" + id + ".log")
       log = new java.io.BufferedWriter(fw)
     } 
-    rt = new Runtime(this, defaultHandler)
+    rt = Runtime(this, defaultHandler)
     rt.startService
     alg = ConsensusSelector(algorithm, rt, Map())
     Thread.sleep(1000)
@@ -129,7 +129,7 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
     }
   }
   
-  Runtime.getRuntime().addShutdownHook(
+  java.lang.Runtime.getRuntime().addShutdownHook(
     new Thread() {
       override def run() {
         rt.shutdown

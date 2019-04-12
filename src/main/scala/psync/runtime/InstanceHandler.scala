@@ -41,16 +41,16 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
                           alg: Algorithm[IO,P],
                           rt: psync.runtime.Runtime) extends Runnable with InstHandler {
 
-  protected val buffer = new ArrayBlockingQueue[Message](rt.options.bufferSize)
+  protected val buffer = new ArrayBlockingQueue[Message](alg.options.bufferSize)
 
-  protected val sendWhenCatchingUp = rt.options.sendWhenCatchingUp
-  protected val delayFirstSend = rt.options.delayFirstSend
+  protected val sendWhenCatchingUp = alg.options.sendWhenCatchingUp
+  protected val delayFirstSend = alg.options.delayFirstSend
 
   protected var instance: Short = 0
   protected var self: ProcessID = new ProcessID(-1)
   
   private final val block = Long.MinValue
-  protected var timeout = rt.options.timeout
+  protected var timeout = alg.options.timeout
   protected var roundStart: Long = 0
   protected var strict = false
   
@@ -61,7 +61,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected var from = LongBitSet.empty
   
   /** catch-up after nbrByzantine+1 messages have been received */
-  protected val nbrByzantine = rt.options.nbrByzantine
+  protected val nbrByzantine = alg.options.nbrByzantine
   /** keep the max round seen for each process (used for deciding when to catch-up) */
   protected var maxRnd: Array[Int] = Array(0)
   /** Since we might block on the round, we buffer messages that will be delivered later. */
@@ -69,7 +69,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   /** discard when there are two many messages from one process */
   protected var maxPending = 32 //TODO as option
 
-  protected val globalSizeHint = rt.options.packetSize
+  protected val globalSizeHint = alg.options.packetSize
   protected val kryoIn = new KryoByteBufInput(null)
   protected val kryoOut = new KryoByteBufOutput(null)
   protected val kryo = {

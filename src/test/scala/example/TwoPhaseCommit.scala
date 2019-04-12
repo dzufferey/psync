@@ -117,24 +117,11 @@ class TwoPhaseCommit(rt: Runtime, timeout: Long) extends Algorithm[TpcIO,TpcProc
 }
 
 
-object TpcRunner extends RTOptions {
-  
+object TpcRunner extends Runner {
 
-  var confFile = "src/test/resources/sample-conf.xml"
+  override def defaultConfFile = "src/test/resources/sample-conf.xml"
   
-  val usage = "..."
-  
-  var rt: Runtime = null
-
-  def defaultHandler(msg: Message) {
-    msg.release
-  }
-  
-  def main(args: Array[String]) {
-    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
-    rt = new Runtime(this, defaultHandler(_))
-    rt.startService
+  def onStart {
     val alg = new TwoPhaseCommit(rt, timeout)
 
     import scala.util.Random
@@ -151,12 +138,4 @@ object TpcRunner extends RTOptions {
     Console.println("replica " + id + " starting with " + init)
     alg.startInstance(0, io)
   }
-  
-  Runtime.getRuntime().addShutdownHook(
-    new Thread() {
-      override def run() {
-        rt.shutdown
-      }
-    }
-  )
 }

@@ -112,51 +112,27 @@ class ThetaModel(rt: Runtime, f: Int, theta: Double) extends Algorithm[TmIO[Stri
   }
 }
 
-object TmRunner extends RTOptions {
+object TmRunner extends Runner {
 
   var f = 1
   newOption("-f", dzufferey.arg.Int( i => f = i), "(default = 1)")
   var theta = 2.0
   newOption("--theta", dzufferey.arg.Real( i => theta = i), "(default = 2.0)")
 
-  var confFile = "src/test/resources/sample-conf.xml"
+  override def defaultConfFile = "src/test/resources/sample-conf.xml"
   
-  val usage = "..."
-  
-  var rt: Runtime = null
-
-  def defaultHandler(msg: Message) {
-    msg.release
-  }
-  
-  def main(args: Array[java.lang.String]) {
-    val start = java.lang.System.currentTimeMillis()
-    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
-    rt = new Runtime(this, defaultHandler(_))
-    rt.startService
+  def onStart {
     val alg = new ThetaModel(rt, f, theta)
-
     val io = new TmIO[String]{
       def getMessage(t: Time, pid: ProcessID) = "Hello " + pid.id
       def deliverMessage(t: Time, pid: ProcessID, str: String) {
         Console.println(pid.id + " says \"" + str + "\"")
       }
     }
-
-    val cur = java.lang.System.currentTimeMillis()
-    Thread.sleep(3000 + start - cur) //time to run all the processes
+    Thread.sleep(3000) //time to run all the processes
     alg.startInstance(0, io)
     // idle while the algorithms runs
     while (true) Thread.sleep(100000)
   }
   
-  Runtime.getRuntime().addShutdownHook(
-    new Thread() {
-      override def run() {
-        rt.shutdown
-      }
-    }
-  )
-
 }
