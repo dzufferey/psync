@@ -54,8 +54,8 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected var roundStart: Long = 0
   protected var strict = false
   
-  protected var currentRound = 0
-  protected var nextRound = 0
+  protected var currentRound: Time = new Time(0)
+  protected var nextRound: Time = new Time(0)
 
   /** keep track of the processes which have already send for the round */
   protected var from = LongBitSet.empty
@@ -63,7 +63,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   /** catch-up after nbrByzantine+1 messages have been received */
   protected val nbrByzantine = alg.options.nbrByzantine
   /** keep the max round seen for each process (used for deciding when to catch-up) */
-  protected var maxRnd: Array[Int] = Array(0)
+  protected var maxRnd: Array[Time] = Array(new Time(0))
   /** Since we might block on the round, we buffer messages that will be delivered later. */
   protected var pendingMessages: Array[PriorityQueue[Message]] = Array(new PriorityQueue[Message]()(Message.MinMessageOrdering)) //TODO check that this is the right ordering
   /** discard when there are two many messages from one process */
@@ -105,8 +105,8 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     // init this
     instance = inst
     self = g.self
-    currentRound = 0
-    nextRound = 0
+    currentRound = new Time(0)
+    nextRound = new Time(0)
 
     // checkResources
     val s = g.size
@@ -116,7 +116,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       pendingMessages = Array.fill(s)(new PriorityQueue[Message]()(Message.MinMessageOrdering))
     }
     if (maxRnd.size != s) {
-      maxRnd = Array.fill[Int](s)(0)
+      maxRnd = Array.fill[Time](s)(new Time(0))
     }
 
     // enqueue pending messages
@@ -132,7 +132,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     from = LongBitSet.empty
     var i = 0
     while (i < pendingMessages.size) {
-      maxRnd(i) = 0
+      maxRnd(i) = new Time(0)
       val q = pendingMessages(i)
       q.foreach( _.release )
       q.clear
@@ -155,9 +155,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       false
     }
   }
-  @inline private final def timeDiff(t1: Int, t2: Int) = t1 - t2
-  @inline private final def rndDiff(rnd: Int) = timeDiff(rnd, currentRound)
-  @inline private final def needCatchingUp = rndDiff(nextRound) > 0
+  @inline private final def needCatchingUp = nextRound > currentRound
   @inline private final def readyToProgress = needCatchingUp && !strict
 
   def run {
@@ -180,12 +178,12 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
         // check msg as well (store if needed)
         if (msg != null) {
           val msgRound = msg.round
-          if (rndDiff(msgRound) == 0) {
+          if (msgRound == currentRound) {
             processPacket(msg)
             msg = null
           } else if (!readyToProgress) {
             //getting blocked, buffer the message
-            assert(rndDiff(msgRound) >= 0)
+            assert(msgRound > currentRound)
             //TODO maxPending
             pendingMessages(msg.sender.id).enqueue(msg)
             msg = null
@@ -213,19 +211,17 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
               var msgRound = msg.round
               // update the highest seen round from msg.sender
               val sid = msg.sender.id
-              if (msgRound - maxRnd(sid) > 0) {
+              if (msgRound > maxRnd(sid)) {
                 maxRnd(sid) = msgRound
               }
-              val late = rndDiff(msgRound)
-              if (late < 0) {
+              if (msgRound < currentRound) {
                 // late message, ignore
                 msg.release
                 msg = null
-              } else if (late == 0) {
-                // message for the current round
+              } else if (msgRound == currentRound) {
                 processPacket(msg)
                 msg = null
-               } else { // late > 0
+               } else {
                 // check if we need to catch-up or store msg in pendingMessages
                 computeNextRound
                 if (!readyToProgress) {
@@ -266,9 +262,9 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     var i = 0
     while (i < pendingMessages.size) {
       val q = pendingMessages(i)
-      while (!q.isEmpty && rndDiff(q.head.round) <= 0) {
+      while (!q.isEmpty && q.head.round <= currentRound) {
         val msg = q.dequeue
-        assert(rndDiff(msg.round) == 0)
+        assert(msg.round == currentRound)
         processPacket(msg)
       }
       i += 1
@@ -281,7 +277,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       var i = 0
       var currMax = currentRound
       while (i < maxRnd.size) {
-        if (maxRnd(i) - currMax > 0) {
+        if (maxRnd(i) > currMax) {
           currMax = maxRnd(i)
         }
         i += 1

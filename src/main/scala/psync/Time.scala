@@ -7,8 +7,8 @@ package psync
 class Time(val toInt: Int) extends AnyVal with Ordered[Time] {
   def compare(that: Time) = this.toInt - that.toInt
   def tick = new Time(toInt + 1)
-  def +(n : Int) = new Time(toInt + n)
-  def -(n : Int) = new Time(toInt - n)
+  def +(t : Time) = new Time(toInt + t.toInt)
+  def -(t : Time) = new Time(toInt - t.toInt)
   def /(n : Int) = new Time(toInt / n) //to compute the phases from the round
 }
 
