@@ -59,6 +59,11 @@ trait RuntimeOptions extends AlgorithmOptions {
   protected var _dispatch = 7
   protected var _connectionRestartPeriod = 1000
   protected var _acceptUnknownConnection = false
+
+  //it you use SSL you should change these otherwise we use default which accept any certificate (see TcpRuntime.scala for how this is used)
+  var sslContextForClient: io.netty.handler.ssl.SslContext = null
+  var sslContextForServer: io.netty.handler.ssl.SslContext = null
+
 }
 
 abstract class RTOptions extends DefaultOptions with RuntimeOptions {

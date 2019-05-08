@@ -1,6 +1,6 @@
 # PSync
 
-![Version 0.2 SNAPSHOT](https://img.shields.io/badge/version-0.2_SNAPSHOT-green.svg)
+![Version 0.3 SNAPSHOT](https://img.shields.io/badge/version-0.3_SNAPSHOT-green.svg)
 [![Build Status](https://travis-ci.org/dzufferey/psync.svg?branch=master)](https://travis-ci.org/dzufferey/psync)
 [![Apache licensed](https://img.shields.io/badge/license-Apache-blue.svg)](https://raw.githubusercontent.com/dzufferey/psync/master/LICENSE)
 

@@ -51,16 +51,26 @@ class TcpRuntime(o: RuntimeOptions, dh: Message => Unit) extends Runtime(o, dh) 
   Logger.assert(options.protocol == NetworkProtocol.TCP || options.protocol == NetworkProtocol.TCP_SSL,
                 "TcpRuntime", "transport layer: only TCP supported")
 
-  private val isSSLEnabled = (options.protocol == NetworkProtocol.TCP_SSL)
+  private def isSSLEnabled = (options.protocol == NetworkProtocol.TCP_SSL)
 
-  private val sslServerCtx = if (isSSLEnabled) {
-    val ssc = new SelfSignedCertificate()
-    SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey()).build();
-  } else null
+  private def sslServerCtx = {
+    assert(isSSLEnabled)
+    if (o.sslContextForServer != null) {
+      o.sslContextForServer
+    } else {
+      val ssc = new SelfSignedCertificate()
+      SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey()).build()
+    }
+  }
 
-  private val sslClientCtx = if (isSSLEnabled) {
-    SslContextBuilder.forClient().trustManager(InsecureTrustManagerFactory.INSTANCE).build();
-  } else null
+  private def sslClientCtx = {
+    assert(isSSLEnabled)
+    if (o.sslContextForClient != null) {
+      o.sslContextForClient
+    } else {
+      SslContextBuilder.forClient().trustManager(InsecureTrustManagerFactory.INSTANCE).build()
+    }
+  }
 
   override def group_=(grp: Group) {
     val oldGroup = grp
