@@ -1,4 +1,4 @@
-package example
+package psync.utils
 
 import psync._
 import psync.utils.serialization._
@@ -12,7 +12,6 @@ import scala.reflect.ClassTag
 
 class PessimisticByzantineSynchronizer[A: ClassTag: KryoRegistration](
     round: EventRound[A], //the round to transform
-    n: Int, //the number of processes, needed here as it is defined within Process, FIXME WARNING due to caching in the runtime this is not correct if the number of processes change even between instance!
     defaultTO: Long //a default timeout value
   ) extends EventRound[Option[A]] {
 
@@ -21,10 +20,12 @@ class PessimisticByzantineSynchronizer[A: ClassTag: KryoRegistration](
 
   //counting messages for the byzantine sychronization
   protected var nMsg = 0
+  protected var nf = 0
 
   def init: Progress = {
     rProgress = round.init
     nMsg = 0
+    nf = group.size - group.nbrByzantine
     Progress.waitMessage
   }
 
@@ -40,7 +41,7 @@ class PessimisticByzantineSynchronizer[A: ClassTag: KryoRegistration](
       rProgress = round.receive(sender, msg).orElse(rProgress) //if 'unchanged' keep the old one
     }
     val syncProgress =
-      if (nMsg > 2*n/3) Progress.timeout( defaultTO )
+      if (nMsg > nf) Progress.timeout( defaultTO )
       else Progress.waitMessage
     Progress.lub(rProgress, syncProgress)
   }

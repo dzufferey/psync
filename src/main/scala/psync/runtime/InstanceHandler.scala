@@ -48,6 +48,8 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
 
   protected var instance: Short = 0
   protected var self: ProcessID = new ProcessID(-1)
+  /** catch-up after nbrByzantine+1 messages have been received */
+  protected var nbrByzantine = 0
   
   private final val block = Long.MinValue
   protected var timeout = alg.options.timeout
@@ -60,8 +62,6 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   /** keep track of the processes which have already send for the round */
   protected var from = LongBitSet.empty
   
-  /** catch-up after nbrByzantine+1 messages have been received */
-  protected val nbrByzantine = alg.options.nbrByzantine
   /** keep the max round seen for each process (used for deciding when to catch-up) */
   protected var maxRnd: Array[Time] = Array(new Time(0))
   /** Since we might block on the round, we buffer messages that will be delivered later. */
@@ -105,6 +105,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     // init this
     instance = inst
     self = g.self
+    nbrByzantine = g.nbrByzantine
     currentRound = new Time(0)
     nextRound = new Time(0)
 

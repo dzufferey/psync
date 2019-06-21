@@ -22,7 +22,6 @@ case class Factor(coeff: Int) extends Workers
 trait AlgorithmOptions {
   
   def timeout = _timeout
-  def nbrByzantine = _nbrByzantine
   def sendWhenCatchingUp = _sendWhenCatchingUp
   def delayFirstSend = _delayFirstSend
   def processPool = _processPool
@@ -32,7 +31,6 @@ trait AlgorithmOptions {
   protected var _sendWhenCatchingUp = true
   protected var _delayFirstSend = -1
   protected var _timeout = 10l
-  protected var _nbrByzantine = 0
   protected var _bufferSize = 64
   protected var _processPool = 16
   protected var _packetSize = -1
@@ -42,6 +40,7 @@ trait RuntimeOptions extends AlgorithmOptions {
 
   def id = _id
   def peers = _peers
+  def nbrByzantine = _nbrByzantine
   def group = _group
   def protocol = _protocol
   def workers = _workers
@@ -52,6 +51,7 @@ trait RuntimeOptions extends AlgorithmOptions {
 
   protected var _peers = List[Replica]()
   protected var _id: Short = -1
+  protected var _nbrByzantine = 0
   protected var _group = NetworkGroup.NIO
   protected var _protocol = NetworkProtocol.TCP
   protected var _port = -1

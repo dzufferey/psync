@@ -328,7 +328,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
   def onViewMessage(msg: Message) {
     Logger("DynamicMembership", Notice, "view message")
     val (v,inst,id,replicas) = msg.getContent[(Int,Short,Short,List[Replica])]
-    val group = Group(new ProcessID(id), replicas)
+    val group = Group(new ProcessID(id), replicas, 0)
     if (v > viewNbr) {
       assert(inst > instanceNbr)
       instanceNbr = inst

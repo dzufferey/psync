@@ -17,7 +17,7 @@ abstract class Runtime(val options: RuntimeOptions, defaultHandler: Message => U
   protected var executor: ExecutorService = null
   protected val directory = {
     val me = new ProcessID(options.id)
-    val grp = Group(me, options.peers)
+    val grp = Group(me, options.peers, options.nbrByzantine)
     new Directory(grp)
   }
 
