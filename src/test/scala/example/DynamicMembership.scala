@@ -66,15 +66,12 @@ object MembershipOpSerializer{
       classOf[MembershipOp] -> new MembershipOpSerializer
     )
   }
-  implicit val reg1 = new KryoRegistration[(Int,Short,Short,List[Replica])] {
-    override def registerClasses = Seq(classOf[Tuple4[_,_,_,_]], classOf[Replica])
-    override def registerClassesWithSerializer = Seq(
-      classOf[List[Replica]] -> new CollectionSerializer[Replica, List[Replica]]
-    )
+  implicit val reg1 = new KryoRegistration[Replica] {
+    override def registerClasses = Seq(classOf[Replica])
   }
 }
 
-import MembershipOpSerializer.{reg, reg1}
+import MembershipOpSerializer._
 
 abstract class MembershipIO {
   val initialValue: MembershipOp

@@ -2,7 +2,7 @@ package psync.utils
 
 import psync.{ProcessID, Time}
 import scala.reflect.ClassTag
-import com.esotericsoftware.kryo.Kryo
+import com.esotericsoftware.kryo.{Kryo, Serializer}
 
 package object serialization {
   
@@ -72,6 +72,32 @@ package object serialization {
     }
   }
   
+  implicit def regTriple[A: ClassTag: KryoRegistration,
+                         B: ClassTag: KryoRegistration,
+                         C: ClassTag: KryoRegistration] = new KryoRegistration[(A,B,C)] {
+    override def registerClasses = Seq(classOf[Tuple3[_,_,_]])
+    override def register(kryo: Kryo): Kryo = {
+      val k1 = implicitly[KryoRegistration[A]].register(kryo)
+      val k2 = implicitly[KryoRegistration[B]].register(k1)
+      val k3 = implicitly[KryoRegistration[C]].register(k2)
+      super.register(k3)
+    }
+  }
+
+  implicit def reg4Tuple[A: ClassTag: KryoRegistration,
+                         B: ClassTag: KryoRegistration,
+                         C: ClassTag: KryoRegistration,
+                         D: ClassTag: KryoRegistration] = new KryoRegistration[(A,B,C,D)] {
+    override def registerClasses = Seq(classOf[Tuple4[_,_,_,_]])
+    override def register(kryo: Kryo): Kryo = {
+      val k1 = implicitly[KryoRegistration[A]].register(kryo)
+      val k2 = implicitly[KryoRegistration[B]].register(k1)
+      val k3 = implicitly[KryoRegistration[C]].register(k2)
+      val k4 = implicitly[KryoRegistration[D]].register(k3)
+      super.register(k4)
+    }
+  }
+  
   implicit def regOpt[A: ClassTag: KryoRegistration] = new KryoRegistration[Option[A]] {
     import scala.language.existentials // for None
     val optionSerializer = new OptionSerializer[A]
@@ -85,7 +111,37 @@ package object serialization {
       super.register(k1)
     }
   }
+  
+  implicit def regMap[A: ClassTag: KryoRegistration, B: ClassTag: KryoRegistration] = new KryoRegistration[Map[A,B]] {
+    import scala.language.existentials // for Map.empty
+    val mapSerializer = new CollectionSerializer[(A,B), Map[A,B]]
+    override def registerClassesWithSerializer = Seq(
+      classOf[Map[A,B]] -> mapSerializer,
+      classOf[scala.collection.immutable.Map.Map1[A,B]] -> mapSerializer,
+      classOf[scala.collection.immutable.Map.Map2[A,B]] -> mapSerializer,
+      classOf[scala.collection.immutable.Map.Map3[A,B]] -> mapSerializer,
+      classOf[scala.collection.immutable.Map.Map4[A,B]] -> mapSerializer,
+      classOf[scala.collection.immutable.HashMap[A,B]] -> mapSerializer,
+      Map.empty.getClass -> mapSerializer
+    )
+    override def register(kryo: Kryo): Kryo = {
+      val k1 = implicitly[KryoRegistration[A]].register(kryo)
+      val k2 = implicitly[KryoRegistration[B]].register(k1)
+      super.register(k2)
+    }
+  }
 
-  //TODO automatic conversion from Serializer[A] tp KryoRegistration[A]
-
+  implicit def regList[A: ClassTag: KryoRegistration] = new KryoRegistration[List[A]] {
+    import scala.language.existentials // for Nil
+    val listSerializer = new CollectionSerializer[A, List[A]]
+    override def registerClassesWithSerializer = Seq(
+      classOf[List[A]] -> listSerializer,
+      classOf[::[A]] -> listSerializer,
+      Nil.getClass -> listSerializer
+    )
+    override def register(kryo: Kryo): Kryo = {
+      val k1 = implicitly[KryoRegistration[A]].register(kryo)
+      super.register(k1)
+    }
+  }
 }

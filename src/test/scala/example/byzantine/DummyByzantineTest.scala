@@ -1,6 +1,7 @@
-package example
+package example.byzantine
 
 import psync._
+import example._
 import psync.runtime._
 import psync.macros.Macros._
 import psync.utils._
@@ -48,6 +49,7 @@ object DummyByzantineRunner extends Runner {
 
   _timeout = 500
   _nbrByzantine = 1
+  _delayFirstSend = 3000
 
   def onStart {
     val alg = new DummyByzantineTest(rt, timeout)
