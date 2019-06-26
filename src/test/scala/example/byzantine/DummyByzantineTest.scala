@@ -7,7 +7,7 @@ import psync.macros.Macros._
 import psync.utils._
 import psync.utils.serialization._
 
-class DBTProcess(timeout: Long) extends Process[Unit] {
+class DBTProcess(timeout: Long, wait: Boolean) extends Process[Unit] {
 
   def init(io: Unit) { }
 
@@ -29,15 +29,15 @@ class DBTProcess(timeout: Long) extends Process[Unit] {
         Progress.goAhead
       }
 
-    }, timeout)
+    }, timeout, wait)
   )
 }
 
-class DummyByzantineTest(rt: Runtime, timeout: Long) extends Algorithm[Unit,DBTProcess](rt) {
+class DummyByzantineTest(rt: Runtime, timeout: Long, _wait: Boolean) extends Algorithm[Unit,DBTProcess](rt) {
   
   val spec = TrivialSpec
 
-  def process = new DBTProcess(timeout)
+  def process = new DBTProcess(timeout, _wait)
 
   def dummyIO = ()
 
@@ -47,12 +47,13 @@ object DummyByzantineRunner extends Runner {
   
   override def defaultConfFile = "src/test/resources/sample-conf.xml"
 
-  _timeout = 500
   _nbrByzantine = 1
   _delayFirstSend = 3000
+  var _wait = true
+  newOption("--noWait", dzufferey.arg.Unit( () => _wait = false), "always TO")
 
   def onStart {
-    val alg = new DummyByzantineTest(rt, timeout)
+    val alg = new DummyByzantineTest(rt, timeout, _wait)
     Thread.sleep(100)
     Console.println("replica " + id + " starting")
     alg.startInstance(0, ())

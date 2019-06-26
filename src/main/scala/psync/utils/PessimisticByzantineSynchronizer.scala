@@ -11,8 +11,9 @@ import scala.reflect.ClassTag
 //TODO test
 
 class PessimisticByzantineSynchronizer[A: ClassTag: KryoRegistration](
-    round: EventRound[A], //the round to transform
-    defaultTO: Long //a default timeout value
+    round: EventRound[A],       //the round to synchronize
+    defaultTO: Long,            //a default timeout value
+    waitMsg: Boolean = true    //if we can assume reliable channels between correct processes we can always wait for enogh messages and stay synchronized
   ) extends EventRound[Option[A]] {
 
   //progress status of the argument round
@@ -26,7 +27,10 @@ class PessimisticByzantineSynchronizer[A: ClassTag: KryoRegistration](
     rProgress = round.init
     nMsg = 0
     nf = group.size - group.nbrByzantine
-    Progress.waitMessage
+    val syncProgress =
+      if (waitMsg) Progress.waitMessage
+      else Progress.timeout(defaultTO)
+    Progress.lub(rProgress, syncProgress)
   }
 
   def send(): Map[ProcessID,Option[A]] = {
@@ -41,7 +45,7 @@ class PessimisticByzantineSynchronizer[A: ClassTag: KryoRegistration](
       rProgress = round.receive(sender, msg).orElse(rProgress) //if 'unchanged' keep the old one
     }
     val syncProgress =
-      if (nMsg > nf) Progress.timeout( defaultTO )
+      if (nMsg > nf || !waitMsg) Progress.timeout( defaultTO )
       else Progress.waitMessage
     Progress.lub(rProgress, syncProgress)
   }
