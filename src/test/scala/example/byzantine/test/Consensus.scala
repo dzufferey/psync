@@ -7,7 +7,7 @@ import psync.utils._
 import psync.utils.serialization._
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
-
+import scala.reflect.ClassTag
 import java.security.MessageDigest
 import example.ConsensusIO
 import example.batching._
@@ -22,10 +22,8 @@ case class Commit(digest: Array[Byte], view: Int) { }
 
 import MessagesSerializer._
 
-abstract class Bcp extends Process[ConsensusIO[Array[Byte]]]
-
 // manual sync
-class Bcp1(timeout: Long) extends Bcp {
+class Bcp(useSync: Boolean, timeout: Long, shortTimeout: Long) extends Process[ConsensusIO[Array[Byte]]] {
 
   //variables
   var x = Array[Byte]()
@@ -46,6 +44,14 @@ class Bcp1(timeout: Long) extends Bcp {
   }
   
   def coord(phi: Int): ProcessID = new ProcessID((phi % n).toShort)
+
+  def wrapRound[A: ClassTag: KryoRegistration](rnd: EventRound[A]): RtRound = {
+    if (useSync) {
+      new PessimisticByzantineSynchronizer(rnd, shortTimeout, timeout)
+    } else {
+      rnd
+    }
+  }
 
   
   val rounds = psync.macros.Macros.phase(
@@ -69,7 +75,7 @@ class Bcp1(timeout: Long) extends Bcp {
             x = payload.request
             digest = md.digest(x) 
             if (!MessageDigest.isEqual(digest, payload.digest)) { //check the digest
-              Logger("Bcp1", Notice, id + ", failed to check digest")
+              Logger("Bcp", Notice, id + ", failed to check digest")
               x = null
               digest = null
             }
@@ -82,7 +88,7 @@ class Bcp1(timeout: Long) extends Bcp {
 
       override def finishRound(didTimeout: Boolean) = {
         if(x == null || didTimeout) { // abort on failing to get a request
-          Logger("Bcp1", Notice, id + ", failed PrePrepare")
+          Logger("Bcp", Notice, id + ", failed PrePrepare")
           callback.decide(null)
           false
         } else {
@@ -149,7 +155,7 @@ class Bcp1(timeout: Long) extends Bcp {
         if (!didTimeout) {
           callback.decide(x)
         } else {
-          Logger("Bcp1", Notice, id + ", failed Commit")
+          Logger("Bcp", Notice, id + ", failed Commit")
           callback.decide(null)
         }
         false //in all case terminate
@@ -160,22 +166,11 @@ class Bcp1(timeout: Long) extends Bcp {
 
 }
 
-// same but with automated sync
-//class Bcp2(timeout: Long) extends Bcp {
-//  ???
-//}
-
-class ConsensusAlgo(rt: Runtime, algo: Int, timeout: Long) extends Algorithm[ConsensusIO[Array[Byte]],Bcp](rt) {
+class ConsensusAlgo(rt: Runtime, useSync: Boolean, timeout: Long, shortTimeout: Long) extends Algorithm[ConsensusIO[Array[Byte]],Bcp](rt) {
 
   val spec = TrivialSpec
   
-  def process = {
-    if (algo == 1) {
-      new Bcp1(timeout)
-    } else {
-      sys.error("!!!")
-    }
-  }
+  def process = new Bcp(useSync, timeout, shortTimeout)
 
   def dummyIO = new ConsensusIO[Array[Byte]]{
     val initialValue = Array[Byte]()

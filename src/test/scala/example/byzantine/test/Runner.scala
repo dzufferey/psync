@@ -42,7 +42,7 @@ class Runner(val options: Runner.type)
 
   // PSync runtime
   val rt = Runtime(options, defaultHandler(_))
-  val alg = new ConsensusAlgo(rt, 1, options.timeout)
+  val alg = new ConsensusAlgo(rt, options.sync, options.timeout, options.shortTO)
   var jitting = true
 
 
@@ -281,6 +281,12 @@ object Runner extends RTOptions {
 
   var forward = true
   newOption("--noForwarding", dzufferey.arg.Unit( () => forward = false), "disable forwarding (batches of) requests to the leader")
+
+  var sync = false
+  newOption("--sync", dzufferey.arg.Unit( () => sync = false), "enable PessimisticByzantineSynchronizer")
+
+  var shortTO = 5l
+  newOption("--shortTO", dzufferey.arg.Int( i => shortTO = i), "shortTO (default: 5)")
 
   val usage = "..."
   
