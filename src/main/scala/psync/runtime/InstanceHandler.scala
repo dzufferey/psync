@@ -11,7 +11,8 @@ import psync.utils.serialization.{KryoSerializer, KryoByteBufInput, KryoByteBufO
 import scala.collection.mutable.PriorityQueue
 import scala.math.{Ordering,max}
 import Message.MessageOrdering
-import psync.utils.{CircularBuffer, LongBitSet}
+import psync.utils.LongBitSet
+import com.esotericsoftware.kryo.KryoException
 
 //TODO what should be the interface ?
 //- val lock = new java.util.concurrent.locks.ReentrantLock
@@ -348,7 +349,16 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       assert(msg.round == currentRound, msg.round + " vs " + currentRound)
       val buffer = msg.bufferAfterTag
       kryoIn.setBuffer(buffer)
-      checkProgress(proc.receive(kryo, sender, kryoIn), false)
+      try {
+        checkProgress(proc.receive(kryo, sender, kryoIn), false)
+      } catch {
+        case e: KryoException =>
+          if (nbrByzantine > 0) {
+            Logger("InstanceHandler", Warning, "Replica " + self.id + ", instance " + instance + " got a malformed message! ignoring because nbrByzantine > 0).")
+          } else {
+            throw e
+          }
+      }
       kryoIn.setBuffer(null: ByteBuf)
     }
     msg.release

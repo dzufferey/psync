@@ -29,12 +29,14 @@ class Bcp1(timeout: Long) extends Bcp {
 
   //variables
   var x = Array[Byte]()
+  var prepared = false
   var callback: ConsensusIO[Array[Byte]] = null
   val md = MessageDigest.getInstance("SHA-256");
   var digest: Array[Byte] = null
 
   
   def init(io: ConsensusIO[Array[Byte]]) = i{
+    prepared = false
     callback = io
     x = io.initialValue
     md.reset
@@ -50,7 +52,7 @@ class Bcp1(timeout: Long) extends Bcp {
     //pre-prepare
     new EventRound[PrePrepare]{
 
-      def init = Progress.timeout(timeout)
+      def init = Progress.strictTimeout(timeout)
 
       def send(): Map[ProcessID,PrePrepare] = {
         if (id == coord(r/3)) {
@@ -107,20 +109,12 @@ class Bcp1(timeout: Long) extends Bcp {
       def receive(sender: ProcessID, payload: Prepare) = {
         if (MessageDigest.isEqual(payload.digest, digest)) {
           confirmed += 1
-          if (confirmed > 2*n/3) Progress.goAhead
-          else Progress.unchanged
+          if (confirmed > 2*n/3) {
+            prepared = true
+            Progress.goAhead
+          } else Progress.unchanged
         } else {
           Progress.unchanged
-        }
-      }
-      
-      override def finishRound(didTimeout: Boolean) = {
-        if (didTimeout) {// abort on TO (failing to get a quorum)
-          Logger("Bcp1", Notice, id + ", failed Prepare")
-          callback.decide(null)
-          false
-        } else {
-          true
         }
       }
 
@@ -137,7 +131,8 @@ class Bcp1(timeout: Long) extends Bcp {
       }
 
       def send(): Map[ProcessID,Commit] = {
-        broadcast(Commit(digest, 0))
+        if (prepared) broadcast(Commit(digest, 0))
+        else Map.empty[ProcessID,Commit]
       }
       
       def receive(sender: ProcessID, payload: Commit) = {

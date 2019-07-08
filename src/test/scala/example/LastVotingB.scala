@@ -114,6 +114,8 @@ class LVBProcess(wholeCohort: SyncCondition, timeout: Long) extends Process[BCon
 
     },
 
+    //TODO we are sending againg the payload even though most processes already have it
+    //this make sense if we similate the learning but otherwise it is rather expensive
     new Round[Array[Byte]](timeout){
 
       def send(): Map[ProcessID,Array[Byte]] = {

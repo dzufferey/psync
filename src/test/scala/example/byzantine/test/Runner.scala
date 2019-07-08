@@ -66,7 +66,7 @@ class Runner(val options: Runner.type)
 
 
     val flag = msg.tag.flag
-    Logger("BatchingClient", Debug, id + ", defaultHandler: " + msg.tag)
+    Logger("Runner", Debug, id + ", defaultHandler: " + msg.tag)
     if (flag == Flags.normal || flag == Flags.dummy) {
       val inst = msg.instance
       lck.lock
@@ -77,13 +77,6 @@ class Runner(val options: Runner.type)
           // with eagerStart, instances are started eagerly, not lazily
           if (isLate.get) {
             //late: focus on recovery rather than starting instances
-            //cheat a bit, if the message is a decision (round % 4 == 3) then process the decision anyway
-            if (msg.round % 4 == 3) {
-              import scala.reflect.ClassTag
-              import psync.utils.serialization._
-              val decision = msg.getContent[Array[Byte]]
-              proposeDecision(msg.instance, decision)
-            }
             msg.release
           } else if (!options.eagerStart) {
             startInstance(inst, emp, Set(msg))
@@ -108,13 +101,13 @@ class Runner(val options: Runner.type)
       try {
         if (tracker.canStart(inst) || tracker.isRunning(inst)) {
           if (tracker.pending(inst)) {
-            Logger("BatchingClient", Info, id + ", AskDecision for pending instance " + inst)
+            Logger("Runner", Info, id + ", AskDecision for pending instance " + inst)
           } else if (tracker.running(inst)) {
-            Logger("BatchingClient", Info, id + ", AskDecision for running instance " + inst)
+            Logger("Runner", Info, id + ", AskDecision for running instance " + inst)
           } else if (Instance.lt(tracker.started, inst)){
-            Logger("BatchingClient", Info, id + ", AskDecision for instance not yet started " + inst)
+            Logger("Runner", Info, id + ", AskDecision for instance not yet started " + inst)
           } else {
-            Logger("BatchingClient", Warning, id + ", AskDecision for instance " + inst + "\n" + tracker)
+            Logger("Runner", Warning, id + ", AskDecision for instance " + inst + "\n" + tracker)
           }
         } else {
           sendRecoveryInfo(inst, msg.sender)
@@ -133,14 +126,14 @@ class Runner(val options: Runner.type)
       msg.release
       alg.stopInstance(inst)
       proposeDecision(inst, d)
-      Logger("BatchingClient", Debug, "received decision for " + inst)
+      Logger("Runner", Debug, "received decision for " + inst)
     } else if (flag == Late) {
       val inst = msg.instance
       msg.release
       alg.stopInstance(inst)
       //TODO get the whole state
       proposeDecision(inst, null)
-      Logger("BatchingClient", Debug, "received late for " + inst)
+      Logger("Runner", Debug, "received late for " + inst)
     } else if (flag == ForwardedBatch) {
       val payload = msg.payload
       payload.readLong //skip tag
@@ -167,13 +160,13 @@ class Runner(val options: Runner.type)
           payload.writeBytes(emp)
         }
         rt.sendMessage(dest, Tag(inst,0,Decision,0), payload)
-        Logger("BatchingClient", Debug, id + " sending decision to " + dest.id + " for " + inst)
+        Logger("Runner", Debug, id + " sending decision to " + dest.id + " for " + inst)
       case None =>
         val payload = PooledByteBufAllocator.DEFAULT.buffer()
         payload.writeLong(8)
         rt.sendMessage(dest, Tag(inst,0,Late,0), payload)
         //TODO send the whole state
-        Logger("BatchingClient", Debug, id + " sending late to " + dest.id + " for " + inst)
+        Logger("Runner", Debug, id + " sending late to " + dest.id + " for " + inst)
     }
   }
   
@@ -196,11 +189,12 @@ class Runner(val options: Runner.type)
       val initialValue = dummy
       def decide(value: Array[Byte]) { }
     }
+    Thread.sleep(1000)
     for (i <- 0 until 10) {
       alg.startInstance(i.toShort, io, Set.empty)
     }
     //let it run for a while
-    Thread.sleep(options.delay - 1000)
+    Thread.sleep(options.delay - 2000)
     for (i <- 0 until 10) {
       alg.stopInstance(i.toShort)
     }
