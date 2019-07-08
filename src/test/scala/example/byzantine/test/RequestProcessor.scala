@@ -1,6 +1,6 @@
 package example.byzantine.test
 
-//TODO borrowed from BatchingClient
+//TODO borrowed from Runner
 
 import example.DecisionLog
 import psync._
@@ -86,7 +86,7 @@ trait RequestProcessor {
       } catch {
         case _: java.lang.InterruptedException => ()
       }
-      Logger("BatchingClient", Info, "requestsProcessor, |pendingRequests| = " + pendingRequests.size + ", |pendingBatch| = " + pendingBatch.size)
+      Logger("Runner", Info, "requestsProcessor, |pendingRequests| = " + pendingRequests.size + ", |pendingBatch| = " + pendingBatch.size)
     }
   })
 

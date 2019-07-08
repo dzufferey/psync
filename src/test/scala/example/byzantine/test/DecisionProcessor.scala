@@ -1,6 +1,6 @@
 package example.byzantine.test
 
-//TODO borrowed from BatchingClient
+//TODO borrowed from Runner
 
 import psync.ProcessID
 import psync.runtime.{Instance,Tag}
@@ -45,7 +45,7 @@ trait DecisionProcessor {
     try {
       //put the decision in the rolling log
       if (pushDecision(inst, data)) {
-        Logger("BatchingClient", Debug, id + ", proposeDecision for " + inst + " ✓")
+        Logger("Runner", Debug, id + ", proposeDecision for " + inst + " ✓")
         acceptedBatch.add(inst -> data)
         //
         lck.lock
@@ -61,7 +61,7 @@ trait DecisionProcessor {
           lck.unlock
         }
       } else {
-        Logger("BatchingClient", Debug, id + ", proposeDecision for " + inst + " ✗")
+        Logger("Runner", Debug, id + ", proposeDecision for " + inst + " ✗")
       }
     } finally {
       l.unlock
@@ -109,6 +109,7 @@ trait DecisionProcessor {
     private val reorderingQueue = new PriorityQueue[(Short, Array[Byte])]()(BatchOrdering)
     private var nextBatch: Short = 1
     private def lateThreshold = reorderingQueue.size > options.rate * options.late
+    private def lateThresholdRecover = reorderingQueue.size > options.rate
     private def askDecision {
       //pick someone to ask
       var askingTo = scala.util.Random.nextInt(rt.group.size)
@@ -118,7 +119,7 @@ trait DecisionProcessor {
       val payload = PooledByteBufAllocator.DEFAULT.buffer()
       payload.writeLong(8)
       rt.sendMessage(new ProcessID(askingTo.toShort), Tag(nextBatch,0,AskDecision,0), payload)
-      Logger("BatchingClient", Info, id + " asking to " + askingTo + " for decision " + nextBatch)
+      Logger("Runner", Info, id + " asking to " + askingTo + " for decision " + nextBatch)
     }
     def run = {
       try{
@@ -135,9 +136,9 @@ trait DecisionProcessor {
                 processBatch(inst, batch)
                 nextBatch = (nextBatch + 1).toShort
               }
-              if (!lateThreshold) {
+              if (!lateThresholdRecover) {
                 if (isLate.get) {
-                    Logger("BatchingClient", Info, id + ", not late anymore")
+                    Logger("Runner", Info, id + ", not late anymore")
                 }
                 isLate.set(false)
               }
@@ -150,7 +151,7 @@ trait DecisionProcessor {
               reorderingQueue += req
               if (lateThreshold) {
                 if (!isLate.get) {
-                    Logger("BatchingClient", Info, id + ", late")
+                    Logger("Runner", Info, id + ", late")
                 }
                 isLate.set(true)
                 if (!tracker.isRunning(nextBatch)) {
@@ -168,7 +169,7 @@ trait DecisionProcessor {
       } catch {
         case _: java.lang.InterruptedException => ()
       }
-      Logger("BatchingClient", Info, "decisionProcessor, nextBatch = " + nextBatch + ", |reorderingQueue| = " + reorderingQueue.size)
+      Logger("Runner", Info, "decisionProcessor, nextBatch = " + nextBatch + ", |reorderingQueue| = " + reorderingQueue.size)
     }
   })
 

@@ -1,6 +1,6 @@
 package example.byzantine.test
 
-//TODO borrowed from BatchingClient
+//TODO borrowed from Runner
 
 import psync._
 import psync.runtime._
@@ -85,7 +85,7 @@ class Runner(val options: Runner.type)
           }
         } else if (tracker.isRunning(inst)) {
           if (!rt.deliverMessage(msg)) {
-            Logger("BatchingClient", Debug, "could not deliver message message for running instance " + inst)
+            Logger("Runner", Debug, "could not deliver message message for running instance " + inst)
             msg.release
           }
         } else {
@@ -294,7 +294,7 @@ object Runner extends RTOptions {
     system.start // this take a while (JIT and stuff)
     val prng = new util.Random()
 
-    Logger("BatchingClient", Notice, id + ", starting")
+    Logger("Runner", Notice, id + ", starting")
     begin = java.lang.System.currentTimeMillis()
 
     //TODO many clients (only if leader or forward)
@@ -321,7 +321,7 @@ object Runner extends RTOptions {
         val versionNbr = system.shutdown
         val end = java.lang.System.currentTimeMillis()
         val duration = (end - begin) / 1000
-        Logger("BatchingClient", Notice, id + ", #decisions = " + versionNbr + ", Δt = " + duration + ", throughput = " + (versionNbr/duration))
+        Logger("Runner", Notice, id + ", #decisions = " + versionNbr + ", Δt = " + duration + ", throughput = " + (versionNbr/duration))
       }
     }
   )

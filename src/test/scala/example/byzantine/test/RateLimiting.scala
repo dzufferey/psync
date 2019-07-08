@@ -1,6 +1,6 @@
 package example.byzantine.test
 
-//TODO borrowed from BatchingClient
+//TODO borrowed from Runner
 
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
@@ -15,7 +15,7 @@ trait RateLimiting {
 
   def acquire {
     assert(lck.isHeldByCurrentThread())
-    Logger("BatchingClient", Debug, id + ", taking")
+    Logger("Runner", Debug, id + ", taking")
     while(rate <= 0) {
       monitor.await
     }
@@ -24,7 +24,7 @@ trait RateLimiting {
 
   def release {
     assert(lck.isHeldByCurrentThread())
-    Logger("BatchingClient", Debug, id + ", releasing")
+    Logger("Runner", Debug, id + ", releasing")
     rate += 1
     monitor.signal()
   }
