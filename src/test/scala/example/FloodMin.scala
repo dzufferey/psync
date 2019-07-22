@@ -5,18 +5,18 @@ import psync.runtime._
 import psync.macros.Macros._
 import psync.utils.serialization._
 
-class FloodMinProcess(f: Int) extends Process[ConsensusIO] {
+class FloodMinProcess(f: Int, timeout: Long) extends Process[ConsensusIO[Int]] {
   
   var x = 0
-  var callback: ConsensusIO = null
+  var callback: ConsensusIO[Int] = null
 
-  def init(io: ConsensusIO) {
+  def init(io: ConsensusIO[Int]) {
     callback = io
     x = io.initialValue
   }
 
   val rounds = phase(
-    new Round[Int]{
+    new Round[Int](timeout){
     
       def send: Map[ProcessID,Int] = {
         broadcast( x )
@@ -35,43 +35,29 @@ class FloodMinProcess(f: Int) extends Process[ConsensusIO] {
 
 }
 
-class FloodMin(f: Int) extends Algorithm[ConsensusIO,FloodMinProcess] {
+class FloodMin(rt: Runtime, f: Int, timeout: Long) extends Algorithm[ConsensusIO[Int],FloodMinProcess](rt) {
 
   val spec = TrivialSpec //TODO we need safety predicates on transition to account for synchronous crash-stop
 
-  def process = new FloodMinProcess(f)
+  def process = new FloodMinProcess(f, timeout)
 
-  def dummyIO = new ConsensusIO{
+  def dummyIO = new ConsensusIO[Int]{
     val initialValue = 0
     def decide(value: Int) { }
   }
 }
 
-object FloodMinRunner extends RTOptions {
+object FloodMinRunner extends Runner {
   
   var f = 2
   newOption("-f", dzufferey.arg.Int( i => f = i), "f (default = 2)")
 
-  var confFile = "src/test/resources/3replicas-conf.xml"
-  
-  val usage = "..."
-  
-  var rt: Runtime[ConsensusIO,FloodMinProcess] = null
-
-  def defaultHandler(msg: Message) {
-    msg.release
-  }
-  
-  def main(args: Array[java.lang.String]) {
-    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
-    val alg = new FloodMin(f)
-    rt = new Runtime(alg, this, defaultHandler(_))
-    rt.startService
+  def onStart {
+    val alg = new FloodMin(rt, f, timeout)
 
     import scala.util.Random
     val init = Random.nextInt
-    val io = new ConsensusIO {
+    val io = new ConsensusIO[Int] {
       val initialValue = init
       def decide(value: Int) {
         Console.println("replica " + id + " decided " + value)
@@ -79,14 +65,7 @@ object FloodMinRunner extends RTOptions {
     }
     Thread.sleep(100)
     Console.println("replica " + id + " starting with " + init)
-    rt.startInstance(0, io)
+    alg.startInstance(0, io)
   }
   
-  Runtime.getRuntime().addShutdownHook(
-    new Thread() {
-      override def run() {
-        rt.shutdown
-      }
-    }
-  )
 }

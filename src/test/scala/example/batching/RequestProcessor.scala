@@ -38,7 +38,7 @@ trait RequestProcessor {
       } finally {
         lck.unlock
       }
-    } else {
+    } else if (options.forward) {
       // forward the batch to the leader (process with id 0)
       val payload = PooledByteBufAllocator.DEFAULT.buffer()
       payload.writeLong(8)

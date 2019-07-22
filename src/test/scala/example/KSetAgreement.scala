@@ -18,20 +18,20 @@ object KSetAgreementSerialization {
 
 import KSetAgreementSerialization.reg
 
-class KSetProcess(k: Int) extends Process[ConsensusIO] {
+class KSetProcess(k: Int, timeout: Long) extends Process[ConsensusIO[Int]] {
   
   var t = Map.empty[ProcessID,Int]
   var decider = false
-  var callback: ConsensusIO = null
+  var callback: ConsensusIO[Int] = null
 
-  def init(io: ConsensusIO) {
+  def init(io: ConsensusIO[Int]) {
     callback = io
     decider = false
     t = Map(id -> io.initialValue)
   }
     
   val rounds = phase(
-    new Round[(Boolean, Map[ProcessID,Int])]{
+    new Round[(Boolean, Map[ProcessID,Int])](timeout){
     
       def merge(a: Map[ProcessID,Int], b: Map[ProcessID,Int]) = {
         a ++ b
@@ -67,7 +67,7 @@ class KSetProcess(k: Int) extends Process[ConsensusIO] {
 
 }
 
-class KSetAgreement(k: Int) extends Algorithm[ConsensusIO,KSetProcess] {
+class KSetAgreement(rt: Runtime, k: Int, timeout: Long) extends Algorithm[ConsensusIO[Int],KSetProcess](rt) {
   
   val spec = TrivialSpec
   //k-agreement: the set Y of decision values is such that Y ⊆ V₀ ∧ |Y| ≤ k
@@ -78,39 +78,25 @@ class KSetAgreement(k: Int) extends Algorithm[ConsensusIO,KSetProcess] {
   // crash-fault, f < k
   // completely async (no termination requirement)
 
-  def process = new KSetProcess(k)
+  def process = new KSetProcess(k, timeout)
 
-  def dummyIO = new ConsensusIO{
+  def dummyIO = new ConsensusIO[Int]{
     val initialValue = 0
     def decide(value: Int) { }
   }
 }
 
-object KSetRunner extends RTOptions {
+object KSetRunner extends Runner {
   
   var k = 2
   newOption("-k", dzufferey.arg.Int( i => k = i), "k (default = 2)")
 
-  var confFile = "src/test/resources/3replicas-conf.xml"
-  
-  val usage = "..."
-  
-  var rt: Runtime[ConsensusIO,KSetProcess] = null
-
-  def defaultHandler(msg: Message) {
-    msg.release
-  }
-  
-  def main(args: Array[java.lang.String]) {
-    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
-    val alg = new KSetAgreement(k)
-    rt = new Runtime(alg, this, defaultHandler(_))
-    rt.startService
+  def onStart {
+    val alg = new KSetAgreement(rt, k, timeout)
 
     import scala.util.Random
     val init = Random.nextInt
-    val io = new ConsensusIO {
+    val io = new ConsensusIO[Int] {
       val initialValue = init
       def decide(value: Int) {
         Console.println("replica " + id + " decided " + value)
@@ -118,14 +104,6 @@ object KSetRunner extends RTOptions {
     }
     Thread.sleep(100)
     Console.println("replica " + id + " starting with " + init)
-    rt.startInstance(0, io)
+    alg.startInstance(0, io)
   }
-  
-  Runtime.getRuntime().addShutdownHook(
-    new Thread() {
-      override def run() {
-        rt.shutdown
-      }
-    }
-  )
 }

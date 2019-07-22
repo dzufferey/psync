@@ -10,7 +10,7 @@ trait KryoRegistration[A] {
 
   def registerClassesWithSerializer: Iterable[(Class[_],Serializer[_])] = Nil
 
-  def register(kryo: Kryo) = {
+  def register(kryo: Kryo): Kryo = {
     registerClasses.foreach( kryo.register(_) )
     registerClassesWithSerializer.foreach{ case (c, s) => kryo.register(c, s) }
     kryo

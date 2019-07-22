@@ -47,7 +47,7 @@ class Impl(val c: Context) extends Lifting
     }
   }
 
-  def postprocessRound[A](e: c.Expr[Round[A]]): c.Expr[(RtRound,RoundSpec)] = {
+  def postprocessRound(e: c.Expr[RtRound]): c.Expr[(RtRound,RoundSpec)] = {
     try {
       val rnd, spec = processRound(e.tree)
       val res2 = c.Expr[(RtRound,RoundSpec)](q"($rnd, $spec)")
@@ -60,7 +60,7 @@ class Impl(val c: Context) extends Lifting
     }
   }
 
-  def mkPhase(e: c.Expr[Round[_]]*): c.Expr[Array[(RtRound,RoundSpec)]] = {
+  def mkPhase(e: c.Expr[RtRound]*): c.Expr[Array[(RtRound,RoundSpec)]] = {
     try {
       val rounds = e.map( expr => processRound(expr.tree) )
       val array = q"Array[(RtRound,RoundSpec)](..$rounds)"
@@ -85,9 +85,9 @@ object Macros {
   
   def i/*[IO](io: IO)*/(e: Unit): Unit = macro Impl.init//[IO]
   
-  def rnd[A](e: Round[A]): (RtRound,RoundSpec) = macro Impl.postprocessRound[A]
+  def rnd(e: RtRound): (RtRound,RoundSpec) = macro Impl.postprocessRound
 
-  def phase(e: Round[_]*): Array[(RtRound,RoundSpec)] = macro Impl.mkPhase
+  def phase(e: RtRound*): Array[(RtRound,RoundSpec)] = macro Impl.mkPhase
 
   def asFormula[T](any: Any): Formula = macro Impl.any2Formula[T]
 

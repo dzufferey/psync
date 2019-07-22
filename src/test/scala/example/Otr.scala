@@ -5,19 +5,20 @@ import psync.formula._
 import psync.macros.Macros._
 import psync.verification.{requires,ensures}
 import psync.utils.serialization._
+import psync.runtime.Runtime
 
 //like OTR but uses a boolean flag instead of an option for the decision
 
 
-class OtrProcess(afterDecision: Int) extends Process[ConsensusIO]{
+class OtrProcess(timeout: Long, afterDecision: Int) extends Process[ConsensusIO[Int]]{
 
   var x = 0
   var decision = -1 //as ghost
   var decided = false
   var after = afterDecision
-  var callback: ConsensusIO = null
+  var callback: ConsensusIO[Int] = null
     
-  def init(io: ConsensusIO) = i{
+  def init(io: ConsensusIO[Int]) = i{
     callback = io
     x = io.initialValue
     decided = false
@@ -53,7 +54,7 @@ class OtrProcess(afterDecision: Int) extends Process[ConsensusIO]{
   }*/
 
   val rounds = phase(
-    new Round[Int]{
+    new Round[Int](timeout){
 
       def send(): Map[ProcessID,Int] = {
         broadcast(x) //macro for (x, All)
@@ -85,7 +86,7 @@ class OtrProcess(afterDecision: Int) extends Process[ConsensusIO]{
 }
 
 
-class OTR(afterDecision: Int = 2) extends Algorithm[ConsensusIO, OtrProcess] {
+class OTR(rt: Runtime, timeout: Long, afterDecision: Int = 2) extends Algorithm[ConsensusIO[Int], OtrProcess](rt) {
 
   import SpecHelper._
 
@@ -118,9 +119,9 @@ class OTR(afterDecision: Int = 2) extends Algorithm[ConsensusIO, OtrProcess] {
     )
   }
   
-  def process = new OtrProcess(afterDecision)
+  def process = new OtrProcess(timeout, afterDecision)
 
-  def dummyIO = new ConsensusIO{
+  def dummyIO = new ConsensusIO[Int]{
     val initialValue = 0
     def decide(value: Int) { }
   }

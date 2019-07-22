@@ -12,7 +12,7 @@ abstract class TpcIO {
   def decide(value: Option[Boolean]): Unit //deciding None means that we suspect the coordinator of crash!
 }
 
-class TpcProcess extends Process[TpcIO] {
+class TpcProcess(timeout: Long) extends Process[TpcIO] {
   
   var coord = new ProcessID(0)
   var vote = false
@@ -27,7 +27,7 @@ class TpcProcess extends Process[TpcIO] {
   }
     
   val rounds = phase(
-    new Round[Boolean]{ //place holder for PrepareCommit
+    new Round[Boolean](timeout){ //place holder for PrepareCommit
       def send(): Map[ProcessID,Boolean] = {
         if (id == coord) broadcast(true)
         else Map.empty[ProcessID,Boolean] //otherwise the compiler give Map[ProcessID,Int] !?
@@ -38,7 +38,7 @@ class TpcProcess extends Process[TpcIO] {
       } 
     },
 
-    new Round[Boolean]{
+    new Round[Boolean](timeout){
 
       def send(): Map[ProcessID,Boolean] = {
         Map( coord -> vote )
@@ -57,7 +57,7 @@ class TpcProcess extends Process[TpcIO] {
       }
     },
 
-    new Round[Boolean]{
+    new Round[Boolean](timeout){
 
       def send(): Map[ProcessID,Boolean] = {
         if (id == coord) broadcast(decision.get)
@@ -78,7 +78,7 @@ class TpcProcess extends Process[TpcIO] {
 
 }
 
-class TwoPhaseCommit extends Algorithm[TpcIO,TpcProcess] {
+class TwoPhaseCommit(rt: Runtime, timeout: Long) extends Algorithm[TpcIO,TpcProcess](rt) {
 
   import SpecHelper._
 
@@ -107,7 +107,7 @@ class TwoPhaseCommit extends Algorithm[TpcIO,TpcProcess] {
     )
   }
 
-  def process = new TpcProcess
+  def process = new TpcProcess(timeout)
 
   def dummyIO = new TpcIO{
     val coord = new ProcessID(0)
@@ -117,25 +117,12 @@ class TwoPhaseCommit extends Algorithm[TpcIO,TpcProcess] {
 }
 
 
-object TpcRunner extends RTOptions {
-  
+object TpcRunner extends Runner {
 
-  var confFile = "src/test/resources/sample-conf.xml"
+  override def defaultConfFile = "src/test/resources/sample-conf.xml"
   
-  val usage = "..."
-  
-  var rt: Runtime[TpcIO,TpcProcess] = null
-
-  def defaultHandler(msg: Message) {
-    msg.release
-  }
-  
-  def main(args: Array[String]) {
-    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
-    val alg = new TwoPhaseCommit()
-    rt = new Runtime(alg, this, defaultHandler(_))
-    rt.startService
+  def onStart {
+    val alg = new TwoPhaseCommit(rt, timeout)
 
     import scala.util.Random
     val init = Random.nextBoolean
@@ -149,14 +136,6 @@ object TpcRunner extends RTOptions {
     }
     Thread.sleep(100)
     Console.println("replica " + id + " starting with " + init)
-    rt.startInstance(0, io)
+    alg.startInstance(0, io)
   }
-  
-  Runtime.getRuntime().addShutdownHook(
-    new Thread() {
-      override def run() {
-        rt.shutdown
-      }
-    }
-  )
 }

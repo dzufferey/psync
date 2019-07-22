@@ -6,14 +6,14 @@ import psync.macros.Macros._
 import psync.utils.serialization._
 
 //http://link.springer.com/chapter/10.1007%2F11535294_5
-class KSetESProcess(t: Int, k: Int) extends Process[ConsensusIO] {
+class KSetESProcess(t: Int, k: Int, timeout: Long) extends Process[ConsensusIO[Int]] {
 
   var est = 0
   var canDecide = false
   var lastNb = 0
-  var callback: ConsensusIO = null
+  var callback: ConsensusIO[Int] = null
 
-  def init(io: ConsensusIO) = i{
+  def init(io: ConsensusIO[Int]) = i{
     canDecide = false
     lastNb = n
     est = io.initialValue
@@ -21,7 +21,7 @@ class KSetESProcess(t: Int, k: Int) extends Process[ConsensusIO] {
   }
 
   val rounds = phase(
-    new Round[(Int, Boolean)]{
+    new Round[(Int, Boolean)](timeout){
     
       def send: Map[ProcessID,(Int, Boolean)] = {
         broadcast( (est: Int) -> (canDecide: Boolean) )
@@ -44,19 +44,19 @@ class KSetESProcess(t: Int, k: Int) extends Process[ConsensusIO] {
 }
 
 
-class KSetEarlyStopping(t: Int, k: Int) extends Algorithm[ConsensusIO,KSetESProcess] {
+class KSetEarlyStopping(rt: Runtime, t: Int, k: Int, timeout: Long) extends Algorithm[ConsensusIO[Int],KSetESProcess](rt) {
   
   val spec = TrivialSpec
 
-  def process = new KSetESProcess(t, k)
+  def process = new KSetESProcess(t, k, timeout)
 
-  def dummyIO = new ConsensusIO{
+  def dummyIO = new ConsensusIO[Int]{
     val initialValue = 0
     def decide(value: Int) { }
   }
 }
 
-object KSetESRunner extends RTOptions {
+object KSetESRunner extends Runner {
   
   var k = 2
   newOption("-k", dzufferey.arg.Int( i => k = i), "k (default = 2)")
@@ -64,26 +64,13 @@ object KSetESRunner extends RTOptions {
   var t = 2
   newOption("-t", dzufferey.arg.Int( i => k = i), "t (default = 2)")
 
-  var confFile = "src/test/resources/3replicas-conf.xml"
   
-  val usage = "..."
-  
-  var rt: Runtime[ConsensusIO,KSetESProcess] = null
-
-  def defaultHandler(msg: Message) {
-    msg.release
-  }
-  
-  def main(args: Array[java.lang.String]) {
-    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
-    val alg = new KSetEarlyStopping(t, k)
-    rt = new Runtime(alg, this, defaultHandler(_))
-    rt.startService
+  def onStart {
+    val alg = new KSetEarlyStopping(rt, t, k, timeout)
 
     import scala.util.Random
     val init = Random.nextInt
-    val io = new ConsensusIO {
+    val io = new ConsensusIO[Int] {
       val initialValue = init
       def decide(value: Int) {
         Console.println("replica " + id + " decided " + value)
@@ -91,14 +78,6 @@ object KSetESRunner extends RTOptions {
     }
     Thread.sleep(100)
     Console.println("replica " + id + " starting with " + init)
-    rt.startInstance(0, io)
+    alg.startInstance(0, io)
   }
-  
-  Runtime.getRuntime().addShutdownHook(
-    new Thread() {
-      override def run() {
-        rt.shutdown
-      }
-    }
-  )
 }

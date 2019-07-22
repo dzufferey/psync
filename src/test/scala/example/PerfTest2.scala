@@ -15,24 +15,21 @@ import scala.reflect.ClassTag
 import psync.utils.serialization._
 import com.esotericsoftware.kryo.Kryo
 
-class PerfTest2(options: RuntimeOptions,
-                nbrValues: Short,
-                _rate: Short,
-                algorithm: String,
-                logFile: Option[String],
-                additionalOptions: Map[String,String]
-               ) extends DecisionLog[Int]
+class PerfTest2(additionalOptions: Map[String,Any]) extends DecisionLog[Int]
 {
 
   final val Decision = 4
   final val Recovery = 5
 
-  val id = options.id
-  val rate = new Semaphore(_rate)
+  val id = PerfTest2.id
+  val rate = new Semaphore(PerfTest2.rate)
+  val nbrValues = PerfTest2.n.toShort
+  val algorithm = PerfTest2.algorithm
 
-  val log: java.io.BufferedWriter =
-    if (logFile.isDefined) new java.io.BufferedWriter(new java.io.FileWriter(logFile.get + "_" + id + ".log"))
-    else null
+  val log: java.io.BufferedWriter = PerfTest2.logFile match {
+    case Some(f) => new java.io.BufferedWriter(new java.io.FileWriter(f + "_" + id + ".log"))
+    case None => null
+  }
   val logLock = new ReentrantLock
 
   if (log != null) {
@@ -40,7 +37,8 @@ class PerfTest2(options: RuntimeOptions,
     log.newLine()
   }
 
-  val rt = ConsensusSelector(algorithm, options, defaultHandler, additionalOptions)
+  val rt = Runtime(PerfTest2, defaultHandler)
+  val alg = ConsensusSelector(PerfTest2.algorithm, rt, additionalOptions)
   rt.startService
 
   val values   = Array.ofDim[Short](nbrValues)
@@ -57,11 +55,12 @@ class PerfTest2(options: RuntimeOptions,
   val selfStarted = new ConcurrentSkipListSet[Short]()
 
   val kryo = new ThreadLocal[Kryo] {
-    override def initialValue = regIntTimePair.register(KryoSerializer.serializer)
+    override def initialValue = regPair[Int,Time].register(KryoSerializer.serializer)
   }
 
   def getValue(msg: Message): Int = {
     if ( (algorithm == "lv" && msg.round % 4 == 0) ||
+         (algorithm == "lve" && msg.round % 4 == 0) ||
          (algorithm == "slv" &&  msg.round % 3 == 0) ) {
       msg.getContent[(Int,Time)](kryo.get)._1
     } else {
@@ -91,7 +90,7 @@ class PerfTest2(options: RuntimeOptions,
       //println("(1) id: " + id + " idx: " + idx + ", instance: " + inst)
       val first = processDecision(inst, value)
       msg.release
-      rt.stopInstance(inst)
+      alg.stopInstance(inst)
       if (first) checkPending(idx) 
 
     } else if (flag == Recovery) {
@@ -99,12 +98,11 @@ class PerfTest2(options: RuntimeOptions,
       val value = msg.getInt(0)
       val idx = (value >>> 16).toShort
       val newInstance = msg.getInt(4).toShort
-      //println("(2) id: " + id + " idx: " + idx + ", instance: " + inst + ", newInstance: " + newInstance)
       //Logger("PerfTest", Info, inst + " recovery to " + newInstance)
-      assert((inst - newInstance).toShort % nbrValues == 0, "inst = " + inst + ", newInst = " + newInstance)
+      assert((inst - newInstance).toShort % nbrValues == 0, "id = " + id + ", recovery from inst = " + inst + " to newInst = " + newInstance)
       val first = processDecision(inst, value, Some(newInstance)) 
       msg.release
-      rt.stopInstance(inst)
+      alg.stopInstance(inst)
       if (first) checkPending(idx) 
 
     } else {
@@ -173,7 +171,7 @@ class PerfTest2(options: RuntimeOptions,
     val inst = m.instance
     val idx = (getValue(m) >>> 16).toShort
     val payload = PooledByteBufAllocator.DEFAULT.buffer()
-    val sender = m.senderId
+    val sender = m.sender
     payload.writeLong(8)
     var tag = Tag(0,0)
     getDec(inst) match {
@@ -245,7 +243,7 @@ class PerfTest2(options: RuntimeOptions,
             m.release
             msg = Set()
           } else {
-            assert((inst - instanceNbr).toShort % nbrValues == 0, "idx = " + idx + ", inst = " + inst + ", instanceNbr = " + instanceNbr)
+            assert((inst - instanceNbr).toShort % nbrValues == 0, "id = " + id + ", starting idx = " + idx + ", inst = " + inst + ", instanceNbr = " + instanceNbr)
             instanceNbr = Instance.max(instanceNbr, inst)
             canGo = true
           }
@@ -266,7 +264,7 @@ class PerfTest2(options: RuntimeOptions,
 
     if (canGo) {
       val v = (idx << 16) | (value & 0xFFFF)
-      val io = new ConsensusIO {
+      val io = new ConsensusIO[Int] {
         val initialValue = v
         //TODO we should reduce the amount of work done here: pass it to another thread and let the algorithm thread continue.
         def decide(value: Int) {
@@ -281,7 +279,7 @@ class PerfTest2(options: RuntimeOptions,
         selfStarted add instanceNbr
       }
       //Logger("PerfTest", Notice, "(" + id + ") starting instance " + instanceNbr + " with " + idx + ", " + value + ", " + v + ", self " + self)
-      rt.startInstance(instanceNbr, io, msg)
+      alg.startInstance(instanceNbr, io, msg)
       //if (self) wakeupOthers(instanceNbr, v)
 
     } else {
@@ -298,8 +296,8 @@ class PerfTest2(options: RuntimeOptions,
   
   def wakeupOthers(inst: Short, initValue: Int) {
     //TODO better way
-    if (algorithm == "lv" || algorithm == "slv") {
-      val dir = rt.getGroup
+    if (algorithm == "lv" || algorithm == "lve" || algorithm == "slv") {
+      val dir = rt.group
       for (o <- dir.others) {
         val payload = PooledByteBufAllocator.DEFAULT.buffer()
         payload.writeLong(8)
@@ -349,7 +347,13 @@ object PerfTest2 extends RTOptions {
   
   var algorithm = ""
   newOption("-lv", dzufferey.arg.Unit( () => algorithm = "lv"), "use the last voting algorithm")
-  newOption("-a", dzufferey.arg.String( a => algorithm = a), "use the given algorithm (otr, lv, slv)")
+  newOption("-lve", dzufferey.arg.Unit( () => algorithm = "lve"), "use the last voting algorithm (event round version)")
+  newOption("-a", dzufferey.arg.String( a => algorithm = a), "use the given algorithm (otr, lv, lve, slv)")
+
+  var sync = SyncCondition.Quorum
+  newOption("--syncQuorum", dzufferey.arg.Unit( () => sync = SyncCondition.Quorum), "progress as soon as there is a quorum")
+  newOption("--syncAll", dzufferey.arg.Unit( () => sync = SyncCondition.All), "progress when all the messages are there")
+  newOption("--syncTO", dzufferey.arg.Unit( () => sync = SyncCondition.OnTO), "progress only on timeout")
   
   var after = -1
   newOption("-after", dzufferey.arg.Int( i => after = i), "#round after decision")
@@ -367,9 +371,9 @@ object PerfTest2 extends RTOptions {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
     apply(args2)
     val opts =
-      if (after >= 0) Map("after" -> after.toString)
-      else Map[String, String]()
-    system = new PerfTest2(this, n.toShort, rate.toShort, algorithm, logFile, opts)
+      if (after >= 0) Map[String, Any]("after" -> after, "sync" -> sync)
+      else Map[String, Any]("sync" -> sync)
+    system = new PerfTest2(opts)
 
     //let the system setup before starting
     Thread.sleep(delay)
@@ -384,13 +388,15 @@ object PerfTest2 extends RTOptions {
 
   }
   
-  Runtime.getRuntime().addShutdownHook(
+  java.lang.Runtime.getRuntime().addShutdownHook(
     new Thread() {
       override def run() {
-        val versionNbr = system.shutdown
-        val end = java.lang.System.currentTimeMillis()
-        val duration = (end - begin) / 1000
-        println("#instances = " + versionNbr + ", Δt = " + duration + ", throughput = " + (versionNbr/duration))
+        if (system != null) {
+          val versionNbr = system.shutdown
+          val end = java.lang.System.currentTimeMillis()
+          val duration = (end - begin) / 1000
+          println("#instances = " + versionNbr + ", Δt = " + duration + ", throughput = " + (versionNbr/duration))
+        }
       }
     }
   )

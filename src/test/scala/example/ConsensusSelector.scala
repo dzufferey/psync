@@ -7,32 +7,30 @@ import dzufferey.utils.LogLevel._
 
 object ConsensusSelector {
 
-  def apply(name: String, additionalOptions: Map[String, String]): Algorithm[ConsensusIO, _] = name match {
-    case "otr" | "" =>
-      if (additionalOptions contains "after") {
-        val after = additionalOptions("after").toInt
-        new OTR(after)
-      } else new OTR()
-    case "lv" => new LastVoting()
-    case "slv" => new ShortLastVoting()
-    case other =>
-      Logger.logAndThrow("ConsensusSelector", Error, "unknown algorithm: " + other)
-  }
-
   def apply(name: String,
-            ops: RuntimeOptions,
-            defaultHandler: Message => Unit,
-            additionalOptions: Map[String, String]): Runtime[ConsensusIO, _] = name match {
-    case "otr" | "" =>
-      if (additionalOptions contains "after") {
-        val after = additionalOptions("after").toInt
-        new Runtime(new OTR(after), ops, defaultHandler)
-      } else new Runtime(new OTR(), ops, defaultHandler)
-    case "lv" => new Runtime(new LastVoting(), ops, defaultHandler)
-    case "slv" => new Runtime(new ShortLastVoting(), ops, defaultHandler)
-    case other =>
-      Logger.logAndThrow("ConsensusSelector", Error, "unknown algorithm: " + other)
+            rt: Runtime,
+            additionalOptions: Map[String,Any]): Algorithm[ConsensusIO[Int], _] = {
+    val ops = rt.options
+    name match {
+      case "otr" | "" =>
+        if (additionalOptions contains "after") {
+          val after = additionalOptions("after").asInstanceOf[Int]
+          new OTR(rt, ops.timeout,after)
+        } else {
+          new OTR(rt, ops.timeout)
+        }
+      case "lv" =>
+        if (additionalOptions contains "sync") {
+          val sync = additionalOptions("sync").asInstanceOf[SyncCondition.SyncCondition]
+          new LastVoting(rt, ops.timeout, sync)
+        } else {
+          new LastVoting(rt, ops.timeout)
+        }
+      case "lve" => new LastVotingEvent(rt, ops.timeout)
+      case "slv" => new ShortLastVoting(rt, ops.timeout)
+      case other =>
+        Logger.logAndThrow("ConsensusSelector", Error, "unknown algorithm: " + other)
+    }
   }
-
 
 }

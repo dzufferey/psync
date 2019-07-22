@@ -1,11 +1,16 @@
 package psync
 
+import psync.runtime.{Runtime, Message, InstanceHandler, AlgorithmOptions}
+import dzufferey.utils.LogLevel._
+import dzufferey.utils.Logger
+import java.util.concurrent.ArrayBlockingQueue
+
 //use a value class to keep ProcessID separated from short/int in the typechecker
 class ProcessID(val id: Short) extends AnyVal
 
 //IO is a type parameter to communicate the initial value, parameter, and callbacks
 //the use of mixing composition forces elements (like variables) to be used only with the algorithm
-abstract class Algorithm[IO, P <: Process[IO]] extends Specs[IO, P]
+abstract class Algorithm[IO, P <: Process[IO]](runtime: Runtime, opts: AlgorithmOptions = null) extends Specs[IO, P]
 {
 
   //round number
@@ -27,21 +32,59 @@ abstract class Algorithm[IO, P <: Process[IO]] extends Specs[IO, P]
 
   /** A sample IO object. This is currently needed for the verification. */
   def dummyIO: IO
+  
+  def startInstance(
+      instanceId: Short,
+      io: IO,
+      messages: Set[Message] = Set.empty) {
+    val p = getProcess
+    runtime.startInstance(instanceId, p, io, messages)
+  }
+  
+  def stopInstance(instanceId: Short) {
+    runtime.stopInstance(instanceId)
+  }
 
-}
+  /*******************/
+  /* Runtime related */
+  /*******************/
 
-//the time/round number has its own type
-class Time(val toInt: Int) extends AnyVal with Ordered[Time] {
-  def compare(that: Time) = this.toInt - that.toInt
-  def tick = new Time(toInt + 1)
-  def +(n : Int) = new Time(toInt + n)
-  def -(n : Int) = new Time(toInt - n)
-  def /(n : Int) = new Time(toInt / n) //to compute the phases from the round
-}
+  protected[psync] def options = {
+    if (opts != null) opts
+    else if (runtime != null) runtime.options
+    else new AlgorithmOptions{ }
+  }
 
-object Time {
-  implicit def fromInt(t: Int): Time = new Time(t)
-  implicit def toInt(t: Time): Int = t.toInt
+  //TODO try a stack for better locality
+  private val processPool = new ArrayBlockingQueue[InstanceHandler[IO,P]](2*options.processPool)
+
+  protected[psync] final def recycle(p: InstanceHandler[IO,P]) {
+    processPool.offer(p)
+  }
+
+  private def createProcess: InstanceHandler[IO,P] = {
+    assert(runtime != null)
+    val p = process
+    new InstanceHandler(p, this, runtime)
+  }
+
+  private def getProcess: InstanceHandler[IO,P] = {
+    val proc = processPool.poll
+    if (proc == null) {
+      Logger("Algorithm", Warning, "processPool is running low")
+      createProcess
+    } else {
+      proc
+    }
+  }
+    
+  //preallocate
+  if (runtime != null) {
+    for (i <- 0 until options.processPool) {
+      processPool.offer(createProcess)
+    }
+  }
+
 }
 
 //placeholder for quantifying over some domain

@@ -5,7 +5,6 @@ import psync.runtime._
 import psync.utils.ByteBufAllocator
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
-import dzufferey.arg.{Long => _, _}
 import java.util.concurrent.Semaphore
 import java.util.concurrent.locks.ReentrantLock
 import scala.util.Random
@@ -16,24 +15,25 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
   var confFile = "src/test/resources/sample-conf.xml"
   
   var logFile = ""
-  newOption("--log", String(str => logFile = str ), "log file prefix")
+  newOption("--log", dzufferey.arg.String(str => logFile = str ), "log file prefix")
 
   var algorithm = ""
   newOption("-lv", dzufferey.arg.Unit( () => algorithm = "lv"), "use the last voting algorithm")
   newOption("-a", dzufferey.arg.String( a => algorithm = a), "use the given algorithm (otr, lv, slv)")
   
   var rate = new Semaphore(10)
-  newOption("-rt", Int( i => rate = new Semaphore(i)), "fix the rate (how many instance in parallel)")
+  newOption("-rt",  dzufferey.arg.Int( i => rate = new Semaphore(i)), "fix the rate (how many instance in parallel)")
 
   var rd = new Random()
-  newOption("-r", Int( i => rd = new Random(i)), "random number generator seed")
+  newOption("-r",  dzufferey.arg.Int( i => rd = new Random(i)), "random number generator seed")
   
   val usage = "..."
   
   var begin = 0l
   var versionNbr = 0l
 
-  var rt: Runtime[ConsensusIO,_] = null
+  var rt: Runtime = null
+  var alg: Algorithm[ConsensusIO[Int],_] = null
 
   final val Decision = 3
   final val TooLate = 4
@@ -44,15 +44,15 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
       val flag = msg.tag.flag
       if (flag == Flags.normal || flag == Flags.dummy) {
         if (Instance.lt(inst, versionNbr.toShort)) {
-          trySendDecision(inst, msg.senderId)
+          trySendDecision(inst, msg.sender)
         }
       } else if (flag == Decision) {
         Logger("PerfTest", Info, inst + " got decision! (" + versionNbr + ")")
         onDecision(inst, -1, msg.getInt(0))
-        rt.stopInstance(inst)
+        alg.stopInstance(inst)
       } else if (flag == TooLate) {
         Logger("PerfTest", Warning, inst + " too late! (" + versionNbr + ")")
-        rt.stopInstance(inst)
+        alg.stopInstance(inst)
       } else {
         sys.error("unknown or error flag: " + flag)
       }
@@ -83,8 +83,8 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
     }
   }
           
-  def trySendDecision(inst: Short, senderId: ProcessID) = {
-    Logger("PerfTest", Info, inst + " sending recovery to " + senderId)
+  def trySendDecision(inst: Short, sender: ProcessID) = {
+    Logger("PerfTest", Info, inst + " sending recovery to " + sender)
     val payload = ByteBufAllocator.buffer(16)
     payload.writeLong(8)
     val tag = getDec(inst) match {
@@ -94,7 +94,7 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
       case None =>
         Tag(inst,0,TooLate,0)
     }
-    rt.sendMessage(senderId, tag, payload)
+    rt.sendMessage(sender, tag, payload)
   }
 
   val lck = new ReentrantLock 
@@ -107,8 +107,9 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
       val fw = new java.io.FileWriter(logFile + "_" + id + ".log")
       log = new java.io.BufferedWriter(fw)
     } 
-    rt = ConsensusSelector(algorithm, this, defaultHandler, Map())
+    rt = Runtime(this, defaultHandler)
     rt.startService
+    alg = ConsensusSelector(algorithm, rt, Map())
     Thread.sleep(1000)
     begin = java.lang.System.currentTimeMillis()
     while (true) {
@@ -116,18 +117,18 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
       val next = versionNbr + 1
       val r = rd.nextInt()
       Logger("PerfTest", Info, next.toString + "\t  starting with value " + r)
-      val io = new ConsensusIO {
+      val io = new ConsensusIO[Int] {
         val inst = next.toShort
         val v = next
         val initialValue = r
         def decide(value: scala.Int) { onDecision(inst, v, value) }
       }
-      rt.startInstance(next.toShort, io)
+      alg.startInstance(next.toShort, io)
       versionNbr = next
     }
   }
   
-  Runtime.getRuntime().addShutdownHook(
+  java.lang.Runtime.getRuntime().addShutdownHook(
     new Thread() {
       override def run() {
         rt.shutdown

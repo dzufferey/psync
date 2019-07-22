@@ -42,12 +42,13 @@ class LockManager(self: Short,
   private val lock = new ReentrantLock
   
   val kryo = new ThreadLocal[Kryo] {
-    override def initialValue = regIntTimePair.register(KryoSerializer.serializer)
+    override def initialValue = regPair[Int,Time].register(KryoSerializer.serializer)
   }
 
-  private val consensus: Runtime[ConsensusIO,_] = {
-    if (Main.lv) new Runtime(new LastVoting, Main, defaultHandler(_))
-    else new Runtime(new OTR, Main, defaultHandler(_))
+  private val rt = Runtime(Main, defaultHandler(_))
+  private val consensus: Algorithm[ConsensusIO[Int],_] = {
+    if (Main.lv) new LastVotingEvent(rt, Main.timeout)
+    else new OTR(rt, Main.timeout)
   }
 
   private def onDecide(version: Short, decision: Option[ProcessID]) {
@@ -91,9 +92,9 @@ class LockManager(self: Short,
     payload.retain
     m.release
     Message.setContent[Int](kryo.get, tag, payload, state)
-    val sender = m.senderId
+    val sender = m.sender
     Logger("LockManager", Notice, "sending decision " + state + " @ " + versionNbr + " to " + sender)
-    consensus.sendMessage(sender, tag, payload)
+    rt.sendMessage(sender, tag, payload)
   }
 
   private def askRecoveryInfo(m: Message) = {
@@ -103,12 +104,12 @@ class LockManager(self: Short,
     payload.retain
     m.release
     Message.setContent[Int](kryo.get, tag, payload, 0)
-    val sender = m.senderId
+    val sender = m.sender
     Logger("LockManager", Notice, "asking decision" + versionNbr + " to " + sender)
-    consensus.sendMessage(sender, tag, payload)
+    rt.sendMessage(sender, tag, payload)
   }
 
-  private def startConsensus(client: Option[Client], expectedInstance: Short, io: ConsensusIO, msgs: Set[Message] = Set.empty) {
+  private def startConsensus(client: Option[Client], expectedInstance: Short, io: ConsensusIO[Int], msgs: Set[Message] = Set.empty) {
     //enter critical section
     lock.lock
     val nextInstance = (runningNbr + 1).toShort
@@ -164,7 +165,7 @@ class LockManager(self: Short,
         }
       }
  
-      val io = new ConsensusIO {
+      val io = new ConsensusIO[Int] {
         val initialValue = content
         def decide(value: Int) {
           if (value == -1) onDecide(msg.instance, None)
@@ -177,17 +178,17 @@ class LockManager(self: Short,
   }
 
   def shutDown {
-    consensus.shutdown
+    rt.shutdown
     clientChannel.close
   }
 
   def start() {
-    consensus.startService
+    rt.startService
     listenForClient //this never returns
   }
 
   //clean-up on ctrl-c
-  Runtime.getRuntime().addShutdownHook(
+  java.lang.Runtime.getRuntime().addShutdownHook(
     new Thread() {
       override def run() { shutDown }
     }
@@ -226,7 +227,7 @@ class LockManager(self: Short,
         case _ => sys.error("unkown request")
       }
       val client = new Client(sender, initValue != -1)
-      val io = new ConsensusIO {
+      val io = new ConsensusIO[Int] {
         val initialValue = initValue
         def decide(value: Int) {
           val dec = if (value == -1) None else Some(new ProcessID(value.toShort))
@@ -315,7 +316,7 @@ class LockManagerClient(myPort: Int, remote: (String, Int)) {
 
 }
 
-object Main extends RTOptions {
+object Main extends Runner {
   import dzufferey.arg._
 
   var client = false
@@ -331,14 +332,10 @@ object Main extends RTOptions {
   var lv = false
   newOption("-lv", Unit( () => lv = true), "use the last voting instead of the OTR")
 
-  var confFile = "src/test/resources/sample-conf.xml"
+  override def defaultConfFile = "src/test/resources/sample-conf.xml"
 
-  val usage = "..."
-
-  def main(args: Array[java.lang.String]) {
+  def onStart {
     Logger.moreVerbose
-    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
     if (client) {
       val cli = new LockManagerClient(clientPort, (remoteAddress, remotePort))
       cli.run

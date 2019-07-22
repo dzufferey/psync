@@ -16,20 +16,14 @@ import io.netty.channel.ChannelHandler.Sharable
 import io.netty.bootstrap.Bootstrap
 import java.net.InetSocketAddress
 
-class UDPPacketServer(
-    executor: java.util.concurrent.Executor,
-    port: Int,
-    initGroup: Group,
-    defaultHandler: Message => Unit,
-    options: RuntimeOptions) extends PacketServer(executor, port, initGroup, defaultHandler, options)
-{
+class UdpRuntime(o: RuntimeOptions, dh: Message => Unit) extends Runtime(o, dh) {
 
   protected var chan: Channel = null
   def channel: Channel = chan
 
-  Logger.assert(options.protocol == NetworkProtocol.UDP, "UDPPacketServer", "transport layer: only UDP supported")
+  Logger.assert(options.protocol == NetworkProtocol.UDP, "UdpRuntime", "transport layer: only UDP supported")
 
-  def close {
+  def closeServer {
     dispatcher.clear
     try {
       evtGroup.shutdownGracefully
@@ -40,13 +34,12 @@ class UDPPacketServer(
     }
   }
 
-  def start {
+  def startServer {
     val packetSize = options.packetSize
     val b = new Bootstrap()
     b.group(evtGroup)
     options.group match {
       case NetworkGroup.NIO =>   b.channel(classOf[NioDatagramChannel])
-      case NetworkGroup.OIO =>   b.channel(classOf[OioDatagramChannel])
       case NetworkGroup.EPOLL => b.channel(classOf[EpollDatagramChannel])
     }
 
@@ -57,11 +50,11 @@ class UDPPacketServer(
       b.option(ChannelOption.RCVBUF_ALLOCATOR, new FixedRecvByteBufAllocator(packetSize))
     }
 
-    b.handler(new UDPPacketServerHandler(handlePacket))
+    b.handler(new UDPPacketServerHandler(this))
     chan = b.bind(port).sync().channel()
   }
 
-  def send(pid: ProcessID, buf: ByteBuf) {
+  protected[psync] def send(pid: ProcessID, buf: ByteBuf) {
     val grp = group
     val dst = grp.idToInet(pid)
     val pkt =
@@ -84,12 +77,12 @@ class UDPPacketServer(
 }
 
 @Sharable
-class UDPPacketServerHandler(handlePacket: DatagramPacket => Unit) extends SimpleChannelInboundHandler[DatagramPacket](false) {
+class UDPPacketServerHandler(rt: UdpRuntime) extends SimpleChannelInboundHandler[DatagramPacket](false) {
 
   //in Netty version 5.0 will be called: channelRead0 will be messageReceived
   override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
     try {
-      handlePacket(pkt)
+      rt.handlePacket(pkt)
     } catch {
       case t: Throwable =>
         Logger("UDPPacketServerHandler", Error, "got " + t + "\n  " + t.getStackTrace.mkString("\n  "))

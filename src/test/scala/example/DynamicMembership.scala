@@ -66,22 +66,19 @@ object MembershipOpSerializer{
       classOf[MembershipOp] -> new MembershipOpSerializer
     )
   }
-  implicit val reg1 = new KryoRegistration[(Int,Short,Short,List[Replica])] {
-    override def registerClasses = Seq(classOf[Tuple4[_,_,_,_]], classOf[Replica])
-    override def registerClassesWithSerializer = Seq(
-      classOf[List[Replica]] -> new CollectionSerializer[Replica, List[Replica]]
-    )
+  implicit val reg1 = new KryoRegistration[Replica] {
+    override def registerClasses = Seq(classOf[Replica])
   }
 }
 
-import MembershipOpSerializer.{reg, reg1}
+import MembershipOpSerializer._
 
 abstract class MembershipIO {
   val initialValue: MembershipOp
   def decide(value: MembershipOp): Unit
 }
 
-class MConsensusProcess extends Process[MembershipIO] {
+class MConsensusProcess(timeout: Long) extends Process[MembershipIO] {
 
   var x: MembershipOp = null
   var decision: Option[MembershipOp] = None //TODO as ghost
@@ -94,7 +91,7 @@ class MConsensusProcess extends Process[MembershipIO] {
   }
 
   val rounds = phase(
-    new Round[MembershipOp]{
+    new Round[MembershipOp](timeout){
 
       //FIXME this needs to be push inside the round, otherwise it crashes the compiler (bug in macros?)
       def mmor(mailbox: Map[ProcessID,MembershipOp]): MembershipOp = {
@@ -137,11 +134,11 @@ class MConsensusProcess extends Process[MembershipIO] {
 }
 
 //this is the OTR but for MembershipOp
-class MConsensus extends Algorithm[MembershipIO,MConsensusProcess] {
+class MConsensus(rt: Runtime, timeout: Long) extends Algorithm[MembershipIO,MConsensusProcess](rt) {
 
   val spec = TrivialSpec //TODO
   
-  def process = new MConsensusProcess()
+  def process = new MConsensusProcess(timeout)
 
   def dummyIO = new MembershipIO {
     val initialValue = AddReplica("", 0)
@@ -207,7 +204,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
           val initialValue = init
           def decide(value: MembershipOp) { onDecision(inst, value) }
         }
-        rt.startInstance(instanceNbr, io, msg)
+        algorithm.startInstance(instanceNbr, io, msg)
       } else {
         //already started
         semaphore.release()
@@ -232,7 +229,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
             val newId = view.firstAvailID //this is a deterministic operation
             lastHearOf(newId.id) = java.lang.System.currentTimeMillis()
             view.addReplica(Replica(newId, address, port))
-            rt.updateGroup(view.group)
+            rt.group = view.group
             viewNbr += 1
             sendRecoveryInfo(newId)
             Logger("DynamicMembership", Info, "current view (#"+viewNbr+"):" + view)
@@ -245,7 +242,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
             Logger("DynamicMembership", Notice, "removing replica " + id)
             view.removeReplica(id)
             view.compact //this is a deterministic operation
-            rt.updateGroup(view.group)
+            rt.group = view.group
             initTO
             viewNbr += 1
             Logger("DynamicMembership", Info, "current view (#"+viewNbr+"):" + view)
@@ -275,7 +272,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
         startNextConsensus(Some(expected), Some(i), Set(msg))
 
       } else if (Instance.lt(expected, inst)) {
-        startRecovery(msg.senderId)
+        startRecovery(msg.sender)
         msg.release
 
       } else {
@@ -305,7 +302,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
   }
 
   def onRecoverMessage(msg: Message) {
-    Logger("DynamicMembership", Notice, "recover message from " + msg.senderId)
+    Logger("DynamicMembership", Notice, "recover message from " + msg.sender)
     val (host, port) = msg.getContent[(String,Int)]
     val address = new InetSocketAddress(host, port)
     view.getSafe(address) match {
@@ -328,7 +325,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
   def onViewMessage(msg: Message) {
     Logger("DynamicMembership", Notice, "view message")
     val (v,inst,id,replicas) = msg.getContent[(Int,Short,Short,List[Replica])]
-    val group = Group(new ProcessID(id), replicas)
+    val group = Group(new ProcessID(id), replicas, 0)
     if (v > viewNbr) {
       assert(inst > instanceNbr)
       instanceNbr = inst
@@ -351,7 +348,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
     val inst = msg.instance
     val dec = msg.getContent[MembershipOp]
     onDecision(inst, dec)
-    rt.stopInstance(inst)
+    algorithm.stopInstance(inst)
   }
 
   def trySendDecision(msg: Message) {
@@ -359,7 +356,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
       val tag = Tag(msg.instance,0,Decision,0)
       val payload = PooledByteBufAllocator.DEFAULT.buffer()
       Message.setContent(tag, payload, d)
-      rt.sendMessage(msg.senderId, tag, payload)
+      rt.sendMessage(msg.sender, tag, payload)
     })
   }
 
@@ -378,7 +375,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
 
   def onHeartBeat(msg: Message) {
     Logger("DynamicMembership", Debug, "heart beat")
-    val src = msg.senderId
+    val src = msg.sender
     if (view contains src) {
       assert(src.id < lastHearOf.size)
       lastHearOf(src.id) = java.lang.System.currentTimeMillis() //do we need sync ?
@@ -427,7 +424,8 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
   // setup //
   ///////////
 
-  private var rt: psync.runtime.Runtime[MembershipIO,MConsensusProcess] = null
+  private var rt: Runtime = null
+  private var algorithm: MConsensus = null
 
   def setup() {
     val isMaster = masterPort.isEmpty && masterAddress.isEmpty
@@ -439,9 +437,10 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
       } else {
         List(Replica(new ProcessID(0), masterAddress.get, masterPort.get))
       }
-    rt = new psync.runtime.Runtime(new MConsensus, this, defaultHandler(_))
+    rt = Runtime(this, defaultHandler(_))
     rt.startService
-    view.group = rt.getGroup
+    val algorithm = new MConsensus(rt, timeout) 
+    view.group = rt.group
     if (isMaster) {
       Logger("DynamicMembership", Info, "Starting as master")
       initTO

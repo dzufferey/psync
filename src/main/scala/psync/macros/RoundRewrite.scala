@@ -31,11 +31,6 @@ trait RoundRewrite {
     (snd.get, upd.get, aux)
   }
 
-  def extendsRound(t: Tree) = t match {
-    case tq"psync.Round[$tpt]" => true
-    case _ => false
-  }
-  
   protected def mkVerifAnnot(tree: Tree) = tree match {
     case q"new psync.Round[$tpt] { ..$body }" =>
       val (snd, upd, aux) = traverseBody(body)
@@ -49,6 +44,9 @@ trait RoundRewrite {
         override def rawTR: psync.verification.RoundTransitionRelation = $tr
         override def auxSpec: Map[String, psync.verification.AuxiliaryMethod] = $treeAuxMap
       }"""
+    case q"new psync.EventRound[$tpt] { ..$body }" =>
+      c.warning(tree.pos, "EventRound[_] not yet supported for verif.")
+      q"new psync.RoundSpec { }"
     case other =>
       c.warning(tree.pos, "expected new Round[_], did not match making trivial spec.")
       q"new psync.RoundSpec { }"

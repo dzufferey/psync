@@ -4,14 +4,14 @@ import psync._
 import psync.Time._
 import psync.macros.Macros._
 import psync.utils.serialization._
+import psync.runtime.Runtime
+import SyncCondition._
 
-abstract class BConsensusIO {
+abstract class BConsensusIO extends ConsensusIO[Array[Byte]] {
   val phase: Int
-  val initialValue: Array[Byte]
-  def decide(value: Array[Byte]): Unit
 }
 
-class LVBProcess(wholeCohort: Boolean) extends Process[BConsensusIO] {
+class LVBProcess(wholeCohort: SyncCondition, timeout: Long) extends Process[BConsensusIO] {
   
   //variables
   var phase = 0
@@ -30,14 +30,18 @@ class LVBProcess(wholeCohort: Boolean) extends Process[BConsensusIO] {
     ts = -1
     ready = false
     commit = false
-    expectedMajority = if (wholeCohort) n else n/2 + 1
+    expectedMajority = wholeCohort match {
+      case Quorum => n/2 + 1
+      case All => n
+      case OnTO => n + 1
+    }
   }
 
       
   def coord(phi: Int): ProcessID = new ProcessID(((phi + phase) % n).toShort)
 
   val rounds = psync.macros.Macros.phase(
-    new Round[(Array[Byte], Time)]{
+    new Round[(Array[Byte], Time)](timeout){
 
       def send(): Map[ProcessID,(Array[Byte], Time)] = {
         if (r.toInt != 0 || id == coord(r/4))
@@ -69,7 +73,7 @@ class LVBProcess(wholeCohort: Boolean) extends Process[BConsensusIO] {
 
     },
 
-    new Round[Array[Byte]]{
+    new Round[Array[Byte]](timeout){
 
       def send(): Map[ProcessID,Array[Byte]] = {
         if (id == coord(r/4) && commit) {
@@ -90,19 +94,19 @@ class LVBProcess(wholeCohort: Boolean) extends Process[BConsensusIO] {
 
     },
 
-    new Round[Int]{
+    new Round[Unit](timeout){
 
-      def send(): Map[ProcessID,Int] = {
+      def send(): Map[ProcessID,Unit] = {
         if ( ts == (r/4) ) {
-          Map( coord(r/4) -> 0 )
+          Map( coord(r/4) -> () )
         } else {
-          Map.empty[ProcessID,Int]
+          Map.empty[ProcessID,Unit]
         }
       }
 
       override def expectedNbrMessages = if (id == coord(r/4)) expectedMajority else 0
 
-      def update(mailbox: Map[ProcessID,Int]) {
+      def update(mailbox: Map[ProcessID,Unit]) {
         if (id == coord(r/4) && mailbox.size > n/2) {
           ready = true
         }
@@ -110,7 +114,9 @@ class LVBProcess(wholeCohort: Boolean) extends Process[BConsensusIO] {
 
     },
 
-    new Round[Array[Byte]]{
+    //TODO we are sending againg the payload even though most processes already have it
+    //this make sense if we similate the learning but otherwise it is rather expensive
+    new Round[Array[Byte]](timeout){
 
       def send(): Map[ProcessID,Array[Byte]] = {
         if (id == coord(r/4) && ready) {
@@ -137,11 +143,11 @@ class LVBProcess(wholeCohort: Boolean) extends Process[BConsensusIO] {
 
 }
 
-class LastVotingB(wholeCohort: Boolean = false) extends Algorithm[BConsensusIO,LVBProcess] {
+class LastVotingB(rt: Runtime, timeout: Long, wholeCohort: SyncCondition) extends Algorithm[BConsensusIO,LVBProcess](rt) {
 
   val spec = TrivialSpec
   
-  def process = new LVBProcess(wholeCohort)
+  def process = new LVBProcess(wholeCohort, timeout)
 
   def dummyIO = new BConsensusIO{
     val phase = 0

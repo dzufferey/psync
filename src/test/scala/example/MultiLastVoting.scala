@@ -3,6 +3,7 @@ package example
 import psync._
 import psync.macros.Macros._
 import psync.utils.serialization._
+import psync.runtime.Runtime
 
 abstract class MlvIO{
   // Left(p) = acceptor, Right(v) = proposer+acceptor
@@ -10,7 +11,7 @@ abstract class MlvIO{
   def decide(value: Option[Int]): Unit
 }
 
-class MlvProcess extends Process[MlvIO] {
+class MlvProcess(timeout: Long) extends Process[MlvIO] {
   
   var x: Option[Int] = None
   var ready = false
@@ -29,7 +30,7 @@ class MlvProcess extends Process[MlvIO] {
   }
 
   val rounds = phase(
-    new Round[Int]{
+    new Round[Int](timeout){
 
       def send(): Map[ProcessID,Int] = {
         if (x.isDefined) {
@@ -62,7 +63,7 @@ class MlvProcess extends Process[MlvIO] {
 
     },
 
-    new Round[Int]{
+    new Round[Int](timeout){
 
       def send(): Map[ProcessID,Int] = {
         if ( x.isDefined && coord.isDefined ) {
@@ -84,7 +85,7 @@ class MlvProcess extends Process[MlvIO] {
 
     },
 
-    new Round[Int]{
+    new Round[Int](timeout){
 
       def send(): Map[ProcessID,Int] = {
         if (ready) {
@@ -116,11 +117,11 @@ class MlvProcess extends Process[MlvIO] {
 
 }
 
-class MultiLastVoting extends Algorithm[MlvIO,MlvProcess] {
+class MultiLastVoting(rt: Runtime, timeout: Long) extends Algorithm[MlvIO,MlvProcess](rt) {
 
   val spec = TrivialSpec
   
-  def process = new MlvProcess
+  def process = new MlvProcess(timeout)
 
   def dummyIO = new MlvIO{
     val initialValue: Either[ProcessID,Int] = Right(0)

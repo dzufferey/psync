@@ -1,7 +1,7 @@
 package example
 
-abstract class ConsensusIO {
-  val initialValue: Int
-  def decide(value: Int): Unit
+abstract class ConsensusIO[@specialized A] {
+  val initialValue: A
+  def decide(value: A): Unit
 }
 

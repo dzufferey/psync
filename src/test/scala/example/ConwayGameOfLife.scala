@@ -5,6 +5,8 @@ import psync.runtime._
 import psync.macros.Macros._
 import psync.utils.serialization._
 
+//on a torus
+
 class CgolIO(val id: Int, val rows: Int, val cols: Int, val init: Boolean) { }
 
 class CgolProcess extends Process[CgolIO] {
@@ -24,14 +26,32 @@ class CgolProcess extends Process[CgolIO] {
   }
 
   val rounds = phase(
-    new Round[Boolean]{
+    new EventRound[Boolean]{
+      
+      var received = 0
+      var aliveNeighbours = 0
+
+      def init = {
+        received = 0
+        aliveNeighbours = 0
+        Progress.waitMessage
+      }
     
       def send: Map[ProcessID,Boolean] = {
         neighbours.map( _ -> (alive: Boolean) ).toMap
       }
 
-      def update(mailbox: Map[ProcessID,Boolean]) {
-        val aliveNeighbours = mailbox.count(_._2)
+      def receive(sender: ProcessID, payload: Boolean) = {
+        assert(neighbours contains sender)
+        received += 1
+        if (payload) {
+          aliveNeighbours += 1
+        }
+        if (received == neighbours.size) Progress.goAhead
+        else Progress.waitMessage
+      }
+
+      override def finishRound(didTimeout: Boolean) = {
         if (alive) {
           if (aliveNeighbours != 2 && aliveNeighbours != 3) {
             alive = false
@@ -43,6 +63,7 @@ class CgolProcess extends Process[CgolIO] {
         }
         println("replica: "+id.id+","+r+" ("+(row:Int)+","+(col: Int)+") is " + (if(alive) "alive" else "dead"))
         Thread.sleep(1000)
+        true
       }
 
     }
@@ -50,11 +71,11 @@ class CgolProcess extends Process[CgolIO] {
 
 }
 
-class ConwayGameOfLife extends Algorithm[CgolIO,CgolProcess] {
+class ConwayGameOfLife(rt: Runtime) extends Algorithm[CgolIO,CgolProcess](rt) {
   
   val spec = TrivialSpec
 
-  def process = new CgolProcess()
+  def process = new CgolProcess
 
   def dummyIO = new CgolIO(0,0,0,false)
 }
@@ -94,46 +115,25 @@ object ConwayGameOfLife {
 
 }
 
-object CgolRunner extends RTOptions {
+object CgolRunner extends Runner {
   
   var rows = 5
   newOption("-rows", dzufferey.arg.Int( i => rows = i), "(default = 5)")
   var cols = 5
   newOption("-cols", dzufferey.arg.Int( i => cols = i), "(default = 5)")
 
-  var confFile = "src/test/resources/15replicas-conf.xml"
+  override def defaultConfFile = "src/test/resources/25replicas-conf.xml"
   
-  val usage = "..."
-  
-  var rt: Runtime[CgolIO,CgolProcess] = null
-
-  def defaultHandler(msg: Message) {
-    msg.release
-  }
-  
-  def main(args: Array[java.lang.String]) {
+  def onStart {
     val start = java.lang.System.currentTimeMillis()
-    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
-    val alg = new ConwayGameOfLife
-    rt = new Runtime(alg, this, defaultHandler(_))
-    rt.startService
-
+    val alg = new ConwayGameOfLife(rt)
     val io = new CgolIO(id, rows, cols, scala.util.Random.nextBoolean)
     val cur = java.lang.System.currentTimeMillis()
     Thread.sleep(8000 + start - cur)
     Console.println("replica " + id + " starting with " + io.init)
-    rt.startInstance(0, io)
+    alg.startInstance(0, io)
     Thread.sleep(20000)
     System.exit(0)
   }
-  
-  Runtime.getRuntime().addShutdownHook(
-    new Thread() {
-      override def run() {
-        rt.shutdown
-      }
-    }
-  )
 
 }

@@ -19,6 +19,11 @@ object KryoSerializer {
 
 }
 
+class UnitSerializer extends Serializer[Unit] {
+  setImmutable(true)
+  def write(kryo: Kryo, output: Output, t: Unit) = ()
+  def read(kryo: Kryo, input: Input, ct: Class[Unit]): Unit = ()
+}
 
 class ProcessIDSerializer extends Serializer[ProcessID] {
   setImmutable(true)

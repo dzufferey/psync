@@ -12,7 +12,7 @@ abstract class RealConsensusIO {
 }
 
 //http://www.cambridge.org/us/download_file/175769/
-class EpsilonProcess(f: Int, epsilon: Double) extends Process[RealConsensusIO] {
+class EpsilonProcess(f: Int, epsilon: Double, timeout: Long) extends Process[RealConsensusIO] {
 
   var x = 0.0
   var maxR = new Time(0)
@@ -26,7 +26,7 @@ class EpsilonProcess(f: Int, epsilon: Double) extends Process[RealConsensusIO] {
 
   val rounds = phase(
 
-    new Round[(Double,Boolean)]{
+    new Round[(Double,Boolean)](timeout){
      
       def diff(s: Iterable[Double]) = s.max - s.min //this is never defined in the slides. double check that this is the right thing...
       def c(m: Int, k: Int) = (m-1) / k + 1
@@ -69,11 +69,11 @@ class EpsilonProcess(f: Int, epsilon: Double) extends Process[RealConsensusIO] {
   )
 }
 
-class EpsilonConsensus(f: Int, epsilon: Double) extends Algorithm[RealConsensusIO,EpsilonProcess] {
+class EpsilonConsensus(rt: Runtime, f: Int, epsilon: Double, timeout: Long) extends Algorithm[RealConsensusIO,EpsilonProcess](rt) {
 
   val spec = TrivialSpec //TODO we need to add support for Real numbers
 
-  def process = new EpsilonProcess(f, epsilon)
+  def process = new EpsilonProcess(f, epsilon, timeout: Long)
 
   def dummyIO = new RealConsensusIO{
     val initialValue = 0.0
@@ -81,7 +81,7 @@ class EpsilonConsensus(f: Int, epsilon: Double) extends Algorithm[RealConsensusI
   }
 }
 
-object EpsilonRunner extends RTOptions {
+object EpsilonRunner extends Runner {
   
   var f = 1
   newOption("-f", dzufferey.arg.Int( i => f = i), "f (default = 1)")
@@ -89,23 +89,11 @@ object EpsilonRunner extends RTOptions {
   var e = 0.1
   //newOption("-e", dzufferey.arg.Real( i => e = i), "ε (default = 0.1)")
 
-  var confFile = "src/test/resources/7replicas-conf.xml"
+  override def defaultConfFile = "src/test/resources/7replicas-conf.xml"
   
-  val usage = "..."
-  
-  var rt: Runtime[RealConsensusIO,EpsilonProcess] = null
-
-  def defaultHandler(msg: Message) {
-    msg.release
-  }
-  
-  def main(args: Array[java.lang.String]) {
+  def onStart {
     val start = java.lang.System.currentTimeMillis()
-    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
-    val alg = new EpsilonConsensus(f, e)
-    rt = new Runtime(alg, this, defaultHandler(_))
-    rt.startService
+    val alg = new EpsilonConsensus(rt, f, e, timeout)
 
     import scala.util.Random
     val init = Random.nextDouble
@@ -118,14 +106,7 @@ object EpsilonRunner extends RTOptions {
     val cur = java.lang.System.currentTimeMillis()
     Thread.sleep(5000 + start - cur)
     Console.println("replica " + id + " starting with " + init)
-    rt.startInstance(0, io)
+    alg.startInstance(0, io)
   }
   
-  Runtime.getRuntime().addShutdownHook(
-    new Thread() {
-      override def run() {
-        rt.shutdown
-      }
-    }
-  )
 }

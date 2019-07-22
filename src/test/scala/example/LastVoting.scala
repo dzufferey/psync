@@ -5,8 +5,10 @@ import psync.Time._
 import psync.formula._
 import psync.macros.Macros._
 import psync.utils.serialization._
+import psync.runtime.Runtime
+import SyncCondition._
 
-class LastVoting extends Algorithm[ConsensusIO, LVProcess] {
+class LastVoting(rt: Runtime, timeout: Long, progress: SyncCondition = Quorum) extends Algorithm[ConsensusIO[Int], LVProcess](rt) {
 
   import SpecHelper._
 
@@ -67,15 +69,15 @@ class LastVoting extends Algorithm[ConsensusIO, LVProcess] {
     )
   }
   
-  def process = new LVProcess()
+  def process = new LVProcess(timeout, progress)
   
-  def dummyIO = new ConsensusIO{
+  def dummyIO = new ConsensusIO[Int]{
     val initialValue = 0
     def decide(value: Int) { }
   }
 }
   
-class LVProcess extends Process[ConsensusIO]{
+class LVProcess(timeout: Long, progress: SyncCondition) extends Process[ConsensusIO[Int]]{
 
   //variables
   var x = 0
@@ -86,22 +88,28 @@ class LVProcess extends Process[ConsensusIO]{
   var decision = -1 //TODO as ghost
   var decided = false
   //
-  var callback: ConsensusIO = null
+  var callback: ConsensusIO[Int] = null
 
+  var expectedMajority = 0
       
   def coord: ProcessID = new ProcessID((r / 4 % n).toShort)
     
-  def init(io: ConsensusIO) {
+  def init(io: ConsensusIO[Int]) {
     callback = io
     x = io.initialValue
     ts = -1
     decided = false 
     ready = false
     commit = false
+    expectedMajority = progress match {
+      case Quorum => n/2 + 1
+      case All => n
+      case OnTO => n + 1
+    }
   }
 
   val rounds = phase(
-    new Round[(Int,Time)]{
+    new Round[(Int,Time)](timeout){
 
       def send(): Map[ProcessID,(Int, Time)] = {
         Map(coord -> (x, ts))
@@ -110,7 +118,7 @@ class LVProcess extends Process[ConsensusIO]{
       override def expectedNbrMessages = {
         if (id == coord) {
           if (r.toInt == 0) 1
-          else n/2 + 1
+          else expectedMajority
         } else 0
       }
 
@@ -129,7 +137,7 @@ class LVProcess extends Process[ConsensusIO]{
 
     },
 
-    new Round[Int]{
+    new Round[Int](timeout){
 
       def send(): Map[ProcessID,Int] = {
         if (id == coord && commit) {
@@ -151,7 +159,8 @@ class LVProcess extends Process[ConsensusIO]{
 
     },
 
-    new Round[Int]{
+    //TODO can be Round[Unit] as we just confirm
+    new Round[Int](timeout){
 
       def send(): Map[ProcessID,Int] = {
         if ( ts == (r/4) ) {
@@ -161,7 +170,7 @@ class LVProcess extends Process[ConsensusIO]{
         }
       }
 
-      override def expectedNbrMessages = if (id == coord) n/2 + 1 else 0
+      override def expectedNbrMessages = if (id == coord) expectedMajority else 0
 
       def update(mailbox: Map[ProcessID,Int]) {
         if (id == coord && mailbox.size > n/2) {
@@ -171,7 +180,7 @@ class LVProcess extends Process[ConsensusIO]{
 
     },
 
-    new Round[Int]{
+    new Round[Int](timeout){
 
       def send(): Map[ProcessID, Int] = {
         if (id == coord && ready) {

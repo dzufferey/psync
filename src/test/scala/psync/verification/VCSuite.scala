@@ -11,7 +11,7 @@ import org.scalatest._
 
 class VCSuite extends FunSuite {
 
-  test("Tcp") {
+  test("Tpc") {
     import psync.logic.TpcExample._
 
     val cl = new CL(cln(1, new Eager(Some(1)), true))

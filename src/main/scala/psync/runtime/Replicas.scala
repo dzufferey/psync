@@ -17,7 +17,7 @@ case class Replica(id: ProcessID, address: String, port: Int) {
 
 }
 
-class Group(val self: ProcessID, val replicas: Array[Replica]) {
+class Group(val self: ProcessID, val replicas: Array[Replica], val nbrByzantine: Int) {
 
   def others = replicas.filter( r => r != null && r.id != self)
 
@@ -98,19 +98,21 @@ class Group(val self: ProcessID, val replicas: Array[Replica]) {
       a2(i) = replicas(i)
     }
     a2(r.id.id) = r
-    new Group(self, a2)
+    new Group(self, a2, nbrByzantine)
   }
 
   def remove(id: ProcessID) = {
     assert( id != self && replicas.exists( r2 => r2.id == id ) )
     val a2 = replicas.clone
     a2(id.id) = null
-    new Group(self, a2)
+    new Group(self, a2, nbrByzantine)
   }
+
+  def setNbrByzantine(f: Int) = new Group(self, replicas, f)
 
   def compact = {
     val rs = replicas.toList.filter(_ != null)
-    Group(self, rs)
+    Group(self, rs, nbrByzantine)
   }
 
   def firstAvailID: ProcessID = {
@@ -139,9 +141,9 @@ object Group {
     (renamed, idMap)
   }
 
-  def apply(self: ProcessID, lst: List[Replica]): Group = {
+  def apply(self: ProcessID, lst: List[Replica], nb: Int): Group = {
     val (lst2, map) = renameReplica(lst)
-    new Group(map.getOrElse(self, self), lst2.toArray)
+    new Group(map.getOrElse(self, self), lst2.toArray, nb)
   }
 
 }
@@ -185,6 +187,8 @@ class Directory(private var g: Group) {
   def addReplica(r: Replica) = sync{ g = g.add(r) }
 
   def removeReplica(id: ProcessID) = sync{ g = g.remove(id) }
+
+  def setNbrByzantine(f: Int) = sync{ g = g.setNbrByzantine(f) }
 
   def compact = sync{ g = g.compact }
   

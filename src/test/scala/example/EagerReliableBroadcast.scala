@@ -10,7 +10,7 @@ abstract class BroadcastIO {
   def deliver(value: Int): Unit
 }
 
-class ErbProcess extends Process[BroadcastIO] {
+class ErbProcess(timeout: Long) extends Process[BroadcastIO] {
   
   var x: Option[Int] = None
   var callback: BroadcastIO = null
@@ -21,7 +21,7 @@ class ErbProcess extends Process[BroadcastIO] {
   }
 
   val rounds = phase(
-    new Round[Int]{
+    new Round[Int](timeout){
     
       def send: Map[ProcessID,Int] = {
         if (x.isDefined) broadcast(x.get)
@@ -47,11 +47,11 @@ class ErbProcess extends Process[BroadcastIO] {
 }
 
 //http://link.springer.com/chapter/10.1007%2F978-3-642-15260-3_3
-class EagerReliableBroadcast extends Algorithm[BroadcastIO,ErbProcess] {
+class EagerReliableBroadcast(rt: Runtime, timeout: Long) extends Algorithm[BroadcastIO,ErbProcess](rt) {
 
   val spec = TrivialSpec
 
-  def process = new ErbProcess()
+  def process = new ErbProcess(timeout)
 
   def dummyIO = new BroadcastIO{
     val initialValue = None
@@ -59,13 +59,9 @@ class EagerReliableBroadcast extends Algorithm[BroadcastIO,ErbProcess] {
   }
 }
 
-object ERBRunner extends RTOptions {
+object ERBRunner extends Runner {
   
-  var confFile = "src/test/resources/3replicas-conf.xml"
-  
-  val usage = "..."
-  
-  var rt: Runtime[BroadcastIO,ErbProcess] = null
+  var alg: EagerReliableBroadcast = null
 
   val delivered = new java.util.concurrent.ConcurrentHashMap[Short, Boolean]
 
@@ -76,22 +72,18 @@ object ERBRunner extends RTOptions {
     }
   }
 
-  def defaultHandler(msg: Message) {
+  override def defaultHandler(msg: Message) {
     val inst = msg.tag.instanceNbr
     val already = delivered.putIfAbsent(inst, true)
     if (already) {
       msg.release
     } else {
-      rt.startInstance(inst, other, Set(msg))
+      alg.startInstance(inst, other, Set(msg))
     }
   }
-  
-  def main(args: Array[java.lang.String]) {
-    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
-    val alg = new EagerReliableBroadcast
-    rt = new Runtime(alg, this, defaultHandler(_))
-    rt.startService
+
+  def onStart {
+    alg = new EagerReliableBroadcast(rt, timeout)
 
     import scala.util.Random
     val init = Random.nextInt
@@ -104,14 +96,7 @@ object ERBRunner extends RTOptions {
     Thread.sleep(100)
     Console.println("replica " + id + " proposing " + init)
     delivered.put(id, true)
-    rt.startInstance(id, io)
+    alg.startInstance(id, io)
   }
   
-  Runtime.getRuntime().addShutdownHook(
-    new Thread() {
-      override def run() {
-        rt.shutdown
-      }
-    }
-  )
 }

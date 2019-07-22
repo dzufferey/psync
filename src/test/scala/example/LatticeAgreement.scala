@@ -29,7 +29,7 @@ abstract class LatticeIO {
   def decide(value: Lattice.T): Unit
 }
 
-class LatticeAgreementProcess extends Process[LatticeIO]{
+class LatticeAgreementProcess(timeout: Long) extends Process[LatticeIO]{
   
   var active = true
   var proposed = Lattice.bottom
@@ -43,7 +43,7 @@ class LatticeAgreementProcess extends Process[LatticeIO]{
   }
 
   val rounds = phase(
-    new Round[Lattice.T] {
+    new Round[Lattice.T](timeout) {
       
       def send(): Map[ProcessID,Lattice.T] = {
         broadcast(proposed)
@@ -67,7 +67,7 @@ class LatticeAgreementProcess extends Process[LatticeIO]{
 
 }
 
-class LatticeAgreement extends Algorithm[LatticeIO,LatticeAgreementProcess] {
+class LatticeAgreement(rt: Runtime, timeout: Long) extends Algorithm[LatticeIO,LatticeAgreementProcess](rt) {
 
   val AD  = new Domain[Lattice.T]
 
@@ -83,7 +83,7 @@ class LatticeAgreement extends Algorithm[LatticeIO,LatticeAgreementProcess] {
   Axiom("join-singleton", f( AD.forall( x => Lattice.join(x) == x) ))
   //TODO can we have a local axiomatization of join ? after all there is some idempotence property.
   
-  def process = new LatticeAgreementProcess
+  def process = new LatticeAgreementProcess(timeout)
 
   def dummyIO = new LatticeIO{
     val initialValue = Lattice.bottom
@@ -91,24 +91,10 @@ class LatticeAgreement extends Algorithm[LatticeIO,LatticeAgreementProcess] {
   }
 }
 
-object LatticeRunner extends RTOptions {
+object LatticeRunner extends Runner {
   
-  var confFile = "src/test/resources/3replicas-conf.xml"
-  
-  val usage = "..."
-  
-  var rt: Runtime[LatticeIO,LatticeAgreementProcess] = null
-
-  def defaultHandler(msg: Message) {
-    msg.release
-  }
-  
-  def main(args: Array[java.lang.String]) {
-    val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
-    val alg = new LatticeAgreement()
-    rt = new Runtime(alg, this, defaultHandler(_))
-    rt.startService
+  def onStart {
+    val alg = new LatticeAgreement(rt, timeout)
 
     import scala.util.Random
     val n = Random.nextInt(5) + 1
@@ -121,14 +107,6 @@ object LatticeRunner extends RTOptions {
     }
     Thread.sleep(100)
     Console.println("replica " + id + " starting with " + init)
-    rt.startInstance(0, io)
+    alg.startInstance(0, io)
   }
-  
-  Runtime.getRuntime().addShutdownHook(
-    new Thread() {
-      override def run() {
-        rt.shutdown
-      }
-    }
-  )
 }

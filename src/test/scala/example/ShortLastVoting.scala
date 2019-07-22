@@ -8,8 +8,9 @@ import psync._
 import psync.Time._
 import psync.macros.Macros._
 import psync.utils.serialization._
+import psync.runtime.Runtime
 
-class SlvProcess extends Process[ConsensusIO] {
+class SlvProcess(timeout: Long) extends Process[ConsensusIO[Int]] {
 
   var x = 0
   var ts = new Time(-1)
@@ -17,12 +18,12 @@ class SlvProcess extends Process[ConsensusIO] {
   var vote = 0
   var decision = -1 //TODO as ghost
   var decided = false
-  var callback: ConsensusIO = null
+  var callback: ConsensusIO[Int] = null
 
   //rotating coordinator
   def coord(phi: Int): ProcessID = new ProcessID((phi % n).toShort)
 
-  def init(io: ConsensusIO) = i{
+  def init(io: ConsensusIO[Int]) = i{
     callback = io
     x = io.initialValue
     ts = -1
@@ -31,7 +32,7 @@ class SlvProcess extends Process[ConsensusIO] {
   }
 
   val rounds = phase(
-    new Round[(Int,Time)]{
+    new Round[(Int,Time)](timeout){
 
       def send(): Map[ProcessID,(Int, Time)] = {
         Map( coord(r/4) -> (x, ts) )
@@ -50,7 +51,7 @@ class SlvProcess extends Process[ConsensusIO] {
 
     },
 
-    new Round[Int]{
+    new Round[Int](timeout){
 
       def send(): Map[ProcessID,Int] = {
         if (id == coord(r/4) && commit) {
@@ -71,7 +72,7 @@ class SlvProcess extends Process[ConsensusIO] {
 
     },
 
-    new Round[Int]{
+    new Round[Int](timeout){
 
       def send(): Map[ProcessID,Int] = {
         if ( ts == (r/4) ) {
@@ -104,14 +105,15 @@ class SlvProcess extends Process[ConsensusIO] {
 
 }
 
-class ShortLastVoting extends Algorithm[ConsensusIO,SlvProcess] {
+class ShortLastVoting(rt: Runtime, timeout: Long) extends Algorithm[ConsensusIO[Int],SlvProcess](rt) {
 
   val spec = TrivialSpec
   
-  def process = new SlvProcess
+  def process = new SlvProcess(timeout)
 
-  def dummyIO = new ConsensusIO{
+  def dummyIO = new ConsensusIO[Int]{
     val initialValue = 0
     def decide(value: Int) { }
   }
+
 }

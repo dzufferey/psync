@@ -1,5 +1,7 @@
 package psync.runtime
 
+import psync.Time
+
 object Flags {
   final val normal = 0
   final val dummy = 1 //messages inserted to force progress
@@ -9,13 +11,17 @@ object Flags {
   final def userDefinable(flag: Byte) = flag < 0 || flag > 2
 }
 
+//in the end this will havea variable size and always be stored in the bytebuffer 
 class Tag(val underlying: Long) extends AnyVal {
 
-  //flag, code: a set of values that are partially used by our framework and userdefined
+  //flag: a set of values that are partially used by our framework and userdefined
+  //callStack: how many time value to expect (currently only 1)
+  //instance: which instance this message belongs to
+  //round: the round number
 
   //internal representation:
-  // | flag | code | instance | round |
-  //   1B      1B    2B         4B
+  // | flag | callStack | instance | round |
+  //   1B     1B          2B         4B
 
   def instanceNbr: Short = {
     ((underlying >> 32) & 0xffffl).toShort
@@ -27,12 +33,12 @@ class Tag(val underlying: Long) extends AnyVal {
     new Tag(u | i)
   }
 
-  def roundNbr: Int = {
-    underlying.toInt
+  def roundNbr: Time = {
+    new Time(underlying.toInt)
   }
 
-  def setRoundNbr(r: Int): Tag = {
-    new Tag((underlying >> 32 << 32) | (r.toLong & 0xffffffffl))
+  def setRoundNbr(r: Time): Tag = {
+    new Tag((underlying >> 32 << 32) | (r.toInt.toLong & 0xffffffffl))
   }
 
   def flag: Byte = {
@@ -45,21 +51,21 @@ class Tag(val underlying: Long) extends AnyVal {
     new Tag(u | f)
   }
 
-  def code: Byte = {
+  def callStack: Byte = {
     ((underlying >> 48) & 0xffl).toByte
   }
 
-  def setCode(code: Byte): Tag = {
-    val c = (code.toLong & 0xffl) << 48
+  def setCallStack(callStack: Byte): Tag = {
+    val c = (callStack.toLong & 0xffl) << 48
     val u = underlying & 0xff00ffffffffffffl
     new Tag(u | c)
   }
 
   override def toString = {
-    "Tag("+ flag +","+ code +","+ instanceNbr +","+ roundNbr +")"
+    "Tag("+ flag +","+ callStack +","+ instanceNbr +","+ roundNbr +")"
   }
 
-  def size = 8
+  def size = 8 //TODO 4 + callStack * 4
 
 }
 
@@ -69,8 +75,14 @@ object Tag {
     new Tag(0).setInstanceNbr(instance).setRoundNbr(round)
   }
 
-  def apply(instance: Short, round: Int, flag: Byte, code: Byte) = {
-    new Tag(0).setFlag(flag).setCode(code).setInstanceNbr(instance).setRoundNbr(round)
+  def apply(instance: Short, round: Int, flag: Byte, callStack: Byte) = {
+    new Tag(0).setFlag(flag).setCallStack(callStack).setInstanceNbr(instance).setRoundNbr(round)
   }
+  
+  def roundNbr(tag: Tag): Time = new Time(tag.underlying.toInt)
+
+  def flag(tag: Tag): Byte = ((tag.underlying >> 56) & 0xffl).toByte
+
+  def code(tag: Tag): Byte = ((tag.underlying >> 48) & 0xffl).toByte
 
 }

@@ -1,6 +1,6 @@
 package example.batching
 
-import example.{DecisionLog,LastVotingB,BConsensusIO}
+import example.{DecisionLog,LastVotingB,BConsensusIO,SyncCondition}
 import psync._
 import psync.runtime._
 import dzufferey.utils.Logger
@@ -38,8 +38,8 @@ class BatchingClient(val options: BatchingClient.type)
 
 
   // PSync runtime
-  val alg = new LastVotingB(options.all)
-  val rt = new Runtime(alg, options, defaultHandler(_))
+  val rt = Runtime(options, defaultHandler(_))
+  val alg = new LastVotingB(rt, options.timeout, options.sync)
   var jitting = true
 
 
@@ -57,7 +57,7 @@ class BatchingClient(val options: BatchingClient.type)
     }
     assert(tracker.canStart(inst) && !tracker.isRunning(inst))
     tracker.start(inst)
-    rt.startInstance(inst, io, msgs)
+    alg.startInstance(inst, io, msgs)
   }
   
   def defaultHandler(msg: Message) {
@@ -94,7 +94,7 @@ class BatchingClient(val options: BatchingClient.type)
             msg.release
           }
         } else {
-          sendRecoveryInfo(inst, msg.senderId)
+          sendRecoveryInfo(inst, msg.sender)
           msg.release
         }
       } finally {
@@ -115,7 +115,7 @@ class BatchingClient(val options: BatchingClient.type)
             Logger("BatchingClient", Warning, id + ", AskDecision for instance " + inst + "\n" + tracker)
           }
         } else {
-          sendRecoveryInfo(inst, msg.senderId)
+          sendRecoveryInfo(inst, msg.sender)
         }
         msg.release
       } finally {
@@ -129,13 +129,13 @@ class BatchingClient(val options: BatchingClient.type)
       val d = Array.ofDim[Byte](s)
       p.readBytes(d)
       msg.release
-      rt.stopInstance(inst)
+      alg.stopInstance(inst)
       proposeDecision(inst, d)
       Logger("BatchingClient", Debug, "received decision for " + inst)
     } else if (flag == Late) {
       val inst = msg.instance
       msg.release
-      rt.stopInstance(inst)
+      alg.stopInstance(inst)
       //TODO get the whole state
       proposeDecision(inst, null)
       Logger("BatchingClient", Debug, "received late for " + inst)
@@ -195,12 +195,12 @@ class BatchingClient(val options: BatchingClient.type)
       def decide(value: Array[Byte]) { }
     }
     for (i <- 0 until 10) {
-      rt.startInstance(i.toShort, io, Set.empty)
+      alg.startInstance(i.toShort, io, Set.empty)
     }
     //let it run for a while
     Thread.sleep(options.delay - 1000)
     for (i <- 0 until 10) {
-      rt.stopInstance(i.toShort)
+      alg.stopInstance(i.toShort)
     }
     Thread.sleep(1000)
     lck.lock
@@ -280,8 +280,16 @@ object BatchingClient extends RTOptions {
   var rpTO = 1
   newOption("--rpTO", dzufferey.arg.Int( i => rpTO = i), "RequestProcessor Timeout (default: 1)")
 
-  var all = false
-  newOption("--all", dzufferey.arg.Unit( () => all = true), "Wait for all the replica rather then n/2 + 1")
+  var cr = 200
+  newOption("--cr", dzufferey.arg.Int( i => cr = i), "how many requests to simulate at once (default: 200)")
+
+  var forward = true
+  newOption("--noForwarding", dzufferey.arg.Unit( () => forward = false), "disable forwarding (batches of) requests to the leader")
+
+  var sync = SyncCondition.Quorum
+  newOption("--syncQuorum", dzufferey.arg.Unit( () => sync = SyncCondition.Quorum), "progress as soon as there is a quorum")
+  newOption("--syncAll", dzufferey.arg.Unit( () => sync = SyncCondition.All), "progress when all the messages are there")
+  newOption("--syncTO", dzufferey.arg.Unit( () => sync = SyncCondition.OnTO), "progress only on timeout")
 
   val usage = "..."
   
@@ -298,19 +306,25 @@ object BatchingClient extends RTOptions {
     Logger("BatchingClient", Notice, id + ", starting")
     begin = java.lang.System.currentTimeMillis()
 
-    //TODO many clients
-    while (true) {
-      var i = 0
-      while (i < 200) {
-        system.propose(id, prng.nextInt(n), prng.nextInt())
-        i += 1
+    //TODO many clients (only if leader or forward)
+    if (forward || id == 0) {
+      while (true) {
+        var i = 0
+        while (i < cr) {
+          system.propose(id, prng.nextInt(n), prng.nextInt())
+          i += 1
+        }
+        Thread.sleep(1)
       }
-      Thread.sleep(1)
+    } else {
+      while (true) {
+        Thread.sleep(1000)
+      }
     }
 
   }
   
-  Runtime.getRuntime().addShutdownHook(
+  java.lang.Runtime.getRuntime().addShutdownHook(
     new Thread() {
       override def run() {
         val versionNbr = system.shutdown
