@@ -152,7 +152,7 @@ class OtrExampleNoMailbox extends FunSuite {
       tr,
       Not(prime(invariantProgress1))
     )
-    assertUnsat(fs, to = 600000, reducer = c3e2)
+    assertUnsat(fs, to = 600000, reducer = c3e2, dnfExpansion = true)
   }
 
   test("2nd magic round") {

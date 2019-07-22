@@ -41,7 +41,7 @@ object SmtSolver {
   def convert(bt: BindingType): dzufferey.smtlib.BindingType = bt match {
     case ForAll => dzufferey.smtlib.ForAll
     case Exists => dzufferey.smtlib.Exists
-    case Comprehension => Logger.logAndThrow("SmtSolver", Error, "cannot conver Comprehension")
+    case Comprehension => Logger.logAndThrow("SmtSolver", Error, "cannot convert Comprehension")
   }
 
   def convert(bt: dzufferey.smtlib.BindingType): BindingType = bt match {

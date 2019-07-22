@@ -5,6 +5,8 @@ import org.scalatest._
 class SimplifySuite extends FunSuite {
 
   //TODO test idempotence of boundVarUnique
+  
+  implicit val namer = new dzufferey.utils.Namer
 
   test("pnf 1") {
     import Simplify._
@@ -111,4 +113,31 @@ class SimplifySuite extends FunSuite {
     val expected = Or( Eq(a,c), Eq(a,d), Eq(a,b) )
     assert(Simplify.simplify(f) == Simplify.simplify(expected))
   }
+
+  test("dnf 1") {
+    val f = And(
+      Or(
+        Eq(a,c),
+        Eq(a,d)
+      ),
+      Eq(a,b)
+    )
+    val f2 = Simplify.dnf(f)
+    val expected = Or(And(Eq(a,c),Eq(a,b)),And(Eq(a,d),Eq(a,b)))
+    assert(Simplify.simplify(f2) == Simplify.simplify(expected))
+  }
+
+  test("cnf 1") {
+    val f = Or(
+      And(
+        Eq(a,c),
+        Eq(a,d)
+      ),
+      Eq(a,b)
+    )
+    val f2 = Simplify.cnf(f)
+    val expected = And(Or(Eq(a,c),Eq(a,b)),Or(Eq(a,d),Eq(a,b)))
+    assert(Simplify.simplify(f2) == Simplify.simplify(expected))
+  }
+
 }

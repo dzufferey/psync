@@ -15,7 +15,7 @@ class IncrementalGenerator( axioms: Iterable[Formula],
                             tactic: Tactic,
                             _cc: CongruenceClosure,
                             typeStrat: TypeStratification = null
-                          ) extends Generator {
+                          )(implicit namer: Namer) extends Generator {
 
   def cc = _cc
   
@@ -42,7 +42,7 @@ class IncrementalGenerator( axioms: Iterable[Formula],
     if (local) buffer ++= locallySaturate
 
     if (VerificationOptions.logQI) {
-      val fname = Namer("qi") + ".html"
+      val fname = namer("qi") + ".html"
       logger.storeVisJS(fname)
     }
 
@@ -259,7 +259,7 @@ class IncrementalGenerator( axioms: Iterable[Formula],
 
   protected def mkGenVar(v: Variable) = {
     val suffix = Names.tpe(v.tpe)
-    Variable(Namer("_genExt_"+suffix)).setType(v.tpe)
+    Variable(namer("_genExt_"+suffix)).setType(v.tpe)
   }
   
   protected def getDefinitions(v: Variable, f: Formula): Seq[Formula] = f match {

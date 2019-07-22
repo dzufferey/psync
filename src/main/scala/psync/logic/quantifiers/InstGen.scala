@@ -3,9 +3,9 @@ package psync.logic.quantifiers
 import psync.formula._
 import psync.logic._
 
+import dzufferey.utils.Namer
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
-import dzufferey.utils.Namer
 
 trait Generator {
 
@@ -49,7 +49,10 @@ object InstGen {
   def makeGenerator( axioms: List[Formula],
                      depth: Option[Int],
                      cClasses: CC,
-                     additionalTerms: Iterable[Formula]): IncrementalGenerator = {
+                     additionalTerms: Iterable[Formula]
+                   )(
+                     implicit namer: Namer
+                   ): IncrementalGenerator = {
     val cc = cClasses.mutable
     //push all the terms to be sure
     additionalTerms.foreach(cc.repr)
@@ -66,9 +69,13 @@ object InstGen {
    */
   def makeGenerator( axioms: Formula,
                      depth: Option[Int] = None,
-                     cClasses: CC = new CongruenceClosure,
-                     additionalTerms: Iterable[Formula] = Nil): IncrementalGenerator = {
-    makeGenerator(FormulaUtils.getConjuncts(axioms), depth, cClasses, additionalTerms)
+                     cClasses: CC = null,
+                     additionalTerms: Iterable[Formula] = Nil
+                   )(
+                     implicit namer: Namer
+                   ): IncrementalGenerator = {
+    val cc = if (cClasses != null) cClasses else new CongruenceClosure
+    makeGenerator(FormulaUtils.getConjuncts(axioms), depth, cc, additionalTerms)
   }
   
   /** instantiate all the universally quantified variables with the provided ground terms.
@@ -81,12 +88,16 @@ object InstGen {
   def saturateWith( formula: Formula,
                     mandatoryTerms: Set[Formula],
                     depth: Option[Int] = None,
-                    cClasses: CC = CongruenceClasses.empty,
-                    additionalTerms: Set[Formula] = Set()): Formula = {
+                    cClasses: CC = null,
+                    additionalTerms: Set[Formula] = Set()
+                  )(
+                     implicit namer: Namer
+                  ): Formula = {
+    var cc = if (cClasses != null) cClasses else CongruenceClasses.empty
     val fs = FormulaUtils.getConjuncts(formula)
     val (axioms, leftOver) = fs.partition(hasFAnotInComp)
-    val gen = makeGenerator(axioms, depth, cClasses, mandatoryTerms ++ additionalTerms)
-    val cc = gen.cc
+    val gen = makeGenerator(axioms, depth, cc, mandatoryTerms ++ additionalTerms)
+    cc = gen.cc
     val mRepr = mandatoryTerms.map(cc.repr)
     //ignore things without mandatoryTerms
     cc.groundTerms.view.map(cc.repr).filterNot(mRepr).foreach(gen.generate)
@@ -105,12 +116,16 @@ object InstGen {
    */
   def saturate( formula: Formula,
                 depth: Option[Int] = None,
-                cClasses: CC = new CongruenceClosure,
-                additionalTerms: Set[Formula] = Set()): Formula = {
+                cClasses: CC = null,
+                additionalTerms: Set[Formula] = Set()
+              )(
+                implicit namer: Namer
+              ): Formula = {
     val fs = FormulaUtils.getConjuncts(formula)
     val (axioms, leftOver) = fs.partition(hasFAnotInComp)
     val ts = additionalTerms ++ FormulaUtils.collectGroundTerms(And(leftOver:_*))
-    val gen = makeGenerator(axioms, depth, cClasses, ts)
+    val cc = if (cClasses != null) cClasses else new CongruenceClosure
+    val gen = makeGenerator(axioms, depth, cc, ts)
     val insts = gen.saturate()
     And(leftOver ++ insts :_*)
   }

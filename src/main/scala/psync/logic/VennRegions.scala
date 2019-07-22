@@ -30,7 +30,8 @@ object VennRegions {
   def apply(tpe: Type,
             universeSize: Option[Formula],
             sets: Iterable[(Formula, Option[Binding])],
-            generator: Generator) = {
+            generator: Generator)(
+            implicit namer: Namer) = {
     new VennRegions(tpe, universeSize, sets, mkUniv(generator)).constraints
   }
 
@@ -44,9 +45,11 @@ object VennRegions {
   def apply(tpe: Type,
             universeSize: Option[Formula],
             sets: Iterable[(Formula, Option[Binding])],
-            cc: CC = CongruenceClasses.empty,
-            univ: List[Formula] = Nil) = {
-    def mkUniv(f: Formula) = InstGen.saturateWith(And(univ:_*), Set(f), Some(1), cc) //TODO try to avoid saturateWith, expensive when there are many terms
+            cc: CC = null,
+            univ: List[Formula] = Nil)(
+            implicit namer: Namer) = {
+    val cc2 = if (cc != null) cc else CongruenceClasses.empty
+    def mkUniv(f: Formula) = InstGen.saturateWith(And(univ:_*), Set(f), Some(1), cc2) //TODO try to avoid saturateWith, expensive when there are many terms
     new VennRegions(tpe, universeSize, sets, mkUniv).constraints
   }
   
@@ -63,12 +66,13 @@ object VennRegions {
                 universeSize: Option[Formula],
                 sets: Iterable[(Formula, Option[Binding])],
                 generator: Generator,
-                preserveGenerator: Boolean): Formula = {
+                preserveGenerator: Boolean)(
+                implicit namer: Namer): Formula = {
     val fct: Formula => Formula =
       if (preserveGenerator) {
         mkUniv(generator.clone)
       } else {
-        val elt = Variable(Namer("elt")).setType(tpe)
+        val elt = Variable(namer("elt")).setType(tpe)
         val clauses = mkUniv(generator)(elt)
         ( (f: Formula) => FormulaUtils.replace(elt, f, clauses) )
       }
@@ -86,7 +90,8 @@ object VennRegions {
                 tpe: Type,
                 universeSize: Option[Formula],
                 sets: Iterable[(Formula, Option[Binding])],
-                generator: Generator): Formula = {
+                generator: Generator)(
+                implicit namer: Namer): Formula = {
     withBound(bound, tpe, universeSize, sets, generator, true)
   }
 
@@ -102,10 +107,11 @@ object VennRegions {
                 tpe: Type,
                 universeSize: Option[Formula],
                 sets: Iterable[(Formula, Option[Binding])],
-                cc: CC = CongruenceClasses.empty,
-                univ: List[Formula] = Nil): Formula  = {
-    val cc2 = cc.copy //avoids feeding new terms (because it will be replace)
-    val template = Variable(Namer("__template")).setType(tpe)
+                cc: CC = null,
+                univ: List[Formula] = Nil)(
+                implicit namer: Namer): Formula  = {
+    val cc2 = if (cc != null) cc.copy else CongruenceClasses.empty //avoids feeding new terms (because it will be replace)
+    val template = Variable(namer("__template")).setType(tpe)
     val generated = InstGen.saturateWith(And(univ:_*), Set(template), Some(1), cc2) //TODO even better this could be shared across sets of different types
     def mkUniv(f: Formula) = FormulaUtils.replace(template, f, generated)
     new VennRegionsWithBound(bound, tpe, universeSize, sets, mkUniv).constraints
@@ -122,7 +128,8 @@ object VennRegions {
 class VennRegions(tpe: Type,
                   universeSize: Option[Formula],
                   sets: Iterable[(Formula, Option[Binding])],
-                  mkUniv: Formula => Formula) {
+                  mkUniv: Formula => Formula)(
+                  implicit namer: Namer) {
 
   /** Removes funny characters from string to make them smt-lib compliant. */
   protected def sanitize(str: String) = {
@@ -130,9 +137,9 @@ class VennRegions(tpe: Type,
   }
 
   /** the prefix for the name of the integer variables representing the size of the Venn regions. */
-  protected val prefix = Namer("venn_" + sanitize(tpe.toString)) + "_"
+  protected val prefix = namer("venn_" + sanitize(tpe.toString)) + "_"
   
-  protected val elt = Variable(Namer("elt")).setType(tpe)
+  protected val elt = Variable(namer("elt")).setType(tpe)
   protected val univCstr = mkUniv(elt)
 
   protected var counter = 0
@@ -318,7 +325,8 @@ class VennRegionsWithBound(bound: Int,
                            tpe: Type,
                            universeSize: Option[Formula],
                            _sets: Iterable[(Formula, Option[Binding])],
-                           mkUniv: Formula => Formula) {
+                           mkUniv: Formula => Formula)(
+                           implicit namer: Namer) {
 
   protected val sets = _sets.toArray
 

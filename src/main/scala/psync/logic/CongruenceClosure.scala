@@ -2,6 +2,7 @@ package psync.logic
 
 import psync.formula._
 
+import dzufferey.utils.Namer
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
 import psync.utils.Stats
@@ -22,7 +23,7 @@ trait CC {
   def immutable: CongruenceClasses
 }
 
-class CongruenceClosure(initialDomain: Iterable[Formula] = Nil) extends CC {
+class CongruenceClosure(initialDomain: Iterable[Formula] = Nil)(implicit namer: Namer) extends CC {
     
   import scala.collection.mutable.{ListBuffer, Map => MMap}
   protected var nbrNodes = 0
@@ -180,9 +181,9 @@ class CongruenceClosure(initialDomain: Iterable[Formula] = Nil) extends CC {
 
 object CongruenceClosure {
 
-  def apply(f: Seq[Formula]): CongruenceClasses = apply(And(f:_*))
+  def apply(f: Seq[Formula])(implicit namer: Namer): CongruenceClasses = apply(And(f:_*))
 
-  def apply(f: Formula): CongruenceClasses = {
+  def apply(f: Formula)(implicit namer: Namer): CongruenceClasses = {
     val graph = new CongruenceClosure
     graph.addConstraints(f)
     graph.immutable
@@ -190,7 +191,7 @@ object CongruenceClosure {
 
 }
 
-class CongruenceClasses(cls: Iterable[CongruenceClass], map: Map[Formula, CongruenceClass]) extends CC {
+class CongruenceClasses(cls: Iterable[CongruenceClass], map: Map[Formula, CongruenceClass])(implicit namer: Namer) extends CC {
 
   override def toString = cls.mkString("\n")
 
@@ -242,7 +243,7 @@ class CongruenceClasses(cls: Iterable[CongruenceClass], map: Map[Formula, Congru
 }
 
 object CongruenceClasses {
-  val empty = new CongruenceClasses(Nil, Map.empty)
+  def empty(implicit namer: Namer) = new CongruenceClasses(Nil, Map.empty)
 }
 
 //a container for CC classes

@@ -6,6 +6,8 @@ import psync.formula.Common._
 import org.scalatest._
 
 class MatchingSuite extends FunSuite {
+  
+  implicit val namer = new dzufferey.utils.Namer
 
   test("matching 1"){
     val fs = And(

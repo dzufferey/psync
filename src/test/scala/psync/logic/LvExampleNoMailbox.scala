@@ -176,10 +176,20 @@ class LvExampleNoMailbox extends FunSuite {
       Eq(commit1(i), False()),
       Eq(ready1(i), False()),
       //frame
-      Eq(decided(i), decided1(i)),
-      Eq(data(i), data1(i)),
       Eq(vote(i), vote1(i)),
       Eq(timeStamp(i), timeStamp1(i))
+    ))
+  )
+
+  val frame = And(
+    Eq(r, r1),
+    ForAll(List(i), And(
+      Eq(vote(i), vote1(i)),
+      Eq(ready(i), ready1(i)),
+      Eq(timeStamp(i), timeStamp1(i)),
+      Eq(decided(i), decided1(i)),
+      Eq(data(i), data1(i)),
+      Eq(commit(i), commit1(i))
     ))
   )
 
@@ -207,22 +217,116 @@ class LvExampleNoMailbox extends FunSuite {
     ),
     ForAll(List(i), Exists(List(j), Eq(data(i), data0(j))))
   )
+
+  //simpler version to help debugging
+  val invariant1a = And(
+      Exists(List(j,t,a), And(
+        Eq(a, Comprehension(List(i), Leq(t, timeStamp(i)))),
+        majorityS(a),
+        Leq(t, r),
+        In(j, a),
+        ForAll(List(i), And(Implies(In(i, a), Eq(data(i), data(j))),
+                            Implies(decided(i), Eq(data(i), data(j))),
+                            Implies(commit(i), Eq(vote(i), data(j))),
+                            Implies(ready(i), Eq(vote(i), data(j))),
+                            Implies(Eq(timeStamp(i), r), commit(coord(i)))
+                        )
+        )
+      ))
+  )
   
+  //even simpler version to help debugging
+  val invariant1b = {
+    val a = Comprehension(List(i), Leq(t, timeStamp(i)))
+      Exists(List(j,t), And(
+        majorityS(a),
+        Leq(t, r),
+        In(j, a),
+        ForAll(List(i), And(Implies(In(i, a), Eq(data(i), data(j))),
+                            Implies(decided(i), Eq(data(i), data(j))),
+                            Implies(commit(i), Eq(vote(i), data(j))),
+                            Implies(ready(i), Eq(vote(i), data(j))),
+                            Implies(Eq(timeStamp(i), r), commit(coord(i)))
+                        ))
+        )
+      )
+  }
+  
+  //simpler version to help debugging
+  val invariant1c = {
+    val a = Comprehension(List(l), Leq(t, timeStamp(l)))
+    And(
+      Or(
+        ForAll(List(i), And(Not(decided(i)), Not(ready(i)))),
+        Exists(List(v,t), And(
+          majorityS(a),
+          Leq(t, r),
+          ForAll(List(j), And(Implies(In(j, a), Eq(data(j), v)),
+                              Implies(decided(j), Eq(data(j), v)),
+                              Implies(commit(j), Eq(vote(j), v)),
+                              Implies(ready(j), Eq(vote(j), v))
+                              //removed coord stuff
+                          )
+          )
+        ))
+      ),
+      ForAll(List(k), Exists(List(m), Eq(data(k), data0(m))))
+    )
+  }
+
+  //simpler version to help debugging
+  val invariant1d = {
+    val a = Comprehension(List(l), Leq(t, timeStamp(l)))
+    And(
+      Or(
+        ForAll(List(i), And(Not(decided(i)), Not(ready(i)))),
+        Exists(List(v,t), And(
+          majorityS(a),
+          Leq(t, r),
+          ForAll(List(j), And(Implies(In(j, a), Eq(data(j), v)),
+                              Implies(decided(j), Eq(data(j), v)),
+                              Implies(commit(j), Eq(vote(j), v)),
+                              Implies(ready(j), Eq(vote(j), v)),
+                              Implies(Eq(timeStamp(j), r), commit(coord(j)))
+                          )
+          )
+        ))
+      ),
+      ForAll(List(k), Exists(List(m), Eq(data(k), data0(m))))
+    )
+  }
+
+
+  //specific tactic
+  def conf(e: Int = 1) = {
+    import psync.logic.quantifiers._
+    val local = true
+    val vennBound = 2
+    val tactic = new Sequence(
+        new Eager(Map[Type,Int](pid -> 1, FSet(pid) -> 1, phase -> 1, pld -> 1).withDefaultValue(0)),
+        new Eager(e)
+      )
+    ClConfig(Some(vennBound), None, QStrategy(tactic, local))
+  }
+
   //test VCs
 
   test("initial state implies invariant") {
     val fs = List(initialState, Not(invariant1))
     assertUnsat(fs, c2e1)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   test("invariant implies agreement") {
     val fs = List(invariant1, Not(agreement))
     assertUnsat(fs, c2e1)
+    assertUnsat(fs, onlyAxioms = true)
   }
   
   test("validity holds initially") {
     val fs = List(initialState, Not(validity))
     assertUnsat(fs, c2e1)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   test("maxTS") {
@@ -235,51 +339,98 @@ class LvExampleNoMailbox extends FunSuite {
       Neq(maxTS(i), v)
     )
     assertUnsat(fs, c2e1)
+    assertUnsat(fs, onlyAxioms = true)
+  }
+
+  test("frame") {
+    val fs = List(
+      invariant1,
+      frame,
+      Not(prime(invariant1))
+    )
+    assertUnsat(fs, reducer = conf(), dnfExpansion = true)
+    //assertUnsat(fs, onlyAxioms = true)
+  }
+  
+  test("frame a") {
+    val fs = List(
+      invariant1a,
+      frame,
+      Not(prime(invariant1a))
+    )
+    assertUnsat(fs, conf())
+    //assertUnsat(fs, onlyAxioms = true, debug = true, fname = Some("frame_a.stm2"))
+  }
+
+  test("frame b") {
+    val fs = List(
+      invariant1b,
+      frame,
+      Not(prime(invariant1b))
+    )
+    assertUnsat(fs, conf())
+    //assertUnsat(fs, onlyAxioms = true)
+  }
+  
+  test("frame c") {
+    val fs = List(
+      invariant1c,
+      frame,
+      Not(prime(invariant1c))
+    )
+    assertUnsat(fs, conf())
+    //assertUnsat(fs, onlyAxioms = true)
+  }
+
+  test("frame d") {
+    val fs = List(
+      invariant1d,
+      frame,
+      Not(prime(invariant1d))
+    )
+    assertUnsat(fs, reducer = conf(), dnfExpansion = true)
+    //assertUnsat(fs, onlyAxioms = true)
   }
 
   //TODO those completely blow-up
   //for round 4, which should be "easy", the instantiation blows-up at the local step
   
-//test("invariant 1 is inductive at round 1") {
-//  val fs = List(
-//    invariant1,
-//    round1,
-//    Not(prime(invariant1))
-//  )
-//  assertUnsat(fs, 60000, true, clg(2,3))
-//  //getModel(fs, 60000, clg(2,3))
-//  //assertUnsat(fs, 60000, true, clh(2,1,1))
-//  //assertUnsat(fs, 60000, true, cl2_2, Some("test.smt2"))
-//}
+  ignore("invariant 1 is inductive at round 1") {
+    val fs = List(
+      invariant1,
+      round1,
+      Not(prime(invariant1))
+    )
+    //assertUnsat(fs, reducer = conf(), dnfExpansion = true)
+    //assertUnsat(fs, onlyAxioms = true, debug = true, fname = Some("i1r1.smt2"))
+  }
 
-//test("invariant 1 is inductive at round 2") {
-//  val fs = List(
-//    invariant1,
-//    round2,
-//    Not(prime(invariant1))
-//  )
-//  //getModel(fs, 60000, clg(2,3))
-//  assertUnsat(fs, 60000, true, clh(2,1,1))
-//  assertUnsat(fs)
-//}
+  ignore("invariant 1 is inductive at round 2") {
+    val fs = List(
+      invariant1,
+      round2,
+      Not(prime(invariant1))
+    )
+    //getModel(fs, 60000, clg(2,3))
+    assertUnsat(fs, 60000, true, c2e2)
+  }
 
-//test("invariant 1 is inductive at round 3") {
-//  val fs = List(
-//    invariant1,
-//    round3,
-//    Not(prime(invariant1))
-//  )
-//  assertUnsat(fs)
-//}
+  ignore("invariant 1 is inductive at round 3") {
+    val fs = List(
+      invariant1,
+      round3,
+      Not(prime(invariant1))
+    )
+    assertUnsat(fs, c2e2)
+  }
 
-//test("invariant 1 is inductive at round 4") {
-//  val fs = List(
-//    invariant1,
-//    round4,
-//    Not(prime(invariant1))
-//  )
-//  //assertUnsat(fs, 30000, true, cln(1, new quantifiers.Eager, 2, true)) //XXX bug here
-//  assertUnsat(fs, 30000, true, cln(1, new quantifiers.Guided(Some(2)), true))
-//}
+  ignore("invariant 1 is inductive at round 4") {
+    val fs = List(
+      invariant1,
+      round4,
+      Not(prime(invariant1))
+    )
+    assertUnsat(fs, reducer = conf(2), dnfExpansion = true, debug = true, to = 60000)
+  }
 
 }

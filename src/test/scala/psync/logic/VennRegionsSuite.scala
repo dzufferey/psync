@@ -8,6 +8,7 @@ class VennRegionsSuite extends FunSuite {
   
   //TODO test the constraints
   //TODO comprehensions to test the membership axioms
+  implicit val namer = new dzufferey.utils.Namer
 
   val pid = CL.procType
   val n = CL.n

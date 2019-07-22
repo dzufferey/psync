@@ -7,6 +7,8 @@ import org.scalatest._
 
 class CongruenceClosureSuite extends FunSuite {
 
+  implicit val namer = new dzufferey.utils.Namer
+
   test("cc 1") {
     val eqs = And(
       Eq(p1, p2),

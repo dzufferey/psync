@@ -46,11 +46,40 @@ object Simplify {
   }
 
   def cnf(f: Formula): Formula = {
-    ???
+    def process(f: Formula): List[Formula] = f match {
+      case Application(And, lst) => lst.flatMap(process)
+      case Application(Or, lst) =>
+        def merge(dnf1: List[Formula], dnf2: List[Formula]): List[Formula] = {
+          dnf1.flatMap( x => dnf2.map( y => Or(x, y)) )
+        }
+        val subDnf = lst.map(process)
+        val acc: List[Formula] = List(False())
+        subDnf.foldLeft(acc)(merge)
+      case other =>
+        List(other)
+    }
+    val f2 = process(nnf(f))
+    val f3 = f2.map(simplifyBool)
+    And(f3: _*)
   }
   
+  //only works at the top level, does not go into Bindings, assumes NNF
   def dnf(f: Formula): Formula = {
-    ???
+    def process(f: Formula): List[Formula] = f match {
+      case Application(Or, lst) => lst.flatMap(process)
+      case Application(And, lst) =>
+        def merge(dnf1: List[Formula], dnf2: List[Formula]): List[Formula] = {
+          dnf1.flatMap( x => dnf2.map( y => And(x, y)) )
+        }
+        val subDnf = lst.map(process)
+        val acc: List[Formula] = List(True())
+        subDnf.foldLeft(acc)(merge)
+      case other =>
+        List(other)
+    }
+    val f2 = process(nnf(f))
+    val f3 = f2.map(simplifyBool)
+    Or(f3: _*)
   }
 
   protected def mkDeBruijnVar(tpe: Type, idx: Int) = {
@@ -58,12 +87,12 @@ object Simplify {
     Variable(prefix + "_" + idx).setType(tpe)
   }
 
-  def deBruijnIndex(f0: Formula, renameFreeVars: Boolean = false): Formula = {
+  def deBruijnIndex(f0: Formula, renameFreeVars: Boolean = false)(implicit namer: Namer): Formula = {
 
     //generic renaming of variables _XXX
     val f = boundVarUnique(f0)
     val allVars = if (renameFreeVars) f.freeVariables ++ f.boundVariables else f.boundVariables
-    val dummyNames = allVars.foldLeft(Map[Variable,Variable]())( (acc, v) => acc + (v -> Variable(Namer("_")).setType(v.tpe)) )
+    val dummyNames = allVars.foldLeft(Map[Variable,Variable]())( (acc, v) => acc + (v -> Variable(namer("_")).setType(v.tpe)) )
     val cleanNames = FormulaUtils.alphaAll(dummyNames, f)
 
     def merge(m1: Map[Type, Int], m2: Map[Type, Int]): Map[Type, Int] = {
@@ -93,13 +122,13 @@ object Simplify {
   }
 
   //TODO return the subst
-  def deBruijnIndexWithRenaming(f: Formula, renameFreeVars: Boolean = false): (Formula, Map[Variable,Variable]) = {
+  def deBruijnIndexWithRenaming(f: Formula, renameFreeVars: Boolean = false)(implicit namer: Namer): (Formula, Map[Variable,Variable]) = {
 
     //generic renaming of variables _XXX
     val f0 = boundVarUnique(f)
     assert(f0 == f, "deBruijnIndexWithRenaming only makes sense if bound variables have an unique name:\n  " + f + "\n  " + f0)
     val allVars = if (renameFreeVars) f.freeVariables ++ f.boundVariables else f.boundVariables
-    val startToDummy = allVars.foldLeft(Map[Variable,Variable]())( (acc, v) => acc + (v -> Variable(Namer("_")).setType(v.tpe)) )
+    val startToDummy = allVars.foldLeft(Map[Variable,Variable]())( (acc, v) => acc + (v -> Variable(namer("_")).setType(v.tpe)) )
     val cleanNames = FormulaUtils.alphaAll(startToDummy, f)
 
     def merge(m1: Map[Type, Int], m2: Map[Type, Int]): Map[Type, Int] = {
@@ -299,7 +328,7 @@ object Simplify {
   
   //warning: this will pull up the ∃ to the top ∨
   //assumes bound variables are unique (does not check for capture)
-  def mergeExists(f: Formula): Formula = {
+  def mergeExists(f: Formula)(implicit namer: Namer): Formula = {
     def merge(f: Formula): Formula = f match {
       case Or(disjs @ _*) =>
         val init = (List[Formula](), Set[Variable]())

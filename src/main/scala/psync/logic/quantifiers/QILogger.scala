@@ -5,7 +5,6 @@ import psync.logic._
 
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
-import dzufferey.utils.Namer
 import dzufferey.utils.IO
 
 import scala.collection.mutable.{Map => MMap, Set => MSet}
