@@ -354,7 +354,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       } catch {
         case e: KryoException =>
           if (nbrByzantine > 0) {
-            Logger("InstanceHandler", Warning, "Replica " + self.id + ", instance " + instance + " got a malformed message! ignoring because nbrByzantine > 0).")
+            Logger("InstanceHandler", Warning, "Replica " + self.id + ", instance " + instance + " got a malformed message from " + sender.id + "! ignoring because nbrByzantine > 0).")
           } else {
             throw e
           }
