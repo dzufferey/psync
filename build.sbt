@@ -26,7 +26,7 @@ libraryDependencies ++=  Seq(
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.1",
     "org.scalatest" %% "scalatest" % "3.0.5" % "test",
     "org.scalacheck" %% "scalacheck" % "1.14.0" % "test",
-    "io.netty" % "netty-all" % "4.1.37.Final",
+    "io.netty" % "netty-all" % "4.1.43.Final",
     "com.twitter" %% "chill" % "0.9.3",
     "info.hupel" %% "libisabelle" % "0.9.3",
     "info.hupel" %% "libisabelle-setup" % "0.9.3",

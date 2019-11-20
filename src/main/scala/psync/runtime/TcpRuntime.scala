@@ -138,7 +138,8 @@ class TcpRuntime(o: RuntimeOptions, dh: Message => Unit) extends Runtime(o, dh) 
       case NetworkGroup.NIO =>   bootstrap.channel(classOf[NioServerSocketChannel])
       case NetworkGroup.EPOLL => bootstrap.channel(classOf[EpollServerSocketChannel])
     }
-    bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT); //make sure we use the default pooled allocator
+    bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT) //make sure we use the default pooled allocator
+    bootstrap.childOption(ChannelOption.TCP_NODELAY, java.lang.Boolean.TRUE)
     bootstrap.childHandler(new ChannelInitializer[SocketChannel] {
       override def initChannel(ch: SocketChannel) {
         val pipeline = ch.pipeline()
@@ -183,6 +184,7 @@ class TcpRuntime(o: RuntimeOptions, dh: Message => Unit) extends Runtime(o, dh) 
       case NetworkGroup.EPOLL => bootstrap.channel(classOf[EpollSocketChannel])
     }
     bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT); //make sure we use the default pooled allocator
+    bootstrap.option(ChannelOption.TCP_NODELAY, java.lang.Boolean.TRUE)
     bootstrap.handler(new ChannelInitializer[SocketChannel] {
       override def initChannel(ch: SocketChannel) {
         val pipeline = ch.pipeline()
