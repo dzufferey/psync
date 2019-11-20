@@ -52,7 +52,12 @@ class BatchingClient(val options: BatchingClient.type)
       val phase: Int = 0 //inst
       val initialValue = data
       def decide(value: Array[Byte]) {
-        proposeDecision(i, value)
+        if (value != null) {
+          proposeDecision(i, value)
+        } else {
+          //we did not get the data!!
+          Logger("BatchingClient", Warning, id + ", did not get the data for " + i)
+        }
       }
     }
     assert(tracker.canStart(inst) && !tracker.isRunning(inst))
@@ -76,12 +81,12 @@ class BatchingClient(val options: BatchingClient.type)
           if (isLate.get) {
             //late: focus on recovery rather than starting instances
             //cheat a bit, if the message is a decision (round % 4 == 3) then process the decision anyway
-            if (msg.round % 4 == 3) {
-              import scala.reflect.ClassTag
-              import psync.utils.serialization._
-              val decision = msg.getContent[Array[Byte]]
-              proposeDecision(msg.instance, decision)
-            }
+            //if (msg.round % 4 == 3) {
+            //  import scala.reflect.ClassTag
+            //  import psync.utils.serialization._
+            //  val decision = msg.getContent[Array[Byte]]
+            //  proposeDecision(msg.instance, decision)
+            //}
             msg.release
           } else if (!options.eagerStart) {
             startInstance(inst, emp, Set(msg))
