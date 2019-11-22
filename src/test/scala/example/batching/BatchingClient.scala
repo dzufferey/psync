@@ -95,7 +95,7 @@ class BatchingClient(val options: BatchingClient.type)
           }
         } else if (tracker.isRunning(inst)) {
           if (!rt.deliverMessage(msg)) {
-            Logger("BatchingClient", Debug, "could not deliver message message for running instance " + inst)
+            Logger("BatchingClient", Notice, "could not deliver message message for running instance " + inst)
             msg.release
           }
         } else {
@@ -136,14 +136,14 @@ class BatchingClient(val options: BatchingClient.type)
       msg.release
       alg.stopInstance(inst)
       proposeDecision(inst, d)
-      Logger("BatchingClient", Debug, "received decision for " + inst)
+      Logger("BatchingClient", Notice, "received decision for " + inst)
     } else if (flag == Late) {
       val inst = msg.instance
       msg.release
       alg.stopInstance(inst)
       //TODO get the whole state
       proposeDecision(inst, null)
-      Logger("BatchingClient", Debug, "received late for " + inst)
+      Logger("BatchingClient", Notice, "received late for " + inst)
     } else if (flag == ForwardedBatch) {
       val payload = msg.payload
       payload.readLong //skip tag
