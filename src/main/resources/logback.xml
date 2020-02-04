@@ -11,7 +11,6 @@
     <appender-ref ref="STDOUT" />
   </root>
 
-  <logger name="info.hupel.isabelle" level="INFO"/>
   <logger name="io.netty" level="WARN"/>
 
 </configuration>
