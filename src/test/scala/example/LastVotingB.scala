@@ -73,7 +73,12 @@ class LVBProcess(wholeCohort: SyncCondition, timeout: Long) extends Process[BCon
 
     },
 
-    new Round[Array[Byte]](timeout){
+    new EventRound[Array[Byte]]{
+      
+      def init = {
+        if (id == coord(r/4) && !commit) Progress.goAhead
+        else Progress.strictTimeout( timeout )
+      }
 
       def send(): Map[ProcessID,Array[Byte]] = {
         if (id == coord(r/4) && commit) {
@@ -83,12 +88,14 @@ class LVBProcess(wholeCohort: SyncCondition, timeout: Long) extends Process[BCon
         }
       }
 
-      override def expectedNbrMessages = 1
-
-      def update(mailbox: Map[ProcessID,Array[Byte]]) {
-        if (mailbox contains coord(r/4)) {
-          x = mailbox(coord(r/4))
+      def receive(sender: ProcessID, payload: Array[Byte]) = {
+        if (sender == coord(r/4)) {
+          x = payload
           ts = r/4
+          assert(x != 0)
+          Progress.goAhead
+        } else {
+          Progress.unchanged
         }
       }
 
@@ -116,22 +123,26 @@ class LVBProcess(wholeCohort: SyncCondition, timeout: Long) extends Process[BCon
 
     //TODO we are sending againg the payload even though most processes already have it
     //this make sense if we similate the learning but otherwise it is rather expensive
-    new Round[Array[Byte]](timeout){
+    new Round[Unit](timeout){
 
-      def send(): Map[ProcessID,Array[Byte]] = {
+      def send(): Map[ProcessID,Unit] = {
         if (id == coord(r/4) && ready) {
-          broadcast(vote)
+          broadcast( () )
         } else {
-          Map.empty[ProcessID,Array[Byte]]
+          Map.empty[ProcessID,Unit]
         }
       }
 
       override def expectedNbrMessages = 1 
 
-      def update(mailbox: Map[ProcessID,Array[Byte]]) {
+      def update(mailbox: Map[ProcessID,Unit]) {
         if (mailbox contains coord(r/4)) {
-          val v = mailbox(coord(r/4))
-          callback.decide(v)
+          if ( ts == (r/4) ) {
+            callback.decide(x)
+          } else {
+            //there is a decision but we did not get the data !!
+            callback.decide(null)
+          }
           exitAtEndOfRound()
         }
         ready = false
