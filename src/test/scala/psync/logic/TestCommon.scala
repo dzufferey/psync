@@ -90,7 +90,7 @@ object TestCommon {
                   dnfExpansion: Boolean = false,
                   onlyAxioms: Boolean = false,
                   fname: Option[String] = None,
-                  useCvcMf: Boolean = false) {
+                  useCvcMf: Boolean = false): Unit = {
     val r = if (onlyAxioms) new ClAxiomatized(reducer) else new CL(reducer)
     implicit val namer = r.namer
     val fAll = And(conjuncts:_*)
@@ -110,7 +110,7 @@ object TestCommon {
   }
 
   def assertUnsat(conjuncts: List[Formula],
-                  reducer: ClConfig) {
+                  reducer: ClConfig): Unit = {
     assertUnsat(conjuncts, 10000, false, reducer)
   }
 
@@ -121,7 +121,7 @@ object TestCommon {
                 dnfExpansion: Boolean = false,
                 onlyAxioms: Boolean = false,
                 fname: Option[String] = None,
-                useCvcMf: Boolean = false) {
+                useCvcMf: Boolean = false): Unit = {
     val r = if (onlyAxioms) new ClAxiomatized(reducer) else new CL(reducer)
     implicit val namer = r.namer
     val fAll = And(conjuncts:_*)
@@ -141,7 +141,7 @@ object TestCommon {
   }
 
   def assertSat(conjuncts: List[Formula],
-                reducer: ClConfig) {
+                reducer: ClConfig): Unit = {
     assertSat(conjuncts, 10000, false, reducer)
   }
 
@@ -152,7 +152,7 @@ object TestCommon {
                dnfExpansion: Boolean = false,
                onlyAxioms: Boolean = false,
                fname: Option[String] = None,
-               useCvcMf: Boolean = false) {
+               useCvcMf: Boolean = false): Unit = {
     val r = if (onlyAxioms) new ClAxiomatized(reducer) else new CL(reducer)
     implicit val namer = r.namer
     val fAll = And(conjuncts:_*)

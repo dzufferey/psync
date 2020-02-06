@@ -89,13 +89,13 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   }
 
   /** Forward the packet to the defaultHandler in another thread/task */
-  protected def default(msg: Message) {
+  protected def default(msg: Message): Unit = {
     rt.default(msg)
   }
 
   /** Prepare the handler for a execution.
    *  call this just before giving it to the executor */
-  def prepare(io: IO, g: Group, inst: Short, msgs: Set[Message]) {
+  def prepare(io: IO, g: Group, inst: Short, msgs: Set[Message]): Unit = {
     // clear the buffer
     freeRemainingMessages
 
@@ -125,7 +125,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     msgs.foreach(newPacket)
   }
 
-  protected def freeRemainingMessages {
+  protected def freeRemainingMessages: Unit = {
     var pkt = buffer.poll
     while(pkt != null) {
       pkt.release
@@ -144,7 +144,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
 
   @volatile protected var again = true
 
-  def interrupt(inst: Int) {
+  def interrupt(inst: Int): Unit = {
     if (instance == inst)
       again = false
   }
@@ -160,7 +160,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   @inline private final def needCatchingUp = nextRound > currentRound
   @inline private final def readyToProgress = needCatchingUp && !strict
 
-  def run {
+  def run: Unit = {
     Logger("InstanceHandler", Info, "starting instance " + instance)
     again = true
     var msg: Message = null
@@ -260,7 +260,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   // current round //
   ///////////////////
 
-  @inline private final def deliverPending {
+  @inline private final def deliverPending: Unit = {
     var i = 0
     while (i < pendingMessages.size) {
       val q = pendingMessages(i)
@@ -273,7 +273,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     }
   }
 
-  @inline private final def computeNextRound {
+  @inline private final def computeNextRound: Unit = {
     if (nbrByzantine == 0) {
       // find max relative to currentRound
       var i = 0
@@ -293,7 +293,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     }
   }
 
-  protected def checkProgress(p: Progress, init: Boolean) {
+  protected def checkProgress(p: Progress, init: Boolean): Unit = {
     //TODO check monotonicity of progress
     if (p.isTimeout) {
       timeout = p.timeout
@@ -315,7 +315,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     }
   }
 
-  protected def initRound {
+  protected def initRound: Unit = {
     from = LongBitSet.empty
     roundStart = java.lang.System.currentTimeMillis()
     checkProgress(proc.init, true)
@@ -330,7 +330,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       // nothing to do we are fine
       true
     } else if (msg.flag == Flags.dummy) {
-      Logger("InstanceHandler", Debug, self.id + ", " + instance + "dummy flag (ignoring)")
+      Logger("InstanceHandler", Debug, self.id.toString + ", " + instance + "dummy flag (ignoring)")
       msg.release
       false
     } else {
@@ -342,11 +342,11 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     }
   }
 
-  protected def processPacket(msg: Message) {
+  protected def processPacket(msg: Message): Unit = {
     val sender = msg.sender
     if (!from.get(sender.id)) {
       from = from.set(sender.id)
-      assert(msg.round == currentRound, msg.round + " vs " + currentRound)
+      assert(msg.round == currentRound, msg.round.toString + " vs " + currentRound)
       val buffer = msg.bufferAfterTag
       kryoIn.setBuffer(buffer)
       try {
@@ -373,7 +373,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     shouldTerminate
   }
 
-  protected def send {
+  protected def send: Unit = {
     val tag = Tag(instance, currentRound)
     var sent = 0
     var buffer: ByteBuf = null
@@ -385,7 +385,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
       kryoOut.setBuffer(buffer)
       kryoOut
     }
-    def sending(pid: ProcessID) {
+    def sending(pid: ProcessID): Unit = {
       assert(pid != self)
       rt.send(pid, buffer)
       sent += 1
@@ -395,7 +395,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     Logger("InstanceHandler", Debug, "Replica " + self.id + ", instance " + instance + " sending for round " + currentRound + " -> " + sent + "\n")
   }
 
-  protected def stop {
+  protected def stop: Unit = {
     Logger("InstanceHandler", Info, "stopping instance " + instance)
     rt.remove(instance)
     freeRemainingMessages

@@ -36,12 +36,12 @@ class CircularBuffer[T: ClassTag](protected val capacity: Int, protected val def
   
   def getCurrent: T = _get(current)
 
-  def next {
+  def next: Unit = {
     values(index(current)) = default
     current += 1
   }
   
-  def prev {
+  def prev: Unit = {
     current -= 1
     values(index(current)) = default
   }
@@ -60,7 +60,7 @@ class CircularBuffer[T: ClassTag](protected val capacity: Int, protected val def
     }
   }
   
-  def reset {
+  def reset: Unit = {
     for (i <- 0 until capacity)
       values(i) = default
     current = 0

@@ -101,7 +101,7 @@ trait TrExtractor {
   protected def processSendUpdate(send: DefDef, update: DefDef): RoundTransitionRelation = {
     val mailboxValDef = update.vparamss.head.head
     val mailbox = extractVarFromValDef(mailboxValDef)
-    val mailboxSnd = Variable(mailboxValDef.name + "Snd").setType(mailbox.tpe)
+    val mailboxSnd = Variable(mailboxValDef.name.toString + "Snd").setType(mailbox.tpe)
     val (ssaSend, subst) = ssa(send.rhs)
 
     //TODO should try to 'transpose' mailboxSnd and only keep one mailbox

@@ -29,22 +29,22 @@ class TcpRuntime(o: RuntimeOptions, dh: Message => Unit) extends Runtime(o, dh) 
   val recipientMap: Map[ProcessID, Channel] = new TrieMap
   val unknownSender: Map[InetSocketAddress, Channel] = new TrieMap
   val handlers: Map[TCPPacketHandler,Unit] = new TrieMap
-  protected[runtime] def addChannel(id: ProcessID, chan: Channel) {
+  protected[runtime] def addChannel(id: ProcessID, chan: Channel): Unit = {
     recipientMap.update(id, chan)
   }
-  protected[runtime] def removeChannel(id: ProcessID) {
+  protected[runtime] def removeChannel(id: ProcessID): Unit = {
     recipientMap.remove(id)
   }
-  protected[runtime] def addUnknownChannel(addr: InetSocketAddress, chan: Channel) {
+  protected[runtime] def addUnknownChannel(addr: InetSocketAddress, chan: Channel): Unit = {
     unknownSender.update(addr, chan)
   }
-  protected[runtime] def removeUnknownChannel(addr: InetSocketAddress) {
+  protected[runtime] def removeUnknownChannel(addr: InetSocketAddress): Unit = {
     unknownSender.remove(addr)
   }
-  protected[runtime] def addHandler(hdl: TCPPacketHandler) {
+  protected[runtime] def addHandler(hdl: TCPPacketHandler): Unit = {
     handlers.update(hdl,())
   }
-  protected[runtime] def removeHandler(hdl: TCPPacketHandler) {
+  protected[runtime] def removeHandler(hdl: TCPPacketHandler): Unit = {
     handlers.remove(hdl)
   }
 
@@ -72,7 +72,7 @@ class TcpRuntime(o: RuntimeOptions, dh: Message => Unit) extends Runtime(o, dh) 
     }
   }
 
-  override def group_=(grp: Group) {
+  override def group_=(grp: Group): Unit = {
     val oldGroup = grp
     super.group_=(grp)
     //TODO concurrent
@@ -119,7 +119,7 @@ class TcpRuntime(o: RuntimeOptions, dh: Message => Unit) extends Runtime(o, dh) 
     }
   }
 
-  def closeServer {
+  def closeServer: Unit = {
     dispatcher.clear
     try {
       evtGroup.shutdownGracefully
@@ -131,7 +131,7 @@ class TcpRuntime(o: RuntimeOptions, dh: Message => Unit) extends Runtime(o, dh) 
     }
   }
 
-  def startListener() {
+  def startListener(): Unit = {
     val bootstrap = new ServerBootstrap()
     bootstrap.group(evtGroup)
     options.group match {
@@ -141,7 +141,7 @@ class TcpRuntime(o: RuntimeOptions, dh: Message => Unit) extends Runtime(o, dh) 
     bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT) //make sure we use the default pooled allocator
     bootstrap.childOption(ChannelOption.TCP_NODELAY, java.lang.Boolean.TRUE)
     bootstrap.childHandler(new ChannelInitializer[SocketChannel] {
-      override def initChannel(ch: SocketChannel) {
+      override def initChannel(ch: SocketChannel): Unit = {
         val pipeline = ch.pipeline()
         if (isSSLEnabled) {
           pipeline.addLast(sslServerCtx.newHandler(ch.alloc()))
@@ -159,18 +159,18 @@ class TcpRuntime(o: RuntimeOptions, dh: Message => Unit) extends Runtime(o, dh) 
     bootstrap.bind(port).sync()
   }
 
-  def delayedStartConnection(replica: Replica) {
+  def delayedStartConnection(replica: Replica): Unit = {
     if (!evtGroup.isShuttingDown()) {
       val loop = evtGroup.next()
       loop.schedule(new Runnable() {
-        override def run() {
+        override def run(): Unit = {
           startConnection(replica)
         }
       }, options.connectionRestartPeriod, TimeUnit.MILLISECONDS)
     }
   }
 
-  def startConnection(replica: Replica) {
+  def startConnection(replica: Replica): Unit = {
     // check if replica still in the group
     if (group.getSafe(replica.netAddress).isEmpty) {
       return // the group has changed
@@ -186,7 +186,7 @@ class TcpRuntime(o: RuntimeOptions, dh: Message => Unit) extends Runtime(o, dh) 
     bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT); //make sure we use the default pooled allocator
     bootstrap.option(ChannelOption.TCP_NODELAY, java.lang.Boolean.TRUE)
     bootstrap.handler(new ChannelInitializer[SocketChannel] {
-      override def initChannel(ch: SocketChannel) {
+      override def initChannel(ch: SocketChannel): Unit = {
         val pipeline = ch.pipeline()
         if (isSSLEnabled) {
           pipeline.addLast(sslClientCtx.newHandler(ch.alloc(), inet.getHostName(), inet.getPort()))
@@ -200,7 +200,7 @@ class TcpRuntime(o: RuntimeOptions, dh: Message => Unit) extends Runtime(o, dh) 
       }
     })
     bootstrap.connect(inet).addListener(new ChannelFutureListener() {
-      override def operationComplete(future: ChannelFuture) {
+      override def operationComplete(future: ChannelFuture): Unit = {
         if (future.cause() != null) {
           Logger("TcpRuntime", Warning, "Couldn't connect, trying again...")
           future.channel.close
@@ -210,7 +210,7 @@ class TcpRuntime(o: RuntimeOptions, dh: Message => Unit) extends Runtime(o, dh) 
     })
   }
 
-  def startServer {
+  def startServer: Unit = {
     startListener()
     group.others.foreach { recipient =>
       if (directory.self.id < recipient.id.id)
@@ -219,7 +219,7 @@ class TcpRuntime(o: RuntimeOptions, dh: Message => Unit) extends Runtime(o, dh) 
     Thread.sleep(1000)
   }
 
-  protected[psync] def send(to: ProcessID, buf: ByteBuf) {
+  protected[psync] def send(to: ProcessID, buf: ByteBuf): Unit = {
     val chanOption = recipientMap.get(to)
     chanOption match {
       case Some(chan) =>
@@ -233,7 +233,7 @@ class TcpRuntime(o: RuntimeOptions, dh: Message => Unit) extends Runtime(o, dh) 
 
 abstract class TCPPacketHandler(val packetServer: TcpRuntime, var selfId: ProcessID, var remote: Replica) extends SimpleChannelInboundHandler[ByteBuf](false) {
 
-  def rename(newGroup: Group) {
+  def rename(newGroup: Group): Unit = {
     selfId = newGroup.self
     if (remote != null) {
       newGroup.getSafe(remote.netAddress) match {
@@ -245,16 +245,16 @@ abstract class TCPPacketHandler(val packetServer: TcpRuntime, var selfId: Proces
     }
   }
 
-  override def channelActive(ctx: ChannelHandlerContext) {
+  override def channelActive(ctx: ChannelHandlerContext): Unit = {
     Logger("TCPPacketHandler", Debug, "Someone connected to " + selfId.id)
     packetServer.addHandler(this)
   }
 
-  override def channelInactive(ctx: ChannelHandlerContext) {
+  override def channelInactive(ctx: ChannelHandlerContext): Unit = {
     if (remote != null) {
       if (remote.id != new ProcessID(-1)) {
         packetServer.removeChannel(remote.id)
-        Logger("TCPPacketHandler", Debug, remote.id.id + " disconnected")
+        Logger("TCPPacketHandler", Debug, remote.id.id.toString + " disconnected")
       } else {
         packetServer.removeUnknownChannel(remote.netAddress)
         Logger("TCPPacketHandler", Debug, "unknown " + remote + " disconnected")
@@ -265,7 +265,7 @@ abstract class TCPPacketHandler(val packetServer: TcpRuntime, var selfId: Proces
     packetServer.removeHandler(this)
   }
 
-  override def channelRead0(ctx: ChannelHandlerContext, buf: ByteBuf) {
+  override def channelRead0(ctx: ChannelHandlerContext, buf: ByteBuf): Unit = {
     val msg = new Message(selfId, remote.id, buf)
     try {
       if (remote.id == new ProcessID(-1)) {
@@ -280,7 +280,7 @@ abstract class TCPPacketHandler(val packetServer: TcpRuntime, var selfId: Proces
     }
   }
 
-  override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
+  override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable): Unit = {
     cause.printStackTrace()
   }
 
@@ -314,12 +314,12 @@ class TCPPacketServerHandler(
     }
   }
 
-  override def channelRead0(ctx: ChannelHandlerContext, buf: ByteBuf) {
+  override def channelRead0(ctx: ChannelHandlerContext, buf: ByteBuf): Unit = {
     if (remote == null) {
       // First message is an InetSocketAddress
       readAddress(buf) match {
         case Some(addr) =>
-          Logger("TCPPacketServerHandler", Info, addr + " is connecting to " + selfId.id)
+          Logger("TCPPacketServerHandler", Info, addr.toString + " is connecting to " + selfId.id)
           val remoteAddress = addr
           packetServer.group.getSafe(remoteAddress) match {
             case Some(replica) =>
@@ -354,7 +354,7 @@ class TCPPacketClientHandler(
     _remote: Replica
   ) extends TCPPacketHandler(_packetServer, _selfId, _remote) {
 
-  override def channelActive(ctx: ChannelHandlerContext) {
+  override def channelActive(ctx: ChannelHandlerContext): Unit = {
     super.channelActive(ctx)
     Logger("TCPPacketClientHandler", Debug, "connecting from " + localAddress + " to " + remote)
     val payload = ctx.alloc().buffer()
@@ -367,7 +367,7 @@ class TCPPacketClientHandler(
     Logger("TCPPacketClientHandler", Info, "-> Client " + selfId.id + " connected to " + remote.id.id)
   }
 
-  override def channelInactive(ctx: ChannelHandlerContext) {
+  override def channelInactive(ctx: ChannelHandlerContext): Unit = {
     super.channelInactive(ctx)
     packetServer.delayedStartConnection(remote)
   }

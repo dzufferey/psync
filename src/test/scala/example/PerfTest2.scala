@@ -51,7 +51,7 @@ class PerfTest2(additionalOptions: Map[String,Any]) extends DecisionLog[Int]
     versions(i) = i.toShort
   }
   def lock(idx: Short) = decisionLocks(decIdx(idx))
-  val nbr = new AtomicLong(0l)
+  val nbr = new AtomicLong(0L)
   val selfStarted = new ConcurrentSkipListSet[Short]()
 
   val kryo = new ThreadLocal[Kryo] {
@@ -68,7 +68,7 @@ class PerfTest2(additionalOptions: Map[String,Any]) extends DecisionLog[Int]
     }
   }
 
-  def defaultHandler(msg: Message) {
+  def defaultHandler(msg: Message): Unit = {
     val flag = msg.tag.flag
     //Logger("PerfTest", Debug, "defaultHandler: " + msg.instance)
 
@@ -207,7 +207,7 @@ class PerfTest2(additionalOptions: Map[String,Any]) extends DecisionLog[Int]
   }
 
   /** */
-  def start(idx: Short, value: Short, self: Boolean, _msg: Set[Message]) {
+  def start(idx: Short, value: Short, self: Boolean, _msg: Set[Message]): Unit = {
     var canGo = false
     var instanceNbr: Short = 0
     var msg = _msg
@@ -267,7 +267,7 @@ class PerfTest2(additionalOptions: Map[String,Any]) extends DecisionLog[Int]
       val io = new ConsensusIO[Int] {
         val initialValue = v
         //TODO we should reduce the amount of work done here: pass it to another thread and let the algorithm thread continue.
-        def decide(value: Int) {
+        def decide(value: Int): Unit = {
           //Logger("PerfTest", Notice, "(" + id + ") normal decision: instanceNbr " +  instanceNbr + ", value: " + value)
           val first = processDecision(instanceNbr, value)
           if (first) {
@@ -294,7 +294,7 @@ class PerfTest2(additionalOptions: Map[String,Any]) extends DecisionLog[Int]
     }
   }
   
-  def wakeupOthers(inst: Short, initValue: Int) {
+  def wakeupOthers(inst: Short, initValue: Int): Unit = {
     //TODO better way
     if (algorithm == "lv" || algorithm == "lve" || algorithm == "slv") {
       val dir = rt.group
@@ -308,12 +308,12 @@ class PerfTest2(additionalOptions: Map[String,Any]) extends DecisionLog[Int]
     }
   }
 
-  def checkPending(idx: Short) {
+  def checkPending(idx: Short): Unit = {
     val b = backOff(idx).poll
     if (b != 0) start(idx, b, true, Set())
   }
 
-  def propose(idx: Short, value: Short) {
+  def propose(idx: Short, value: Short): Unit = {
     rate.acquire
     start(idx, value, true, Set())
   }
@@ -363,13 +363,13 @@ object PerfTest2 extends RTOptions {
 
   val usage = "..."
   
-  var begin = 0l
+  var begin = 0L
 
   var system: PerfTest2 = null 
 
-  def main(args: Array[java.lang.String]) {
+  def main(args: Array[java.lang.String]): Unit = {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
+    apply(args2.toIndexedSeq)
     val opts =
       if (after >= 0) Map[String, Any]("after" -> after, "sync" -> sync)
       else Map[String, Any]("sync" -> sync)
@@ -390,7 +390,7 @@ object PerfTest2 extends RTOptions {
   
   java.lang.Runtime.getRuntime().addShutdownHook(
     new Thread() {
-      override def run() {
+      override def run(): Unit = {
         if (system != null) {
           val versionNbr = system.shutdown
           val end = java.lang.System.currentTimeMillis()

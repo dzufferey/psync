@@ -67,14 +67,14 @@ class Esfd(rt: Runtime, period: Long, hysteresis: Int) extends Algorithm[Unit,Es
 
 object EsfdRunner extends Runner {
 
-  var period = 1000l
+  var period = 1000L
   newOption("--period", dzufferey.arg.Long( i => period = i), "(default = 1000)")
   var hysteresis = 5
   newOption("--hysteresis", dzufferey.arg.Int( i => hysteresis = i), "(default = 5)")
 
   override def defaultConfFile = "src/test/resources/25replicas-conf.xml"
   
-  def onStart {
+  def onStart: Unit = {
     val start = java.lang.System.currentTimeMillis()
     val alg = new Esfd(rt, period, hysteresis)
     rt.startService

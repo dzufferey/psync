@@ -23,7 +23,7 @@ abstract class Runtime(val options: RuntimeOptions, defaultHandler: Message => U
 
   def group = directory.group
   /** The group should not be changed while instances are running */
-  def group_=(grp: Group) {
+  def group_=(grp: Group): Unit = {
     directory.group = grp
   }
     
@@ -61,7 +61,7 @@ abstract class Runtime(val options: RuntimeOptions, defaultHandler: Message => U
       instanceId: Short,
       process: InstanceHandler[IO,P],
       io: IO,
-      messages: Set[Message] = Set.empty)
+      messages: Set[Message] = Set.empty): Unit =
   {
     Logger("Runtime", Info, "starting instance " + instanceId)
     if (executor != null) {
@@ -83,7 +83,7 @@ abstract class Runtime(val options: RuntimeOptions, defaultHandler: Message => U
   }
 
   /** Stop a running instance of the algorithm. */
-  protected[psync] def stopInstance(instanceId: Short) {
+  protected[psync] def stopInstance(instanceId: Short): Unit = {
     Logger("Runtime", Info, "stopping instance " + instanceId)
     if (executor != null) {
       dispatcher.findInstance(instanceId).map(_.interrupt(instanceId))
@@ -92,16 +92,16 @@ abstract class Runtime(val options: RuntimeOptions, defaultHandler: Message => U
     }
   }
   
-  protected[psync] def remove(instanceId: Short) {
+  protected[psync] def remove(instanceId: Short): Unit = {
     dispatcher.remove(instanceId)
   }
   
-  protected[psync] def default(msg: Message) {
+  protected[psync] def default(msg: Message): Unit = {
     submitTask(new Runnable { def run = defaultHandler(msg) })
   }
 
   /** Start the service that ... */
-  def startService {
+  def startService: Unit = {
     if (executor != null) {
       //already running
       return
@@ -114,7 +114,7 @@ abstract class Runtime(val options: RuntimeOptions, defaultHandler: Message => U
     startServer
   }
 
-  def shutdown {
+  def shutdown: Unit = {
     if (executor != null) {
       Logger("Runtime", Info, "stopping service")
       closeServer
@@ -148,7 +148,7 @@ abstract class Runtime(val options: RuntimeOptions, defaultHandler: Message => U
     dispatcher.dispatch(m)
   }
   
-  protected[psync] def dispatch(msg: Message) {
+  protected[psync] def dispatch(msg: Message): Unit = {
     if (Flags.userDefinable(msg.flag) || !dispatcher.dispatch(msg)) {
       defaultHandler(msg)
     }
@@ -160,7 +160,7 @@ abstract class Runtime(val options: RuntimeOptions, defaultHandler: Message => U
 
   protected def closeServer: Unit
   protected def startServer: Unit
-  protected[psync] def send(to: ProcessID, buf: ByteBuf)
+  protected[psync] def send(to: ProcessID, buf: ByteBuf): Unit
 
 }
 

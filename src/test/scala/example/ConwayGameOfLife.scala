@@ -124,7 +124,7 @@ object CgolRunner extends Runner {
 
   override def defaultConfFile = "src/test/resources/25replicas-conf.xml"
   
-  def onStart {
+  def onStart: Unit = {
     val start = java.lang.System.currentTimeMillis()
     val alg = new ConwayGameOfLife(rt)
     val io = new CgolIO(id, rows, cols, scala.util.Random.nextBoolean)

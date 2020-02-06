@@ -15,7 +15,7 @@ import scala.reflect.ClassTag
  * The round class provide some helper methods such as `broadcast`,
  * `exitAtEndOfRound`, and `expectedNbrMessages`.
  */
-abstract class Round[A: ClassTag: KryoRegistration](timeout: Long = 10l) extends EventRound[A] {
+abstract class Round[A: ClassTag: KryoRegistration](timeout: Long = 10L) extends EventRound[A] {
 
   //////////////////////////
   // user-defined methods //
@@ -163,7 +163,7 @@ abstract class RtRound {
   protected[psync] def finishRound(didTimeout: Boolean): Boolean
 
   protected var group: psync.runtime.Group = null
-  protected[psync] def setGroup(g: psync.runtime.Group) {
+  protected[psync] def setGroup(g: psync.runtime.Group): Unit = {
     group = g
   }
   

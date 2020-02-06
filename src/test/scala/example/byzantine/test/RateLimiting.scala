@@ -13,18 +13,18 @@ trait RateLimiting {
 
   var rate = options.rate
 
-  def acquire {
+  def acquire: Unit = {
     assert(lck.isHeldByCurrentThread())
-    Logger("Runner", Debug, id + ", taking")
+    Logger("Runner", Debug, s"$id, taking")
     while(rate <= 0) {
       monitor.await
     }
     rate -= 1
   }
 
-  def release {
+  def release: Unit = {
     assert(lck.isHeldByCurrentThread())
-    Logger("Runner", Debug, id + ", releasing")
+    Logger("Runner", Debug, s"$id, releasing")
     rate += 1
     monitor.signal()
   }

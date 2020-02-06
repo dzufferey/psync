@@ -8,7 +8,7 @@ trait FormulaExtractor {
   self: Impl =>
   import c.universe._
   
-  def extractTypeVar(t: Tree): psync.formula.TypeVariable = extractType(t) match{
+  def extractTypeVar(t: Tree): psync.formula.TypeVariable = extractType(t) match {
     case tv @ TypeVariable(_) => tv
     case other => c.abort(t.pos, "cannot extract TypeVariable from: " + other)
   }
@@ -202,7 +202,7 @@ trait FormulaExtractor {
   }
 
   protected var auxCstr: List[Formula] = Nil
-  def addCstr(f: Formula) {
+  def addCstr(f: Formula): Unit = {
     auxCstr = f :: auxCstr
   }
   def getCstr = {
@@ -231,7 +231,8 @@ trait FormulaExtractor {
             c.warning(e.pos, "neither set, nor map: " + other)
             Variable(c.freshName("dummy"))
         }
-      case q"$domain.map[$tpt1,$tpt2]( $x => $f )(immutable.this.Set.canBuildFrom[$tpt3])" =>
+      //case q"$domain.map[$tpt1,$tpt2]( $x => $f )(immutable.this.Set.canBuildFrom[$tpt3])" => //FIXME ??
+      case q"$domain.map[$tpt1]( $x => $f )" =>
         // { y | x ∈ domain ∧ y = f(x) }
         val y = Variable(c.freshName("y")).setType(typeOfTree(tpt1))
         val fCstr = makeConstraints(f, y, y)
@@ -240,7 +241,15 @@ trait FormulaExtractor {
         val fCstr2 = FormulaUtils.replace(vx, witness, fCstr)
         val dCstr = In(witness, tree2Formula(domain))
         Comprehension(List(y), And(dCstr, fCstr2))
-      case q"$domain.map[$tpt1,$tpt2]( $x => $f )(immutable.this.Map.canBuildFrom[$tpt3,$tpt4])" =>
+      //case q"$domain.map[$tpt1,$tpt2]( $x => $f )(immutable.this.Map.canBuildFrom[$tpt3,$tpt4])" => //FIXME ??
+/* FIXME
+[warn] /home/zufferey/work/projects/psync/src/test/scala/psync/macros/FormulaExtractorSuite.scala:148:30: Map.map, expected pair function. found: Int
+[warn]     Macros.asFormula( m2 == (m.map{ case (k, v) => k -> (v + 1) }: Map[Int, Int]) ) match {
+[warn]                              ^
+[warn] /home/zufferey/work/projects/psync/src/test/scala/psync/macros/FormulaExtractorSuite.scala:156:30: Map.map, expected pair function. found: Int
+[warn]     Macros.asFormula( m2 == (m.map( kv  => kv._1 -> (kv._2 + 1) ): Map[Int, Int]) ) match {
+*/
+      case q"$domain.map[$tpt1,$tpt2]( $x => $f )" =>
         extractType(tpt1) match {
           case Product(List(tK, tV)) =>
             f match {
@@ -261,7 +270,7 @@ trait FormulaExtractor {
                 id
               case expr =>
                 val n = extractVarFromValDef(x)
-                val dummy = Variable(c.freshName("dummy"))
+                val dummy = Variable(c.freshName("dummyMap"))
                 extractDomain(domain) match {
                   case Some(d) =>
                     d.tpe match {

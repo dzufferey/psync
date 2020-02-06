@@ -25,12 +25,12 @@ trait RequestProcessor {
   val pendingRequests = new ArrayBlockingQueue[(Int,Int,Int)](options.pending * options.batchSize)
 
   /** The client should use this method to submit new request */
-  def propose(c: Int, k: Int, v: Int) {
+  def propose(c: Int, k: Int, v: Int): Unit = {
     pendingRequests.put((c,k,v))
   }
 
 
-  protected def submitBatch(batch: Array[Byte]) {
+  protected def submitBatch(batch: Array[Byte]): Unit = {
     if (isLeader) {
       lck.lock
       try {
@@ -58,7 +58,7 @@ trait RequestProcessor {
     var request = Array.ofDim[Byte](rs)
     var idx = 0
 
-    def run = {
+    def run: Unit = {
       try{
         while(!Thread.interrupted) {
           //check batches forwarded by other replicas

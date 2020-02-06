@@ -33,7 +33,7 @@ object FormulaUtils {
   }
 
   implicit object FormulaOrdering extends Ordering[Formula] {
-    val lstOrdering = Ordering.Iterable(this)
+    val lstOrdering: Ordering[Seq[Formula]] = Ordering.Implicits.seqOrdering(this)
 
     def compareLiteralContent(a: Any, b: Any): Int = (a, b) match {
       case (l1: Int, l2: Int) => l1 compare l2
@@ -129,7 +129,7 @@ object FormulaUtils {
   /** Rename all free variables that appears in the formula. */
   def renameFreeVar(f: Formula): (Formula, Map[Variable, Variable]) = {
     val free = f.freeVariables
-    val mapping = (Map[Variable, Variable]() /: free)( (acc, v) => acc + (v -> Copier.Variable(v, Namer(v.name))))
+    val mapping = free.foldLeft(Map[Variable, Variable]())( (acc, v) => acc + (v -> Copier.Variable(v, Namer(v.name))))
     (alpha(mapping, f), mapping)
   }
 
@@ -201,7 +201,7 @@ object FormulaUtils {
   }
   
   
-  def traverse(fct: Formula => Unit, f: Formula) {
+  def traverse(fct: Formula => Unit, f: Formula): Unit = {
     val traverser = new Traverser {
       override def traverse(f: Formula) = {
         super.traverse(f)

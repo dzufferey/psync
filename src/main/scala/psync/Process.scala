@@ -9,7 +9,7 @@ import psync.formula.Formula
 abstract class Process[IO] extends RtProcess {
 
   //TODO rewrite with a macro to get the initial state
-  def init(io: IO)
+  def init(io: IO): Unit
   
   lazy val HO: Set[Process[IO]] = sys.error("used only for specification!")
 
@@ -50,7 +50,7 @@ abstract class RtProcess {
     _n = g.size
   }
 
-  final protected def incrementRound {
+  final protected def incrementRound: Unit = {
     rr = rr.tick
     _r += 1
     if (_r >= rounds.length) {

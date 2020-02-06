@@ -36,12 +36,12 @@ abstract class Algorithm[IO, P <: Process[IO]](runtime: Runtime, opts: Algorithm
   def startInstance(
       instanceId: Short,
       io: IO,
-      messages: Set[Message] = Set.empty) {
+      messages: Set[Message] = Set.empty): Unit = {
     val p = getProcess
     runtime.startInstance(instanceId, p, io, messages)
   }
   
-  def stopInstance(instanceId: Short) {
+  def stopInstance(instanceId: Short): Unit = {
     runtime.stopInstance(instanceId)
   }
 
@@ -58,7 +58,7 @@ abstract class Algorithm[IO, P <: Process[IO]](runtime: Runtime, opts: Algorithm
   //TODO try a stack for better locality
   private val processPool = new ArrayBlockingQueue[InstanceHandler[IO,P]](2*options.processPool)
 
-  protected[psync] final def recycle(p: InstanceHandler[IO,P]) {
+  protected[psync] final def recycle(p: InstanceHandler[IO,P]): Unit = {
     processPool.offer(p)
   }
 

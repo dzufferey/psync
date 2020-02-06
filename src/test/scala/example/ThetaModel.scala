@@ -38,7 +38,7 @@ class TmProcess[A: ClassTag: KryoRegistration](f: Int, theta: Double) extends Pr
   var round = new Time(0)
   var nextRoundAt = new Time(0)
 
-  def updateNextRoundAt {
+  def updateNextRoundAt: Unit = {
     if (theta >= 1) {
       nextRoundAt = new Time((3 * theta * (round + 1)).toInt + 1)
     } else { //unkown theta
@@ -108,7 +108,7 @@ class ThetaModel(rt: Runtime, f: Int, theta: Double) extends Algorithm[TmIO[Stri
 
   def dummyIO = new TmIO[String]{
       def getMessage(t: Time, pid: ProcessID) = ""
-      def deliverMessage(t: Time, pid: ProcessID, str: String) { }
+      def deliverMessage(t: Time, pid: ProcessID, str: String): Unit = { }
   }
 }
 
@@ -121,12 +121,12 @@ object TmRunner extends Runner {
 
   override def defaultConfFile = "src/test/resources/sample-conf.xml"
   
-  def onStart {
+  def onStart: Unit = {
     val alg = new ThetaModel(rt, f, theta)
     val io = new TmIO[String]{
       def getMessage(t: Time, pid: ProcessID) = "Hello " + pid.id
-      def deliverMessage(t: Time, pid: ProcessID, str: String) {
-        Console.println(pid.id + " says \"" + str + "\"")
+      def deliverMessage(t: Time, pid: ProcessID, str: String): Unit = {
+        Console.println(pid.id.toString + " says \"" + str + "\"")
       }
     }
     Thread.sleep(3000) //time to run all the processes

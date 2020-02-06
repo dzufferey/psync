@@ -331,7 +331,7 @@ class VennRegionsWithBound(bound: Int,
   protected val sets = _sets.toArray
 
   protected def choose(n: Int, k: Int): Long = {
-    var c = 1l
+    var c = 1L
     for (i <- (math.max(k, n-k) + 1) to n) c *= i
     for (i <- 1 to math.min(k, n-k)) c /= i
     c

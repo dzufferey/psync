@@ -49,7 +49,7 @@ class LatticeAgreementProcess(timeout: Long) extends Process[LatticeIO]{
         broadcast(proposed)
       }
 
-      def update(mailbox: Map[ProcessID,Lattice.T]) {
+      def update(mailbox: Map[ProcessID,Lattice.T]): Unit = {
         if (active) {
           if (mailbox.count{ case (k,v) => v == proposed} > n/2) {
             callback.decide(proposed)
@@ -87,13 +87,13 @@ class LatticeAgreement(rt: Runtime, timeout: Long) extends Algorithm[LatticeIO,L
 
   def dummyIO = new LatticeIO{
     val initialValue = Lattice.bottom
-    def decide(value: Lattice.T) { }
+    def decide(value: Lattice.T): Unit = { }
   }
 }
 
 object LatticeRunner extends Runner {
   
-  def onStart {
+  def onStart: Unit = {
     val alg = new LatticeAgreement(rt, timeout)
 
     import scala.util.Random
@@ -101,7 +101,7 @@ object LatticeRunner extends Runner {
     val init = (0 until n).map(_ => Random.nextInt).toSet
     val io = new LatticeIO {
       val initialValue = init
-      def decide(value: Lattice.T) {
+      def decide(value: Lattice.T): Unit = {
         Console.println("replica " + id + " decided " + value)
       }
     }

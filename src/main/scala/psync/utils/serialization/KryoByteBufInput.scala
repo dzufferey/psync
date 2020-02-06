@@ -16,8 +16,8 @@ class KryoByteBufInput(protected var bbuffer: ByteBuf) extends Input {
   override def position = bbuffer.readerIndex
   override def setPosition(index: Int) = bbuffer.readerIndex(index)
   override def limit = bbuffer.writerIndex
-  override def rewind { bbuffer.clear }
-  override def skip(count: Int) { bbuffer.skipBytes(count) }
+  override def rewind: Unit = { bbuffer.clear }
+  override def skip(count: Int): Unit = { bbuffer.skipBytes(count) }
   override protected def fill(buffer: Array[Byte], offset: Int, count: Int): Int = {
     readBytes(buffer, offset, count)
     count
@@ -43,7 +43,7 @@ class KryoByteBufInput(protected var bbuffer: ByteBuf) extends Input {
     bbuffer.skipBytes(count.toInt);
     count
   }
-  override def close() {}
+  override def close(): Unit = {}
   override def readByte(): Byte = bbuffer.readByte
   override def readByteUnsigned() = bbuffer.readUnsignedByte
   override def readBytes(length: Int) = {
@@ -55,7 +55,7 @@ class KryoByteBufInput(protected var bbuffer: ByteBuf) extends Input {
     bbuffer.readBytes(bytes)
     bytes.length
   }
-  override def readBytes(bytes: Array[Byte], offset: Int, count: Int) {
+  override def readBytes(bytes: Array[Byte], offset: Int, count: Int): Unit = {
     bbuffer.readBytes(bytes, offset, count)
   }
   // TODO variable encoding

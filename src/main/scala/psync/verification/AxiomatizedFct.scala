@@ -20,7 +20,7 @@ class AxiomatizedFct(
 object AxiomatizedFct {
   private var symbols: List[AxiomatizedFct] = Nil
   private var map: Map[String,AxiomatizedFct] = Map.empty
-  def add(s: AxiomatizedFct) {
+  def add(s: AxiomatizedFct): Unit = {
     if (map contains s.name) {
       Logger("AxiomatizedFct", Warning, "redefinition of " + s.name)
     } else {
@@ -28,7 +28,7 @@ object AxiomatizedFct {
       map = map + (s.name -> s)
     }
   }
-  def clear {
+  def clear: Unit = {
     symbols = Nil
     map = Map.empty
   }

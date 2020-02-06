@@ -33,7 +33,7 @@ class TpcProcess(timeout: Long) extends Process[TpcIO] {
         else Map.empty[ProcessID,Boolean] //otherwise the compiler give Map[ProcessID,Int] !?
       }
       override def expectedNbrMessages = 1
-      def update(mailbox: Map[ProcessID,Boolean]) {
+      def update(mailbox: Map[ProcessID,Boolean]): Unit = {
         //nothing to do
       } 
     },
@@ -46,7 +46,7 @@ class TpcProcess(timeout: Long) extends Process[TpcIO] {
       
       override def expectedNbrMessages = if (id == coord) n else 0
 
-      def update(mailbox: Map[ProcessID,Boolean]) {
+      def update(mailbox: Map[ProcessID,Boolean]): Unit = {
         if (id == coord) {
           if( mailbox.size == n && mailbox.forall{ case (k,v) => v }) {
             decision = Some(true)
@@ -66,7 +66,7 @@ class TpcProcess(timeout: Long) extends Process[TpcIO] {
 
       override def expectedNbrMessages = 1
 
-      def update(mailbox: Map[ProcessID,Boolean]) {
+      def update(mailbox: Map[ProcessID,Boolean]): Unit = {
         if (mailbox.size > 0) {
           decision = Some(mailbox.head._2)
         }
@@ -112,7 +112,7 @@ class TwoPhaseCommit(rt: Runtime, timeout: Long) extends Algorithm[TpcIO,TpcProc
   def dummyIO = new TpcIO{
     val coord = new ProcessID(0)
     val canCommit = false
-    def decide(value: Option[Boolean]) { }
+    def decide(value: Option[Boolean]): Unit = { }
   }
 }
 
@@ -121,7 +121,7 @@ object TpcRunner extends Runner {
 
   override def defaultConfFile = "src/test/resources/sample-conf.xml"
   
-  def onStart {
+  def onStart: Unit = {
     val alg = new TwoPhaseCommit(rt, timeout)
 
     import scala.util.Random
@@ -130,7 +130,7 @@ object TpcRunner extends Runner {
       val coord = new ProcessID(0)
       val canCommit = init
       val initialValue = init
-      def decide(value: Option[Boolean]) {
+      def decide(value: Option[Boolean]): Unit = {
         Console.println("replica " + id + " decided " + value)
       }
     }

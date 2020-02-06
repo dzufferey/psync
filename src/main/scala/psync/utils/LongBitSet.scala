@@ -4,13 +4,13 @@ package psync.utils
  *  Any index above that is takend modulo 64! */
 class LongBitSet(val store: Long) extends AnyVal {
 
-  def get(pos: Int): Boolean = ((store >>> (pos & 63)) & 1) != 0l
+  def get(pos: Int): Boolean = ((store >>> (pos & 63)) & 1) != 0L
   
-  def flip(pos: Int): LongBitSet = new LongBitSet((1l << (pos & 63)) ^ store)
+  def flip(pos: Int): LongBitSet = new LongBitSet((1L << (pos & 63)) ^ store)
 
-  def set(pos: Int): LongBitSet = new LongBitSet((1l << (pos & 63)) | store)
+  def set(pos: Int): LongBitSet = new LongBitSet((1L << (pos & 63)) | store)
 
-  def clear(pos: Int): LongBitSet = new LongBitSet(~(1l << (pos & 63)) & store)
+  def clear(pos: Int): LongBitSet = new LongBitSet(~(1L << (pos & 63)) & store)
 
   def size: Int = {
     var n = 0

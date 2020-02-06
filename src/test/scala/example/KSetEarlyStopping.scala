@@ -27,7 +27,7 @@ class KSetESProcess(t: Int, k: Int, timeout: Long) extends Process[ConsensusIO[I
         broadcast( (est: Int) -> (canDecide: Boolean) )
       }
 
-      def update(mailbox: Map[ProcessID,(Int, Boolean)]) {
+      def update(mailbox: Map[ProcessID,(Int, Boolean)]): Unit = {
         val currNb = mailbox.size
         if (r > t/k || canDecide) {
           callback.decide(est)
@@ -52,7 +52,7 @@ class KSetEarlyStopping(rt: Runtime, t: Int, k: Int, timeout: Long) extends Algo
 
   def dummyIO = new ConsensusIO[Int]{
     val initialValue = 0
-    def decide(value: Int) { }
+    def decide(value: Int): Unit = { }
   }
 }
 
@@ -65,14 +65,14 @@ object KSetESRunner extends Runner {
   newOption("-t", dzufferey.arg.Int( i => k = i), "t (default = 2)")
 
   
-  def onStart {
+  def onStart: Unit = {
     val alg = new KSetEarlyStopping(rt, t, k, timeout)
 
     import scala.util.Random
     val init = Random.nextInt
     val io = new ConsensusIO[Int] {
       val initialValue = init
-      def decide(value: Int) {
+      def decide(value: Int): Unit = {
         Console.println("replica " + id + " decided " + value)
       }
     }

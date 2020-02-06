@@ -40,7 +40,7 @@ class SlvProcess(timeout: Long) extends Process[ConsensusIO[Int]] {
 
       override def expectedNbrMessages = if (id == coord(r/4)) n/2 + 1 else 0
 
-      def update(mailbox: Map[ProcessID,(Int, Time)]) {
+      def update(mailbox: Map[ProcessID,(Int, Time)]): Unit = {
         if (id == coord(r/4) && mailbox.size > n/2) {
           // let θ be one of the largest θ from 〈ν, θ〉received
           // vote(p) := one ν such that 〈ν, θ〉 is received
@@ -63,7 +63,7 @@ class SlvProcess(timeout: Long) extends Process[ConsensusIO[Int]] {
 
       override def expectedNbrMessages = 1
 
-      def update(mailbox: Map[ProcessID,Int]) {
+      def update(mailbox: Map[ProcessID,Int]): Unit = {
         if (mailbox contains coord(r/4)) {
           x = mailbox(coord(r/4))
           ts = r/4
@@ -84,7 +84,7 @@ class SlvProcess(timeout: Long) extends Process[ConsensusIO[Int]] {
 
       override def expectedNbrMessages = n/2 + 1
 
-      def update(mailbox: Map[ProcessID,Int]) {
+      def update(mailbox: Map[ProcessID,Int]): Unit = {
         if (mailbox.size > n/2) {
           val v = mailbox.head._2
           if (!decided) {
@@ -113,7 +113,7 @@ class ShortLastVoting(rt: Runtime, timeout: Long) extends Algorithm[ConsensusIO[
 
   def dummyIO = new ConsensusIO[Int]{
     val initialValue = 0
-    def decide(value: Int) { }
+    def decide(value: Int): Unit = { }
   }
 
 }

@@ -20,11 +20,12 @@ class MlvProcess(timeout: Long) extends Process[MlvIO] {
 
   def init(io: MlvIO) = i{
     callback = io
-    if (io.initialValue.isLeft) {
-      coord = Some(io.initialValue.left.get)
-      x = None
-    } else {
-      x = Some(io.initialValue.right.get)
+    io.initialValue match {
+      case Left(c) =>
+        coord = Some(c)
+        x = None
+      case Right(v) =>
+        x = Some(v)
     }
     ready = false
   }
@@ -50,7 +51,7 @@ class MlvProcess(timeout: Long) extends Process[MlvIO] {
         }
       }
 
-      def update(mailbox: Map[ProcessID,Int]) {
+      def update(mailbox: Map[ProcessID,Int]): Unit = {
         //select by given coord
         if (mailbox.size > 0) {
           val vp = pickCoord(mailbox)
@@ -77,7 +78,7 @@ class MlvProcess(timeout: Long) extends Process[MlvIO] {
         if (Some(id) == coord) n/2 + 1
         else 0
 
-      def update(mailbox: Map[ProcessID,Int]) {
+      def update(mailbox: Map[ProcessID,Int]): Unit = {
         if (mailbox.size > n/2) {
           ready = true
         }
@@ -97,7 +98,7 @@ class MlvProcess(timeout: Long) extends Process[MlvIO] {
 
       override def expectedNbrMessages = 1 
 
-      def update(mailbox: Map[ProcessID,Int]) {
+      def update(mailbox: Map[ProcessID,Int]): Unit = {
         if (mailbox.size > 0) {
           assert(mailbox.size == 1)
           val v = mailbox.head._2
@@ -125,6 +126,6 @@ class MultiLastVoting(rt: Runtime, timeout: Long) extends Algorithm[MlvIO,MlvPro
 
   def dummyIO = new MlvIO{
     val initialValue: Either[ProcessID,Int] = Right(0)
-    def decide(value: Option[Int]) { }
+    def decide(value: Option[Int]): Unit = { }
   }
 }

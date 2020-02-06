@@ -54,7 +54,7 @@ package object serialization {
       classOf[scala.collection.immutable.Set.Set3[A]] -> setSerializer,
       classOf[scala.collection.immutable.Set.Set4[A]] -> setSerializer,
       classOf[scala.collection.immutable.HashSet[A]] -> setSerializer,
-      classOf[scala.collection.immutable.HashSet.HashTrieSet[A]] -> setSerializer,
+      //classOf[scala.collection.immutable.HashSet.BitmapIndexedSetNode[A]] -> setSerializer,
       Set.empty.getClass -> setSerializer
     )
     override def register(kryo: Kryo): Kryo = {

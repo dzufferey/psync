@@ -75,7 +75,7 @@ class Bcp(useSync: Boolean, timeout: Long, shortTimeout: Long) extends Process[C
             x = payload.request
             digest = md.digest(x) 
             if (!MessageDigest.isEqual(digest, payload.digest)) { //check the digest
-              Logger("Bcp", Notice, id + ", failed to check digest")
+              Logger("Bcp", Notice, s"$id, failed to check digest")
               x = null
               digest = null
             }
@@ -88,7 +88,7 @@ class Bcp(useSync: Boolean, timeout: Long, shortTimeout: Long) extends Process[C
 
       override def finishRound(didTimeout: Boolean) = {
         if(x == null || didTimeout) { // abort on failing to get a request
-          Logger("Bcp", Notice, id + ", failed PrePrepare")
+          Logger("Bcp", Notice, s"$id, failed PrePrepare")
           callback.decide(null)
           false
         } else {
@@ -155,7 +155,7 @@ class Bcp(useSync: Boolean, timeout: Long, shortTimeout: Long) extends Process[C
         if (!didTimeout) {
           callback.decide(x)
         } else {
-          Logger("Bcp", Notice, id + ", failed Commit")
+          Logger("Bcp", Notice, s"id, failed Commit")
           callback.decide(null)
         }
         false //in all case terminate
@@ -174,6 +174,6 @@ class ConsensusAlgo(rt: Runtime, useSync: Boolean, timeout: Long, shortTimeout: 
 
   def dummyIO = new ConsensusIO[Array[Byte]]{
     val initialValue = Array[Byte]()
-    def decide(value: Array[Byte]) { }
+    def decide(value: Array[Byte]): Unit = { }
   }
 }

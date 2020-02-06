@@ -45,7 +45,7 @@ class SingleVC( description: String,
 
   protected var reduced: Formula = null
 
-  def solve {
+  def solve: Unit = {
     if (!solved) { 
       var solver: Solver = null
       try {
@@ -115,7 +115,7 @@ class SingleVC( description: String,
 
 class CompositeVC(description: String, all: Boolean, vcs: Seq[VC]) extends VC {
 
-  def solve {
+  def solve: Unit = {
     if (!solved) {
       Logger("VC", Notice, "solving: " + description)
       //vcs.par.foreach(_.solve)

@@ -57,7 +57,7 @@ class LVBProcess(wholeCohort: SyncCondition, timeout: Long) extends Process[BCon
         } else 0
       }
 
-      def update(mailbox: Map[ProcessID,(Array[Byte], Time)]) {
+      def update(mailbox: Map[ProcessID,(Array[Byte], Time)]): Unit = {
         if (id == coord(r/4) &&
             (mailbox.size > n/2 ||
              (r.toInt == 0 && mailbox.size > 0))) {
@@ -92,7 +92,6 @@ class LVBProcess(wholeCohort: SyncCondition, timeout: Long) extends Process[BCon
         if (sender == coord(r/4)) {
           x = payload
           ts = r/4
-          assert(x != 0)
           Progress.goAhead
         } else {
           Progress.unchanged
@@ -113,7 +112,7 @@ class LVBProcess(wholeCohort: SyncCondition, timeout: Long) extends Process[BCon
 
       override def expectedNbrMessages = if (id == coord(r/4)) expectedMajority else 0
 
-      def update(mailbox: Map[ProcessID,Unit]) {
+      def update(mailbox: Map[ProcessID,Unit]): Unit = {
         if (id == coord(r/4) && mailbox.size > n/2) {
           ready = true
         }
@@ -135,7 +134,7 @@ class LVBProcess(wholeCohort: SyncCondition, timeout: Long) extends Process[BCon
 
       override def expectedNbrMessages = 1 
 
-      def update(mailbox: Map[ProcessID,Unit]) {
+      def update(mailbox: Map[ProcessID,Unit]): Unit = {
         if (mailbox contains coord(r/4)) {
           if ( ts == (r/4) ) {
             callback.decide(x)
@@ -163,6 +162,6 @@ class LastVotingB(rt: Runtime, timeout: Long, wholeCohort: SyncCondition) extend
   def dummyIO = new BConsensusIO{
     val phase = 0
     val initialValue = Array[Byte]()
-    def decide(value: Array[Byte]) { }
+    def decide(value: Array[Byte]): Unit = { }
   }
 }

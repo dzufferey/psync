@@ -109,7 +109,7 @@ class MConsensusProcess(timeout: Long) extends Process[MembershipIO] {
         broadcast(x) //macro for (x, All)
       }
 
-      def update(mailbox: Map[ProcessID,MembershipOp]) {
+      def update(mailbox: Map[ProcessID,MembershipOp]): Unit = {
         if (mailbox.size > 2*n/3) {
           val v = mmor(mailbox)
           x = v
@@ -142,7 +142,7 @@ class MConsensus(rt: Runtime, timeout: Long) extends Algorithm[MembershipIO,MCon
 
   def dummyIO = new MembershipIO {
     val initialValue = AddReplica("", 0)
-    def decide(value: MembershipOp) { }
+    def decide(value: MembershipOp): Unit = { }
   }
 }
 
@@ -202,7 +202,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
         val io = new MembershipIO {
           val inst = instanceNbr
           val initialValue = init
-          def decide(value: MembershipOp) { onDecision(inst, value) }
+          def decide(value: MembershipOp): Unit = { onDecision(inst, value) }
         }
         algorithm.startInstance(instanceNbr, io, msg)
       } else {
@@ -216,7 +216,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
     }
   }
 
-  def onDecision(inst: Short, dec: MembershipOp) {
+  def onDecision(inst: Short, dec: MembershipOp): Unit = {
     val l = decisionLocks(decIdx(inst))
     l.lock
     try {
@@ -259,7 +259,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
   }
 
 
-  def defaultHandler(msg: Message) {
+  def defaultHandler(msg: Message): Unit = {
     val flag = msg.tag.flag
     Logger("DynamicMembership", Debug, "defaultHandler(" + msg.tag + ")")
     if (flag == Flags.normal || flag == Flags.dummy) {
@@ -301,7 +301,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
     }
   }
 
-  def onRecoverMessage(msg: Message) {
+  def onRecoverMessage(msg: Message): Unit = {
     Logger("DynamicMembership", Notice, "recover message from " + msg.sender)
     val (host, port) = msg.getContent[(String,Int)]
     val address = new InetSocketAddress(host, port)
@@ -313,7 +313,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
     }
   }
 
-  def sendRecoveryInfo(dest: ProcessID) {
+  def sendRecoveryInfo(dest: ProcessID): Unit = {
     Logger("DynamicMembership", Notice, "sending recovery info to " + dest)
     val tag = Tag(0,0,View,0)
     val payload = PooledByteBufAllocator.DEFAULT.buffer()
@@ -322,7 +322,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
     rt.sendMessage(dest, tag, payload)
   }
 
-  def onViewMessage(msg: Message) {
+  def onViewMessage(msg: Message): Unit = {
     Logger("DynamicMembership", Notice, "view message")
     val (v,inst,id,replicas) = msg.getContent[(Int,Short,Short,List[Replica])]
     val group = Group(new ProcessID(id), replicas, 0)
@@ -336,7 +336,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
     }
   }
 
-  def startRecovery(dest: ProcessID) {
+  def startRecovery(dest: ProcessID): Unit = {
     val tag = Tag(0,0,Recover,0)
     val payload = PooledByteBufAllocator.DEFAULT.buffer()
     val content = (address -> port)
@@ -344,14 +344,14 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
     rt.sendMessage(dest, tag, payload)
   }
 
-  def onDecisionMessage(msg: Message) {
+  def onDecisionMessage(msg: Message): Unit = {
     val inst = msg.instance
     val dec = msg.getContent[MembershipOp]
     onDecision(inst, dec)
     algorithm.stopInstance(inst)
   }
 
-  def trySendDecision(msg: Message) {
+  def trySendDecision(msg: Message): Unit = {
     getDec(msg.instance).foreach(d => {
       val tag = Tag(msg.instance,0,Decision,0)
       val payload = PooledByteBufAllocator.DEFAULT.buffer()
@@ -373,7 +373,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
       heartbeatTO = Timer.newTimeout(heartbeatTask, heartbeatPeriod)
   }
 
-  def onHeartBeat(msg: Message) {
+  def onHeartBeat(msg: Message): Unit = {
     Logger("DynamicMembership", Debug, "heart beat")
     val src = msg.sender
     if (view contains src) {
@@ -385,7 +385,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
   private val crashTO = 5000
   private val heartbeatPeriod = 1000
   private val heartbeatTask = new TimerTask {
-    def run(to: Timeout) {
+    def run(to: Timeout): Unit = {
 
       Logger("DynamicMembership", Debug, "running heartbeat task")
 
@@ -396,7 +396,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
         for (o <- others) {
           val tag = Tag(0,0,Heartbeat,0)
           val payload = PooledByteBufAllocator.DEFAULT.buffer()
-          payload.writeLong(0l) //leav space for the tag
+          payload.writeLong(0L) //leav space for the tag
           payload.writeShort(self.id) //not really needed
           rt.sendMessage(o.id, tag, payload)
         }
@@ -427,7 +427,7 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
   private var rt: Runtime = null
   private var algorithm: MConsensus = null
 
-  def setup() {
+  def setup(): Unit = {
     val isMaster = masterPort.isEmpty && masterAddress.isEmpty
     assert(isMaster || (masterPort.isDefined && masterAddress.isDefined))
     _id = if (isMaster) 0 else -1
@@ -451,16 +451,16 @@ object DynamicMembership extends RTOptions with DecisionLog[MembershipOp] {
   }
 
   
-  def main(args: Array[java.lang.String]) {
+  def main(args: Array[java.lang.String]): Unit = {
     //parse the args
-    apply(args)
+    apply(args.toIndexedSeq)
 
     setup()
 
     //clean-up on ctrl-c
     java.lang.Runtime.getRuntime().addShutdownHook(
       new Thread() {
-        override def run() {
+        override def run(): Unit = {
           if (heartbeatTO != null)
             heartbeatTO.cancel
           if (rt != null)

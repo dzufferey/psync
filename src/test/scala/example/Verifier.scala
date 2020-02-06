@@ -18,9 +18,9 @@ object Verifier extends psync.verification.VerificationOptions {
 
   val usage = "Give the name of the class to verify as argument"
 
-  def main(args: Array[java.lang.String]) {
+  def main(args: Array[java.lang.String]): scala.Unit = {
     Logger.moreVerbose
-    apply(args)
+    apply(args.toIndexedSeq)
 
     val alg = input match {
       case x :: _ => x

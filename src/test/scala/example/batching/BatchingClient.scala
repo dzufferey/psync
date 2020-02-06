@@ -26,7 +26,7 @@ class BatchingClient(val options: BatchingClient.type)
   val id = options.id
   def isLeader = id == 0
   /** record the number of decision */
-  var nbr = 0l
+  var nbr = 0L
 
   // concurrency control
   val lck = new ReentrantLock 
@@ -45,18 +45,18 @@ class BatchingClient(val options: BatchingClient.type)
 
   final val emp = Array[Byte]()
 
-  def startInstance(inst: Short, data: Array[Byte], msgs: Set[Message]) {
+  def startInstance(inst: Short, data: Array[Byte], msgs: Set[Message]): Unit = {
     assert(lck.isHeldByCurrentThread())
     val io = new BConsensusIO {
       val i = inst
       val phase: Int = 0 //inst
       val initialValue = data
-      def decide(value: Array[Byte]) {
+      def decide(value: Array[Byte]): Unit = {
         if (value != null) {
           proposeDecision(i, value)
         } else {
           //we did not get the data!!
-          Logger("BatchingClient", Warning, id + ", did not get the data for " + i)
+          Logger("BatchingClient", Warning, s"$id did not get the data for $i")
         }
       }
     }
@@ -65,11 +65,11 @@ class BatchingClient(val options: BatchingClient.type)
     alg.startInstance(inst, io, msgs)
   }
   
-  def defaultHandler(msg: Message) {
+  def defaultHandler(msg: Message): Unit = {
 
 
     val flag = msg.tag.flag
-    Logger("BatchingClient", Debug, id + ", defaultHandler: " + msg.tag)
+    Logger("BatchingClient", Debug, s"$id defaultHandler: ${msg.tag}")
     if (flag == Flags.normal || flag == Flags.dummy) {
       val inst = msg.instance
       lck.lock
@@ -111,13 +111,13 @@ class BatchingClient(val options: BatchingClient.type)
       try {
         if (tracker.canStart(inst) || tracker.isRunning(inst)) {
           if (tracker.pending(inst)) {
-            Logger("BatchingClient", Info, id + ", AskDecision for pending instance " + inst)
+            Logger("BatchingClient", Info, s"$id, AskDecision for pending instance $inst")
           } else if (tracker.running(inst)) {
-            Logger("BatchingClient", Info, id + ", AskDecision for running instance " + inst)
+            Logger("BatchingClient", Info, s"$id, AskDecision for running instance $inst")
           } else if (Instance.lt(tracker.started, inst)){
-            Logger("BatchingClient", Info, id + ", AskDecision for instance not yet started " + inst)
+            Logger("BatchingClient", Info, s"$id, AskDecision for instance not yet started $inst")
           } else {
-            Logger("BatchingClient", Warning, id + ", AskDecision for instance " + inst + "\n" + tracker)
+            Logger("BatchingClient", Warning, s"id, AskDecision for instance $inst \n  $tracker")
           }
         } else {
           sendRecoveryInfo(inst, msg.sender)
@@ -170,13 +170,13 @@ class BatchingClient(val options: BatchingClient.type)
           payload.writeBytes(emp)
         }
         rt.sendMessage(dest, Tag(inst,0,Decision,0), payload)
-        Logger("BatchingClient", Debug, id + " sending decision to " + dest.id + " for " + inst)
+        Logger("BatchingClient", Debug, s"$id sending decision to ${dest.id} for $inst")
       case None =>
         val payload = PooledByteBufAllocator.DEFAULT.buffer()
         payload.writeLong(8)
         rt.sendMessage(dest, Tag(inst,0,Late,0), payload)
         //TODO send the whole state
-        Logger("BatchingClient", Debug, id + " sending late to " + dest.id + " for " + inst)
+        Logger("BatchingClient", Debug, s"$id sending late to ${dest.id} for $inst")
     }
   }
   
@@ -193,11 +193,11 @@ class BatchingClient(val options: BatchingClient.type)
   }
 
   /** to force the JIT load everything, start a dummy decision */
-  def warmupJIT {
+  def warmupJIT: Unit = {
     val io = new BConsensusIO {
       val phase = 0
       val initialValue = emp
-      def decide(value: Array[Byte]) { }
+      def decide(value: Array[Byte]): Unit = { }
     }
     for (i <- 0 until 10) {
       alg.startInstance(i.toShort, io, Set.empty)
@@ -217,7 +217,7 @@ class BatchingClient(val options: BatchingClient.type)
   }
 
 
-  def start {
+  def start: Unit = {
     rt.startService
     requestsProcessor.start
     decisionProcessor.start
@@ -298,17 +298,17 @@ object BatchingClient extends RTOptions {
 
   val usage = "..."
   
-  var begin = 0l
+  var begin = 0L
 
   var system: BatchingClient = null 
 
-  def main(args: Array[java.lang.String]) {
-    apply(args)
+  def main(args: Array[java.lang.String]): Unit = {
+    apply(args.toIndexedSeq)
     system = new BatchingClient(this)
     system.start // this take a while (JIT and stuff)
     val prng = new util.Random()
 
-    Logger("BatchingClient", Notice, id + ", starting")
+    Logger("BatchingClient", Notice, s"$id, starting")
     begin = java.lang.System.currentTimeMillis()
 
     //TODO many clients (only if leader or forward)
@@ -331,11 +331,11 @@ object BatchingClient extends RTOptions {
   
   java.lang.Runtime.getRuntime().addShutdownHook(
     new Thread() {
-      override def run() {
+      override def run(): Unit = {
         val versionNbr = system.shutdown
         val end = java.lang.System.currentTimeMillis()
         val duration = (end - begin) / 1000
-        Logger("BatchingClient", Notice, id + ", #decisions = " + versionNbr + ", Δt = " + duration + ", throughput = " + (versionNbr/duration))
+        Logger("BatchingClient", Notice, id.toString + ", #decisions = " + versionNbr + ", Δt = " + duration + ", throughput = " + (versionNbr/duration))
       }
     }
   )

@@ -18,7 +18,7 @@ class LastVotingEvent(rt: Runtime, timeout: Long) extends Algorithm[ConsensusIO[
   
   def dummyIO = new ConsensusIO[Int]{
     val initialValue = 0
-    def decide(value: Int) { }
+    def decide(value: Int): Unit = { }
   }
 }
   
@@ -38,7 +38,7 @@ class LVEProcess(timeout: Long) extends Process[ConsensusIO[Int]]{
       
   def coord: ProcessID = new ProcessID((r / 4 % n).toShort)
     
-  def init(io: ConsensusIO[Int]) {
+  def init(io: ConsensusIO[Int]): Unit = {
     callback = io
     x = io.initialValue
     ts = -1

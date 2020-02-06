@@ -37,7 +37,7 @@ class CongruenceClosure(initialDomain: Iterable[Formula] = Nil)(implicit namer: 
     FormulaUtils.collectGroundTerms(f).foreach(getNode(_, true))
   )
 
-  protected def incrementalAdd(f: Symbol, node: CcSym, argsN: List[CcNode], initialization: Boolean) {
+  protected def incrementalAdd(f: Symbol, node: CcSym, argsN: List[CcNode], initialization: Boolean): Unit = {
     for (n <- argsN) n.find.ccParents += node //calling find here for inserting incrementally
     //check according to existing equalities
     val existing = symbolToNodes.getOrElseUpdate(f, ListBuffer[CcNode]())
@@ -169,9 +169,9 @@ class CongruenceClosure(initialDomain: Iterable[Formula] = Nil)(implicit namer: 
   }
   
 
-  def addConstraints(f: Seq[Formula]) { f.foreach(addConstraints) }
+  def addConstraints(f: Seq[Formula]): Unit = { f.foreach(addConstraints) }
 
-  def addConstraints(f: Formula) {
+  def addConstraints(f: Formula): Unit = {
     FormulaUtils.collectGroundTerms(f).foreach(getNode(_, false))
     processEqs(f)
   }
@@ -248,7 +248,7 @@ object CongruenceClasses {
 
 //a container for CC classes
 class CongruenceClass(val repr: Formula, val members: Set[Formula]) {
-  override def toString = repr + " <- " + (members - repr).mkString(", ")
+  override def toString = repr.toString + " <- " + (members - repr).mkString(", ")
   def contains(f: Formula) = members(f)
   def formula: Formula = {
     val eqs = (members - repr).map( Eq(repr, _) ).toSeq
@@ -295,7 +295,7 @@ abstract class CcNode(val formula: Formula) {
     val n = find
     val buffer = scala.collection.mutable.ListBuffer[CcNode]()
     buffer += n
-    def getChildren(n: CcNode) {
+    def getChildren(n: CcNode): Unit = {
       buffer ++= n.children
       n.children.foreach(getChildren)
     }
@@ -306,7 +306,7 @@ abstract class CcNode(val formula: Formula) {
   def cClass: Seq[Formula] = {
     val n = find
     val buffer = scala.collection.mutable.ListBuffer[Formula]()
-    def getChildren(n: CcNode) {
+    def getChildren(n: CcNode): Unit = {
       buffer += n.formula
       n.children.foreach(getChildren)
     }
@@ -315,7 +315,7 @@ abstract class CcNode(val formula: Formula) {
   }
 
 
-  protected def union(that: CcNode) {
+  protected def union(that: CcNode): Unit = {
     var n1 = this.find
     var n2 = that.find
     if (n1.seqNbr < n2.seqNbr) {
@@ -367,7 +367,7 @@ abstract class CcNode(val formula: Formula) {
     argsCongruent(getArgs, that.getArgs)
   }
 
-  def merge(that: CcNode) {
+  def merge(that: CcNode): Unit = {
     if (find != that.find) {
       val p1 = this.ccPar
       val p2 = that.ccPar
@@ -378,7 +378,7 @@ abstract class CcNode(val formula: Formula) {
 
   def copyButNotVar(copyFct: CcNode => CcNode): CcNode
   
-  def copyVarTo(c: CcNode, copyFct: CcNode => CcNode) {
+  def copyVarTo(c: CcNode, copyFct: CcNode => CcNode): Unit = {
     c.parent = parent.map(copyFct)
     c.ccParents = ccParents.map(copyFct)
     c.children = children.map(copyFct)
@@ -412,7 +412,7 @@ class CcLit(l: Literal[_]) extends CcNode(l) {
 
 object CcNode {
 
-  private var counter = 0l
+  private var counter = 0L
   private def getNewId = { counter += 1; counter }
   private val known = scala.collection.mutable.Map[String,Long]()
   def internalize(name: String, arity: Int): Long = {

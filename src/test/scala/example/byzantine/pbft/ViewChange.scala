@@ -70,7 +70,7 @@ class ViewChangeProcess(timeout: Long) extends Process[Log] {
   var distributedState: Map[ProcessID,ViewChange] = Map.empty
   var nextView: Int = -1
 
-  def init(_log: Log) {
+  def init(_log: Log): Unit = {
     log = _log
     nextView = log.view + 1
     distributedState = Map.empty

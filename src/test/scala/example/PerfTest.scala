@@ -29,8 +29,8 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
   
   val usage = "..."
   
-  var begin = 0l
-  var versionNbr = 0l
+  var begin = 0L
+  var versionNbr = 0L
 
   var rt: Runtime = null
   var alg: Algorithm[ConsensusIO[Int],_] = null
@@ -38,7 +38,7 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
   final val Decision = 3
   final val TooLate = 4
   
-  def defaultHandler(msg: Message) {
+  def defaultHandler(msg: Message): Unit = {
     val inst = msg.instance
     if (Instance.leq(inst, versionNbr.toShort)) {
       val flag = msg.tag.flag
@@ -47,11 +47,11 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
           trySendDecision(inst, msg.sender)
         }
       } else if (flag == Decision) {
-        Logger("PerfTest", Info, inst + " got decision! (" + versionNbr + ")")
+        Logger("PerfTest", Info, s"$inst got decision! ($versionNbr)")
         onDecision(inst, -1, msg.getInt(0))
         alg.stopInstance(inst)
       } else if (flag == TooLate) {
-        Logger("PerfTest", Warning, inst + " too late! (" + versionNbr + ")")
+        Logger("PerfTest", Warning, s"$inst too late! ($versionNbr)")
         alg.stopInstance(inst)
       } else {
         sys.error("unknown or error flag: " + flag)
@@ -60,7 +60,7 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
     msg.release
   }
 
-  def onDecision(inst: Short, versionNbr: Long, value: scala.Int) {
+  def onDecision(inst: Short, versionNbr: Long, value: scala.Int): Unit = {
     val l = decisionLocks(decIdx(inst))
     l.lock
     try {
@@ -71,7 +71,7 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
         if (log != null) {
           lck.lock
           try {
-            log.write(inst + "\t" + versionNbr + "\t" + value)
+            log.write(inst.toString + "\t" + versionNbr + "\t" + value)
             log.newLine()
           } finally {
             lck.unlock
@@ -84,7 +84,7 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
   }
           
   def trySendDecision(inst: Short, sender: ProcessID) = {
-    Logger("PerfTest", Info, inst + " sending recovery to " + sender)
+    Logger("PerfTest", Info, s"$inst sending recovery to $sender")
     val payload = ByteBufAllocator.buffer(16)
     payload.writeLong(8)
     val tag = getDec(inst) match {
@@ -100,9 +100,9 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
   val lck = new ReentrantLock 
   var log: java.io.BufferedWriter = null
 
-  def main(args: Array[java.lang.String]) {
+  def main(args: Array[java.lang.String]): Unit = {
     val args2 = if (args contains "--conf") args else "--conf" +: confFile +: args
-    apply(args2)
+    apply(args2.toIndexedSeq)
     if (logFile != "") {
       val fw = new java.io.FileWriter(logFile + "_" + id + ".log")
       log = new java.io.BufferedWriter(fw)
@@ -121,7 +121,7 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
         val inst = next.toShort
         val v = next
         val initialValue = r
-        def decide(value: scala.Int) { onDecision(inst, v, value) }
+        def decide(value: scala.Int): Unit = { onDecision(inst, v, value) }
       }
       alg.startInstance(next.toShort, io)
       versionNbr = next
@@ -130,7 +130,7 @@ object PerfTest extends RTOptions with DecisionLog[scala.Int] {
   
   java.lang.Runtime.getRuntime().addShutdownHook(
     new Thread() {
-      override def run() {
+      override def run(): Unit = {
         rt.shutdown
         val end = java.lang.System.currentTimeMillis()
         val duration = (end - begin) / 1000

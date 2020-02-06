@@ -37,11 +37,11 @@ trait QILogger {
   def printGraphviz(out: BufferedWriter): Unit
   def printVisJS(out: BufferedWriter): Unit
 
-  def storeGraphviz(fileName: String) {
+  def storeGraphviz(fileName: String): Unit = {
     IO.writeInFile(fileName, printGraphviz(_))
   }
 
-  def storeVisJS(fileName: String) {
+  def storeVisJS(fileName: String): Unit = {
     IO.writeInFile(fileName, printVisJS(_))
   }
 
@@ -57,41 +57,41 @@ class BasicQILogger extends QILogger {
   def nodesIterator: Iterable[Node] = nodes.values
   def edgesIterator: Iterable[Edge] = edges
 
-  def reset {
+  def reset: Unit = {
     nodes.clear
     edges.clear
   }
 
-  def addNode(n:Node) {
+  def addNode(n:Node): Unit = {
     Logger.assert(!nodes.contains(n.idx), "QILogger", "index " + n.idx + " already exists.")
     nodes += n.idx -> n
   }
 
-  def addNode(idx: Int, formula: Formula, newGroundTerms: => Iterable[Formula]) {
+  def addNode(idx: Int, formula: Formula, newGroundTerms: => Iterable[Formula]): Unit = {
     addNode(Node(idx, formula, newGroundTerms))
   }
   
-  def addEdge(e: Edge) {
+  def addEdge(e: Edge): Unit = {
     Logger.assert(nodes.contains(e.src), "QILogger", "source " + e.src + " does not exist.")
     Logger.assert(nodes.contains(e.dst), "QILogger", "destination " + e.dst + " does not exist.")
     edges += e
   }
 
-  def addEdge(src: Int, dst: Int, /*variable: Variable,*/ term: Formula) {
+  def addEdge(src: Int, dst: Int, /*variable: Variable,*/ term: Formula): Unit = {
     addEdge(Edge(src, dst, /*variable,*/ term))
   }
 
-  def printGraphviz(out: BufferedWriter) {
-    def writeln(str: String) {
+  def printGraphviz(out: BufferedWriter): Unit = {
+    def writeln(str: String): Unit = {
       out.write(str); out.newLine
     }
-    def node(n: Node) {
-      val label = n.formula + "|" + n.newGroundTerms.map(_.toString).mkString(", ")
-      writeln(n.idx + " [label=\"{" + label + "}\"];")
+    def node(n: Node): Unit = {
+      val label = n.formula.toString + "|" + n.newGroundTerms.map(_.toString).mkString(", ")
+      writeln(n.idx.toString + " [label=\"{" + label + "}\"];")
     }
-    def edge(e: Edge) {
+    def edge(e: Edge): Unit = {
       val label = e.term
-      writeln(e.src + " -> " + e.dst + " [label=\"" + label + "\"];")
+      writeln(e.src.toString + " -> " + e.dst + " [label=\"" + label + "\"];")
     }
     writeln("digraph IQ {")
     writeln("  node [shape=record];")
@@ -100,8 +100,8 @@ class BasicQILogger extends QILogger {
     writeln("}")
   }
 
-  def printVisJS(out: BufferedWriter) {
-    def writeln(str: String) {
+  def printVisJS(out: BufferedWriter): Unit = {
+    def writeln(str: String): Unit = {
       out.write(str); out.newLine
     }
     def node(n: Node) = {
@@ -193,11 +193,11 @@ class EmptyQILogger extends QILogger {
   import QILogger._
   def nodesIterator: Iterable[Node] = Nil
   def edgesIterator: Iterable[Edge] = Nil
-  def reset { }
-  def addNode(n: Node) { }
-  def addNode(idx: Int, formula: Formula, newGroundTerms: => Iterable[Formula]) { }
-  def addEdge(e: Edge) { }
-  def addEdge(src: Int, dst: Int, /*variable: Variable,*/ term: Formula) { }
-  def printGraphviz(out: BufferedWriter) { }
-  def printVisJS(out: BufferedWriter) { }
+  def reset: Unit = { }
+  def addNode(n: Node): Unit = { }
+  def addNode(idx: Int, formula: Formula, newGroundTerms: => Iterable[Formula]): Unit = { }
+  def addEdge(e: Edge): Unit = { }
+  def addEdge(src: Int, dst: Int, /*variable: Variable,*/ term: Formula): Unit = { }
+  def printGraphviz(out: BufferedWriter): Unit = { }
+  def printVisJS(out: BufferedWriter): Unit = { }
 }

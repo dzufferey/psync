@@ -5,7 +5,7 @@ import com.esotericsoftware.kryo.io.{Input, Output}
 import com.twitter.chill.EmptyScalaKryoInstantiator
 import scala.reflect.ClassTag
 import psync.{ProcessID, Time}
-import scala.collection.generic.CanBuildFrom
+import scala.collection.Factory
 
 object KryoSerializer {
 
@@ -91,7 +91,7 @@ class OptionSerializer[A: ClassTag] extends Serializer[Option[A]] {
   }
 }
 
-class CollectionSerializer[A, B <: Traversable[A]](implicit ct: ClassTag[A], bf: CanBuildFrom[Nothing, A, B]) extends Serializer[B] {
+class CollectionSerializer[A, B <: Iterable[A]](implicit ct: ClassTag[A], bf: Factory[A, B]) extends Serializer[B] {
   setImmutable(true)
   protected val cls: Class[A] = ct.runtimeClass.asInstanceOf[Class[A]]
   def write(kryo: Kryo, output: Output, coll: B) = {
@@ -100,7 +100,7 @@ class CollectionSerializer[A, B <: Traversable[A]](implicit ct: ClassTag[A], bf:
     coll.foreach( kryo.writeObject(output, _) )
   }
   def read(kryo: Kryo, input: Input, ct: Class[B]): B = {
-    val builder = bf()
+    val builder = bf.newBuilder
     var i = input.readInt()
     while (i > 0) {
       i = i - 1

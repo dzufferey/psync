@@ -171,7 +171,7 @@ class IncrementalGenerator( axioms: Iterable[Formula],
     var i = 0
     val lDone = scala.collection.mutable.BitSet()
     val res = MSet[Formula]()
-    def instVar(idx: Int, g: Gen, matches: Iterable[Map[Variable,Formula]]) {
+    def instVar(idx: Int, g: Gen, matches: Iterable[Map[Variable,Formula]]): Unit = {
       assert(!g.isResult)
       val v = g.vs.last
       //println(matches.mkString(g + "\n  ", "\n  ", ""))
@@ -226,7 +226,7 @@ class IncrementalGenerator( axioms: Iterable[Formula],
     g
   }
 
-  def log(lvl: Level) {
+  def log(lvl: Level): Unit = {
     Logger("IncrementalGenerator", lvl, {
       val buffer = new scala.collection.mutable.StringBuilder(1024 * 1024)
       buffer ++= "idx:\n"

@@ -88,8 +88,8 @@ case class Application(fct: Symbol, args: List[Formula]) extends Formula {
   override def toString = fct.toString + args.mkString("(",", ",")")
   def toStringFull = "(" + fct.toString + args.map(_.toStringFull).mkString("(",", ",")") + ": " + tpe + ")"
 
-  lazy val freeVariables = (Set[Variable]() /: args)(_ ++ _.freeVariables)
-  lazy val boundVariables = (Set[Variable]() /: args)(_ ++ _.boundVariables)
+  lazy val freeVariables = args.foldLeft(Set[Variable]())(_ ++ _.freeVariables)
+  lazy val boundVariables = args.foldLeft(Set[Variable]())(_ ++ _.boundVariables)
 
   override val hashCode: Int = scala.util.hashing.MurmurHash3.productHash(this)
 
@@ -459,7 +459,7 @@ case object Updated extends InterpretedFct("updated") {
 object InterpretedFct {
   private var symbols: List[InterpretedFct] = Nil
   private var map: Map[String,Set[InterpretedFct]] = Map.empty
-  def add(s: InterpretedFct) {
+  def add(s: InterpretedFct): Unit = {
     symbols = s :: symbols
     map = s.allSymbols.foldLeft(map)( (m, sym) => {
       //assert(!(map contains sym), "symbol redefinition: " + sym)

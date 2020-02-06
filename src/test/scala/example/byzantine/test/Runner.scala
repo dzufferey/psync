@@ -29,7 +29,7 @@ class Runner(val options: Runner.type)
   val id = options.id
   def isLeader = id == 0
   /** record the number of decision */
-  var nbr = 0l
+  var nbr = 0L
 
   // concurrency control
   val lck = new ReentrantLock 
@@ -48,12 +48,12 @@ class Runner(val options: Runner.type)
 
   final val emp = Array[Byte]()
 
-  def startInstance(inst: Short, data: Array[Byte], msgs: Set[Message]) {
+  def startInstance(inst: Short, data: Array[Byte], msgs: Set[Message]): Unit = {
     assert(lck.isHeldByCurrentThread())
     val io = new ConsensusIO[Array[Byte]] {
       val i = inst
       val initialValue = data
-      def decide(value: Array[Byte]) {
+      def decide(value: Array[Byte]): Unit = {
         proposeDecision(i, value)
       }
     }
@@ -62,11 +62,11 @@ class Runner(val options: Runner.type)
     alg.startInstance(inst, io, msgs)
   }
   
-  def defaultHandler(msg: Message) {
+  def defaultHandler(msg: Message): Unit = {
 
 
     val flag = msg.tag.flag
-    Logger("Runner", Debug, id + ", defaultHandler: " + msg.tag)
+    Logger("Runner", Debug, s"$id, defaultHandler: ${msg.tag}")
     if (flag == Flags.normal || flag == Flags.dummy) {
       val inst = msg.instance
       lck.lock
@@ -101,13 +101,13 @@ class Runner(val options: Runner.type)
       try {
         if (tracker.canStart(inst) || tracker.isRunning(inst)) {
           if (tracker.pending(inst)) {
-            Logger("Runner", Info, id + ", AskDecision for pending instance " + inst)
+            Logger("Runner", Info, s"$id, AskDecision for pending instance $inst")
           } else if (tracker.running(inst)) {
-            Logger("Runner", Info, id + ", AskDecision for running instance " + inst)
+            Logger("Runner", Info, s"$id, AskDecision for running instance $inst")
           } else if (Instance.lt(tracker.started, inst)){
-            Logger("Runner", Info, id + ", AskDecision for instance not yet started " + inst)
+            Logger("Runner", Info, s"$id, AskDecision for instance not yet started $inst")
           } else {
-            Logger("Runner", Warning, id + ", AskDecision for instance " + inst + "\n" + tracker)
+            Logger("Runner", Warning, s"$id, AskDecision for instance $inst\n  $tracker")
           }
         } else {
           sendRecoveryInfo(inst, msg.sender)
@@ -160,13 +160,13 @@ class Runner(val options: Runner.type)
           payload.writeBytes(emp)
         }
         rt.sendMessage(dest, Tag(inst,0,Decision,0), payload)
-        Logger("Runner", Debug, id + " sending decision to " + dest.id + " for " + inst)
+        Logger("Runner", Debug, s"$id sending decision to ${dest.id} for $inst")
       case None =>
         val payload = PooledByteBufAllocator.DEFAULT.buffer()
         payload.writeLong(8)
         rt.sendMessage(dest, Tag(inst,0,Late,0), payload)
         //TODO send the whole state
-        Logger("Runner", Debug, id + " sending late to " + dest.id + " for " + inst)
+        Logger("Runner", Debug, s"$id sending late to ${dest.id} for $inst")
     }
   }
   
@@ -183,11 +183,11 @@ class Runner(val options: Runner.type)
   }
 
   /** to force the JIT load everything, start a dummy decision */
-  def warmupJIT {
+  def warmupJIT: Unit = {
     val dummy = Array.ofDim[Byte](1024)
     val io = new ConsensusIO[Array[Byte]] {
       val initialValue = dummy
-      def decide(value: Array[Byte]) { }
+      def decide(value: Array[Byte]): Unit = { }
     }
     Thread.sleep(1000)
     for (i <- 0 until 10) {
@@ -208,7 +208,7 @@ class Runner(val options: Runner.type)
   }
 
 
-  def start {
+  def start: Unit = {
     rt.startService
     requestsProcessor.start
     decisionProcessor.start
@@ -285,22 +285,22 @@ object Runner extends RTOptions {
   var sync = false
   newOption("--sync", dzufferey.arg.Unit( () => sync = false), "enable PessimisticByzantineSynchronizer")
 
-  var shortTO = 5l
+  var shortTO = 5L
   newOption("--shortTO", dzufferey.arg.Int( i => shortTO = i), "shortTO (default: 5)")
 
   val usage = "..."
   
-  var begin = 0l
+  var begin = 0L
 
   var system: Runner = null 
 
-  def main(args: Array[java.lang.String]) {
-    apply(args)
+  def main(args: Array[java.lang.String]): Unit = {
+    apply(args.toIndexedSeq)
     system = new Runner(this)
     system.start // this take a while (JIT and stuff)
     val prng = new util.Random()
 
-    Logger("Runner", Notice, id + ", starting")
+    Logger("Runner", Notice, s"$id, starting")
     begin = java.lang.System.currentTimeMillis()
 
     //TODO many clients (only if leader or forward)
@@ -323,11 +323,11 @@ object Runner extends RTOptions {
   
   java.lang.Runtime.getRuntime().addShutdownHook(
     new Thread() {
-      override def run() {
+      override def run(): Unit = {
         val versionNbr = system.shutdown
         val end = java.lang.System.currentTimeMillis()
         val duration = (end - begin) / 1000
-        Logger("Runner", Notice, id + ", #decisions = " + versionNbr + ", Δt = " + duration + ", throughput = " + (versionNbr/duration))
+        Logger("Runner", Notice, id.toString + ", #decisions = " + versionNbr + ", Δt = " + duration + ", throughput = " + (versionNbr/duration))
       }
     }
   )

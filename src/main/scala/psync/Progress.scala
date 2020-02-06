@@ -40,19 +40,19 @@ object Progress {
   //the 1st top bit is TO vs other
   //the 2nd top bit is (non)strict
 
-  private final val mask = -1l >>> 2
+  private final val mask = -1L >>> 2
 
-  @inline final def isWaitMessage(p: Progress): Boolean = (p.value & (1l << 63)) != 0 && (p.value & mask) == 4
-  @inline final def isTimeout(p: Progress): Boolean     = (p.value & (1l << 63)) == 0
-  @inline final def isStrict(p: Progress): Boolean      = (p.value & (1l << 62)) != 0
+  @inline final def isWaitMessage(p: Progress): Boolean = (p.value & (1L << 63)) != 0 && (p.value & mask) == 4
+  @inline final def isTimeout(p: Progress): Boolean     = (p.value & (1L << 63)) == 0
+  @inline final def isStrict(p: Progress): Boolean      = (p.value & (1L << 62)) != 0
 
-  final val waitMessage         = new Progress( (1l << 63) | 4 )
-  final val strictWaitMessage   = new Progress( (3l << 62) | 4 )
-  final val goAhead             = new Progress( (1l << 63) | 2 )
-  final val unchanged           = new Progress( (1l << 63) | 1 )
+  final val waitMessage         = new Progress( (1L << 63) | 4 )
+  final val strictWaitMessage   = new Progress( (3L << 62) | 4 )
+  final val goAhead             = new Progress( (1L << 63) | 2 )
+  final val unchanged           = new Progress( (1L << 63) | 1 )
 
   @inline final def timeout(millis: Long) = new Progress( millis & mask )
-  @inline final def strictTimeout(millis: Long) = new Progress( (millis & mask) | (1l << 62) )
+  @inline final def strictTimeout(millis: Long) = new Progress( (millis & mask) | (1L << 62) )
 
   @inline final def getTimeout(p: Progress): Long = {
     assert(isTimeout(p))

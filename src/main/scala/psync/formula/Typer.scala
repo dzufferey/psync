@@ -281,7 +281,7 @@ object Typer {
     case TrivialCstr => List(Map.empty[TypeVariable, Type])
     case SingleCstr(t1, t2) => unify(t1, t2).toList
     case ConjCstr(lst) =>
-      (List(Map.empty[TypeVariable, Type]) /: lst)( (acc, cstr) => acc.flatMap( subst => {
+      lst.foldLeft(List(Map.empty[TypeVariable, Type]))( (acc, cstr) => acc.flatMap( subst => {
         val cstr2 = cstr(subst)
         solveConstraints(cstr2).map( subst2 => mergeSubst(subst, subst2) )
       }))

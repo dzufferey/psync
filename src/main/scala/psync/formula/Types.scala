@@ -79,7 +79,7 @@ case object Wildcard extends Type {
 
 case class Product(cmpts: List[Type]) extends Type {
   override def toString = cmpts.mkString("(","*",")")
-  def freeParameters = (Set[TypeVariable]() /: cmpts)(_ ++ _.freeParameters)
+  def freeParameters = cmpts.foldLeft(Set[TypeVariable]())(_ ++ _.freeParameters)
   def alpha(subst: Map[TypeVariable, Type]) = {
     val c2 = cmpts.map(_.alpha(subst))
     if (cmpts == c2) this else Product(c2)
@@ -92,7 +92,7 @@ object Product {
 case class Function(args: List[Type], returns: Type) extends Type {
   override def toString = args.mkString("(","->","->") + returns + ")"
   override def arity = args.length
-  def freeParameters = (returns.freeParameters /: args)(_ ++ _.freeParameters)
+  def freeParameters = args.foldLeft(returns.freeParameters)(_ ++ _.freeParameters)
   def alpha(subst: Map[TypeVariable, Type]) = {
     val args2 = args.map(_.alpha(subst))
     val r2 = returns.alpha(subst)

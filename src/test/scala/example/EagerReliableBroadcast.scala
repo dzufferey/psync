@@ -28,7 +28,7 @@ class ErbProcess(timeout: Long) extends Process[BroadcastIO] {
         else Map.empty[ProcessID,Int]
       }
 
-      def update(mailbox: Map[ProcessID,Int]) {
+      def update(mailbox: Map[ProcessID,Int]): Unit = {
         if (x.isDefined) {
           callback.deliver(x.get)
           exitAtEndOfRound
@@ -55,7 +55,7 @@ class EagerReliableBroadcast(rt: Runtime, timeout: Long) extends Algorithm[Broad
 
   def dummyIO = new BroadcastIO{
     val initialValue = None
-    def deliver(value: Int) { }
+    def deliver(value: Int): Unit = { }
   }
 }
 
@@ -67,12 +67,12 @@ object ERBRunner extends Runner {
 
   def other = new BroadcastIO {
     val initialValue = None
-    def deliver(v: Int) = {
-      Console.println(id + " delivering " + v)
+    def deliver(v: Int): Unit = {
+      Console.println(s"$id delivering $v")
     }
   }
 
-  override def defaultHandler(msg: Message) {
+  override def defaultHandler(msg: Message): Unit = {
     val inst = msg.tag.instanceNbr
     val already = delivered.putIfAbsent(inst, true)
     if (already) {
@@ -82,19 +82,19 @@ object ERBRunner extends Runner {
     }
   }
 
-  def onStart {
+  def onStart: Unit = {
     alg = new EagerReliableBroadcast(rt, timeout)
 
     import scala.util.Random
     val init = Random.nextInt
     val io = new BroadcastIO {
       val initialValue = Some(init) 
-      def deliver(v: Int) {
-        Console.println(id + " delivering " + v)
+      def deliver(v: Int): Unit = {
+        Console.println(s"$id delivering $v")
       }
     }
     Thread.sleep(100)
-    Console.println("replica " + id + " proposing " + init)
+    Console.println(s"replica $id proposing $init")
     delivered.put(id, true)
     alg.startInstance(id, io)
   }

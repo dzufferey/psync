@@ -51,7 +51,7 @@ class LockManager(self: Short,
     else new OTR(rt, Main.timeout)
   }
 
-  private def onDecide(version: Short, decision: Option[ProcessID]) {
+  private def onDecide(version: Short, decision: Option[ProcessID]): Unit = {
     lock.lock
     if (version > versionNbr) {
       locked = decision
@@ -70,7 +70,7 @@ class LockManager(self: Short,
     lock.unlock
   }
 
-  private def recover(msg: Message) {
+  private def recover(msg: Message): Unit = {
     lock.lock
     for(potentiallyRunning <- (versionNbr+1) to runningNbr) {
       consensus.stopInstance(potentiallyRunning.toShort)
@@ -109,7 +109,7 @@ class LockManager(self: Short,
     rt.sendMessage(sender, tag, payload)
   }
 
-  private def startConsensus(client: Option[Client], expectedInstance: Short, io: ConsensusIO[Int], msgs: Set[Message] = Set.empty) {
+  private def startConsensus(client: Option[Client], expectedInstance: Short, io: ConsensusIO[Int], msgs: Set[Message] = Set.empty): Unit = {
     //enter critical section
     lock.lock
     val nextInstance = (runningNbr + 1).toShort
@@ -167,7 +167,7 @@ class LockManager(self: Short,
  
       val io = new ConsensusIO[Int] {
         val initialValue = content
-        def decide(value: Int) {
+        def decide(value: Int): Unit = {
           if (value == -1) onDecide(msg.instance, None)
           else onDecide(msg.instance, Some(new ProcessID(value.toShort)))
         }
@@ -177,12 +177,12 @@ class LockManager(self: Short,
     }
   }
 
-  def shutDown {
+  def shutDown: Unit = {
     rt.shutdown
     clientChannel.close
   }
 
-  def start() {
+  def start(): Unit = {
     rt.startService
     listenForClient //this never returns
   }
@@ -190,7 +190,7 @@ class LockManager(self: Short,
   //clean-up on ctrl-c
   java.lang.Runtime.getRuntime().addShutdownHook(
     new Thread() {
-      override def run() { shutDown }
+      override def run(): Unit = { shutDown }
     }
   )
 
@@ -199,7 +199,7 @@ class LockManager(self: Short,
   ////////////
   
   private class Client(val address: InetSocketAddress, val acquire: Boolean) {
-    def reply(status: Option[ProcessID]) {
+    def reply(status: Option[ProcessID]): Unit = {
       val success = (status.isEmpty && !acquire) ||
                     (status.isDefined && acquire && status.get.id == self)
       val message = if (success) "SUCCESS" else "FAILED"
@@ -216,7 +216,7 @@ class LockManager(self: Short,
 
   private class ClientHandler extends SimpleChannelInboundHandler[DatagramPacket] {
     //in Netty version 5.0 will be called: channelRead0 will be messageReceived
-    override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
+    override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket): Unit = {
       val request = pkt.content().toString(CharsetUtil.UTF_8).toLowerCase
       val sender = pkt.sender()
       val inst = (runningNbr+1).toShort
@@ -229,7 +229,7 @@ class LockManager(self: Short,
       val client = new Client(sender, initValue != -1)
       val io = new ConsensusIO[Int] {
         val initialValue = initValue
-        def decide(value: Int) {
+        def decide(value: Int): Unit = {
           val dec = if (value == -1) None else Some(new ProcessID(value.toShort))
           onDecide(inst, dec)
         }
@@ -246,7 +246,7 @@ class LockManager(self: Short,
 
   }
 
-  def listenForClient {
+  def listenForClient: Unit = {
     val group = new NioEventLoopGroup();
     try {
       val b = new Bootstrap();
@@ -276,7 +276,7 @@ class LockManagerClient(myPort: Int, remote: (String, Int)) {
 
   private class ReplyHandler extends SimpleChannelInboundHandler[DatagramPacket] {
     //in Netty version 5.0 will be called: channelRead0 will be messageReceived
-    override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
+    override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket): Unit = {
       val reply = pkt.content().toString(CharsetUtil.UTF_8).toLowerCase
       Logger("LockManagerClient", Notice, "request: " + reply)
       if (reply == "success") {
@@ -286,7 +286,7 @@ class LockManagerClient(myPort: Int, remote: (String, Int)) {
 
   }
     
-  def run {
+  def run: Unit = {
     val group = new NioEventLoopGroup(1);
     try {
       val b = new Bootstrap();
@@ -334,7 +334,7 @@ object Main extends Runner {
 
   override def defaultConfFile = "src/test/resources/sample-conf.xml"
 
-  def onStart {
+  def onStart: scala.Unit = {
     Logger.moreVerbose
     if (client) {
       val cli = new LockManagerClient(clientPort, (remoteAddress, remotePort))

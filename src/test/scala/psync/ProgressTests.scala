@@ -1,9 +1,9 @@
 package psync
 
 import org.scalatest._
-import prop._
+import org.scalatestplus.scalacheck._
 
-class ProgressTests extends FunSuite with PropertyChecks {
+class ProgressTests extends FunSuite with ScalaCheckPropertyChecks {
 
   test("timeout id") {
     forAll { (l: Long) =>

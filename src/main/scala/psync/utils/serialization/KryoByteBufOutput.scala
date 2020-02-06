@@ -14,7 +14,7 @@ class KryoByteBufOutput(protected var bbuffer: ByteBuf) extends Output {
   override def toBytes() = bbuffer.array()
   override def position() = bbuffer.writerIndex
   override def setPosition(position: Int) = bbuffer.writerIndex(position)
-  def skip(count: Int) {  bbuffer.writerIndex(bbuffer.writerIndex + count) }
+  def skip(count: Int): Unit = {  bbuffer.writerIndex(bbuffer.writerIndex + count) }
   override def total() = position()
   override def clear() = bbuffer.clear
   override protected def require(required: Int) = {
@@ -25,8 +25,8 @@ class KryoByteBufOutput(protected var bbuffer: ByteBuf) extends Output {
       case _ => throw new KryoException("???")
     }
   }
-  override def flush() {}
-  override def close() {} 
+  override def flush(): Unit = {}
+  override def close(): Unit = {} 
   // TODO variable encoding
   override def write(value: Int) = bbuffer.writeByte(value.toByte)
   override def write(bytes: Array[Byte]) = bbuffer.writeBytes(bytes)

@@ -30,7 +30,7 @@ trait AlgorithmOptions {
 
   protected var _sendWhenCatchingUp = true
   protected var _delayFirstSend = -1
-  protected var _timeout = 10l
+  protected var _timeout = 10L
   protected var _bufferSize = 64
   protected var _processPool = 16
   protected var _packetSize = -1
@@ -91,7 +91,7 @@ abstract class RTOptions extends DefaultOptions with RuntimeOptions {
   newOption("--connectionRestartPeriod",Int( i => _connectionRestartPeriod= i ),    "waiting time before trying to reconnecting for TCP (default: 250).")
   newOption("--acceptUnknownConnection",Bool( b => _acceptUnknownConnection = b ),  "accpect TCP connection from unkown replicas (default: false).")
 
-  def processConFile(s: java.lang.String) {
+  def processConFile(s: java.lang.String): scala.Unit = {
     val (ps, opts) = Config.parse(s)
     _peers = ps
     var args = List[java.lang.String]()

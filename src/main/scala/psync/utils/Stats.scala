@@ -10,7 +10,7 @@ class Stats {
 
   private val comments = new ConcurrentLinkedQueue[String]()
   
-  def clear {
+  def clear: Unit = {
     map.clear()
     comments.clear()
   }
@@ -67,7 +67,7 @@ class Stats {
       None
     } else {
       val headers = Array("method", "#call", "time")
-      val rows = tblIterator.map{ case (a,b,c) => Seq(a,b.toString,c.toString) }.toIterable
+      val rows = tblIterator.map{ case (a,b,c) => Seq(a,b.toString,c.toString) }.iterator.to(Iterable)
       Some(new Table("Method calls", headers, rows))
     }
   }

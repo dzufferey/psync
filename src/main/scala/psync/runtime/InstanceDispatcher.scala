@@ -36,7 +36,7 @@ class InstanceDispatcher(options: RuntimeOptions)
 
   private def index(inst: Int): Int = inst & mask
 
-  def add(inst: Int, handler: InstHandler) {
+  def add(inst: Int, handler: InstHandler): Unit = {
     val i = index(inst)
     val l = locks(i)
     l.lock()
@@ -52,7 +52,7 @@ class InstanceDispatcher(options: RuntimeOptions)
     }
   }
   
-  def remove(inst: Int) {
+  def remove(inst: Int): Unit = {
     val i = index(inst)
     val l = locks(i)
     var oldLst: List[(Int,InstHandler)] = Nil
@@ -75,7 +75,7 @@ class InstanceDispatcher(options: RuntimeOptions)
   }
 
   /** remove all the instances from the dispatch table */
-  def clear {
+  def clear: Unit = {
     for ( i <- 0 until n ) {
       instances(i) = Nil
     }

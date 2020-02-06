@@ -39,7 +39,7 @@ class Otr2Process(timeout: Long, afterDecision: Int) extends Process[ConsensusIO
         broadcast(x) //macro for (x, All)
       }
 
-      def update(mailbox: Map[ProcessID,Int]) {
+      def update(mailbox: Map[ProcessID,Int]): Unit = {
         if (mailbox.size > 2*n/3) {
           val v = mmor(mailbox)
           x = v
@@ -99,6 +99,6 @@ class OTR2(rt: Runtime, timeout: Long, afterDecision: Int = 2) extends Algorithm
 
   def dummyIO = new ConsensusIO[Int]{
     val initialValue = 0
-    def decide(value: Int) { }
+    def decide(value: Int): Unit = { }
   }
 }

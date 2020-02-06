@@ -28,7 +28,7 @@ class InstanceTracking {
     Instance.lt(started, inst) || pending(inst)
   }
 
-  protected def updateStarted(inst: Short) {
+  protected def updateStarted(inst: Short): Unit = {
     var oldStarted = started
     started = Instance.max(started, inst)
     oldStarted = (oldStarted + 1).toShort
@@ -38,20 +38,20 @@ class InstanceTracking {
     }
   }
 
-  def start(inst: Short) {
+  def start(inst: Short): Unit = {
     pending -= inst
     running += inst
     updateStarted(inst)
     assertTrackingInvariant
   }
 
-  def stop(inst: Short) {
+  def stop(inst: Short): Unit = {
     assert(running(inst), "not running " + inst + "\n" + toString)
     running -= inst
     assertTrackingInvariant
   }
 
-  def stopAndUpdateStarted(inst: Short) {
+  def stopAndUpdateStarted(inst: Short): Unit = {
     updateStarted(inst)
     running -= inst
     pending -= inst
@@ -76,7 +76,7 @@ class InstanceTracking {
     pending.forall( !running.contains( _ ) )
   }
 
-  def assertTrackingInvariant {
+  def assertTrackingInvariant: Unit = {
     if (!trackingInvariant) {
       Logger.logAndThrow("InstanceTracking", Error, toString)
     }

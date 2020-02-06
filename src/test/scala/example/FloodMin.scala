@@ -10,7 +10,7 @@ class FloodMinProcess(f: Int, timeout: Long) extends Process[ConsensusIO[Int]] {
   var x = 0
   var callback: ConsensusIO[Int] = null
 
-  def init(io: ConsensusIO[Int]) {
+  def init(io: ConsensusIO[Int]): Unit = {
     callback = io
     x = io.initialValue
   }
@@ -22,7 +22,7 @@ class FloodMinProcess(f: Int, timeout: Long) extends Process[ConsensusIO[Int]] {
         broadcast( x )
       }
 
-      def update(mailbox: Map[ProcessID,Int]) {
+      def update(mailbox: Map[ProcessID,Int]): Unit = {
         x = mailbox.foldLeft(x)( (acc, v) => math.min(acc, v._2) )
         if (r > f) {
           callback.decide(x)
@@ -43,7 +43,7 @@ class FloodMin(rt: Runtime, f: Int, timeout: Long) extends Algorithm[ConsensusIO
 
   def dummyIO = new ConsensusIO[Int]{
     val initialValue = 0
-    def decide(value: Int) { }
+    def decide(value: Int): Unit = { }
   }
 }
 
@@ -52,14 +52,14 @@ object FloodMinRunner extends Runner {
   var f = 2
   newOption("-f", dzufferey.arg.Int( i => f = i), "f (default = 2)")
 
-  def onStart {
+  def onStart: Unit = {
     val alg = new FloodMin(rt, f, timeout)
 
     import scala.util.Random
     val init = Random.nextInt
     val io = new ConsensusIO[Int] {
       val initialValue = init
-      def decide(value: Int) {
+      def decide(value: Int): Unit = {
         Console.println("replica " + id + " decided " + value)
       }
     }

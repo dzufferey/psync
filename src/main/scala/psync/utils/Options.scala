@@ -14,11 +14,11 @@ abstract class DefaultOptions extends Options {
  
   //stats
   private var stats = false
-  private def setStatsHook {
+  private def setStatsHook: scala.Unit = {
     if (!stats) {
       stats = true
       java.lang.Runtime.getRuntime().addShutdownHook(new Thread() {
-        override def run { Logger("Stats", Notice, Stats.toString) }
+        override def run: scala.Unit = { Logger("Stats", Notice, Stats.toString) }
       })
     }
   }

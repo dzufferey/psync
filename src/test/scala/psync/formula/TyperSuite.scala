@@ -6,7 +6,7 @@ import Typer._
 
 class TyperSuite extends FunSuite {
 
-  def tryType(f: Formula, t: Option[Type]) {
+  def tryType(f: Formula, t: Option[Type]): Unit = {
     Typer(f) match {
       case TypingSuccess(t1) =>
         t match {

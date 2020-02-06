@@ -23,7 +23,7 @@ class UdpRuntime(o: RuntimeOptions, dh: Message => Unit) extends Runtime(o, dh) 
 
   Logger.assert(options.protocol == NetworkProtocol.UDP, "UdpRuntime", "transport layer: only UDP supported")
 
-  def closeServer {
+  def closeServer: Unit = {
     dispatcher.clear
     try {
       evtGroup.shutdownGracefully
@@ -34,7 +34,7 @@ class UdpRuntime(o: RuntimeOptions, dh: Message => Unit) extends Runtime(o, dh) 
     }
   }
 
-  def startServer {
+  def startServer: Unit = {
     val packetSize = options.packetSize
     val b = new Bootstrap()
     b.group(evtGroup)
@@ -54,7 +54,7 @@ class UdpRuntime(o: RuntimeOptions, dh: Message => Unit) extends Runtime(o, dh) 
     chan = b.bind(port).sync().channel()
   }
 
-  protected[psync] def send(pid: ProcessID, buf: ByteBuf) {
+  protected[psync] def send(pid: ProcessID, buf: ByteBuf): Unit = {
     val grp = group
     val dst = grp.idToInet(pid)
     val pkt =
@@ -69,7 +69,7 @@ class UdpRuntime(o: RuntimeOptions, dh: Message => Unit) extends Runtime(o, dh) 
     }
   }
 
-  def handlePacket(dp: DatagramPacket) {
+  def handlePacket(dp: DatagramPacket): Unit = {
     val msg = new Message(dp, group)
     dispatch(msg)
   }
@@ -80,7 +80,7 @@ class UdpRuntime(o: RuntimeOptions, dh: Message => Unit) extends Runtime(o, dh) 
 class UDPPacketServerHandler(rt: UdpRuntime) extends SimpleChannelInboundHandler[DatagramPacket](false) {
 
   //in Netty version 5.0 will be called: channelRead0 will be messageReceived
-  override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket) {
+  override def channelRead0(ctx: ChannelHandlerContext, pkt: DatagramPacket): Unit = {
     try {
       rt.handlePacket(pkt)
     } catch {
@@ -89,7 +89,7 @@ class UDPPacketServerHandler(rt: UdpRuntime) extends SimpleChannelInboundHandler
     }
   }
 
-  override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
+  override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable): Unit = {
     cause.printStackTrace()
   }
 

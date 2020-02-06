@@ -40,7 +40,7 @@ abstract class TacticCommon(depth: Map[Type,Int]) extends Tactic {
   
   protected def isDone(t: Formula) = done(t) || done(cc.repr(t))
 
-  protected def enqueue(d: Int, t: Formula) {
+  protected def enqueue(d: Int, t: Formula): Unit = {
     if (d < depth(t.tpe) && !isDone(t)) {
       Logger("Tactic", Debug, "depth "+d+": " + t)
       queue.enqueue( -d -> t )
@@ -49,7 +49,7 @@ abstract class TacticCommon(depth: Map[Type,Int]) extends Tactic {
     }*/
   }
 
-  def clear {
+  def clear: Unit = {
     queue.clear
     done.clear
     buffer.clear
@@ -76,7 +76,7 @@ abstract class TacticCommon(depth: Map[Type,Int]) extends Tactic {
     term
   }
 
-  def init(_cc: CongruenceClosure) {
+  def init(_cc: CongruenceClosure): Unit = {
     clear
     cc = _cc
     for (gt <- cc.groundTerms) enqueue(0, gt)
@@ -94,7 +94,7 @@ class Eager(depth: Map[Type,Int]) extends TacticCommon(depth) {
 
   def this(depth: Int) = this(Map[Type,Int]().withDefaultValue(depth))
 
-  def generatorResult(fs: Iterable[Formula]) {
+  def generatorResult(fs: Iterable[Formula]): Unit = {
     buffer.appendAll(fs)
     val newDepth = currentDepth + 1
     fs.foreach( f => {
@@ -116,19 +116,19 @@ class Sequence(ts: Tactic*) extends Tactic {
   protected var index = 0
   protected var cc: CongruenceClosure = null
 
-  def init(_cc: CongruenceClosure) {
+  def init(_cc: CongruenceClosure): Unit = {
     clear
     cc = _cc
     ts(index).init(cc)
     Logger("Sequence", Debug, "first tactic: " + ts(index))
   }
 
-  def clear {
+  def clear: Unit = {
     index = 0
     ts.foreach(_.clear)
   }
 
-  protected def nextGen {
+  protected def nextGen: Unit = {
     if (index < ts.length - 1) {
       index += 1
       Logger("Sequence", Debug, "moving to next tactic: " + ts(index))
@@ -149,7 +149,7 @@ class Sequence(ts: Tactic*) extends Tactic {
     ts(index).next
   }
 
-  def generatorResult(f: Iterable[Formula]) {
+  def generatorResult(f: Iterable[Formula]): Unit = {
     ts(index).generatorResult(f)
   }
 

@@ -5,6 +5,7 @@ import psync.Time._
 import psync.runtime._
 import psync.macros.Macros._
 import psync.utils.serialization._
+import Ordering.Double.TotalOrdering
 
 abstract class RealConsensusIO {
   val initialValue: Double
@@ -50,7 +51,7 @@ class EpsilonProcess(f: Int, epsilon: Double, timeout: Long) extends Process[Rea
         }
       }
      
-      def update(mailbox: Map[ProcessID,(Double, Boolean)]) {
+      def update(mailbox: Map[ProcessID,(Double, Boolean)]): Unit = {
         val V = mailbox.toSeq.map(_._2._1) ++ halted.values
         halted = halted ++ mailbox.filter(_._2._2).map{ case (p,v) => p -> v._1 }
         if (r.toInt == 0) {
@@ -77,7 +78,7 @@ class EpsilonConsensus(rt: Runtime, f: Int, epsilon: Double, timeout: Long) exte
 
   def dummyIO = new RealConsensusIO{
     val initialValue = 0.0
-    def decide(value: Double) { }
+    def decide(value: Double): Unit = { }
   }
 }
 
@@ -91,7 +92,7 @@ object EpsilonRunner extends Runner {
 
   override def defaultConfFile = "src/test/resources/7replicas-conf.xml"
   
-  def onStart {
+  def onStart: Unit = {
     val start = java.lang.System.currentTimeMillis()
     val alg = new EpsilonConsensus(rt, f, e, timeout)
 
@@ -99,7 +100,7 @@ object EpsilonRunner extends Runner {
     val init = Random.nextDouble
     val io = new RealConsensusIO {
       val initialValue = init
-      def decide(value: Double) {
+      def decide(value: Double): Unit = {
         Console.println("replica " + id + " decided " + value)
       }
     }

@@ -34,7 +34,7 @@ class BenOrProcess(timeout: Long) extends Process[ConsensusIO[Boolean]] {
         broadcast( (x: Boolean) -> (canDecide: Boolean) )
       }
 
-      def update(mailbox: Map[ProcessID,(Boolean, Boolean)]) {
+      def update(mailbox: Map[ProcessID,(Boolean, Boolean)]): Unit = {
         if (canDecide) {
           callback.decide(x)
           decided = true
@@ -60,7 +60,7 @@ class BenOrProcess(timeout: Long) extends Process[ConsensusIO[Boolean]] {
         broadcast( vote )
       }
 
-      def update(mailbox: Map[ProcessID,Option[Boolean]]) {
+      def update(mailbox: Map[ProcessID,Option[Boolean]]): Unit = {
         val t = mailbox.count{ case (p,v) => v == Some(true) }
         val f = mailbox.count{ case (p,v) => v == Some(false) }
         if (t > n/2) {
@@ -118,20 +118,20 @@ class BenOr(rt: Runtime, timeout: Long) extends Algorithm[ConsensusIO[Boolean],B
 
   def dummyIO = new ConsensusIO[Boolean]{
     val initialValue = false
-    def decide(value: Boolean) { }
+    def decide(value: Boolean): Unit = { }
   }
 
 }
 
 object BenOrRunner extends Runner {
   
-  def onStart {
+  def onStart: Unit = {
     val alg = new BenOr(rt, timeout)
     import scala.util.Random
     val init = Random.nextBoolean
     val io = new ConsensusIO[Boolean] {
       val initialValue = init
-      def decide(value: Boolean) {
+      def decide(value: Boolean): Unit = {
         Console.println("replica " + id + " decided " + value)
       }
     }

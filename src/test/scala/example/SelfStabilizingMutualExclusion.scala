@@ -59,7 +59,7 @@ object SelfStabilizingRunner extends Runner {
 
   override def defaultConfFile = "src/test/resources/25replicas-conf.xml"
   
-  def onStart {
+  def onStart: Unit = {
     val alg = new SelfStabilizingMutualExclusion(rt)
     alg.startInstance(0, ())
     // idle while the algorithms runs

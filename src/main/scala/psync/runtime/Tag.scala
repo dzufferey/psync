@@ -24,12 +24,12 @@ class Tag(val underlying: Long) extends AnyVal {
   //   1B     1B          2B         4B
 
   def instanceNbr: Short = {
-    ((underlying >> 32) & 0xffffl).toShort
+    ((underlying >> 32) & 0xffffL).toShort
   }
 
   def setInstanceNbr(inst: Short): Tag = {
-    val i = (inst.toLong & 0xffffl) << 32
-    val u = underlying & 0xffff0000ffffffffl
+    val i = (inst.toLong & 0xffffL) << 32
+    val u = underlying & 0xffff0000ffffffffL
     new Tag(u | i)
   }
 
@@ -38,26 +38,26 @@ class Tag(val underlying: Long) extends AnyVal {
   }
 
   def setRoundNbr(r: Time): Tag = {
-    new Tag((underlying >> 32 << 32) | (r.toInt.toLong & 0xffffffffl))
+    new Tag((underlying >> 32 << 32) | (r.toInt.toLong & 0xffffffffL))
   }
 
   def flag: Byte = {
-    ((underlying >> 56) & 0xffl).toByte
+    ((underlying >> 56) & 0xffL).toByte
   }
 
   def setFlag(flag: Byte): Tag = {
-    val f = (flag.toLong & 0xffl) << 56
-    val u = underlying & 0x00ffffffffffffffl
+    val f = (flag.toLong & 0xffL) << 56
+    val u = underlying & 0x00ffffffffffffffL
     new Tag(u | f)
   }
 
   def callStack: Byte = {
-    ((underlying >> 48) & 0xffl).toByte
+    ((underlying >> 48) & 0xffL).toByte
   }
 
   def setCallStack(callStack: Byte): Tag = {
-    val c = (callStack.toLong & 0xffl) << 48
-    val u = underlying & 0xff00ffffffffffffl
+    val c = (callStack.toLong & 0xffL) << 48
+    val u = underlying & 0xff00ffffffffffffL
     new Tag(u | c)
   }
 
@@ -81,8 +81,8 @@ object Tag {
   
   def roundNbr(tag: Tag): Time = new Time(tag.underlying.toInt)
 
-  def flag(tag: Tag): Byte = ((tag.underlying >> 56) & 0xffl).toByte
+  def flag(tag: Tag): Byte = ((tag.underlying >> 56) & 0xffL).toByte
 
-  def code(tag: Tag): Byte = ((tag.underlying >> 48) & 0xffl).toByte
+  def code(tag: Tag): Byte = ((tag.underlying >> 48) & 0xffL).toByte
 
 }

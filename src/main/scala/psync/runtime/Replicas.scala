@@ -44,7 +44,7 @@ class Group(val self: ProcessID, val replicas: Array[Replica], val nbrByzantine:
     while (idx < replicas.size) {
       val r = replicas(idx)
       if (r != null && r.address == ip && r.port == port) {
-        Logger("Replica", Debug, address + " has " + ip + " and " + port +
+        Logger("Replica", Debug, address.toString + " has " + ip + " and " + port +
                                  " is " + r + " in\n  " + asList.mkString("\n  "))
         return r
       }

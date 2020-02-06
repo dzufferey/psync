@@ -73,7 +73,7 @@ class LastVoting(rt: Runtime, timeout: Long, progress: SyncCondition = Quorum) e
   
   def dummyIO = new ConsensusIO[Int]{
     val initialValue = 0
-    def decide(value: Int) { }
+    def decide(value: Int): Unit = { }
   }
 }
   
@@ -94,7 +94,7 @@ class LVProcess(timeout: Long, progress: SyncCondition) extends Process[Consensu
       
   def coord: ProcessID = new ProcessID((r / 4 % n).toShort)
     
-  def init(io: ConsensusIO[Int]) {
+  def init(io: ConsensusIO[Int]): Unit = {
     callback = io
     x = io.initialValue
     ts = -1
@@ -122,7 +122,7 @@ class LVProcess(timeout: Long, progress: SyncCondition) extends Process[Consensu
         } else 0
       }
 
-      def update(mailbox: Map[ProcessID,(Int, Time)]) {
+      def update(mailbox: Map[ProcessID,(Int, Time)]): Unit = {
         assert(r.toInt % 4 == 0)
         if (id == coord &&
             (mailbox.size > n/2 ||
@@ -149,7 +149,7 @@ class LVProcess(timeout: Long, progress: SyncCondition) extends Process[Consensu
 
       override def expectedNbrMessages = 1
 
-      def update(mailbox: Map[ProcessID,Int]) {
+      def update(mailbox: Map[ProcessID,Int]): Unit = {
         if (mailbox contains coord) {
           x = mailbox(coord)
           ts = r/4
@@ -172,7 +172,7 @@ class LVProcess(timeout: Long, progress: SyncCondition) extends Process[Consensu
 
       override def expectedNbrMessages = if (id == coord) expectedMajority else 0
 
-      def update(mailbox: Map[ProcessID,Int]) {
+      def update(mailbox: Map[ProcessID,Int]): Unit = {
         if (id == coord && mailbox.size > n/2) {
           ready = true
         }
@@ -192,7 +192,7 @@ class LVProcess(timeout: Long, progress: SyncCondition) extends Process[Consensu
 
       override def expectedNbrMessages = 1 
 
-      def update(mailbox: Map[ProcessID,Int]) {
+      def update(mailbox: Map[ProcessID,Int]): Unit = {
         if (mailbox contains coord) {
           val v = mailbox(coord)
           assert(v != 0)

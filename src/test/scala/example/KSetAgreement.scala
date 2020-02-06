@@ -24,7 +24,7 @@ class KSetProcess(k: Int, timeout: Long) extends Process[ConsensusIO[Int]] {
   var decider = false
   var callback: ConsensusIO[Int] = null
 
-  def init(io: ConsensusIO[Int]) {
+  def init(io: ConsensusIO[Int]): Unit = {
     callback = io
     decider = false
     t = Map(id -> io.initialValue)
@@ -43,7 +43,7 @@ class KSetProcess(k: Int, timeout: Long) extends Process[ConsensusIO[Int]] {
         broadcast( decider -> t )
       }
 
-      def update(mailbox: Map[ProcessID,(Boolean, Map[ProcessID,Int])]) {
+      def update(mailbox: Map[ProcessID,(Boolean, Map[ProcessID,Int])]): Unit = {
         val content = mailbox.map{ case (k,v) => v }
         if (decider) {
           callback.decide(pick(t))
@@ -82,7 +82,7 @@ class KSetAgreement(rt: Runtime, k: Int, timeout: Long) extends Algorithm[Consen
 
   def dummyIO = new ConsensusIO[Int]{
     val initialValue = 0
-    def decide(value: Int) { }
+    def decide(value: Int): Unit = { }
   }
 }
 
@@ -91,14 +91,14 @@ object KSetRunner extends Runner {
   var k = 2
   newOption("-k", dzufferey.arg.Int( i => k = i), "k (default = 2)")
 
-  def onStart {
+  def onStart: Unit = {
     val alg = new KSetAgreement(rt, k, timeout)
 
     import scala.util.Random
     val init = Random.nextInt
     val io = new ConsensusIO[Int] {
       val initialValue = init
-      def decide(value: Int) {
+      def decide(value: Int): Unit = {
         Console.println("replica " + id + " decided " + value)
       }
     }

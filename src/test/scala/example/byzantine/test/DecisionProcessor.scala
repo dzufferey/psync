@@ -45,7 +45,7 @@ trait DecisionProcessor {
     try {
       //put the decision in the rolling log
       if (pushDecision(inst, data)) {
-        Logger("Runner", Debug, id + ", proposeDecision for " + inst + " ✓")
+        Logger("Runner", Debug, s"$id, proposeDecision for $inst ✓")
         acceptedBatch.add(inst -> data)
         //
         lck.lock
@@ -61,7 +61,7 @@ trait DecisionProcessor {
           lck.unlock
         }
       } else {
-        Logger("Runner", Debug, id + ", proposeDecision for " + inst + " ✗")
+        Logger("Runner", Debug, s"$id, proposeDecision for $inst ✗")
       }
     } finally {
       l.unlock
@@ -69,7 +69,7 @@ trait DecisionProcessor {
   }
 
 
-  @inline final protected def processRequest(inst: Short, b: Array[Byte], base: Int) {
+  @inline final protected def processRequest(inst: Short, b: Array[Byte], base: Int): Unit = {
     val c = bytesToInt(b, base) 
     val k = bytesToInt(b, base + 4) 
     val v = bytesToInt(b, base + 8)
@@ -78,14 +78,14 @@ trait DecisionProcessor {
       values(k) = v
       versions(k) = inst
       if (log != null) {
-        log.write(inst + "\t" + k + "\t" + v)
+        log.write(s"$inst\t$k\t$v")
         log.newLine()
       }
     }
     //TODO notify client
   }
 
-  protected def processBatch(inst: Short, a: Array[Byte]) {
+  protected def processBatch(inst: Short, a: Array[Byte]): Unit = {
     if (a != null && a.nonEmpty) { //null/empty means the proposer crashed before setting a value
       assert(a.size % 12 == 0)
       var b = 0
@@ -110,7 +110,7 @@ trait DecisionProcessor {
     private var nextBatch: Short = 1
     private def lateThreshold = reorderingQueue.size > options.rate * options.late
     private def lateThresholdRecover = reorderingQueue.size > options.rate
-    private def askDecision {
+    private def askDecision: Unit = {
       //pick someone to ask
       var askingTo = scala.util.Random.nextInt(rt.group.size)
       while (askingTo == id) {
@@ -119,7 +119,7 @@ trait DecisionProcessor {
       val payload = PooledByteBufAllocator.DEFAULT.buffer()
       payload.writeLong(8)
       rt.sendMessage(new ProcessID(askingTo.toShort), Tag(nextBatch,0,AskDecision,0), payload)
-      Logger("Runner", Info, id + " asking to " + askingTo + " for decision " + nextBatch)
+      Logger("Runner", Info, s"$id asking to $askingTo for decision $nextBatch")
     }
     def run = {
       try{
@@ -138,7 +138,7 @@ trait DecisionProcessor {
               }
               if (!lateThresholdRecover) {
                 if (isLate.get) {
-                    Logger("Runner", Info, id + ", not late anymore")
+                    Logger("Runner", Info, s"$id, not late anymore")
                 }
                 isLate.set(false)
               }
@@ -151,7 +151,7 @@ trait DecisionProcessor {
               reorderingQueue += req
               if (lateThreshold) {
                 if (!isLate.get) {
-                    Logger("Runner", Info, id + ", late")
+                    Logger("Runner", Info, s"$id, late")
                 }
                 isLate.set(true)
                 if (!tracker.isRunning(nextBatch)) {

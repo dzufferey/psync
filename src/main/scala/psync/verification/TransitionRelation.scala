@@ -21,9 +21,9 @@ class RoundTransitionRelation(val send: Formula,
     assert(mailboxSend.tpe != Wildcard, "mailboxSend has Wildcard type")
     assert(mailboxUpdt.tpe != Wildcard, "mailboxUpdt has Wildcard type")
     assert(local.forall(_.tpe != Wildcard), "some local variables has Wildcard type")
-    Logger("TransitionRelation", Debug, "retype env:\n  " + env.map(a => a+":"+a.tpe).mkString("\n  "))
-    Logger("TransitionRelation", Debug, "retype old:\n  " + old.map(a => a+":"+a.tpe).mkString("\n  "))
-    Logger("TransitionRelation", Debug, "retype primed:\n  " + primed.map(a => a+":"+a.tpe).mkString("\n  "))
+    Logger("TransitionRelation", Debug, "retype env:\n  " + env.map(a => s"$a:${a.tpe}").mkString("\n  "))
+    Logger("TransitionRelation", Debug, "retype old:\n  " + old.map(a => s"$a:${a.tpe}").mkString("\n  "))
+    Logger("TransitionRelation", Debug, "retype primed:\n  " + primed.map(a => s"$a:${a.tpe}").mkString("\n  "))
     //match old and primed with env
     val substOld = old.map( v => v -> env.find(_ == v).get ).toMap
     def rmSuffix(prefix: String) = {
@@ -34,7 +34,7 @@ class RoundTransitionRelation(val send: Formula,
     val substPrimed = primed.map( v => v -> v.setType(env.find(v2 => rmSuffix(v.name) == (v2.name)).get.tpe) ).toMap
     val subst = substOld ++ substPrimed
     assert(subst.forall(_._2.tpe != Wildcard), "some env variables has Wildcard type")
-    Logger("TransitionRelation", Debug, "retype subst:\n  " + subst.map{ case (a,b) => a+":"+a.tpe+" → "+b+":"+b.tpe }.mkString("\n  "))
+    Logger("TransitionRelation", Debug, "retype subst:\n  " + subst.map{ case (a,b) => s"$a:${a.tpe} → $b:${b.tpe}"}.mkString("\n  "))
     def fixMB(f: Formula) = {
       for (v <- f.freeVariables) {
         if (v == mailboxSend) v.setType(mailboxSend.tpe)

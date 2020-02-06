@@ -93,14 +93,14 @@ object Message {
   }
 
   // The tag is only needed for the size. It is not written.
-  def setContent[A: KryoRegistration](tag:Tag, buffer: ByteBuf, value: A) {
+  def setContent[A: KryoRegistration](tag:Tag, buffer: ByteBuf, value: A): Unit = {
     val kryo = KryoSerializer.serializer
     implicitly[KryoRegistration[A]].register(kryo)
     setContent(kryo, tag, buffer, value)
   }
 
   // The tag is only needed for the size. It is not written.
-  def setContent[A](kryo: Kryo, tag:Tag, buffer: ByteBuf, value: A) {
+  def setContent[A](kryo: Kryo, tag:Tag, buffer: ByteBuf, value: A): Unit = {
     buffer.writerIndex(tag.size)
     val kryoOut = new KryoByteBufOutput(buffer)
     kryo.writeObject(kryoOut, value)

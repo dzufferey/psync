@@ -1,7 +1,7 @@
 #!/bin/bash
 
 file=test_scripts/deps
-scala_version=2.12
+scala_version=2.13
 
 echo "#this is the classpath wrt the root directory of the project" > $file
 echo -n "cp=\"" >> $file

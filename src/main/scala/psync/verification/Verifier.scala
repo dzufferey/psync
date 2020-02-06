@@ -32,12 +32,12 @@ class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P])(implicit tag: Type
   assert(procAllVars.forall(_.tpe != Wildcard))
 
   //to avoid capture during later renaming
-  def warmup {
+  def warmup: Unit = {
     Logger("Verifier", Debug, "Warming up the Namer")
-    def w(f: Formula) {
+    def w(f: Formula): Unit = {
       FormulaUtils.collectVariables(f).foreach(v => Namer.warmup(v.name))
     }
-    def wv(v: Variable) { Namer.warmup(v.name) }
+    def wv(v: Variable): Unit = { Namer.warmup(v.name) }
 
     for( v <- procAllVars) wv(v)
     w(spec.safetyPredicate)
@@ -83,7 +83,7 @@ class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P])(implicit tag: Type
     }
     FormulaUtils.traverse( fillType, process.initState.get)
     val f2 = Typer(process.initState.get).get
-    def guessType1(f: Formula) {
+    def guessType1(f: Formula): Unit = {
       f.tpe match {
         case TypeVariable(v) =>
           Logger("Verifier", Warning, "guessing type for " + f + ": " + f.tpe)

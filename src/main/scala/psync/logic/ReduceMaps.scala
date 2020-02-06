@@ -21,7 +21,7 @@ object ReduceMaps {
     terms
   }
 
-  def addMapGroundTerms(/*f: Formula,*/ cc: CongruenceClosure) {
+  def addMapGroundTerms(/*f: Formula,*/ cc: CongruenceClosure): Unit = {
     //Simplify.normalize should already have taken care of IsDefinedAt and Size
     //we only need to add new terms to cc
     val terms = newTerms(cc)

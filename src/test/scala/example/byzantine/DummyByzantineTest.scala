@@ -9,7 +9,7 @@ import psync.utils.serialization._
 
 class DBTProcess(short: Long, timeout: Long) extends Process[Unit] {
 
-  def init(io: Unit) { }
+  def init(io: Unit): Unit = { }
 
   val rounds = phase(
     new PessimisticByzantineSynchronizer(new EventRound[Unit]{
@@ -25,7 +25,7 @@ class DBTProcess(short: Long, timeout: Long) extends Process[Unit] {
       }
 
       def receive(sender: ProcessID, v: Unit) = {
-        Console.println(id + " got a message from " + sender + " at round " + r.toInt)
+        Console.println(s"$id got a message from $sender at round ${r.toInt}")
         Progress.goAhead
       }
 
@@ -49,10 +49,10 @@ object DummyByzantineRunner extends Runner {
 
   _nbrByzantine = 1
   //_delayFirstSend = 3000
-  var short = 1l
+  var short = 1L
   newOption("--short", dzufferey.arg.Int( i => short = i), "short TO")
 
-  def onStart {
+  def onStart: Unit = {
     val alg = new DummyByzantineTest(rt, short, timeout)
     Thread.sleep(100)
     Console.println("replica " + id + " starting")
