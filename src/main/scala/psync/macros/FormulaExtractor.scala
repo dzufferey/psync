@@ -242,67 +242,56 @@ trait FormulaExtractor {
         val dCstr = In(witness, tree2Formula(domain))
         Comprehension(List(y), And(dCstr, fCstr2))
       //case q"$domain.map[$tpt1,$tpt2]( $x => $f )(immutable.this.Map.canBuildFrom[$tpt3,$tpt4])" => //FIXME ??
-/* FIXME
-[warn] /home/zufferey/work/projects/psync/src/test/scala/psync/macros/FormulaExtractorSuite.scala:148:30: Map.map, expected pair function. found: Int
-[warn]     Macros.asFormula( m2 == (m.map{ case (k, v) => k -> (v + 1) }: Map[Int, Int]) ) match {
-[warn]                              ^
-[warn] /home/zufferey/work/projects/psync/src/test/scala/psync/macros/FormulaExtractorSuite.scala:156:30: Map.map, expected pair function. found: Int
-[warn]     Macros.asFormula( m2 == (m.map( kv  => kv._1 -> (kv._2 + 1) ): Map[Int, Int]) ) match {
-*/
       case q"$domain.map[$tpt1,$tpt2]( $x => $f )" =>
-        extractType(tpt1) match {
-          case Product(List(tK, tV)) =>
-            f match {
-              case q"$id match { case ($k, $v) => $expr }" =>
-                val id = Variable(c.freshName("mappedMap")).setType(FMap(tK, tV))
-                val d = tree2Formula(domain)
-                val kv = extractVarFromPattern(k)
-                val vv = extractVarFromPattern(v)
-                val retVar = Variable(c.freshName("retV")).setType(Product(List(tK,tV)))
-                val body0 = makeConstraints(expr, retVar, retVar)
-                addCstr(Eq(KeySet(id), KeySet(d)))
-                body0 match {
-                  case Eq(`retVar`, Tuple(`kv`, value)) =>
-                    addCstr(ForAll(List(kv), Eq(LookUp(id, kv), FormulaUtils.replace(vv, LookUp(d, kv), value))))
-                  case other =>
-                    c.warning(expr.pos, "body too complicated, leaving it unconstrained: " + other)
-                }
-                id
-              case expr =>
-                val n = extractVarFromValDef(x)
-                val dummy = Variable(c.freshName("dummyMap"))
-                extractDomain(domain) match {
-                  case Some(d) =>
-                    d.tpe match {
-                      case FMap(kt,vt) =>
-                        val pred = tree2Formula(expr)
-                        val kv = Variable(c.freshName("key")).setType(kt)
-                        val pred1 = FormulaUtils.replace(Fst(n), kv, pred)
-                        val pred2 = FormulaUtils.replace(Snd(n), LookUp(d, kv), pred1)
-                        if (pred2.freeVariables contains n) {
-                          c.warning(domain.pos, "Map.map, no sure what to do leaving unconstrained: " + domain + " -> " + x + " => " + expr + " gives " + pred2)
-                          dummy
-                        } else {
-                          val rm  = Variable(c.freshName("mappedMap"))
-                          val rkv = Variable(c.freshName("mappedKey"))
-                          addCstr(ForAll(List(kv,rkv), Implies(
-                            Eq(Tuple(rkv, LookUp(rm, rkv)), pred2),
-                            Eq(In(kv, KeySet(d)), In(rkv, KeySet(rm)))
-                          )))
-                          rm
-                        }
-                      case other =>
-                        c.warning(domain.pos, "Map.map, expected domain with map type, found: " + other)
-                        dummy
+        val tK = extractType(tpt1)
+        val tV = extractType(tpt2)
+        f match {
+          case q"$id match { case ($k, $v) => $expr }" =>
+            val id = Variable(c.freshName("mappedMap")).setType(FMap(tK, tV))
+            val d = tree2Formula(domain)
+            val kv = extractVarFromPattern(k)
+            val vv = extractVarFromPattern(v)
+            val retVar = Variable(c.freshName("retV")).setType(Product(List(tK,tV)))
+            val body0 = makeConstraints(expr, retVar, retVar)
+            addCstr(Eq(KeySet(id), KeySet(d)))
+            body0 match {
+              case Eq(`retVar`, Tuple(`kv`, value)) =>
+                addCstr(ForAll(List(kv), Eq(LookUp(id, kv), FormulaUtils.replace(vv, LookUp(d, kv), value))))
+              case other =>
+                c.warning(expr.pos, "body too complicated, leaving it unconstrained: " + other)
+            }
+            id
+          case expr =>
+            val n = extractVarFromValDef(x)
+            val dummy = Variable(c.freshName("dummyMap"))
+            extractDomain(domain) match {
+              case Some(d) =>
+                d.tpe match {
+                  case FMap(kt,vt) =>
+                    val pred = tree2Formula(expr)
+                    val kv = Variable(c.freshName("key")).setType(kt)
+                    val pred1 = FormulaUtils.replace(Fst(n), kv, pred)
+                    val pred2 = FormulaUtils.replace(Snd(n), LookUp(d, kv), pred1)
+                    if (pred2.freeVariables contains n) {
+                      c.warning(domain.pos, "Map.map, no sure what to do leaving unconstrained: " + domain + " -> " + x + " => " + expr + " gives " + pred2)
+                      dummy
+                    } else {
+                      val rm  = Variable(c.freshName("mappedMap"))
+                      val rkv = Variable(c.freshName("mappedKey"))
+                      addCstr(ForAll(List(kv,rkv), Implies(
+                        Eq(Tuple(rkv, LookUp(rm, rkv)), pred2),
+                        Eq(In(kv, KeySet(d)), In(rkv, KeySet(rm)))
+                      )))
+                      rm
                     }
-                  case None =>
-                    c.warning(domain.pos, "Map.map, expected domain, found: " + domain)
+                  case other =>
+                    c.warning(domain.pos, "Map.map, expected domain with map type, found: " + other)
                     dummy
                 }
+              case None =>
+                c.warning(domain.pos, "Map.map, expected domain, found: " + domain)
+                dummy
             }
-          case other =>
-            c.warning(domain.pos, "Map.map, expected pair function. found: " + other)
-            Variable(c.freshName("dummy"))
         }
       
       case q"$scope.SpecHelper.init[$tpt]($expr)" =>

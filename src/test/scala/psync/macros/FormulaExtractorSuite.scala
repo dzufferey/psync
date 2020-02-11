@@ -142,7 +142,7 @@ class FormulaExtractorSuite extends FunSuite {
     }
   }
   
-  ignore("Map map") {
+  test("Map map") {
     val m = Map(1 -> 2)
     val m2 = Map(1 -> 2)
     Macros.asFormula( m2 == (m.map{ case (k, v) => k -> (v + 1) }: Map[Int, Int]) ) match {
