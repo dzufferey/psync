@@ -130,7 +130,7 @@ class CLSuite extends FunSuite {
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
-    //assertUnsat(fs, onlyAxioms = true) //TODO fails with `sbt test`
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   //from https://github.com/psuter/bapa-z3/blob/master/src/main/scala/bapa/Main.scala
@@ -486,7 +486,7 @@ class CLSuite extends FunSuite {
     //assertSat(fs, onlyAxioms = true, debug = true)
   }
 
-  ignore("map simple updates") { //TODO fails with `sbt test
+  test("map simple updates") {
     val k = UnInterpreted("K")
     val v = UnInterpreted("V")
     val k1 = Variable("k1").setType(k)

@@ -378,7 +378,7 @@ class LvExampleNoMailbox extends FunSuite {
       frame,
       Not(prime(invariant1c))
     )
-    assertUnsat(fs, conf())
+    assertUnsat(fs, reducer = conf(), to = 60000)
     //assertUnsat(fs, onlyAxioms = true)
   }
 

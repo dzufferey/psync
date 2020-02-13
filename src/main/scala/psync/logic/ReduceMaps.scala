@@ -7,7 +7,7 @@ import dzufferey.utils.LogLevel._
 
 object ReduceMaps {
 
-  val termGen = {
+  def termGen = {
     val kType = TypeVariable("K")
     val vType = TypeVariable("V")
     val v = Variable("m").setType(FMap(kType, vType))

@@ -19,7 +19,7 @@ install:
   - ./.ci/install_z3.sh
 
 env:
-  - PATH="$HOME/z3/z3-4.8.5-x64-ubuntu-16.04/bin/:$PATH"
+  - PATH="$HOME/z3/z3-4.8.7-x64-ubuntu-16.04/bin/:$PATH"
 
 
 before_script:
