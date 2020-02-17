@@ -401,8 +401,8 @@ class LvExampleNoMailbox extends FunSuite {
       round1,
       Not(prime(invariant1))
     )
-    //assertUnsat(fs, reducer = conf(), dnfExpansion = true)
-    //assertUnsat(fs, onlyAxioms = true, debug = true, fname = Some("i1r1.smt2"))
+    //assertUnsat(fs, reducer = conf(), dnfExpansion = true, to = 600000)
+    //assertUnsat(fs, onlyAxioms = true, debug = true, to = 3600000, fname = Some("i1r1.smt2"))
   }
 
   ignore("invariant 1 is inductive at round 2") {

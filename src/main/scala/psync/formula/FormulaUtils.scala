@@ -276,7 +276,9 @@ object FormulaUtils {
     collect(Set[(Symbol, List[Type])](), process, f)
   }
 
-  val symbolExcludedFromGroundTerm = Set[Symbol](And,Or,Not,Implies,Eq,Neq)
+  @inline final def symbolExcludedFromGroundTerm(s: Symbol) = {
+    s == And || s == Or || s == Not || s == Implies || s == Eq || s == Neq
+  }
 
   def exists(p: Formula => Boolean, f: Formula): Boolean = {
     if (p(f)) true

@@ -72,11 +72,11 @@ class CLSuite extends FunSuite {
 
   test("sat 1"){
     val fs = List(
-      Exists(List(i), Eq(data(i),Literal(2))), 
-      Not(Eq(Cardinality(Comprehension(List(i), Eq(data(i), Literal(3)))), nOver2)),
-      ForAll(List(i), Or(Leq(data(p1), data(i)), Eq(data(p1),Literal(3)))), 
-      Not(Exists(List(i), Eq(data(i), Literal(1)))), 
-      Or(ForAll(List(i), Eq(data(i), Literal(1))), Eq(data(p),Literal(3)))
+      Exists(List(i), data(i) === 2), 
+      Comprehension(List(i), data(i) === 3).card !== nOver2,
+      ForAll(List(i), Or(data(p1) ≤ data(i), data(p1) === 3)), 
+      Not(Exists(List(i), data(i) === 1)), 
+      Or(ForAll(List(i), data(i) === 1), data(p) === 3)
     )
     assertSat(fs)
     assertSat(fs, c2e2)
@@ -85,14 +85,14 @@ class CLSuite extends FunSuite {
 
   test("Size of comprehension bigger than two"){
     val fs = List(
-      Eq(a, Comprehension(List(i), ForAll(List(j), Implies(In(j,ho(i)), Lt(data(i), data(j)))))),
-      Geq(Cardinality(a), Literal(2)),
-      ForAll(List(i), SubsetEq(ho(i),a)),
-      ForAll(List(i), Implies(In(i,a), ForAll(List(j), Implies(In(j,a), In(i,ho(j)))))),
-      ForAll(List(i, j), Implies(Eq(i,j), (Eq(data(i),data(j))))),
-      ForAll(List(i, j), Eq(data(i), data(j))),
-      ForAll(List(i), Implies(In(i,ho(p1)), Lt(data(p1), data(i)))),
-      ForAll(List(i), Implies(In(i,ho(p2)), Lt(data(p2), data(i))))
+      a === Comprehension(List(i), ForAll(List(j), Implies(j ∈ ho(i), data(i) < data(j)))),
+      a.card ≥ 2,
+      ForAll(List(i), ho(i) ⊆ a),
+      ForAll(List(i), Implies(i ∈ a, ForAll(List(j), Implies(j ∈ a, i ∈ ho(j))))),
+      ForAll(List(i, j), Implies(i === j, data(i) === data(j))),
+      ForAll(List(i, j), data(i) === data(j)),
+      ForAll(List(i), Implies(i ∈ ho(p1), data(p1) < data(i))),
+      ForAll(List(i), Implies(i ∈ ho(p2), data(p2) < data(i)))
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
@@ -101,9 +101,9 @@ class CLSuite extends FunSuite {
 
   test("Comprehension introduces new nodes"){
     val fs = List(
-      Eq(a, Comprehension(List(i), Gt(Cardinality(ho(p)), Literal(1)))),
-      Geq(Cardinality(a), Literal(1)),
-      Eq(n, Literal(1))
+      a === Comprehension(List(i), ho(p).card > 1),
+      a.card ≥ 1,
+      n === 1
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
@@ -112,10 +112,10 @@ class CLSuite extends FunSuite {
 
   test("BAPA 0") {
     val fs = List(
-      Eq(Cardinality(a), n),
-      Eq(Cardinality(b), n),
-      Eq(c, Intersection(a,b)),
-      Eq(Cardinality(c), Literal(0))
+      a.card === n,
+      b.card === n,
+      c === (a ∩ b),
+      c.card === 0
     )
     assertUnsat(fs)
     assertUnsat(fs, onlyAxioms = true)
@@ -124,9 +124,9 @@ class CLSuite extends FunSuite {
   //from https://github.com/psuter/bapa-z3/blob/master/src/main/scala/bapa/Main.scala
   test("BAPA 1") {
     val fs = List(
-      Not(Eq(a,b)),
-      SubsetEq(a,b),
-      Lt(Cardinality(b), Cardinality(Union(a, b)))
+      a !== b,
+      a ⊆ b,
+      b.card < (a ∪ b).card
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
@@ -138,14 +138,14 @@ class CLSuite extends FunSuite {
   val singleton = UnInterpretedFct("singleton",Some(pid ~> FSet(pid)))
     val fs = List(
       ForAll(List(i), And(
-        singleton(i) === Comprehension(List(j), Eq(i,j)),
+        singleton(i) === Comprehension(List(j), i === j),
         singleton(i).card === 1
       )),
       a === singleton(p1),
       b === singleton(p2),
-      Not(Eq(a,b)),
-      SubsetEq(b,c),
-      Lt(Cardinality(c), Cardinality(a))
+      a !== b,
+      b ⊆ c,
+      c.card < a.card
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
@@ -154,8 +154,20 @@ class CLSuite extends FunSuite {
 
   test("universe cardinality ⇒ ∀ (1)") {
     val fs = List(
-      Eq(Cardinality(Comprehension(List(i), Eq(data(i), Literal(1)))), n),
-      ForAll(List(i), Eq(data(i), Literal(0)))
+      Comprehension(List(i), data(i) === 1).card === n,
+      ForAll(List(i), data(i) === 0)
+    )
+    assertUnsat(fs)
+    assertUnsat(fs, c2e2)
+    assertUnsat(fs, onlyAxioms = true)
+  }
+
+  test("universe cardinality ⇒ ∀ (1) (EPR)") {
+    val data = UnInterpretedFct("data",Some(pid ~> Int ~> Bool))
+    val fs = List(
+      ForAll(List(x,y,i), Implies(data(i,x) ∧ data(i,y), x === y)),
+      Comprehension(List(i), data(i, 1)).card === n,
+      ForAll(List(i), data(i, 0))
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
@@ -164,8 +176,20 @@ class CLSuite extends FunSuite {
 
   test("universe cardinality ⇒ ∀ (2)") {
     val fs = List(
-      Eq(Cardinality(Comprehension(List(i), Eq(data(i), Literal(1)))), n),
-      Eq(data(j), Literal(0))
+      Comprehension(List(i), data(i) === 1).card === n,
+      data(j) === 0
+    )
+    assertUnsat(fs)
+    assertUnsat(fs, c2e2)
+    assertUnsat(fs, onlyAxioms = true)
+  }
+
+  test("universe cardinality ⇒ ∀ (2) (EPR)") {
+    val data = UnInterpretedFct("data",Some(pid ~> Int ~> Bool))
+    val fs = List(
+      ForAll(List(x,y,i), Implies(data(i,x) ∧ data(i,y), x === y)),
+      Comprehension(List(i), data(i, 1)).card === n,
+      data(j, 0)
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
@@ -174,11 +198,25 @@ class CLSuite extends FunSuite {
 
   test("cardinality two comprehensions intersect"){
     val fs = List(
-       Eq(a, Comprehension(List(i), Eq(data(i), Literal(1)))),
-       Eq(b, Comprehension(List(i), Eq(data(i), Literal(0)))),
-       Gt(Cardinality(a), nOver2),
-       Gt(Cardinality(b), nOver2)
-    )        
+      a === Comprehension(List(i), data(i) === 1),
+      b === Comprehension(List(i), data(i) === 0),
+      a.card > nOver2,
+      b.card > nOver2
+    )
+    assertUnsat(fs)
+    assertUnsat(fs, c2e2)
+    assertUnsat(fs, onlyAxioms = true)
+  }
+  
+  test("cardinality two comprehensions intersect (EPR)"){
+    val data = UnInterpretedFct("data",Some(pid ~> Int ~> Bool))
+    val fs = List(
+      ForAll(List(x,y,i), Implies(data(i,x) ∧ data(i,y), x === y)),
+      a === Comprehension(List(i), data(i, 1)),
+      b === Comprehension(List(i), data(i, 0)),
+      a.card > nOver2,
+      b.card > nOver2
+    )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
     assertUnsat(fs, onlyAxioms = true)
@@ -186,14 +224,31 @@ class CLSuite extends FunSuite {
 
   test("cardinality three comprehensions"){
     val fs = List(
-      Eq(a, Comprehension(List(i), Eq(data(i), Literal(1)))),
-      Eq(b, Comprehension(List(i), Eq(data(i), Literal(0)))),
-      Eq(c, Comprehension(List(i), Eq(data(i), x))),
-      Gt(Cardinality(a), nOver2),
-      Lt(Cardinality(b), nOver2),
-      Gt(Cardinality(b), nOver3),
-      Gt(Cardinality(c), twonOver3)
-    )        
+      a === Comprehension(List(i), data(i) === 1),
+      b === Comprehension(List(i), data(i) === 0),
+      c === Comprehension(List(i), data(i) === x),
+      a.card > nOver2,
+      b.card < nOver2,
+      b.card > nOver3,
+      c.card > twonOver3
+    )
+    assertUnsat(fs)
+    assertUnsat(fs, c2e2)
+    assertUnsat(fs, onlyAxioms = true)
+  }
+  
+  test("cardinality three comprehensions (EPR)"){
+    val data = UnInterpretedFct("data",Some(pid ~> Int ~> Bool))
+    val fs = List(
+      ForAll(List(x,y,i), Implies(data(i,x) ∧ data(i,y), x === y)),
+      a === Comprehension(List(i), data(i, 1)),
+      b === Comprehension(List(i), data(i, 0)),
+      c === Comprehension(List(i), data(i, x)),
+      a.card > nOver2,
+      b.card < nOver2,
+      b.card > nOver3,
+      c.card > twonOver3
+    )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
     assertUnsat(fs, onlyAxioms = true)
@@ -201,10 +256,23 @@ class CLSuite extends FunSuite {
 
   test("process j and one comprehension"){
     val fs = List(
-      Eq(a, Comprehension(List(i), Eq(data(i), Literal(1)))),
-      Eq(data(j), Literal(2)),
-      Eq(Cardinality(a),n)
-    )        
+      a === Comprehension(List(i), data(i) === 1),
+      data(j) === 2,
+      a.card === n
+    )
+    assertUnsat(fs)
+    assertUnsat(fs, c2e2)
+    assertUnsat(fs, onlyAxioms = true)
+  }
+
+  test("process j and one comprehension (EPR)"){
+    val data = UnInterpretedFct("data",Some(pid ~> Int ~> Bool))
+    val fs = List(
+      ForAll(List(x,y,i), Implies(data(i,x) ∧ data(i,y), x === y)),
+      a === Comprehension(List(i), data(i, 1)),
+      data(j, 2),
+      a.card === n
+    )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
     assertUnsat(fs, onlyAxioms = true)
@@ -212,9 +280,9 @@ class CLSuite extends FunSuite {
 
   test("HO test: universals and comprehension"){
     val fs = List(
-      Eq(a, Comprehension(List(i), Gt(Cardinality(ho(i)), nOver2))),
-      Eq(Cardinality(a),n),
-      ForAll(List(i), Lt(Cardinality(ho(i)), Literal(1)))
+      a === Comprehension(List(i), ho(i).card > nOver2),
+      a.card === n,
+      ForAll(List(i), ho(i).card < 1)
     )      
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
@@ -223,23 +291,36 @@ class CLSuite extends FunSuite {
 
   test("In Kernel and not in its HO"){
     val fs = List(
-      Eq(a, Comprehension(List(i), Not(In(i, ho(i))))),
-      Eq(k, Comprehension(List(i), ForAll(List(j), In(i,ho(j))))),
-      Gt(Cardinality(a), nOver2),
-      Gt(Cardinality(k), nOver2)
+      a === Comprehension(List(i), i ∉ ho(i)),
+      k === Comprehension(List(i), ForAll(List(j), i ∈ ho(j))),
+      a.card > nOver2,
+      k.card > nOver2
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
-    //assertUnsat(fs, onlyAxioms = true) //TODO fails with `sbt test`
+    //assertUnsat(fs, onlyAxioms = true) //TODO TO
+  }
+  
+  test("In Kernel and not in its HO (EPR)"){
+    val ho = UnInterpretedFct("HO",Some(pid ~> pid ~> Bool))
+    val fs = List(
+      a === Comprehension(List(i), Not(ho(i,i))),
+      k === Comprehension(List(i), ForAll(List(j), ho(j,i))),
+      a.card > nOver2,
+      k.card > nOver2
+    )
+    assertUnsat(fs)
+    assertUnsat(fs, c2e2)
+    assertUnsat(fs, onlyAxioms = true)
   }
 
   test("Instantiate univ on set intersection"){
     val fs = List(
-      Eq(a, Comprehension(List(i), Gt(data(i), Literal(1)))),
-      Eq(b, Comprehension(List(i), Lt(data(i), Literal(3)))),
-      Gt(Cardinality(a),nOver2),
-      Gt(Cardinality(b),nOver2),
-      ForAll(List(i), Not(Eq(data(i), Literal(2))))
+      a === Comprehension(List(i), data(i) > 1),
+      b === Comprehension(List(i), data(i) < 3),
+      a.card > nOver2,
+      b.card > nOver2,
+      ForAll(List(i), data(i) !== 2)
     )
     assertUnsat(fs)
     assertUnsat(fs, c2e2)
@@ -248,7 +329,7 @@ class CLSuite extends FunSuite {
 
   test("n = 0") {
     val fs = List(
-      Eq(n, Literal(0))
+      n === 0
     )
     assertUnsat(fs)
     assertUnsat(fs, onlyAxioms = true)
@@ -267,10 +348,10 @@ class CLSuite extends FunSuite {
     val none = FNone().setType(FOption(pid))
     val some = FSome(p1)
     val fs = List(
-      Or(Eq(x, some), Eq(x, none)),
+      Or(x === some, x === none),
       Implies(
         IsDefined(x),
-        Eq(Get(x), p1)
+        Get(x) === p1
       )
     )
     assertSat(fs)
@@ -283,11 +364,11 @@ class CLSuite extends FunSuite {
     val none = FNone().setType(FOption(pid))
     val some = FSome(p1)
     val fs = List(
-      Neq(p1, p2),
-      Eq(x, some),
+      p1 !== p2,
+      x === some,
       Implies(
         IsDefined(x),
-        Eq(Get(x), p2)
+        Get(x) === p2
       )
     )
     assertUnsat(fs)
@@ -327,12 +408,12 @@ class CLSuite extends FunSuite {
     val d1 = Variable("d1").setType(Int)
     val d2 = Variable("d2").setType(Int)
     val fs = List(
-      Eq(a, Comprehension(List(i), Geq(ts(i), Variable("tA")))),
-      Eq(b, Comprehension(List(i), Geq(ts(i), Variable("tB")))),
+      a === Comprehension(List(i), ts(i) ≥ Variable("tA")),
+      b === Comprehension(List(i), ts(i) ≥ Variable("tB")),
       ForAll(List(i), (i ∈ a) ==> (data(i) === d1)),
       ForAll(List(i), (i ∈ b) ==> (data(i) === d2)),
-      Gt(Cardinality(a), nOver2),
-      Gt(Cardinality(b), nOver2),
+      a.card > nOver2,
+      b.card > nOver2,
       d1 !== d2
     )
     assertUnsat(fs)

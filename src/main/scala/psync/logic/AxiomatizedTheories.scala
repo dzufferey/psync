@@ -10,7 +10,8 @@ trait AxiomatizedTheory {
 }
 
 object AxiomatizedTheory extends AxiomatizedTheory {
-  val theories = List(
+
+  def theories = List(
     OptionAxioms,
     TupleAxioms,
     SetOperationsAxioms,

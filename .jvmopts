@@ -1,5 +1,5 @@
--Xms2G
--Xmx2G
+-Xms3G
+-Xmx3G
 -Xss6M
 -XX:ReservedCodeCacheSize=128m
 -XX:MaxMetaspaceSize=256m

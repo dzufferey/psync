@@ -34,9 +34,9 @@ class IncrementalGenerator( axioms: Iterable[Formula],
       val t = tactic.next
       val result = generate(t)
       tactic.generatorResult(result)
+      buffer ++= result
     }
 
-    buffer ++= tactic.result
     tactic.clear
 
     if (local) buffer ++= locallySaturate

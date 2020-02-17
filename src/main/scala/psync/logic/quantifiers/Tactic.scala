@@ -12,6 +12,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.PriorityQueue
 import scala.collection.mutable.ListBuffer
 
+/** Tactics guide the quantifier instantiation. */
 trait Tactic {
 
   def init(cc: CongruenceClosure): Unit
@@ -22,11 +23,8 @@ trait Tactic {
 
   def next: Formula
 
+  /* add the result from instantiating with `next` back into the tactic */
   def generatorResult(f: Iterable[Formula]): Unit
-
-  def result: Iterable[Formula]
-
-  def leftOut: Iterable[Formula]
 
 }
 
@@ -36,7 +34,6 @@ abstract class TacticCommon(depth: Map[Type,Int]) extends Tactic {
   protected var queue = PriorityQueue[(Int,Formula)]()
   protected var done = MSet[Formula]()
   protected var currentDepth = 0
-  protected val buffer = ListBuffer[Formula]()
   
   protected def isDone(t: Formula) = done(t) || done(cc.repr(t))
 
@@ -52,7 +49,6 @@ abstract class TacticCommon(depth: Map[Type,Int]) extends Tactic {
   def clear: Unit = {
     queue.clear
     done.clear
-    buffer.clear
     currentDepth = 0
     cc = null
   }
@@ -81,8 +77,6 @@ abstract class TacticCommon(depth: Map[Type,Int]) extends Tactic {
     cc = _cc
     for (gt <- cc.groundTerms) enqueue(0, gt)
   }
-  
-  def result: Iterable[Formula] = buffer.toList
 
 }
 
@@ -95,7 +89,6 @@ class Eager(depth: Map[Type,Int]) extends TacticCommon(depth) {
   def this(depth: Int) = this(Map[Type,Int]().withDefaultValue(depth))
 
   def generatorResult(fs: Iterable[Formula]): Unit = {
-    buffer.appendAll(fs)
     val newDepth = currentDepth + 1
     fs.foreach( f => {
       if (newDepth < depth(f.tpe)) {
@@ -107,9 +100,27 @@ class Eager(depth: Map[Type,Int]) extends TacticCommon(depth) {
     fs.foreach(cc.addConstraints)
   }
 
-  def leftOut: Iterable[Formula] = Nil
+}
+
+/* TODO depth for terms under given function symbols
+class UnderSymbol(depth: Map[Symbol,Int]) extends Tactic {
+
+  override def toString = "UnderSymbol(" + depth + ")"
+
+  ...
 
 }
+*/
+
+/* TODO depth for terms under given function symbols
+class ByName(depth: Map[String,Int]) extends Tactic {
+
+  override def toString = "ByName(" + depth + ")"
+
+  ...
+
+}
+*/
 
 class Sequence(ts: Tactic*) extends Tactic {
 
@@ -152,9 +163,5 @@ class Sequence(ts: Tactic*) extends Tactic {
   def generatorResult(f: Iterable[Formula]): Unit = {
     ts(index).generatorResult(f)
   }
-
-  def result = ts.flatMap(_.result)
-
-  def leftOut = ts.flatMap(_.leftOut)
 
 }
