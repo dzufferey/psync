@@ -2,9 +2,9 @@ package psync.macros
 
 import psync.formula._
 
-import org.scalatest._
+import org.scalatest.funsuite._
 
-class FormulaExtractorSuite extends FunSuite {
+class FormulaExtractorSuite extends AnyFunSuite {
 
   test("Int Literals") {
     Macros.asFormula( 123 ) match {

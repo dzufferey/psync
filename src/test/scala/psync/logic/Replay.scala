@@ -5,14 +5,14 @@ import psync.formula.InlineOps._
 import dzufferey.utils.Logger
 import TestCommon._
 
-import org.scalatest._
+import org.scalatest.funsuite._
 
 
 
 
 //port of the example from the vmcai paper.
 //they are more readable than dumping the VCs from the code
-class Replay extends FunSuite {
+class Replay extends AnyFunSuite {
 
 
   val nOver2 = Divides(n, Literal(2))

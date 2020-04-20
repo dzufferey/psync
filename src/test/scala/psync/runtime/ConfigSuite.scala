@@ -1,9 +1,9 @@
 package psync.runtime
 
-import org.scalatest._
+import org.scalatest.funsuite._
 import psync._
 
-class ConfigSuite extends FunSuite {
+class ConfigSuite extends AnyFunSuite {
 
   val resources = "src/test/resources/"
 

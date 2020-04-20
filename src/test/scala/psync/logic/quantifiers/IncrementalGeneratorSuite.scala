@@ -4,9 +4,9 @@ import psync.formula._
 import psync.formula.Common._
 import psync.logic._
 
-import org.scalatest._
+import org.scalatest.funsuite._
 
-class IncrementalGeneratorSuite extends FunSuite {
+class IncrementalGeneratorSuite extends AnyFunSuite {
 
   implicit val namer = new dzufferey.utils.Namer
 

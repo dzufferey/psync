@@ -3,9 +3,9 @@ package psync.logic.quantifiers
 import psync.logic._
 import psync.formula._
 
-import org.scalatest._
+import org.scalatest.funsuite._
 
-class QuantifiersSuite extends FunSuite {
+class QuantifiersSuite extends AnyFunSuite {
 
   test("isEPR 1") {
     import psync.formula.Common._

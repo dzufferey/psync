@@ -1,7 +1,7 @@
 package psync.verification
 
 import psync.formula._
-import org.scalatest._
+import org.scalatest.funsuite._
 import scala.reflect.runtime.{universe => ru}
 
 class A1 {
@@ -15,7 +15,7 @@ class A1 {
 
 }
 
-class AnnotSuite extends FunSuite {
+class AnnotSuite extends AnyFunSuite {
 
   val reqTpe = ru.typeOf[requires]
   val ensTpe = ru.typeOf[ensures]

@@ -5,10 +5,10 @@ import psync.formula.InlineOps._
 import dzufferey.utils.Logger
 import TestCommon._
 
-import org.scalatest._
+import org.scalatest.funsuite._
 
 //an example about memory allocation from Shaz Qadeer
-class ShazExample extends FunSuite {
+class ShazExample extends AnyFunSuite {
 
   val memLo = Variable("memLo").setType(Int)
   val memHi = Variable("memHi").setType(Int)

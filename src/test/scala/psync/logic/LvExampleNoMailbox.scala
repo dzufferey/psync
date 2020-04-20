@@ -4,11 +4,11 @@ import psync.formula._
 import psync.formula.InlineOps._
 import TestCommon._
 
-import org.scalatest._
+import org.scalatest.funsuite._
 
 //port of the example from the vmcai paper.
 //they are more readable than dumping the VCs from the code
-class LvExampleNoMailbox extends FunSuite {
+class LvExampleNoMailbox extends AnyFunSuite {
 
   val pld = UnInterpreted("payload")
   //a special type for the phase (try to reduce the blow-up)

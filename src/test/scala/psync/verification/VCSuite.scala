@@ -7,9 +7,9 @@ import psync.logic.TestCommon._
 import psync.logic.quantifiers.Eager
 import dzufferey.utils.Logger
 
-import org.scalatest._
+import org.scalatest.funsuite._
 
-class VCSuite extends FunSuite {
+class VCSuite extends AnyFunSuite {
 
   test("Tpc") {
     import psync.logic.TpcExample._

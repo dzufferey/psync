@@ -1,10 +1,10 @@
 package psync.formula
 
-import org.scalatest._
+import org.scalatest.funsuite._
 
 import Typer._
 
-class TyperSuite extends FunSuite {
+class TyperSuite extends AnyFunSuite {
 
   def tryType(f: Formula, t: Option[Type]): Unit = {
     Typer(f) match {

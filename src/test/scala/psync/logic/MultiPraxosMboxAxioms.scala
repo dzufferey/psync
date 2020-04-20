@@ -4,9 +4,9 @@ import psync.formula._
 import psync.formula.InlineOps._
 import TestCommon._
 
-import org.scalatest._
+import org.scalatest.funsuite._
 
-class MultiPraxosMboxAxioms extends FunSuite {
+class MultiPraxosMboxAxioms extends AnyFunSuite {
 
   val p = Variable("p").setType(pid)
   val q = Variable("q").setType(pid)

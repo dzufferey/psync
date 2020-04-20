@@ -5,9 +5,9 @@ import psync.formula.InlineOps._
 import dzufferey.utils.Logger
 import TestCommon._
 
-import org.scalatest._
+import org.scalatest.funsuite._
 
-class VsExample extends FunSuite {
+class VsExample extends AnyFunSuite {
 
   // Defs
 

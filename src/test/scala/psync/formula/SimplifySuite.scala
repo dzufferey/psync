@@ -1,8 +1,8 @@
 package psync.formula
 
-import org.scalatest._
+import org.scalatest.funsuite._
 
-class SimplifySuite extends FunSuite {
+class SimplifySuite extends AnyFunSuite {
 
   //TODO test idempotence of boundVarUnique
   

@@ -1,9 +1,9 @@
 package psync.utils
 
 import psync.Time
-import org.scalatest._
+import org.scalatest.funsuite._
 
-class LookaheadCounterTests extends FunSuite {
+class LookaheadCounterTests extends AnyFunSuite {
   
   test("creation") {
     assertThrows[AssertionError] { new LookaheadCounter(-1) }

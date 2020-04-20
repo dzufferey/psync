@@ -1,8 +1,8 @@
 package psync.utils
 
-import org.scalatest._
+import org.scalatest.funsuite._
 
-class LongBitSetTests extends FunSuite {
+class LongBitSetTests extends AnyFunSuite {
   
   test("full/empty") {
     for (i <- 0 until 64) {

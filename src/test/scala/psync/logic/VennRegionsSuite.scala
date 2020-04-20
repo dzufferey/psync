@@ -2,9 +2,9 @@ package psync.logic
 
 import psync.formula._
 
-import org.scalatest._
+import org.scalatest.funsuite._
 
-class VennRegionsSuite extends FunSuite {
+class VennRegionsSuite extends AnyFunSuite {
   
   //TODO test the constraints
   //TODO comprehensions to test the membership axioms

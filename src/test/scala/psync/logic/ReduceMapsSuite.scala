@@ -4,9 +4,9 @@ import psync.formula._
 import dzufferey.utils.Logger
 import TestCommon._
 
-import org.scalatest._
+import org.scalatest.funsuite._
 
-class ReduceMapsSuite extends FunSuite {
+class ReduceMapsSuite extends AnyFunSuite {
 
   //TODO How to specify maps by Comp
   

@@ -4,7 +4,7 @@ import psync.formula._
 import psync.formula.InlineOps._
 import TestCommon._
 
-import org.scalatest._
+import org.scalatest.funsuite._
 
 object TpcExample {
   
@@ -125,7 +125,7 @@ object TpcExample {
   val invariant1P = prime(invariant1)
 }
 
-class TpcExample extends FunSuite {
+class TpcExample extends AnyFunSuite {
 
   import TpcExample._
 

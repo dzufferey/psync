@@ -5,9 +5,9 @@ import psync.formula.InlineOps._
 import dzufferey.utils.Logger
 import TestCommon._
 
-import org.scalatest._
+import org.scalatest.funsuite._
 
-class CLSuite extends FunSuite {
+class CLSuite extends AnyFunSuite {
 
   val p = Variable("p").setType(pid)
   val p1 = Variable("p1").setType(pid)

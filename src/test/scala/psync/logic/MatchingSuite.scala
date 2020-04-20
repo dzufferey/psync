@@ -3,9 +3,9 @@ package psync.logic
 import psync.formula._
 import psync.formula.Common._
 
-import org.scalatest._
+import org.scalatest.funsuite._
 
-class MatchingSuite extends FunSuite {
+class MatchingSuite extends AnyFunSuite {
   
   implicit val namer = new dzufferey.utils.Namer
 

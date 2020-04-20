@@ -1,10 +1,10 @@
 package psync.formula
 
-import org.scalatest._
+import org.scalatest.funsuite._
 import Common._
 import FormulaUtils._
 
-class FormulaUtilsSuite extends FunSuite {
+class FormulaUtilsSuite extends AnyFunSuite {
 
   val a = Variable("a").setType(Bool)
   val x = Variable("x").setType(Int)

@@ -1,33 +1,32 @@
 package psync
 
-import org.scalatest._
-import org.scalatestplus.scalacheck._
+import org.scalatest.funsuite.AnyFunSuite
 
-class ProgressTests extends FunSuite with ScalaCheckPropertyChecks {
+import org.scalacheck.Properties
+import org.scalacheck.Prop.forAll
 
-  test("timeout id") {
-    forAll { (l: Long) =>
-      assert(!Progress.timeoutInBounds(l) || Progress.timeout(l).timeout == l)
-    }
+object ProgressProps extends Properties("Progress TO") {
+
+  
+  property("timeout id") = forAll { (l: Long) =>
+    !Progress.timeoutInBounds(l) || Progress.timeout(l).timeout == l
   }
 
-  test("strict timeout id") {
-    forAll { (l: Long) =>
-      assert(!Progress.timeoutInBounds(l) || Progress.strictTimeout(l).timeout == l)
-    }
+  property("strict timeout id") = forAll { (l: Long) =>
+    !Progress.timeoutInBounds(l) || Progress.strictTimeout(l).timeout == l
   }
   
-  test("timeout strictness") {
-    forAll { (l: Long) =>
-      assert(!Progress.timeout(l).isStrict)
-    }
+  property("timeout strictness") = forAll { (l: Long) =>
+    !Progress.timeout(l).isStrict
   }
   
-  test("strict timeout strictness") {
-    forAll { (l: Long) =>
-      assert(Progress.strictTimeout(l).isStrict)
-    }
+  property("strict timeout strictness") = forAll { (l: Long) =>
+    Progress.strictTimeout(l).isStrict
   }
+
+}
+
+class ProgressTests extends AnyFunSuite {
 
   test("sanity checks for bounds") {
     assert(Progress.timeoutInBounds(0))
