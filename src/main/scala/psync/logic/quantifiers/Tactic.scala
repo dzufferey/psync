@@ -6,6 +6,7 @@ import psync.logic._
 
 import dzufferey.utils.Logger
 import dzufferey.utils.LogLevel._
+import dzufferey.utils.Namer
 import scala.collection.mutable.{Map => MMap}
 import scala.collection.mutable.{Set => MSet}
 import scala.collection.mutable.ArrayBuffer
@@ -28,7 +29,7 @@ trait Tactic {
 
 }
 
-abstract class TacticCommon(depth: Map[Type,Int]) extends Tactic {
+abstract class TacticCommon(depth: Formula => Int) extends Tactic {
   
   protected var cc: CongruenceClosure = null
   protected var queue = PriorityQueue[(Int,Formula)]()
@@ -38,7 +39,7 @@ abstract class TacticCommon(depth: Map[Type,Int]) extends Tactic {
   protected def isDone(t: Formula) = done(t) || done(cc.repr(t))
 
   protected def enqueue(d: Int, t: Formula): Unit = {
-    if (d < depth(t.tpe) && !isDone(t)) {
+    if (d < depth(t) && !isDone(t)) {
       Logger("Tactic", Debug, "depth "+d+": " + t)
       queue.enqueue( -d -> t )
     }/* else {
@@ -78,20 +79,10 @@ abstract class TacticCommon(depth: Map[Type,Int]) extends Tactic {
     for (gt <- cc.groundTerms) enqueue(0, gt)
   }
 
-}
-
-class Eager(depth: Map[Type,Int]) extends TacticCommon(depth) {
-
-  override def toString = "Eager(" + depth + ")"
-
-  def this(depth: Option[Int]) = this(Map[Type,Int]().withDefaultValue(depth.getOrElse(1000000)))
-
-  def this(depth: Int) = this(Map[Type,Int]().withDefaultValue(depth))
-
   def generatorResult(fs: Iterable[Formula]): Unit = {
     val newDepth = currentDepth + 1
     fs.foreach( f => {
-      if (newDepth < depth(f.tpe)) {
+      if (newDepth < depth(f)) {
         val ts = FormulaUtils.collectGroundTerms(f)
         val ts2 = ts.filter(t => !cc.contains(t))
         ts2.foreach(enqueue(newDepth, _))
@@ -102,20 +93,34 @@ class Eager(depth: Map[Type,Int]) extends TacticCommon(depth) {
 
 }
 
+class Eager(depth: Map[Type,Int]) extends TacticCommon((t: Formula) => depth(t.tpe)) {
+
+  override def toString = "Eager(" + depth + ")"
+
+  def this(depth: Option[Int]) = this(Map[Type,Int]().withDefaultValue(depth.getOrElse(1000000)))
+
+  def this(depth: Int) = this(Map[Type,Int]().withDefaultValue(depth))
+
+}
+
+object ByName {
+  def apply(depth: Map[String,Int], term: Formula): Int = {
+    // depth.getOrElse(Namer.getPrefixAndVersion(t.name)._1, 0)
+    ???
+  }
+}
+
+// depth for terms with a given name (prefix)
+class ByName(depth: Map[String,Int]) extends TacticCommon((t: Formula) => ByName(depth, t) ) {
+
+  override def toString = "ByName(" + depth + ")"
+
+}
+
 /* TODO depth for terms under given function symbols
 class UnderSymbol(depth: Map[Symbol,Int]) extends Tactic {
 
   override def toString = "UnderSymbol(" + depth + ")"
-
-  ...
-
-}
-*/
-
-/* TODO depth for terms under given function symbols
-class ByName(depth: Map[String,Int]) extends Tactic {
-
-  override def toString = "ByName(" + depth + ")"
 
   ...
 
