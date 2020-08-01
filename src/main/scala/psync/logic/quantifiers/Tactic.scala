@@ -104,9 +104,23 @@ class Eager(depth: Map[Type,Int]) extends TacticCommon((t: Formula) => depth(t.t
 }
 
 object ByName {
+
+  //TODO instantiate what variable with what term rather than just term ?
+
+  def getName(term: Formula): String = {
+    // TODO get the name for 'term'
+    val nameWithSuffix = term match {
+        case Variable(name) => name
+        case Application(symbol, args) => symbol.toString
+        case _ => "__no_name__"
+    }
+    val name = Namer.getPrefixAndVersion(nameWithSuffix)._1
+    name
+  }
+
   def apply(depth: Map[String,Int], term: Formula): Int = {
-    // depth.getOrElse(Namer.getPrefixAndVersion(t.name)._1, 0)
-    ???
+    val name = getName(term)
+    depth.getOrElse(name, 0)
   }
 }
 

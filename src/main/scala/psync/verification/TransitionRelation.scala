@@ -152,6 +152,25 @@ class RoundTransitionRelation(val send: Formula,
 
 }
 
+class EventRoundTransitionRelation(val init: Formula,
+                                   val send: Formula,
+                                   val mailboxSend: Variable, //variable for the mailbox
+                                   val receive: Formula,
+                                   val messageRecv: Variable, //variable for the message payload
+                                   val senderRecv: Variable,  //variable for the message sender
+                                   val finish: Formula,
+                                   //
+                                   val old: List[Variable],
+                                   val local: List[Variable],
+                                   val primed: List[Variable]) {
+
+  // rather than the one step TR, we need to do a few steps:
+  // - init: given state algo invariant and the init formula, we need to check the round invariant
+  // - receive: given the round invariant and the send, shows the round invariant continues to hold
+  // - finish: given the round invariant and the progress condition, show the algo invariant holds
+  ???
+
+}
 
 //this is the single process version
 class TransitionRelation(_tr: Formula,

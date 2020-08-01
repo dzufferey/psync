@@ -4,7 +4,7 @@ set -x
 
 # example url
 # https://github.com/Z3Prover/z3/releases/download/z3-4.8.4/z3-4.8.4.d6df51951f4c-x64-ubuntu-16.04.zip
-version=4.8.7
+version=4.8.8
 #checksum=d6df51951f4c
 
 if [ ! -f "$HOME/z3/z3-${version}-x64-ubuntu-16.04/bin/z3" ]; then
