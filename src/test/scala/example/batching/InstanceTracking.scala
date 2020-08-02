@@ -42,20 +42,20 @@ class InstanceTracking {
     pending -= inst
     running += inst
     updateStarted(inst)
-    assertTrackingInvariant
+    //assertTrackingInvariant
   }
 
   def stop(inst: Short): Unit = {
     assert(running(inst), "not running " + inst + "\n" + toString)
     running -= inst
-    assertTrackingInvariant
+    //assertTrackingInvariant
   }
 
   def stopAndUpdateStarted(inst: Short): Unit = {
     updateStarted(inst)
     running -= inst
     pending -= inst
-    assertTrackingInvariant
+    //assertTrackingInvariant
   }
 
   def isRunning(inst: Short) = running contains inst

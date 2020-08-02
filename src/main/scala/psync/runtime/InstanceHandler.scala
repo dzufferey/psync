@@ -51,18 +51,18 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected var self: ProcessID = new ProcessID(-1)
   /** catch-up after nbrByzantine+1 messages have been received */
   protected var nbrByzantine = 0
-  
+
   private final val block = Long.MinValue
   protected var timeout = alg.options.timeout
   protected var roundStart: Long = 0
   protected var strict = false
-  
+
   protected var currentRound: Time = new Time(0)
   protected var nextRound: Time = new Time(0)
 
   /** keep track of the processes which have already send for the round */
   protected var from = LongBitSet.empty
-  
+
   /** keep the max round seen for each process (used for deciding when to catch-up) */
   protected var maxRnd: Array[Time] = Array(new Time(0))
   /** Since we might block on the round, we buffer messages that will be delivered later. */

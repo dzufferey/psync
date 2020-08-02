@@ -19,6 +19,7 @@ class BatchingClient(val options: BatchingClient.type)
     extends DecisionLog[Array[Byte]]
     with DecisionProcessor
     with RequestProcessor
+    with Recovery
     with RateLimiting
 {
   import BatchingClient.{AskDecision,Decision,Late,ForwardedBatch}
@@ -29,7 +30,7 @@ class BatchingClient(val options: BatchingClient.type)
   var nbr = 0L
 
   // concurrency control
-  val lck = new ReentrantLock 
+  val lck = new ReentrantLock
   val monitor = lck.newCondition()
   val isLate = new AtomicBoolean(false)
 
@@ -64,9 +65,8 @@ class BatchingClient(val options: BatchingClient.type)
     tracker.start(inst)
     alg.startInstance(inst, io, msgs)
   }
-  
-  def defaultHandler(msg: Message): Unit = {
 
+  def defaultHandler(msg: Message): Unit = {
 
     val flag = msg.tag.flag
     Logger("BatchingClient", Debug, s"$id defaultHandler: ${msg.tag}")
@@ -80,13 +80,6 @@ class BatchingClient(val options: BatchingClient.type)
           // with eagerStart, instances are started eagerly, not lazily
           if (isLate.get) {
             //late: focus on recovery rather than starting instances
-            //cheat a bit, if the message is a decision (round % 4 == 3) then process the decision anyway
-            //if (msg.round % 4 == 3) {
-            //  import scala.reflect.ClassTag
-            //  import psync.utils.serialization._
-            //  val decision = msg.getContent[Array[Byte]]
-            //  proposeDecision(msg.instance, decision)
-            //}
             msg.release
           } else if (!options.eagerStart) {
             startInstance(inst, emp, Set(msg))
@@ -139,10 +132,8 @@ class BatchingClient(val options: BatchingClient.type)
       Logger("BatchingClient", Notice, "received decision for " + inst)
     } else if (flag == Late) {
       val inst = msg.instance
-      msg.release
       alg.stopInstance(inst)
-      //TODO get the whole state
-      proposeDecision(inst, null)
+      proposeSnapshot(inst, msg.payload)
       Logger("BatchingClient", Notice, "received late for " + inst)
     } else if (flag == ForwardedBatch) {
       val payload = msg.payload
@@ -157,29 +148,6 @@ class BatchingClient(val options: BatchingClient.type)
     }
   }
 
-  def sendRecoveryInfo(inst: Short, dest: ProcessID) = {
-    getDec(inst) match {
-      case Some(d) =>
-        val payload = PooledByteBufAllocator.DEFAULT.buffer()
-        payload.writeLong(8)
-        if (d != null && d.nonEmpty) {
-          payload.writeInt(d.size)
-          payload.writeBytes(d)
-        } else {
-          payload.writeInt(emp.size)
-          payload.writeBytes(emp)
-        }
-        rt.sendMessage(dest, Tag(inst,0,Decision,0), payload)
-        Logger("BatchingClient", Debug, s"$id sending decision to ${dest.id} for $inst")
-      case None =>
-        val payload = PooledByteBufAllocator.DEFAULT.buffer()
-        payload.writeLong(8)
-        rt.sendMessage(dest, Tag(inst,0,Late,0), payload)
-        //TODO send the whole state
-        Logger("BatchingClient", Debug, s"$id sending late to ${dest.id} for $inst")
-    }
-  }
-  
   def shutdown: Long = {
     rt.shutdown
     decisionProcessor.interrupt
@@ -192,7 +160,9 @@ class BatchingClient(val options: BatchingClient.type)
     nbr
   }
 
-  /** to force the JIT load everything, start a dummy decision */
+  /** to force the JIT load everything, start a dummy decision
+   * TODO is this really needed
+   */
   def warmupJIT: Unit = {
     val io = new BConsensusIO {
       val phase = 0
@@ -224,7 +194,7 @@ class BatchingClient(val options: BatchingClient.type)
 
     //if you comment out this method, make sure to replace it by `jitting = false`
     warmupJIT
- 
+
     // eager case
     if (!isLeader && options.eagerStart) {
       lck.lock
@@ -243,7 +213,7 @@ class BatchingClient(val options: BatchingClient.type)
 
 
 object BatchingClient extends RTOptions {
-  
+
   final val Decision = 4
   final val Late = 5
   final val ForwardedBatch = 6
@@ -297,10 +267,10 @@ object BatchingClient extends RTOptions {
   newOption("--syncTO", dzufferey.arg.Unit( () => sync = SyncCondition.OnTO), "progress only on timeout")
 
   val usage = "..."
-  
+
   var begin = 0L
 
-  var system: BatchingClient = null 
+  var system: BatchingClient = null
 
   def main(args: Array[java.lang.String]): Unit = {
     apply(args.toIndexedSeq)
@@ -328,7 +298,7 @@ object BatchingClient extends RTOptions {
     }
 
   }
-  
+
   java.lang.Runtime.getRuntime().addShutdownHook(
     new Thread() {
       override def run(): Unit = {
