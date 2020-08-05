@@ -50,11 +50,11 @@ trait DecisionProcessor {
         //
         lck.lock
         try {
-          tracker.stopAndUpdateStarted(inst)
+          stopAndUpdateStarted(inst)
           if (isLeader) {
             release
           } else if (options.eagerStart) {
-            val inst = tracker.nextInstance
+            val inst = nextInstance
             startInstance(inst, emp, Set.empty)
           }
         } finally {
@@ -154,7 +154,7 @@ trait DecisionProcessor {
                     Logger("Runner", Info, s"$id, late")
                 }
                 isLate.set(true)
-                if (!tracker.isRunning(nextBatch)) {
+                if (!isRunning(nextBatch)) {
                   askDecision
                 }
               }

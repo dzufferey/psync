@@ -152,7 +152,7 @@ Currently broken (while we move toward a more robust encoding of the mailbox w.r
 
 ## Compiling
 
-This project requires java 8.
+This project requires java 8 or newer.
 You can build it using [sbt](https://www.scala-sbt.org/).
 To install sbt follow the instructions at [https://www.scala-sbt.org/release/docs/Setup.html](https://www.scala-sbt.org/release/docs/Setup.html).
 
@@ -162,7 +162,7 @@ $ sbt
 > compile
 > test:compile
 ```
-After the first compilation you should execute `test_scripts/generateClassPath.sh`.
+After the first compilation you should execute `utils/generateClassPath.sh`.
 If the dependencies changes you may need to re-generate the class path.
 Now you are ready to use te scripts in the `test_scripts` folders.
 

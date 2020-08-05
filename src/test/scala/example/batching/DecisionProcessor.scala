@@ -39,13 +39,13 @@ trait DecisionProcessor {
   val acceptedBatch = new LinkedBlockingQueue[Either[(Short, Array[Byte]),(Short, ByteBuf)]]()
 
   def cleanup(inst: Short) = {
-    val running = tracker.isRunning(inst)
-    tracker.stopAndUpdateStarted(inst)
+    val running = isRunning(inst)
+    stopAndUpdateStarted(inst)
     if (running) {
       if (isLeader) {
         release
       } else if (options.eagerStart) {
-        val inst = tracker.nextInstance
+        val inst = nextInstance
         startInstance(inst, emp, Set.empty)
       }
     }
@@ -95,16 +95,21 @@ trait DecisionProcessor {
   }
 
   protected def processBatch(inst: Short, a: Array[Byte]): Unit = {
-    if (a != null && a.nonEmpty) { //null/empty means the proposer crashed before setting a value
-      assert(a.size % 12 == 0)
-      var b = 0
-      while (b < a.size) {
-        processRequest(inst, a, b)
-        b += 12
-        nbr += 1
+    storeLock.lock
+    try {
+      if (a != null && a.nonEmpty) { //null/empty means the proposer crashed before setting a value
+        assert(a.size % 12 == 0)
+        var b = 0
+        while (b < a.size) {
+          processRequest(inst, a, b)
+          b += 12
+          nbr += 1
+        }
       }
+      nextBatch = (inst + 1).toShort
+    } finally {
+      storeLock.unlock
     }
-    nextBatch = (inst + 1).toShort
   }
 
 
@@ -177,7 +182,7 @@ trait DecisionProcessor {
                       Logger("BatchingClient", Info, s"$id, late")
                     }
                     isLate.set(true)
-                    if (!tracker.isRunning(nextBatch)) {
+                    if (!isRunning(nextBatch)) {
                       askDecision
                     }
                   }

@@ -22,14 +22,14 @@ trait Recovery {
 
   def askDecision: Unit = {
     //pick someone to ask
-    var askingTo = Random.nextInt(rt.group.size) - 1
+    var askingTo = 0 //Random.nextInt(rt.group.size - 1)
     if (askingTo >= id) {
       askingTo = askingTo + 1
     }
     val payload = PooledByteBufAllocator.DEFAULT.buffer()
     payload.writeLong(8)
     rt.sendMessage(new ProcessID(askingTo.toShort), Tag(nextBatch,0,AskDecision,0), payload)
-    Logger("BatchingClient", Info, s"$id asking to $askingTo for decision $nextBatch")
+    Logger("BatchingClient", Notice, s"$id asking to $askingTo for decision $nextBatch")
   }
   
   def sendRecoveryInfo(inst: Short, dest: ProcessID) = {
@@ -47,7 +47,6 @@ trait Recovery {
         rt.sendMessage(dest, Tag(inst,0,Decision,0), payload)
         Logger("BatchingClient", Debug, s"$id sending decision to ${dest.id} for $inst")
       case None =>
-        //TODO concurrency control
         val tag = Tag((nextBatch-1).toShort,0,Late,0)
         val payload = if (options.packetSize > 0) PooledByteBufAllocator.DEFAULT.buffer(options.packetSize)
                       else PooledByteBufAllocator.DEFAULT.buffer()
@@ -64,20 +63,26 @@ trait Recovery {
   def canSerializeSnapshot = snapshotSize < options.packetSize 
 
   def writeSnapshot(buffer: ByteBuf) = {
-    buffer.writeShort((nextBatch - 1).toShort)
-    var i = 0
-    while (i < values.size) {
-      buffer.writeInt(values(i))
-      i += 1
-    }
-    i = 0
-    while (i < values.size) {
-      buffer.writeShort(versions(i))
-      i += 1
+    storeLock.lock
+    try {
+      buffer.writeShort((nextBatch - 1).toShort)
+      var i = 0
+      while (i < values.size) {
+        buffer.writeInt(values(i))
+        i += 1
+      }
+      i = 0
+      while (i < values.size) {
+        buffer.writeShort(versions(i))
+        i += 1
+      }
+    } finally {
+      storeLock.unlock
     }
   }
 
   def tryReadSnapshot(inst: Short, buffer: ByteBuf) = {
+    storeLock.lock
     try {
       if (Instance.leq(nextBatch, inst)) {
         nextBatch = (inst + 1).toShort
@@ -96,6 +101,7 @@ trait Recovery {
         false
       }
     } finally {
+      storeLock.unlock
       buffer.release
     }
   }

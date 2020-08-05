@@ -21,6 +21,7 @@ class BatchingClient(val options: BatchingClient.type)
     with RequestProcessor
     with Recovery
     with RateLimiting
+    with InstanceTracking
 {
   import BatchingClient.{AskDecision,Decision,Late,ForwardedBatch}
 
@@ -33,10 +34,7 @@ class BatchingClient(val options: BatchingClient.type)
   val lck = new ReentrantLock
   val monitor = lck.newCondition()
   val isLate = new AtomicBoolean(false)
-
-  // to keep track of what is running
-  val tracker = new InstanceTracking
-
+  val storeLock = new ReentrantLock
 
   // PSync runtime
   val rt = Runtime(options, defaultHandler(_))
@@ -61,8 +59,8 @@ class BatchingClient(val options: BatchingClient.type)
         }
       }
     }
-    assert(tracker.canStart(inst) && !tracker.isRunning(inst))
-    tracker.start(inst)
+    assert(canStart(inst) && !isRunning(inst))
+    start(inst)
     alg.startInstance(inst, io, msgs)
   }
 
@@ -76,7 +74,7 @@ class BatchingClient(val options: BatchingClient.type)
       try {
         if (jitting) {
           msg.release
-        } else if (tracker.canStart(inst)) {
+        } else if (canStart(inst)) {
           // with eagerStart, instances are started eagerly, not lazily
           if (isLate.get) {
             //late: focus on recovery rather than starting instances
@@ -86,13 +84,13 @@ class BatchingClient(val options: BatchingClient.type)
           } else {
             msg.release
           }
-        } else if (tracker.isRunning(inst)) {
+        } else if (isRunning(inst)) {
           if (!rt.deliverMessage(msg)) {
             Logger("BatchingClient", Notice, "could not deliver message message for running instance " + inst)
             msg.release
           }
         } else {
-          sendRecoveryInfo(inst, msg.sender)
+          //sendRecoveryInfo(inst, msg.sender)
           msg.release
         }
       } finally {
@@ -102,15 +100,15 @@ class BatchingClient(val options: BatchingClient.type)
       val inst = msg.instance
       lck.lock
       try {
-        if (tracker.canStart(inst) || tracker.isRunning(inst)) {
-          if (tracker.pending(inst)) {
+        if (canStart(inst) || isRunning(inst)) {
+          if (pending(inst)) {
             Logger("BatchingClient", Info, s"$id, AskDecision for pending instance $inst")
-          } else if (tracker.running(inst)) {
+          } else if (running(inst)) {
             Logger("BatchingClient", Info, s"$id, AskDecision for running instance $inst")
-          } else if (Instance.lt(tracker.started, inst)){
+          } else if (Instance.lt(started, inst)){
             Logger("BatchingClient", Info, s"$id, AskDecision for instance not yet started $inst")
           } else {
-            Logger("BatchingClient", Warning, s"id, AskDecision for instance $inst \n  $tracker")
+            Logger("BatchingClient", Warning, s"id, AskDecision for instance $inst")
           }
         } else {
           sendRecoveryInfo(inst, msg.sender)
@@ -200,7 +198,7 @@ class BatchingClient(val options: BatchingClient.type)
       lck.lock
       try {
         for (i <- 0 until options.rate) {
-          val inst = tracker.nextInstance
+          val inst = nextInstance
           startInstance(inst, emp, Set.empty)
         }
       } finally {
@@ -305,7 +303,9 @@ object BatchingClient extends RTOptions {
         val versionNbr = system.shutdown
         val end = java.lang.System.currentTimeMillis()
         val duration = (end - begin) / 1000
-        Logger("BatchingClient", Notice, id.toString + ", #decisions = " + versionNbr + ", Δt = " + duration + ", throughput = " + (versionNbr/duration))
+        val throughput = versionNbr/duration
+        val mbs = throughput.toDouble * 12 / 1024 / 1024 // each request is 12 bytes over the wire
+        Logger("BatchingClient", Notice, s"$id, #decisions = $versionNbr, Δt = $duration, throughput = $throughput req/s. ($mbs MB/s)")
       }
     }
   )

@@ -12,4 +12,7 @@ echo  >> $file
 
 echo "#with assembly we need only the following two jars:" >> $file
 echo "#cp=\"target/scala-${scala_version}/psync-assembly-0.2-SNAPSHOT.jar:target/scala-${scala_version}/psync_${scala_version}-0.2-SNAPSHOT-tests.jar\"" >> $file
+echo  >> $file
 
+echo '# trap CTRL-C input, and kill every process created' >> $file
+echo 'trap "pkill -P $$; sleep 1; exit 1;" INT' >> $file

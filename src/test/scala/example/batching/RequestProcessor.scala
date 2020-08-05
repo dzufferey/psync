@@ -33,7 +33,7 @@ trait RequestProcessor {
       lck.lock
       try {
         acquire // rate limiting
-        val inst = tracker.nextInstance
+        val inst = nextInstance
         startInstance(inst, batch, Set.empty)
       } finally {
         lck.unlock

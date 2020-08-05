@@ -7,7 +7,7 @@ import psync.runtime.Instance
 
 /** To keep track of the what is running
  *  This object is not thread safe! */
-class InstanceTracking {
+trait InstanceTracking {
 
   /** the # of the highest started instance */
   var started: Short = 0
@@ -18,7 +18,7 @@ class InstanceTracking {
 
   assertTrackingInvariant
 
-  override def toString = {
+  def trackedToString = {
     "started: " + started +
     "\nrunning: " + running.mkString(", ") +
     "\npending: " + pending.mkString(", ")

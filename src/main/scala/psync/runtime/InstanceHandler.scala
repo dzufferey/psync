@@ -367,7 +367,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected def update(didTimeout: Boolean) = {
     Logger("InstanceHandler", Debug, "Replica " + self.id + ", instance " + instance + " delivering for round " + currentRound + (if (didTimeout) " with TO" else ""))
     val shouldTerminate = proc.update(didTimeout)
-    //assert(needCatchingUp || !more, "currentRound " + currentRound + ", nextRound " + nextRound) 
+    //assert(needCatchingUp || !more, "currentRound " + currentRound + ", nextRound " + nextRound)
     currentRound += 1
     maxRnd(self.id) = currentRound
     shouldTerminate

@@ -23,6 +23,7 @@ class Runner(val options: Runner.type)
     with DecisionProcessor
     with RequestProcessor
     with RateLimiting
+    with InstanceTracking
 {
   import Runner.{AskDecision,Decision,Late,ForwardedBatch}
 
@@ -35,10 +36,6 @@ class Runner(val options: Runner.type)
   val lck = new ReentrantLock 
   val monitor = lck.newCondition()
   val isLate = new AtomicBoolean(false)
-
-  // to keep track of what is running
-  val tracker = new InstanceTracking
-
 
   // PSync runtime
   val rt = Runtime(options, defaultHandler(_))
@@ -57,8 +54,8 @@ class Runner(val options: Runner.type)
         proposeDecision(i, value)
       }
     }
-    assert(tracker.canStart(inst) && !tracker.isRunning(inst))
-    tracker.start(inst)
+    assert(canStart(inst) && !isRunning(inst))
+    start(inst)
     alg.startInstance(inst, io, msgs)
   }
   
@@ -73,7 +70,7 @@ class Runner(val options: Runner.type)
       try {
         if (jitting) {
           msg.release
-        } else if (tracker.canStart(inst)) {
+        } else if (canStart(inst)) {
           // with eagerStart, instances are started eagerly, not lazily
           if (isLate.get) {
             //late: focus on recovery rather than starting instances
@@ -83,7 +80,7 @@ class Runner(val options: Runner.type)
           } else {
             msg.release
           }
-        } else if (tracker.isRunning(inst)) {
+        } else if (isRunning(inst)) {
           if (!rt.deliverMessage(msg)) {
             Logger("Runner", Debug, "could not deliver message message for running instance " + inst)
             msg.release
@@ -99,15 +96,15 @@ class Runner(val options: Runner.type)
       val inst = msg.instance
       lck.lock
       try {
-        if (tracker.canStart(inst) || tracker.isRunning(inst)) {
-          if (tracker.pending(inst)) {
+        if (canStart(inst) || isRunning(inst)) {
+          if (pending(inst)) {
             Logger("Runner", Info, s"$id, AskDecision for pending instance $inst")
-          } else if (tracker.running(inst)) {
+          } else if (running(inst)) {
             Logger("Runner", Info, s"$id, AskDecision for running instance $inst")
-          } else if (Instance.lt(tracker.started, inst)){
+          } else if (Instance.lt(started, inst)){
             Logger("Runner", Info, s"$id, AskDecision for instance not yet started $inst")
           } else {
-            Logger("Runner", Warning, s"$id, AskDecision for instance $inst\n  $tracker")
+            Logger("Runner", Warning, s"$id, AskDecision for instance $inst")
           }
         } else {
           sendRecoveryInfo(inst, msg.sender)
@@ -221,7 +218,7 @@ class Runner(val options: Runner.type)
       lck.lock
       try {
         for (i <- 0 until options.rate) {
-          val inst = tracker.nextInstance
+          val inst = nextInstance
           startInstance(inst, emp, Set.empty)
         }
       } finally {
