@@ -13,7 +13,7 @@ class LastVoting(rt: Runtime, timeout: Long, progress: SyncCondition = Quorum) e
   import SpecHelper._
 
   val V = new Domain[Int]
-  
+
   def coord: LVProcess = sys.error("for spec only")
 
   val spec = new Spec {
@@ -44,7 +44,7 @@ class LastVoting(rt: Runtime, timeout: Long, progress: SyncCondition = Quorum) e
       safetyInv,
       P.exists( j => P.forall( i => i.decided && i.decision == init(j.x)) )
     )
-    
+
     override val roundInvariants = List(
       List[Formula](
         true,
@@ -68,15 +68,15 @@ class LastVoting(rt: Runtime, timeout: Long, progress: SyncCondition = Quorum) e
       ("Irrevocability", P.forall( i => old(i.decided) ==> (i.decided && old(i.decision) == i.decision) ))
     )
   }
-  
+
   def process = new LVProcess(timeout, progress)
-  
+
   def dummyIO = new ConsensusIO[Int]{
     val initialValue = 0
     def decide(value: Int): Unit = { }
   }
 }
-  
+
 class LVProcess(timeout: Long, progress: SyncCondition) extends Process[ConsensusIO[Int]]{
 
   //variables
@@ -91,14 +91,14 @@ class LVProcess(timeout: Long, progress: SyncCondition) extends Process[Consensu
   var callback: ConsensusIO[Int] = null
 
   var expectedMajority = 0
-      
+
   def coord: ProcessID = new ProcessID((r / 4 % n).toShort)
-    
+
   def init(io: ConsensusIO[Int]): Unit = {
     callback = io
     x = io.initialValue
     ts = -1
-    decided = false 
+    decided = false
     ready = false
     commit = false
     expectedMajority = progress match {

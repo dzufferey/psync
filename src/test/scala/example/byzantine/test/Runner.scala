@@ -324,7 +324,9 @@ object Runner extends RTOptions {
         val versionNbr = system.shutdown
         val end = java.lang.System.currentTimeMillis()
         val duration = (end - begin) / 1000
-        Logger("Runner", Notice, id.toString + ", #decisions = " + versionNbr + ", Δt = " + duration + ", throughput = " + (versionNbr/duration))
+        val throughput = versionNbr/duration
+        val mbs = throughput.toDouble * 12 / 1024 / 1024 // each request is 12 bytes over the wire
+        Logger("Runner", Notice, s"$id, #decisions = $versionNbr, Δt = $duration, throughput = $throughput req/s. ($mbs MB/s)")
       }
     }
   )

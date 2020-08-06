@@ -8,7 +8,7 @@ import scala.util.Random
 
 
 class TpcEvtProcess(all: Boolean, blocking: Boolean, timeout: Long) extends Process[TpcIO] {
-  
+
   var coord = new ProcessID(0)
   var vote = false
   var decision: Option[Boolean] = None //TODO as ghost
@@ -22,7 +22,7 @@ class TpcEvtProcess(all: Boolean, blocking: Boolean, timeout: Long) extends Proc
     decision = None
     start = java.lang.System.currentTimeMillis()
   }
-    
+
   val rounds = phase(
     new EventRound[Boolean]{ //place holder for PrepareCommit
 
@@ -124,9 +124,9 @@ class TwoPhaseCommitEvent(rt: Runtime, all: Boolean, blocking: Boolean, timeout:
 
 //TO check dt, the TO must be quick high or better blocking
 object TpcEvtRunner extends Runner {
-  
+
   override def defaultConfFile = "src/test/resources/sample-conf.xml"
-  
+
   var blocking = false
   newOption("--blocking", dzufferey.arg.Unit( () => blocking = true), "waitMessage for all messages (no timeout)")
 
@@ -134,7 +134,7 @@ object TpcEvtRunner extends Runner {
   newOption("--all", dzufferey.arg.Unit( () => all = true), "for all messages no progress on false")
 
   val semaphore = new java.util.concurrent.Semaphore(1)
-  
+
   def onStart: Unit = {
     //Console.println("starting " + id + " with blocking = " + blocking + ", timeout = " + timeout)
     val alg = new TwoPhaseCommitEvent(rt, all, blocking, timeout)
