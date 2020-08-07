@@ -166,7 +166,7 @@ class Runner(val options: Runner.type)
         Logger("Runner", Debug, s"$id sending late to ${dest.id} for $inst")
     }
   }
-  
+
   def shutdown: Long = {
     rt.shutdown
     decisionProcessor.interrupt
@@ -212,7 +212,7 @@ class Runner(val options: Runner.type)
 
     //if you comment out this method, make sure to replace it by `jitting = false`
     warmupJIT
- 
+
     // eager case
     if (!isLeader && options.eagerStart) {
       lck.lock
@@ -231,7 +231,7 @@ class Runner(val options: Runner.type)
 
 
 object Runner extends RTOptions {
-  
+
   final val Decision = 4
   final val Late = 5
   final val ForwardedBatch = 6
@@ -277,6 +277,7 @@ object Runner extends RTOptions {
   newOption("--cr", dzufferey.arg.Int( i => cr = i), "how many requests to simulate at once (default: 200)")
 
   var forward = true
+  newOption("--forwarding", dzufferey.arg.Bool( b => forward = b), "forward (batches of) requests to the leader")
   newOption("--noForwarding", dzufferey.arg.Unit( () => forward = false), "disable forwarding (batches of) requests to the leader")
 
   var sync = false
@@ -286,10 +287,10 @@ object Runner extends RTOptions {
   newOption("--shortTO", dzufferey.arg.Int( i => shortTO = i), "shortTO (default: 5)")
 
   val usage = "..."
-  
+
   var begin = 0L
 
-  var system: Runner = null 
+  var system: Runner = null
 
   def main(args: Array[java.lang.String]): Unit = {
     apply(args.toIndexedSeq)
@@ -317,7 +318,7 @@ object Runner extends RTOptions {
     }
 
   }
-  
+
   java.lang.Runtime.getRuntime().addShutdownHook(
     new Thread() {
       override def run(): Unit = {
