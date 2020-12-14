@@ -52,10 +52,11 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   /** catch-up after nbrByzantine+1 messages have been received */
   protected var nbrByzantine = 0
 
-  private final val block = Long.MinValue
+  private final val noTimeout = Long.MinValue
   protected var timeout = alg.options.timeout
   protected var roundStart: Long = 0
-  protected var strict = false
+  protected var block = false
+  protected var sync = -1
 
   protected var currentRound: Time = new Time(0)
   protected var nextRound: Time = new Time(0)
@@ -158,7 +159,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     }
   }
   @inline private final def needCatchingUp = nextRound > currentRound
-  @inline private final def readyToProgress = needCatchingUp && !strict
+  @inline private final def readyToProgress = needCatchingUp && !block
 
   def run: Unit = {
     Logger("InstanceHandler", Info, "starting instance " + instance)
@@ -198,7 +199,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
                more)                // not interrupted
         {
           // try receive a new message
-          if (timeout == block) {
+          if (timeout == noTimeout) {
             msg = buffer.take()
           } else {
             val to = roundStart + timeout - java.lang.System.currentTimeMillis()
@@ -239,7 +240,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
             //Logger("InstanceHandler", Warning, instance + " timeout")
             timedout = true
             nextRound = currentRound + 1
-            strict = false
+            block = false
           }
         }
         again &= update(timedout || msg != null) //consider catching up (msg != null) as TO
@@ -273,23 +274,51 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     }
   }
 
-  @inline private final def computeNextRound: Unit = {
-    if (nbrByzantine == 0) {
-      // find max relative to currentRound
-      var i = 0
-      var currMax = currentRound
-      while (i < maxRnd.size) {
-        if (maxRnd(i) > currMax) {
-          currMax = maxRnd(i)
-        }
-        i += 1
+  @inline private final def computeSync = {
+    var i = 0
+    var currOrAbove = 0
+    while (i < maxRnd.size) {
+      if (maxRnd(i) >= currentRound) {
+        currOrAbove += 1
       }
-      nextRound = currMax
-    } else {
+      i += 1
+    }
+    currOrAbove >= nbrByzantine + sync
+  }
+  
+  @inline private final def benignCatchUp = {
+    // find max relative to currentRound
+    var i = 0
+    var currMax = currentRound
+    while (i < maxRnd.size) {
+      if (maxRnd(i) > currMax) {
+        currMax = maxRnd(i)
+      }
+      i += 1
+    }
+    currMax
+  }
+  
+  @inline private final def byzantineCatchUp = {
+    // the right way of computing the next round is to sort maxRnd and drop the nbrByzantine highest values
+    // see https://en.wikipedia.org/wiki/Selection_algorithm but since we have small size we can just sort ...
+    //TODO more efficient
+    currentRound + math.max(0, maxRnd.map(_ - currentRound).sorted.apply(maxRnd.size - nbrByzantine - 1))
+  }
+
+  @inline private final def computeNextRound: Unit = {
+    if (sync >= 0) {
+      if (computeSync) {
+        block = false
+        nextRound = currentRound + 1
+      }
+    } else if (nbrByzantine == 0) { // benign catch-up
+      nextRound = benignCatchUp
+    } else { // byzantine catch-up
       // the right way of computing the next round is to sort maxRnd and drop the nbrByzantine highest values
       // see https://en.wikipedia.org/wiki/Selection_algorithm but since we have small size we can just sort ...
       //TODO more efficient
-      nextRound = currentRound + math.max(0, maxRnd.map(_ - currentRound).sorted.apply(maxRnd.size - nbrByzantine - 1))
+      nextRound = byzantineCatchUp
     }
   }
 
@@ -297,13 +326,21 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
     //TODO check monotonicity of progress
     if (p.isTimeout) {
       timeout = p.timeout
-      strict = p.isStrict
+      block = p.isStrict
     } else if (p.isGoAhead) {
-      strict = false
+      block = false
       nextRound = currentRound + max(nextRound - currentRound, 1)
     } else if (p.isWaitMessage) {
-      timeout = block
-      strict = p.isStrict
+      timeout = noTimeout
+      block = p.isStrict
+    } else if (p.isSync) {
+      timeout = noTimeout
+      if (computeSync) {
+        block = false
+        nextRound = currentRound + 1
+      } else {
+        block = true
+      }
     } else if (p.isUnchanged) {
       if (init) {
         Logger.logAndThrow("InstanceHandler", Error, "Progress of init should not be Unchanged.")
@@ -318,6 +355,7 @@ class InstanceHandler[IO,P <: Process[IO]](proc: P,
   protected def initRound: Unit = {
     from = LongBitSet.empty
     roundStart = java.lang.System.currentTimeMillis()
+    sync = -1
     checkProgress(proc.init, true)
   }
 

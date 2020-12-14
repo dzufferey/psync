@@ -25,7 +25,7 @@ libraryDependencies ++=  Seq(
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2",
     "org.scalatest" %% "scalatest" % "3.2.0" % "test",
     "org.scalacheck" %% "scalacheck" % "1.14.1" % "test",
-    "io.netty" % "netty-all" % "4.1.51.Final",
+    "io.netty" % "netty-all" % "4.1.55.Final",
     "com.twitter" %% "chill" % "0.9.5",
     "ch.qos.logback" % "logback-classic" % "1.2.3",
     "io.github.dzufferey" %% "scala-arg" % "0.1-SNAPSHOT",

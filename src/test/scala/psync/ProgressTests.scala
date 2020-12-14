@@ -7,7 +7,7 @@ import org.scalacheck.Prop.forAll
 
 object ProgressProps extends Properties("Progress TO") {
 
-  
+
   property("timeout id") = forAll { (l: Long) =>
     !Progress.timeoutInBounds(l) || Progress.timeout(l).timeout == l
   }
@@ -15,13 +15,17 @@ object ProgressProps extends Properties("Progress TO") {
   property("strict timeout id") = forAll { (l: Long) =>
     !Progress.timeoutInBounds(l) || Progress.strictTimeout(l).timeout == l
   }
-  
+
   property("timeout strictness") = forAll { (l: Long) =>
     !Progress.timeout(l).isStrict
   }
-  
+
   property("strict timeout strictness") = forAll { (l: Long) =>
     Progress.strictTimeout(l).isStrict
+  }
+
+  property("sync id") = forAll { (k: Int) =>
+    Progress.sync(k).k == k
   }
 
 }
@@ -36,7 +40,7 @@ class ProgressTests extends AnyFunSuite {
     assert(Progress.timeoutInBounds(10000))
     assert(Progress.timeoutInBounds(100000))
   }
-  
+
   test("sanity checks for wait") {
     val w = Progress.waitMessage
     val ws = Progress.strictWaitMessage
@@ -51,14 +55,14 @@ class ProgressTests extends AnyFunSuite {
     assert(!ws.isTimeout)
     assert(!ws.isGoAhead)
   }
-  
+
   test("sanity checks for unchanged") {
     assert(Progress.unchanged.isUnchanged)
     assert(!Progress.unchanged.isTimeout)
     assert(!Progress.unchanged.isGoAhead)
     assert(!Progress.unchanged.isWaitMessage)
   }
-  
+
   test("sanity checks for goAhead") {
     assert(Progress.goAhead.isGoAhead)
     assert(!Progress.goAhead.isUnchanged)
