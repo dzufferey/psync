@@ -257,6 +257,7 @@ object BatchingClient extends RTOptions {
   newOption("--cr", dzufferey.arg.Int( i => cr = i), "how many requests to simulate at once (default: 200)")
 
   var forward = true
+  newOption("--forwarding", dzufferey.arg.Bool( b => forward = b), "forward (batches of) requests to the leader")
   newOption("--noForwarding", dzufferey.arg.Unit( () => forward = false), "disable forwarding (batches of) requests to the leader")
 
   var sync = SyncCondition.Quorum
