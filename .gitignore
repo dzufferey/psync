@@ -2,6 +2,6 @@ target/
 test_scripts/deps
 *.html
 *.smt2
-*.thy~
 certs/
 project/build.properties
+.bsp/
