@@ -7,7 +7,6 @@ trait RoundRewrite {
   self: Impl =>
   import c.universe._
 
-
   protected def traverseBody(body: List[Tree]) = {
     val acc: (Option[DefDef], Option[DefDef], List[AuxiliaryMethod]) = (None,None,Nil)
     val (snd, upd, aux) = body.foldLeft(acc)( (acc, stmt) => stmt match { 
@@ -31,25 +30,31 @@ trait RoundRewrite {
     (snd.get, upd.get, aux)
   }
 
-  protected def mkVerifAnnot(tree: Tree) = tree match {
-    case q"new psync.Round[$tpt] { ..$body }" =>
-      val (snd, upd, aux) = traverseBody(body)
-      val tr = processSendUpdate(snd, upd)
-      val sndS = snd.toString
-      val updS = upd.toString
-      val treeAuxMap = mkAuxMap(aux)
-      q"""new psync.RoundSpec {
-        override def sendStr: String = $sndS
-        override def updtStr: String = $updS
-        override def rawTR: psync.verification.RoundTransitionRelation = $tr
-        override def auxSpec: Map[String, psync.verification.AuxiliaryMethod] = $treeAuxMap
-      }"""
-    case q"new psync.EventRound[$tpt] { ..$body }" =>
-      c.warning(tree.pos, "EventRound[_] not yet supported for verif.")
+  protected def mkVerifAnnot(tree: Tree) = {
+    if (isEnabled) {
+      tree match {
+        case q"new psync.Round[$tpt] { ..$body }" =>
+          val (snd, upd, aux) = traverseBody(body)
+          val tr = processSendUpdate(snd, upd)
+          val sndS = snd.toString
+          val updS = upd.toString
+          val treeAuxMap = mkAuxMap(aux)
+          q"""new psync.RoundSpec {
+            override def sendStr: String = $sndS
+            override def updtStr: String = $updS
+            override def rawTR: psync.verification.RoundTransitionRelation = $tr
+            override def auxSpec: Map[String, psync.verification.AuxiliaryMethod] = $treeAuxMap
+          }"""
+        case q"new psync.EventRound[$tpt] { ..$body }" =>
+          c.warning(tree.pos, "EventRound[_] not yet supported for verif.")
+          q"new psync.RoundSpec { }"
+        case other =>
+          c.warning(tree.pos, "expected new Round[_], did not match making trivial spec.")
+          q"new psync.RoundSpec { }"
+      }
+    } else {
       q"new psync.RoundSpec { }"
-    case other =>
-      c.warning(tree.pos, "expected new Round[_], did not match making trivial spec.")
-      q"new psync.RoundSpec { }"
+    }
   }
 
 

@@ -110,30 +110,28 @@ trait ProcessRewrite {
     }
   }
 
-  def extractInit(/*arg: Tree,*/ body: Tree): Tree = {
-    /*
-    val initArg = tree2Formula(arg) match {
-      case v @ Variable(_) => v
-      case other => c.abort(arg.pos, "expected variable, found: " + other)
-    }
-    */
-    val _f = try {
-        makeConstraints(body)
-      } catch {
-        case e: Exception =>
-          c.warning(body.pos, "error while extracting the initial state, leaving it unconstrained.\n" + e)
+  def extractInit(body: Tree): Tree = {
+    if (isEnabled) {
+      val _f = try {
+          makeConstraints(body)
+        } catch {
+          case e: Exception =>
+            c.warning(body.pos, "error while extracting the initial state, leaving it unconstrained.\n" + e)
+            True()
+        }
+      val f = Typer(_f) match {
+        case Typer.TypingSuccess(f) =>
+          f
+        case Typer.TypingFailure(r) =>
+          c.warning(body.pos, "unable to type formula corresponding to initial state (leaving it unconstrained): " + _f.toStringFull)
           True()
+        case Typer.TypingError(r) =>
+          c.abort(body.pos, "formula typer failed on formula corresponding to initial state: " + r)
       }
-    val f = Typer(_f) match {
-      case Typer.TypingSuccess(f) =>
-        f
-      case Typer.TypingFailure(r) =>
-        c.warning(body.pos, "unable to type formula corresponding to initial state (leaving it unconstrained): " + _f.toStringFull)
-        True()
-      case Typer.TypingError(r) =>
-        c.abort(body.pos, "formula typer failed on formula corresponding to initial state: " + r)
+      q"{ $body; if (psync.Process.fillInitState) initState = Some($f) }"
+    } else {
+      body
     }
-    q"{ $body; if (psync.Process.fillInitState) initState = Some($f) }"
   }
 
 }

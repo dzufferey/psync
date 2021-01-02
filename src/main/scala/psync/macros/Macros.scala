@@ -12,10 +12,12 @@ class Impl(val c: Context) extends Lifting
                            with FormulaExtractor
                            with SSA
                            with TrExtractor
-                           with ProcessRewrite 
+                           with ProcessRewrite
                            with RoundRewrite
 {
   import c.universe._
+
+  lazy val isEnabled = System.getProperty("enableVerification") == "true"
 
   //http://docs.scala-lang.org/overviews/quasiquotes/syntax-summary.html
 
@@ -25,7 +27,7 @@ class Impl(val c: Context) extends Lifting
     //println(res2)
     res2
   }
-  
+
   def any2Formula[T](any: c.Expr[T]): c.Expr[Formula] = {
     val res = getConstraints(any.tree)
     val res2 = c.Expr[Formula](q"$res")
@@ -33,9 +35,9 @@ class Impl(val c: Context) extends Lifting
     res2
   }
 
-  def init/*[IO](io: c.Expr[IO])*/(e: c.Expr[Unit]): c.Expr[Unit] = {
+  def init(e: c.Expr[Unit]): c.Expr[Unit] = {
     try {
-      val res = extractInit(/*io.tree,*/ e.tree)
+      val res = extractInit(e.tree)
       val res2 = c.Expr[Unit](q"$res")
       //println(res2)
       res2
@@ -82,9 +84,9 @@ object Macros {
   implicit def booleanToFormula(e: Boolean): Formula = macro Impl.formula
 
   //def p[T <: Process[_]](e: T): T = macro Impl.process[T]
-  
+
   def i/*[IO](io: IO)*/(e: Unit): Unit = macro Impl.init//[IO]
-  
+
   def rnd(e: RtRound): (RtRound,RoundSpec) = macro Impl.postprocessRound
 
   def phase(e: RtRound*): Array[(RtRound,RoundSpec)] = macro Impl.mkPhase

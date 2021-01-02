@@ -24,7 +24,7 @@ class FormulaExtractorSuite extends AnyFunSuite {
       case other => sys.error("unexpected: " + other)
     }
   }
-  
+
   test("Int operations") {
     val v = 123
     Macros.asFormula( v + 123 > v - v ) match {
@@ -82,7 +82,7 @@ class FormulaExtractorSuite extends AnyFunSuite {
       case other => sys.error("unexpected: " + other)
     }
   }
-  
+
   test("Map apply, contains") {
     val m = Map(1 -> 1)
     Macros.asFormula( m(1) == 1 ) match {
@@ -141,7 +141,7 @@ class FormulaExtractorSuite extends AnyFunSuite {
       case other => sys.error("unexpected: " + other)
     }
   }
-  
+
   test("Map map") {
     val m = Map(1 -> 2)
     val m2 = Map(1 -> 2)
@@ -165,7 +165,7 @@ class FormulaExtractorSuite extends AnyFunSuite {
       case other => sys.error("unexpected: " + other)
     }
   }
-  
+
   test("Map empty") {
     val m = Map(1 -> 2)
     Macros.asFormula( m == Map.empty[Int,Int] ) match {

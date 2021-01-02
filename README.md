@@ -27,6 +27,8 @@ Starting with an algorithm from the literature which usually looks like that [Ch
 10:             decide( x )
 ```
 
+### Process
+
 For the cost of turning the algorithm it into a sightly different syntax, PSync provide a distributed runtime and tools to automatically check the correctness of the algorithm.
 The same consensus algorithm that runs in PSync looks like:
 ```scala
@@ -65,7 +67,9 @@ class OtrProcess extends Process[IO]{
 } ) } } } }
 ```
 
-The Process are then wrapped in an `Algorithm` which may also contain a specification.
+### Algorithm
+
+The Process are then wrapped in an `Algorithm` which _may_ also contain a specification.
 For the one third rule algorithm that solves the consensus problem, it may look like:
 ```scala
 class OTR extends Algorithm[IO, OtrProcess] {
@@ -105,6 +109,8 @@ class OTR extends Algorithm[IO, OtrProcess] {
 
 }
 ```
+
+### Runtime
 
 The client code that uses a such algorithm is:
 ```scala
@@ -150,22 +156,29 @@ The verfication part is in an early stages and currently only works on a small s
 Currently broken (while we move toward a more robust encoding of the mailbox w.r.t the cardinality constraints).
 
 
-## Compiling
+## Compiling and Using it
 
 This project requires java 8 or newer.
 You can build it using [sbt](https://www.scala-sbt.org/).
 To install sbt follow the instructions at [https://www.scala-sbt.org/release/docs/Setup.html](https://www.scala-sbt.org/release/docs/Setup.html).
 
 Then, in a console, execute:
-```
+```sh
 $ sbt
 > compile
 > test:compile
 ```
-After the first compilation you should execute `utils/generateClassPath.sh`.
-If the dependencies changes you may need to re-generate the class path.
-Now you are ready to use te scripts in the `test_scripts` folders.
 
+To use the scripts in the `test_scripts` folders, you need to run `utils/generateClassPath.sh` after the first compilation.
+If the dependencies changes you may need to re-generate the class path.
+
+To use it in another project, the following should work.
+In your `build.sbt` add the following two lines:
+```scala
+resolvers += "jitpack" at "https://jitpack.io"
+
+libraryDependencies += "com.github.dzufferey" %% "psync" % "master-SNAPSHOT"
+```
 
 ## Running the LockManager example
 
@@ -187,24 +200,28 @@ The scripts depends on `test_scripts/deps` for getting the appropriate dependenc
 The script should work for a \*nix machine.
 Depending on your OS and configuration, you may need to update this file.
 
-## Assembly and deployment
+## Verification
 
-To simplify the deployment of this project, we use the [sbt-assembly](https://github.com/sbt/sbt-assembly) plugin to produce a single jar containing all the dependencies.
-Run `sbt assembly` to produce a this jar.
+The code for the the verification is very much a proof-of-concept.
+It has not been updated to support `EventRound`.
 
-## Known Issues
-
-When running many tests it is not unusual to see the following warning:
-
-    WARNING: Failed to generate a seed from SecureRandom within 3 seconds. Not enough entropy?
-
-Starting/stopping Netty too many times seems to deplete the pool of entropy.
-Currently PSync does not use any cryptographic primitive, therefore, this warning is harmless.
+In the [popl16_artifact](https://github.com/dzufferey/psync/tree/popl16_artifact) branch (file `index.html`), there is an explanation about using the built-in verifier.
+The extraction of formula from the code occurs during the compilation.
+It is disabled by default.
+To enable this, run sbt as `sbt -DenableVerification=true`.
 
 ## References
 
 Here are some references about how PSync works.
 
-* [PSync: A Partially Synchronous Language for Fault-Tolerant Distributed Algorithms](http://people.csail.mit.edu/zufferey/files/2016_PSync_A_Partially_Synchronous_Language_for_Fault-Tolerant_Distributed_Algorithms.pdf), Drăgoi et al., POPL 2016
+* [Programming at the Edge of Synchrony](https://dl.acm.org/doi/10.1145/3428281), Drăgoi et al., OOPSLA 2020
+* [PSync: A Partially Synchronous Language for Fault-Tolerant Distributed Algorithms](https://dl.acm.org/doi/10.1145/2837614.2837650), Drăgoi et al., POPL 2016
 * [The Need for Language Support for Fault-Tolerant Distributed Systems](http://drops.dagstuhl.de/opus/volltexte/2015/5019/), Drăgoi et al., SNAPL 2015
-* [A Logic-based Framework for Verifying Consensus Algorithms](http://people.csail.mit.edu/zufferey/files/2014_A_Logic-Based_Framework_for_Verifying_Consensus_Algorithms.pdf), Drăgoi et al., VMCAI 2014
+* [A Logic-based Framework for Verifying Consensus Algorithms](https://dzufferey.github.io/files/2014_A_Logic-Based_Framework_for_Verifying_Consensus_Algorithms.pdf), Drăgoi et al., VMCAI 2014
+
+### Artifacts/Evaluations
+
+What we used to the evaluations in the papers above is available at
+- OOPSLA 2020: https://github.com/dzufferey/resync_oopsla20_artifact
+- POPL 2016: https://github.com/dzufferey/psync/tree/popl16_artifact
+- VMCAI 2014: https://github.com/dzufferey/dzufferey.github.io/tree/master/consensus

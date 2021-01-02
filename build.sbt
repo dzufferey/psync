@@ -1,5 +1,7 @@
 name := "psync"
 
+organization := "com.github.dzufferey"
+
 version := "0.3-SNAPSHOT"
 
 scalaVersion := "2.13.1"

@@ -7,7 +7,7 @@ import TestCommon._
 import org.scalatest.funsuite._
 
 object TpcExample {
-  
+
   val coord = Variable("coord").setType(pid)
 
   val v = Variable("v").setType(Bool)
@@ -32,7 +32,7 @@ object TpcExample {
     vote -> vote1
   )
   def prime(f: Formula) = FormulaUtils.mapSymbol( x => primeMap.getOrElse(x, x), f)
-  
+
   val agreement = ForAll(List(i,j), Implies(decided(i) && decided(j), data(i) === data(j)))
   val validity = ForAll(List(i), Exists(List(j), Implies(decided(i) && data(i), data0(j))))
 
