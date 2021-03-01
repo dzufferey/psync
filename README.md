@@ -225,3 +225,15 @@ What we used to the evaluations in the papers above is available at
 - OOPSLA 2020: https://github.com/dzufferey/resync_oopsla20_artifact
 - POPL 2016: https://github.com/dzufferey/psync/tree/popl16_artifact
 - VMCAI 2014: https://github.com/dzufferey/dzufferey.github.io/tree/master/consensus
+
+### Difference Between the Papers and the Implementation
+
+The POPL 2016 paper has been implemented pretty much as described.
+However, there are some small discrepancies between the OOPSLA 2020 presentation and it's implementation.
+The progress option are described as stateful operation in the paper, the implementation require the return value of a round's method to indicate the progress.
+The progress values combines combines timeout and catch-up specification in a single value.
+More details about the progress values are in the file [`Progress.scala`](src/main/scala/psync/Progress.scala).
+
+Both the closed (POPL 2016) and open (OOPSLA 2020) rounds coexist in the implementation.
+The closed rounds are called `Round` and open rounds are called `EventRound`.
+Both version are defined in [`Round.scala`](src/main/scala/psync/Round.scala).
