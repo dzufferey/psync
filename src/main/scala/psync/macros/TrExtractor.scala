@@ -130,7 +130,7 @@ trait TrExtractor {
 
     def getVar(t: Tree): Variable = tree2Formula(t) match {
       case v @ Variable(_) => v
-      case other => 
+      case other =>
         c.abort(t.pos, "could not extract variable from: " + t + ", got " + other)
     }
 
@@ -145,7 +145,7 @@ trait TrExtractor {
       val last = kv._2._2
       val vs = for(i <- first to last) yield getVar(SsaMap.name(tree, i))
       acc ++ vs
-    }) 
+    })
     val local1 = allVars.filter( x => !(oldV.contains(x) || newV.contains(x)))
     val local3 = getValDefs(send.rhs).map(extractVarFromValDef)
     val local4 = getValDefs(update.rhs).map(extractVarFromValDef)
@@ -159,7 +159,7 @@ trait TrExtractor {
                                 cstr2, mailbox, oldV, localV, newV)
   }
 
-  
+
 
   protected def mkAuxMap(aux: List[AuxiliaryMethod]): Tree = {
     aux.foldLeft(q"Map.empty[String,psync.verification.AuxiliaryMethod]")( (acc, a) => {

@@ -15,7 +15,7 @@ object ReflectionUtils {
     typeOf[T].members.collect{
       //case m: TermSymbol if m.isSetter /*&& m.isPublic*/ =>
       case m: TermSymbol if m.isGetter /*&& m.isPublic*/ =>
-        val sym = m.accessed.asInstanceOf[TermSymbol]
+        val sym = m.accessed.asInstanceOf[Symbol]
         sym.toString
     }
   }

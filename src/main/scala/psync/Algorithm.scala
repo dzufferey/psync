@@ -32,7 +32,7 @@ abstract class Algorithm[IO, P <: Process[IO]](runtime: Runtime, opts: Algorithm
 
   /** A sample IO object. This is currently needed for the verification. */
   def dummyIO: IO
-  
+
   def startInstance(
       instanceId: Short,
       io: IO,
@@ -40,7 +40,7 @@ abstract class Algorithm[IO, P <: Process[IO]](runtime: Runtime, opts: Algorithm
     val p = getProcess
     runtime.startInstance(instanceId, p, io, messages)
   }
-  
+
   def stopInstance(instanceId: Short): Unit = {
     runtime.stopInstance(instanceId)
   }
@@ -77,7 +77,7 @@ abstract class Algorithm[IO, P <: Process[IO]](runtime: Runtime, opts: Algorithm
       proc
     }
   }
-    
+
   //preallocate
   if (runtime != null) {
     for (i <- 0 until options.processPool) {

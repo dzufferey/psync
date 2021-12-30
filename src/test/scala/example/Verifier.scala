@@ -6,10 +6,10 @@ import dzufferey.utils.LogLevel._
 import dzufferey.arg._
 
 object Verifier extends psync.verification.VerificationOptions {
-  
+
   var v = 1
   newOption("-n", Int( i => v = i), "1/2")
-  
+
   var lv = false
   newOption("-lv", Unit( () => lv = true), "LastVoting (default OTR)")
 
@@ -22,6 +22,7 @@ object Verifier extends psync.verification.VerificationOptions {
     Logger.moreVerbose
     apply(args.toIndexedSeq)
 
+    Logger("ConsensusVerifier", Debug, "input: " + input)
     val alg = input match {
       case x :: _ => x
       case Nil => "example." + (if (lv) "LastVoting" else "OTR") + (if (v == 1) "" else v)

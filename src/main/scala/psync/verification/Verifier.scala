@@ -4,7 +4,7 @@ import Utils._
 
 import psync._
 import psync.formula._
-import psync.logic.CL
+import psync.logic.{CL, ReduceTime}
 
 import dzufferey.utils.Namer
 import dzufferey.utils.Logger
@@ -16,20 +16,22 @@ import dzufferey.report._
 
 class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P])(implicit tag: TypeTag[P]) {
 
-  val spec = alg.spec 
+  val spec = alg.spec
 
   val process = alg.process
   //generate the initial state
-  Process.fillInitState = true 
+  Process.fillInitState = true
   process.init(alg.dummyIO)
-  
+
   val procGlobalVars: Set[Variable] = ProcessUtils.globalVariables
   //val procGhostVars: Set[Variable] = Set.empty
   val procLocalVars: Set[Variable] = ProcessUtils.localVariables[P]
   val procAllVars = procLocalVars /*++ procGhostVars*/ ++ procGlobalVars
 
   //TODO the local vars need to be typed (using the init and TR)
-  assert(procAllVars.forall(_.tpe != Wildcard))
+  if (procAllVars.exists(_.tpe == Wildcard)) {
+    Logger("Verifier", Warning, "not all var have known type: " + procAllVars.map(_.toStringFull))
+  }
 
   //to avoid capture during later renaming
   def warmup: Unit = {
@@ -156,7 +158,7 @@ class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P])(implicit tag: Type
 
   def mkTR(tr: RoundTransitionRelation, aux: Map[String, AuxiliaryMethod], env: Option[Formula]) = {
     val normal =
-      And( And( Eq(r, Plus(Literal(1),rp)),
+      And( And( Eq(ReduceTime.toInt(r), Plus(Literal(1),ReduceTime.toInt(rp))),
                 spec.safetyPredicate ),
            tr.makeFullTr(procLocalVars /*++ procGhostVars*/, aux) )
     env match {
@@ -205,7 +207,7 @@ class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P])(implicit tag: Type
         new SingleVC(
           descr + " holds initially",
           ForAll(List(procI), localize(procLocalVars /*++ procGhostVars*/, procI, procInitState)),
-          Eq(r, Literal(0)),
+          Eq(r, ReduceTime.fromInt(Literal(0))),
           removeInitPrefix(property),
           additionalAxioms
         ) +:
@@ -235,7 +237,7 @@ class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P])(implicit tag: Type
     val initVC = new SingleVC(
       "Initial state implies invariant 0",
       ForAll(List(procI), localize(procLocalVars /*++ procGhostVars*/, procI, procInitState)),
-      Eq(r, Literal(0)),
+      Eq(r, ReduceTime.fromInt(Literal(0))),
       removeInitPrefix(removeOldPrefix(spec.invariants.head)),
       additionalAxioms
     )
@@ -311,7 +313,7 @@ class Verifier[IO,P <: Process[IO]](val alg: Algorithm[IO,P])(implicit tag: Type
     vars.add(new Text("Local", procLocalVars.map(v => v.name+": " +v.tpe).mkString(", ")))
     //vars.add(new Text("Ghost", procGhostVars.map(v => v.name+": " +v.tpe).mkString(", ")))
     lst.add(vars)
-    
+
     lst.add(itemForFormula("Initial state", procInitState))
 
     val rnds = new List("Rounds")
@@ -370,6 +372,7 @@ object Verifier {
 
   def apply(className: String): Verifier[_, _] = {
     val str = "new psync.verification.Verifier(new " + className + ")"
+    Logger("Verifier", Debug, "parsing: " + str)
     import scala.reflect.runtime.universe._
     import scala.tools.reflect.ToolBox
     val tb = runtimeMirror(scala.reflect.runtime.universe.getClass.getClassLoader).mkToolBox()

@@ -17,7 +17,7 @@ class OtrProcess(timeout: Long, afterDecision: Int) extends Process[ConsensusIO[
   var decided = false
   var after = afterDecision
   var callback: ConsensusIO[Int] = null
-    
+
   def init(io: ConsensusIO[Int]) = i{
     callback = io
     x = io.initialValue
@@ -118,7 +118,7 @@ class OTR(rt: Runtime, timeout: Long, afterDecision: Int = 2) extends Algorithm[
       ("Irrevocability", P.forall( i => old(i.decided) ==> (i.decided && old(i.decision) == i.decision) ))
     )
   }
-  
+
   def process = new OtrProcess(timeout, afterDecision)
 
   def dummyIO = new ConsensusIO[Int]{

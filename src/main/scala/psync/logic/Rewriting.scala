@@ -50,7 +50,7 @@ case class RewriteRule(freeVariables: Set[Variable],
         }))
         assert(typeMap.isDefined, "RewriteRule or formula is ill-typed ?")
         val rhs2 = FormulaUtils.copyAndType(typeMap.get, rhs)
-        //do the substitution 
+        //do the substitution
         def fct(e: Formula) = e match {
           case v @ Variable(_) => m.getOrElse(v, v)
           case e => e
@@ -66,7 +66,7 @@ case class RewriteRule(freeVariables: Set[Variable],
   def apply(f: Formula): Formula = {
     FormulaUtils.stubornMapTopDown(rewrite, f)
   }
-  
+
   def apply(fs: List[Formula]): List[Formula] = fs.map(apply)
 
 }

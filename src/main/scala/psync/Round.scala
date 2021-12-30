@@ -11,7 +11,7 @@ import scala.reflect.ClassTag
  * The rounds are parameterized by a type `A` which is the payload of the
  * messages sent during the round. To specify a round, the user needs to
  * extend this class and implement the `send` and `update` methods.
- * 
+ *
  * The round class provide some helper methods such as `broadcast`,
  * `exitAtEndOfRound`, and `expectedNbrMessages`.
  */
@@ -20,7 +20,7 @@ abstract class Round[A: ClassTag: KryoRegistration](timeout: Long = 10L) extends
   //////////////////////////
   // user-defined methods //
   //////////////////////////
-  
+
   // /* The initial progress conditions: either GoAhead or Timeout */
   def init: Progress = Progress.timeout(timeout)
 
@@ -53,7 +53,7 @@ abstract class Round[A: ClassTag: KryoRegistration](timeout: Long = 10L) extends
     _continue = true
     c
   }
-  
+
   protected var mailbox: Map[ProcessID, A] = Map.empty
 
   final def receive(sender: ProcessID, payload: A): Progress = {
@@ -77,7 +77,7 @@ abstract class Round[A: ClassTag: KryoRegistration](timeout: Long = 10L) extends
  *
  * This version gives more control over how things evolves. The receive method
  * processes messages one-by-one and returns `true` if the runtime can move ahead.
- * 
+ *
  * The round class provide some helper methods such as `broadcast` and `sizeHint`.
  */
 abstract class EventRound[A: ClassTag: KryoRegistration] extends RtRound {
@@ -90,7 +90,7 @@ abstract class EventRound[A: ClassTag: KryoRegistration] extends RtRound {
 
   /** Processes a message and returns wether there have been enough messages to proceed. */
   def receive(sender: ProcessID, payload: A): Progress
-  
+
   /** Finishes the round and returns whether to continue (or terminate). */
   def finishRound(didTimeout: Boolean): Boolean = true
 
@@ -102,11 +102,11 @@ abstract class EventRound[A: ClassTag: KryoRegistration] extends RtRound {
   protected final def broadcast[A](msg: A): Map[ProcessID,A] = {
     group.replicas.foldLeft(Map.empty[ProcessID,A])( (acc, r) => acc + (r.id -> msg) )
   }
-  
+
   final protected[psync] def registerSerializer(kryo: Kryo) = {
     implicitly[KryoRegistration[A]].register(kryo)
   }
-  
+
   final protected[psync] def packSend(kryo: Kryo, alloc: Int => KryoByteBufOutput, sending: ProcessID => Unit) = {
     val msgs = send()
     var progress = Progress.unchanged
@@ -122,13 +122,12 @@ abstract class EventRound[A: ClassTag: KryoRegistration] extends RtRound {
     }
     progress
   }
-  
+
   final protected[psync] def receiveMsg(kryo: Kryo, sender: ProcessID, kryoIn: KryoByteBufInput) = {
     val a = kryo.readObject(kryoIn, implicitly[ClassTag[A]].runtimeClass).asInstanceOf[A]
     receive(sender, a)
   }
-  
-  
+
 }
 
 
@@ -166,7 +165,6 @@ abstract class RtRound {
   protected[psync] def setGroup(g: psync.runtime.Group): Unit = {
     group = g
   }
-  
 
 }
 

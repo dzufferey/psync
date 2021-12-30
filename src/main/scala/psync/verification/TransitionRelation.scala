@@ -75,6 +75,7 @@ class RoundTransitionRelation(val send: Formula,
     val j = procJ
     val vTpe = mailboxSend.tpe match {
       case FSet(Product(List(t, p))) => assert(p == procType); t
+      case FMap(p, t) => assert(p == procType); t
       case other => sys.error("mailbox type is " + other)
     }
     val v = Variable("v").setType(vTpe)
@@ -84,11 +85,11 @@ class RoundTransitionRelation(val send: Formula,
     val mj = skolemify(mailboxUpdt, j)
     val ho = skolemify(Variable("HO").setType(FSet(procType)), j)
     And(
-      ForAll(List(i, j, v), Eq(In(iv, mj), And(In(i, ho), In(jv, mi)))),
-      ForAll(List(j), Leq(Cardinality(mj), Cardinality(ho)))
+      ForAll(List(i, j, v), Eq(Eq(LookUp(mj, i), v), And(In(i, ho), Eq(LookUp(mi, j), v)))),
+      ForAll(List(j), Leq(Size(mj), Cardinality(ho)))
     )
   }
-  
+
   class InlinePost(aux: Map[String, AuxiliaryMethod], vars: Set[Variable], i: Variable) extends Transformer {
     override def transform(f: Formula): Formula = {
       f match {
@@ -129,18 +130,18 @@ class RoundTransitionRelation(val send: Formula,
     val updateFinal = ForAll(List(i), captureId(i, updateLocal))
     And(sendFinal, And(mailboxLink, updateFinal))
   }
-  
+
   lazy val primedSubst: Map[UnInterpretedFct, UnInterpretedFct] = {
     val map = (old zip primed).flatMap{ case (o,p) =>
       val o1 = skolemify(o)
       val o2 = o1.stripType
       val p1 = skolemify(p)
-      List((o1, p1), (o2, p1)) 
+      List((o1, p1), (o2, p1))
     }.toMap
     //println("primedSubst: " + map)
     map
   }
-  
+
   def primeFormula(f: Formula) = {
     removeOldPrefix(FormulaUtils.mapSymbol({
       case f @ UnInterpretedFct(_,_,_) =>
@@ -207,7 +208,7 @@ class TransitionRelation(_tr: Formula,
   def auxPrecondition(aux: Map[String, AuxiliaryMethod]): List[(Formula, Formula)] = {
     ???
   }
-  
+
   def report = ???
 
 }
